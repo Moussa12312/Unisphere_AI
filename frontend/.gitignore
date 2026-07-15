@@ -1,0 +1,28 @@
+# Dépendances (Frontend et Backend)
+node_modules/
+venv/
+env/
+.pnp
+.pnp.*
+
+# Next.js
+.next/
+out/
+build/
+
+# Environnement (Mots de passe)
+.env
+.env.local
+.env.production
+
+# Fichiers uploadés et QR Codes (ne pas mettre sur Git)
+uploads/
+qr_codes/
+
+# Divers
+.DS_Store
+*.pem
+*.log
+.vercel
+*.tsbuildinfo
+next-env.d.ts
