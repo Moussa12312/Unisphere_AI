@@ -5,7 +5,7 @@ import {
   AlertTriangle, Search, Eye, CheckCircle,
   Clock, XCircle, Loader2, MapPin, User, Calendar
 } from 'lucide-react';
-import api from '@/lib/api';
+import api, { API_BASE_URL } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 
 interface Incident {
@@ -245,7 +245,7 @@ export default function IncidentsPage() {
               
               {selectedIncident.photo && (
                 <img
-                  src={`http://localhost:8000/uploads/incidents/${selectedIncident.photo}`}
+                  src={`${API_BASE_URL}/uploads/incidents/${selectedIncident.photo}`}
                   alt={selectedIncident.title}
                   className="w-full h-48 object-cover rounded-lg mb-4"
                 />
