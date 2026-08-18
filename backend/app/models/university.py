@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON
+from sqlalchemy import Column, Integer, String, DateTime, JSON, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database.connection import Base
@@ -21,8 +21,10 @@ class University(Base):
     rector_name = Column(String, nullable=True)
     academic_year = Column(String, nullable=True)
     
-    # ✅ NOUVEAU : Configuration dynamique de la carte étudiant (JSON)
+    # ✅ NOUVEAU : Configuration dynamique de la carte étudiant (JSON) & Statut d'accès
     card_config = Column(JSON, nullable=True)
+    is_active = Column(Boolean, default=True)
+    status = Column(String, default="active")  # active, suspended
     
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

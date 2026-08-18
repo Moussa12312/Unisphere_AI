@@ -34,8 +34,13 @@ from app.models.censor import Censor
 from app.models import certificate_request
 from app.models.accounting import Supplier, ExpenseCategory, Expense, BankAccount, CashTransaction, Budget, FixedAsset, PayrollEntry
 from app.models.ledger import Account, JournalEntry, JournalEntryLine, FiscalYear, BankReconciliation
+from app.models.client_billing import ClientInvoice, ClientPayment
 
-# Modèles optionnels
+# ✅ Enregistrer automatiquement toutes les tables SQLAlchemy
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"⚠️ Erreur création tables: {e}")
 _optional_models = [
     ('app.models.incident', 'Incident'),
     ('app.models.alumni', 'AlumniProfile'),
@@ -189,6 +194,7 @@ deliberations_router = try_import_router("app.api.deliberations")
 
 
 censors_router = try_import_router("app.api.censors")
+superadmin_router = try_import_router("app.api.superadmin")
 
 
 # ============================================
@@ -203,6 +209,7 @@ all_routers = {
     "ai": ai_router,
     "security": security_router,
     "universities": universities_router,
+    "superadmin": superadmin_router,
     "students": students_router,
     "student_stats": student_stats_router,
     "teachers": teachers_router,

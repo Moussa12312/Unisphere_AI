@@ -18,11 +18,11 @@ try:
     existing = db.query(User).filter(User.email == email).first()
     if existing:
         existing.hashed_password = hash_password(password)
-        existing.role = UserRole.ADMIN if hasattr(UserRole, "SUPER_ADMIN") == False else "super_admin"
         existing.role = "super_admin"
         existing.is_active = True
         existing.is_email_verified = True
-        print(f"✅ Compte Super Admin mis à jour: {email}")
+        db.commit()
+        print(f"[OK] Compte Super Admin mis a jour: {email}")
     else:
         super_admin = User(
             full_name="Super Admin UniSphere",
@@ -34,7 +34,7 @@ try:
             university_id=None
         )
         db.add(super_admin)
-        print(f"✅ Compte Super Admin créé avec succès: {email}")
-    db.commit()
+        db.commit()
+        print(f"[OK] Compte Super Admin cree avec succes: {email}")
 finally:
     db.close()

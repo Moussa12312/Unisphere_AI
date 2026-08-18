@@ -1,26 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Building2, CheckCircle2, Clock, XCircle, TrendingUp } from 'lucide-react';
+import { Building2, Users, FileText, CheckCircle2, Clock, AlertTriangle, TrendingUp, DollarSign } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
+import Link from 'next/link';
 
 function formatFCFA(amount: number) {
   return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  active: { label: 'Actif', color: 'text-green-600 bg-green-50' },
-  trial: { label: 'Essai', color: 'text-blue-600 bg-blue-50' },
-  expired: { label: 'Expiré', color: 'text-red-600 bg-red-50' },
-  cancelled: { label: 'Annulé', color: 'text-slate-600 bg-slate-100' },
-  suspended: { label: 'Suspendu', color: 'text-amber-600 bg-amber-50' },
-};
-
 export default function SuperAdminDashboard() {
   const toast = useToast();
+  const [stats, setStats] = useState<any>(null);
   const [universities, setUniversities] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { load(); }, []);
@@ -28,101 +21,143 @@ export default function SuperAdminDashboard() {
   const load = async () => {
     setLoading(true);
     try {
-      const [unisRes, paysRes] = await Promise.all([
-        api.get('/api/v1/subscriptions/universities'),
-        api.get('/api/v1/subscriptions/payments')
+      const [statsRes, unisRes] = await Promise.all([
+        api.get('/api/v1/superadmin/dashboard-stats'),
+        api.get('/api/v1/superadmin/universities')
       ]);
+      setStats(statsRes.data);
       setUniversities(unisRes.data);
-      setPayments(paysRes.data);
     } catch (error) {
-      toast.error('Erreur lors du chargement');
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-[400px]"><div className="animate-spin rounded-full h-12 w-12 border-4 border-[#FF6B00] border-t-transparent"></div></div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#FF6B00] border-t-transparent"></div>
+      </div>
+    );
   }
-
-  const active = universities.filter(u => u.subscription?.status === 'active').length;
-  const trial = universities.filter(u => u.subscription?.status === 'trial').length;
-  const expired = universities.filter(u => u.subscription?.status === 'expired').length;
-  const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
-  const totalStudents = universities.reduce((sum, u) => sum + u.student_count, 0);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Vue d'ensemble de la plateforme</h1>
-        <p className="text-slate-500 mt-1">Toutes les universités abonnées à UniSphere AI</p>
+        <p className="text-slate-500 mt-1">Supervision globale et facturation des universités partenaires</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <Building2 className="text-slate-400 mb-2" size={20} />
-          <p className="text-2xl font-bold text-slate-900">{universities.length}</p>
-          <p className="text-xs text-slate-500">Universités</p>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-slate-500 font-medium">Universités Clients</span>
+            <Building2 className="text-blue-600" size={20} />
+          </div>
+          <p className="text-2xl font-bold text-slate-900">{stats?.total_universities || 0}</p>
+          <p className="text-xs text-slate-400 mt-1">{stats?.total_students || 0} étudiants inscrits</p>
         </div>
-        <div className="bg-green-50 rounded-xl border border-green-100 p-4">
-          <CheckCircle2 className="text-green-500 mb-2" size={20} />
-          <p className="text-2xl font-bold text-green-700">{active}</p>
-          <p className="text-xs text-green-600">Actives</p>
+
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-slate-500 font-medium">Total Facturé</span>
+            <FileText className="text-[#FF6B00]" size={20} />
+          </div>
+          <p className="text-xl font-bold text-slate-900">{formatFCFA(stats?.total_invoiced || 0)}</p>
+          <p className="text-xs text-slate-400 mt-1">Toutes prestations confondues</p>
         </div>
-        <div className="bg-blue-50 rounded-xl border border-blue-100 p-4">
-          <Clock className="text-blue-500 mb-2" size={20} />
-          <p className="text-2xl font-bold text-blue-700">{trial}</p>
-          <p className="text-xs text-blue-600">En essai</p>
+
+        <div className="bg-green-50 rounded-xl border border-green-100 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-green-700 font-medium">Total Encaissé</span>
+            <CheckCircle2 className="text-green-600" size={20} />
+          </div>
+          <p className="text-xl font-bold text-green-800">{formatFCFA(stats?.total_paid || 0)}</p>
+          <p className="text-xs text-green-600 mt-1">Recouvrement effectué</p>
         </div>
-        <div className="bg-red-50 rounded-xl border border-red-100 p-4">
-          <XCircle className="text-red-500 mb-2" size={20} />
-          <p className="text-2xl font-bold text-red-700">{expired}</p>
-          <p className="text-xs text-red-600">Expirées</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <TrendingUp className="text-[#FF6B00] mb-2" size={20} />
-          <p className="text-lg font-bold text-slate-900">{formatFCFA(totalRevenue)}</p>
-          <p className="text-xs text-slate-500">Revenus totaux</p>
+
+        <div className="bg-amber-50 rounded-xl border border-amber-100 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-amber-700 font-medium">Reste à Recouvrir</span>
+            <AlertTriangle className="text-amber-600" size={20} />
+          </div>
+          <p className="text-xl font-bold text-amber-800">{formatFCFA(stats?.balance_due || 0)}</p>
+          <p className="text-xs text-amber-600 mt-1">
+            {stats?.pending_invoices_count || 0} en attente • {stats?.overdue_invoices_count || 0} en retard
+          </p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-200">
-          <h3 className="font-semibold text-slate-900">Universités</h3>
-        </div>
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Université</th>
-              <th className="text-left px-4 py-3 font-medium text-slate-600">Plan</th>
-              <th className="text-center px-4 py-3 font-medium text-slate-600">Statut</th>
-              <th className="text-center px-4 py-3 font-medium text-slate-600">Étudiants</th>
-              <th className="text-center px-4 py-3 font-medium text-slate-600">Expire le</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {universities.map((u, i) => {
-              const config = u.subscription ? STATUS_CONFIG[u.subscription.status] : null;
-              return (
-                <tr key={i} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-900">{u.university.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{u.subscription?.plan_name || '—'}</td>
-                  <td className="px-4 py-3 text-center">
-                    {config ? (
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${config.color}`}>{config.label}</span>
-                    ) : (
-                      <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">Aucun abonnement</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center text-slate-600">{u.student_count}</td>
-                  <td className="px-4 py-3 text-center text-slate-500">
-                    {u.subscription ? new Date(u.subscription.end_date).toLocaleDateString('fr-FR') : '—'}
-                  </td>
+      {/* Main Grid: Universities list & Recent Payments */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Universities Status */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+            <h3 className="font-semibold text-slate-900">Situation des Universités Partner</h3>
+            <Link href="/superadmin/universities" className="text-xs text-[#FF6B00] hover:underline font-medium">Voir tout →</Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Université</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">Étudiants</th>
+                  <th className="text-right px-4 py-3 font-medium text-slate-600">Facturé</th>
+                  <th className="text-right px-4 py-3 font-medium text-slate-600">Encaissé</th>
+                  <th className="text-right px-4 py-3 font-medium text-slate-600">Solde Dû</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {universities.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-slate-400">Aucune université enregistrée</td>
+                  </tr>
+                ) : (
+                  universities.map((u, i) => (
+                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        <div>{u.university.name}</div>
+                        <div className="text-xs text-slate-400 font-normal">{u.university.email || u.university.country}</div>
+                      </td>
+                      <td className="px-4 py-3 text-center text-slate-600">{u.student_count}</td>
+                      <td className="px-4 py-3 text-right text-slate-700 font-medium">{formatFCFA(u.total_invoiced)}</td>
+                      <td className="px-4 py-3 text-right text-green-600 font-medium">{formatFCFA(u.total_paid)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-amber-600">
+                        {u.balance_due > 0 ? formatFCFA(u.balance_due) : <span className="text-green-600 text-xs bg-green-50 px-2 py-0.5 rounded-full">À jour</span>}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right: Recent Payments */}
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+          <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+            <h3 className="font-semibold text-slate-900">Derniers Encaissements</h3>
+            <Link href="/superadmin/payments" className="text-xs text-[#FF6B00] hover:underline font-medium">Voir tout →</Link>
+          </div>
+          <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+            {!stats?.recent_payments || stats.recent_payments.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-6">Aucun encaissement récent</p>
+            ) : (
+              stats.recent_payments.map((p: any) => (
+                <div key={p.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-900 text-sm">{p.university_name}</p>
+                    <p className="text-xs text-slate-500">Facture {p.invoice_number} • {new Date(p.payment_date).toLocaleDateString('fr-FR')}</p>
+                    <span className="text-[10px] text-slate-400 capitalize">{p.payment_method}</span>
+                  </div>
+                  <span className="font-bold text-green-600 text-sm">{formatFCFA(p.amount)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

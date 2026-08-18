@@ -46,11 +46,12 @@ def login(
                 ip_address=request.client.host if request.client else None,
                 user_agent=request.headers.get("user-agent"),
                 status="failure",
-                university_id=1
+                university_id=user.university_id if user else None
             )
             db.add(failed_log)
             db.commit()
         except Exception as e:
+            db.rollback()
             print(f"⚠️ Erreur log échec: {e}")
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
 
@@ -59,6 +60,15 @@ def login(
             status_code=403,
             detail="Veuillez confirmer votre adresse email avant de vous connecter. Verifiez votre boite mail."
         )
+
+    # ✅ Vérification si l'université est suspendue / bloquée par le Super-Admin
+    if user.role != "super_admin" and user.university_id:
+        univ = db.query(University).filter(University.id == user.university_id).first()
+        if univ and (univ.is_active == False or univ.status == "suspended"):
+            raise HTTPException(
+                status_code=403,
+                detail="Accès suspendu. Votre université a été bloquée par l'administrateur de la plateforme pour défaut de paiement ou motif administratif."
+            )
 
     # ✅ NOUVEAU : statut d'abonnement (jamais bloquant au login,
     # pour que l'admin puisse se connecter et renouveler.
@@ -89,6 +99,7 @@ def login(
         db.add(log)
         db.commit()
     except Exception as e:
+        db.rollback()
         print(f"⚠️ Erreur log succès: {e}")
 
     return {

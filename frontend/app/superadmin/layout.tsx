@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Package, Building2, Receipt, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, FileText, Building2, Receipt, LogOut, Shield } from 'lucide-react';
 import { authService } from '@/services/authService';
 
 const NAV_ITEMS = [
   { href: '/superadmin/dashboard', label: 'Vue d\'ensemble', icon: LayoutDashboard },
-  { href: '/superadmin/plans', label: 'Plans tarifaires', icon: Package },
-  { href: '/superadmin/universities', label: 'Universités', icon: Building2 },
-  { href: '/superadmin/payments', label: 'Paiements', icon: Receipt },
+  { href: '/superadmin/invoices', label: 'Factures Clients', icon: FileText },
+  { href: '/superadmin/universities', label: 'Universités Clients', icon: Building2 },
+  { href: '/superadmin/payments', label: 'Encaissements', icon: Receipt },
 ];
 
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {

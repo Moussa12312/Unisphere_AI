@@ -13,7 +13,7 @@ class AuditLog(Base):
     user_agent = Column(String, nullable=True)
     status = Column(String, default="success")  # success, failure, warning
     details = Column(Text, nullable=True)  # Détails JSON
-    university_id = Column(Integer, ForeignKey("universities.id"), nullable=False)
+    university_id = Column(Integer, ForeignKey("universities.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 
