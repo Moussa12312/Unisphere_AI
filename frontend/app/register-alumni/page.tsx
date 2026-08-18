@@ -1,8 +1,9 @@
 'use client';
+export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
-  GraduationCap, Briefcase, User, Mail, Phone, MapPin, Linkedin,
+  GraduationCap, Briefcase, User, Mail, Phone, MapPin, Link,
   Globe, Award, CheckCircle, AlertCircle, Loader2, Shield, Heart,
   BookOpen, Calendar, Star, Lightbulb, ChevronRight
 } from 'lucide-react';

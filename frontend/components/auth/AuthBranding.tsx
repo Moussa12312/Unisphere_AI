@@ -1,3 +1,9 @@
+type AuthBrandingProps = {
+  badgeText?: string;
+  headline?: string;
+  subheadline?: string;
+};
+
 const features = [
   {
     icon: (
@@ -37,30 +43,46 @@ const features = [
   },
 ];
 
-export default function AuthBranding() {
+export default function AuthBranding({
+  badgeText,
+  headline = "L'intelligence du Savoir,",
+  subheadline,
+}: AuthBrandingProps) {
   return (
-    <div className="hidden lg:flex lg:w-[30%] flex-col justify-center p-8 relative z-10 mr-30 -mt-55">
-      <div className="flex items-center gap-3 mb-4">
+    <div className="hidden lg:flex lg:w-1/2 flex-col justify-center p-8 lg:p-14 relative z-10">
+      {badgeText && (
+        <div className="mb-6">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-[#FF6B00]/20 border border-[#FF6B00]/40 text-[#FF6B00] text-xs font-bold tracking-widest uppercase">
+            {badgeText}
+          </span>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mb-6">
         <img src="/logo.png" alt="UniSphere AI" width={100} height={50} className="rounded-lg" />
         <h1 className="text-3xl font-bold text-white">
           UniSphere <span className="text-[#FF6B00]">AI</span>
         </h1>
       </div>
 
-      <h2 className="text-[25px] font-bold text-white mb-5 leading-tight">
-        L&apos;intelligence du Savoir,
+      <h2 className="text-3xl font-bold text-white mb-4 leading-tight">
+        {headline}
         <br />
         <span className="text-[#FF6B00]">La puissance du Numérique</span>
       </h2>
 
+      {subheadline && (
+        <p className="text-slate-300 mb-8 max-w-lg">{subheadline}</p>
+      )}
+
       <div className="space-y-6">
         {features.map((feature, idx) => (
-          <div key={idx} className="flex items-start gap-4 -mt-3">
+          <div key={idx} className="flex items-start gap-4">
             <div className="w-12 h-12 bg-[#FF6B00]/20 rounded-xl flex items-center justify-center text-[#FF6B00] flex-shrink-0">
               {feature.icon}
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white mb-0">{feature.title}</h3>
+              <h3 className="text-lg font-semibold text-white">{feature.title}</h3>
               <p className="text-slate-400 text-sm">{feature.description}</p>
             </div>
           </div>

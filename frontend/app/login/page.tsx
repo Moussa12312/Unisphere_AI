@@ -1,19 +1,21 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 
-
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   useEffect(() => {
     const message = searchParams.get('message');
@@ -21,8 +23,6 @@ export default function LoginPage() {
       toast(message, { icon: '✉️', duration: 8000 });
     }
   }, [searchParams]);
-  const [loading, setLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,11 +46,10 @@ export default function LoginPage() {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
 
-      // ✅ Générer les notifications une seule fois au login
       try {
         await api.post('/api/v1/notifications/generate');
       } catch (notifError) {
-        // Non bloquant : on ne bloque pas la connexion si ça échoue
+        // Non bloquant
       }
 
       toast.success('Connexion réussie !');
@@ -134,7 +133,6 @@ export default function LoginPage() {
     <div className="min-h-screen flex relative overflow-hidden" style={{
       background: 'linear-gradient(135deg, #0a1628 0%, #1e3a8a 50%, #3b82f6 100%)'
     }}>
-      {/* Background Image */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url('/login.png')` }}
@@ -142,9 +140,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628]/90 via-[#0a1628]/70 to-transparent"></div>
       </div>
 
-      {/* Left Side - Content */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center p-8 relative z-10 mr-30 -mt-9 ">
-        {/* Logo */}
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center p-8 relative z-10 mr-30 -mt-9">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex items-center justify-center">
             <img
@@ -160,7 +156,6 @@ export default function LoginPage() {
           </h1>
         </div>
 
-        {/* Main Title */}
         <h2 className="text-2xl font-bold text-white mb-4 leading-tight">
           L'intelligence du Savoir,<br />
           <span className="text-[#FF6B00]">La puissance du Numérique</span>
@@ -170,7 +165,6 @@ export default function LoginPage() {
           "L'éducation est l'arme la plus puissante qu'on puisse utiliser pour changer le monde."<span className="text-[#FF6B00]"> Nelson Mandela </span>
         </p>
 
-        {/* Features */}
         <div className="space-y-6">
           {features.map((feature, idx) => (
             <div key={idx} className="flex items-start gap-4 -mt-3">
@@ -186,19 +180,15 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
       <div className="w-90 lg:w-1/3 flex items-center justify-center p-5 relative z-10 mt-5 mr-8">
         <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 lg:p-7">
-          {/* Header */}
           <div className="text-center mb-4 -mt-4">
             <h2 className="text-3xl font-bold text-slate-900 mb-2">Connexion</h2>
             <p className="text-slate-500">Accédez à votre espace personnel</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email et Password sur la même ligne */}
             <div className="grid grid-cols-2 gap-4">
-              {/* Email */}
               <div>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -215,7 +205,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Password */}
               <div>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -240,7 +229,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember & Forgot */}
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -260,7 +248,6 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
@@ -277,7 +264,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Divider */}
           <div className="relative my-3">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-slate-200"></div>
@@ -287,7 +273,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Social Login */}
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -315,17 +300,22 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Footer */}
           <p className="text-center text-sm text-slate-500 mt-6">
             Pas encore de compte ?{' '}
             <a href="/register" className="text-[#FF6B00] hover:underline font-medium">
               Créer un compte
             </a>
           </p>
-
-
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-blue-900"><div className="text-white text-lg">Chargement...</div></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import {
-  Save, User, Briefcase, Award, MapPin, Linkedin, Globe,
+  Save, User, Briefcase, Award, MapPin, Link, Globe,
   GraduationCap, Star, Lightbulb, AlertTriangle, Heart,
   Loader2, CheckCircle
 } from 'lucide-react';
