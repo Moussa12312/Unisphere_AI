@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { themes, getThemeById, applyTheme as applyThemeToDOM } from '@/lib/themes';
 import { translations, getTranslation, applyLanguage as applyLanguageToDOM, Language, Translation } from '@/lib/translations';
 
+import api from '@/lib/api';
+
 export interface Settings {
   // Notifications
   email_notifications: boolean;
@@ -16,6 +18,7 @@ export interface Settings {
   
   // Apparence
   theme: string;  // ID du thème (ex: 'light-orange', 'dark-blue')
+  customPrimaryColor?: string; // Code HEX personnalisé (ex: '#8B5CF6')
   language: Language;
   density: 'compact' | 'comfortable' | 'spacious';
   
@@ -46,6 +49,7 @@ export const defaultSettings: Settings = {
   grades_notifications: true,
   payments_notifications: true,
   theme: 'light-orange',  // Thème par défaut
+  customPrimaryColor: '#FF6B00',
   language: 'fr',
   density: 'comfortable',
   show_online_status: true,
@@ -70,9 +74,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isLoaded) return;
     const theme = getThemeById(settings.theme);
-    applyThemeToDOM(theme);
+    applyThemeToDOM(theme, settings.customPrimaryColor);
     setIsDarkMode(theme.mode === 'dark');
-  }, [settings.theme, isLoaded]);
+  }, [settings.theme, settings.customPrimaryColor, isLoaded]);
 
   // Appliquer la densité
   useEffect(() => {
@@ -86,13 +90,37 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     applyLanguageToDOM(settings.language);
   }, [settings.language, isLoaded]);
 
-  const loadSettings = () => {
+  const loadSettings = async () => {
     try {
       if (typeof window === 'undefined') return;
       const saved = localStorage.getItem('app_settings');
+      let localParsed = {};
       if (saved) {
-        const parsed = JSON.parse(saved);
-        setSettings(prev => ({ ...prev, ...parsed }));
+        localParsed = JSON.parse(saved);
+        setSettings(prev => ({ ...prev, ...localParsed }));
+      }
+
+      // Tenter de charger le profil université pour synchroniser les couleurs d'établissement
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const res = await api.get('/api/v1/settings/university/profile');
+          if (res.data) {
+            setSettings(prev => {
+              const updated = {
+                ...prev,
+                ...localParsed,
+                ...(res.data.theme ? { theme: res.data.theme } : {}),
+                ...(res.data.primary_color ? { customPrimaryColor: res.data.primary_color } : {}),
+                ...(res.data.language ? { language: res.data.language } : {}),
+              };
+              saveSettings(updated);
+              return updated;
+            });
+          }
+        } catch {
+          // Ignorer si pas connecté ou endpoint non disponible
+        }
       }
     } catch (error) {
       console.error('Erreur chargement paramètres:', error);

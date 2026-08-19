@@ -141,7 +141,7 @@ export interface Theme {
     return themes.find(t => t.id === id) || themes[0];
   }
   
-  export function applyTheme(theme: Theme) {
+  export function applyTheme(theme: Theme, customPrimary?: string) {
     if (typeof window === 'undefined') return;
     
     const root = document.documentElement;
@@ -149,14 +149,55 @@ export interface Theme {
     // Appliquer le mode clair/sombre
     root.classList.toggle('dark', theme.mode === 'dark');
     
+    const primaryColor = customPrimary || theme.colors.primary;
+    // Approximation simple pour la couleur hover si customPrimary est défini
+    const primaryHover = customPrimary ? customPrimary : theme.colors.primaryHover;
+    
     // Appliquer les couleurs via variables CSS
-    root.style.setProperty('--theme-primary', theme.colors.primary);
-    root.style.setProperty('--theme-primary-hover', theme.colors.primaryHover);
+    root.style.setProperty('--theme-primary', primaryColor);
+    root.style.setProperty('--theme-primary-hover', primaryHover);
     root.style.setProperty('--theme-background', theme.colors.background);
     root.style.setProperty('--theme-surface', theme.colors.surface);
     root.style.setProperty('--theme-text', theme.colors.text);
     root.style.setProperty('--theme-text-secondary', theme.colors.textSecondary);
     root.style.setProperty('--theme-border', theme.colors.border);
+    
+    // Mettre à jour aussi les styles dynamiques injectés
+    let styleTag = document.getElementById('dynamic-theme-styles');
+    if (!styleTag) {
+      styleTag = document.createElement('style');
+      styleTag.id = 'dynamic-theme-styles';
+      document.head.appendChild(styleTag);
+    }
+    styleTag.innerHTML = `
+      :root {
+        --theme-primary: ${primaryColor} !important;
+        --theme-primary-hover: ${primaryHover} !important;
+        --theme-background: ${theme.colors.background} !important;
+        --theme-surface: ${theme.colors.surface} !important;
+        --theme-text: ${theme.colors.text} !important;
+        --theme-text-secondary: ${theme.colors.textSecondary} !important;
+        --theme-border: ${theme.colors.border} !important;
+      }
+      .bg-\\[\\#FF6B00\\], .bg-orange-500, .bg-orange-600 {
+        background-color: ${primaryColor} !important;
+      }
+      .text-\\[\\#FF6B00\\], .text-orange-500, .text-orange-600 {
+        color: ${primaryColor} !important;
+      }
+      .border-\\[\\#FF6B00\\], .border-orange-500, .border-orange-600 {
+        border-color: ${primaryColor} !important;
+      }
+      .hover\\:bg-\\[\\#e55f00\\]:hover, .hover\\:bg-orange-600:hover, .hover\\:bg-orange-700:hover {
+        background-color: ${primaryHover} !important;
+      }
+      .hover\\:text-\\[\\#FF6B00\\]:hover, .hover\\:text-orange-500:hover {
+        color: ${primaryColor} !important;
+      }
+      .focus\\:ring-\\[\\#FF6B00\\]:focus {
+        --tw-ring-color: ${primaryColor} !important;
+      }
+    `;
     
     // Appliquer directement sur le body pour un effet immédiat
     document.body.style.backgroundColor = theme.colors.background;

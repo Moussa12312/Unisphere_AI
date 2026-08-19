@@ -84,27 +84,27 @@ export default function StudentDashboardPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
       {/* En-tête */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Bonjour, {data.student_name} 👋</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Bonjour, {data.student_name} 👋</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             {data.filiere} • Matricule : <span className="font-mono text-slate-700">{data.matricule}</span>
           </p>
         </div>
-        <div className="flex gap-3">
-          <a href="/student/grades" className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2">
-            <FileText size={16} /> Relevé de notes
+        <div className="flex flex-wrap gap-2">
+          <a href="/student/grades" className="flex-1 sm:flex-none px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs sm:text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5">
+            <FileText size={15} /> Relevé
           </a>
-          <a href="/student/schedule" className="px-4 py-2 bg-[#FF6B00] text-white rounded-lg text-sm font-medium hover:bg-[#e55f00] transition-colors flex items-center gap-2 shadow-sm">
-            <Calendar size={16} /> Emploi du temps
+          <a href="/student/schedule" className="flex-1 sm:flex-none px-3 py-2 bg-[#FF6B00] text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-[#e55f00] transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+            <Calendar size={15} /> Emploi du temps
           </a>
         </div>
       </div>
 
       {/* KPIs Principaux */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Moyenne Générale */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-3">

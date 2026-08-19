@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
+import api, { API_BASE_URL } from '@/lib/api';
 
 
 interface Document {

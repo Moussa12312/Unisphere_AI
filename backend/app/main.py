@@ -40,7 +40,7 @@ from app.models.client_billing import ClientInvoice, ClientPayment
 try:
     Base.metadata.create_all(bind=engine)
 except Exception as e:
-    print(f"⚠️ Erreur création tables: {e}")
+    print(f"[WARNING] Erreur creation tables: {e}")
 _optional_models = [
     ('app.models.incident', 'Incident'),
     ('app.models.alumni', 'AlumniProfile'),

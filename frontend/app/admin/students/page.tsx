@@ -6,6 +6,8 @@ import { studentService } from '@/services/studentService';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
 
+import { getMediaUrl } from '@/lib/api';
+
 interface Student {
   id: number;
   first_name: string;
@@ -258,9 +260,12 @@ export default function StudentsPage() {
                                                 <td className="px-6 py-3 pl-36">
                                                   <div className="flex items-center gap-3">
                                                     <img
-                                                      src={student.photo ? `http://localhost:8000/uploads/${student.photo}` : `https://ui-avatars.com/api/?name=${student.first_name}+${student.last_name}&background=FF6B00&color=fff&size=64`}
+                                                      src={getMediaUrl(student.photo, `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=64`)}
                                                       alt=""
-                                                      className="w-8 h-8 rounded-full object-cover"
+                                                      className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                                                      onError={(e) => {
+                                                        (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=64`;
+                                                      }}
                                                     />
                                                     <div>
                                                       <p className="font-medium text-slate-900 text-sm">{student.first_name} {student.last_name}</p>

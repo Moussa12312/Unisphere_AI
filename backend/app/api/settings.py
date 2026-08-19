@@ -65,6 +65,8 @@ def get_university_profile(
     if not university:
         raise HTTPException(status_code=404, detail="Université non trouvée")
     
+    card_cfg = university.card_config or {}
+    
     return {
         "id": university.id,
         "name": university.name,
@@ -77,7 +79,11 @@ def get_university_profile(
         "description": university.description,
         "established_year": university.established_year,
         "rector_name": university.rector_name,
-        "academic_year": university.academic_year
+        "academic_year": university.academic_year,
+        "theme": card_cfg.get("theme", "light-orange"),
+        "primary_color": card_cfg.get("primary_color", "#FF6B00"),
+        "language": card_cfg.get("language", "fr"),
+        "card_config": card_cfg
     }
 
 
@@ -91,6 +97,16 @@ def update_university_profile(
     university = db.query(University).filter(University.id == current_user.university_id).first()
     if not university:
         raise HTTPException(status_code=404, detail="Université non trouvée")
+    
+    card_cfg = dict(university.card_config or {})
+    if "theme" in request:
+        card_cfg["theme"] = request["theme"]
+    if "primary_color" in request:
+        card_cfg["primary_color"] = request["primary_color"]
+    if "language" in request:
+        card_cfg["language"] = request["language"]
+    
+    university.card_config = card_cfg
     
     for key, value in request.items():
         if hasattr(university, key):

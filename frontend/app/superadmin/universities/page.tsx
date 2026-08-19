@@ -55,7 +55,7 @@ export default function SuperAdminUniversitiesPage() {
         ? `L'accès à la plateforme sera réactivé pour tous les utilisateurs de "${item.university.name}".`
         : `L'accès à la plateforme sera immédiatement BLOQUÉ pour tous les membres de "${item.university.name}". Ils ne pourront plus se connecter tant qu me l'université n'est pas débloquée.`,
       confirmText: newActiveState ? 'Débloquer l\'accès' : 'Bloquer l\'université',
-      variant: newActiveState ? 'default' : 'danger'
+      variant: newActiveState ? 'info' : 'danger'
     });
 
     if (!ok) return;

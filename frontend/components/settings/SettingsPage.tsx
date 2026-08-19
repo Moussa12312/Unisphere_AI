@@ -227,6 +227,52 @@ export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Set
           </div>
         </div>
 
+        {/* ✅ Couleur Primaire d'Établissement Personnalisée */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            Couleur Principale d'Établissement (Brand Color)
+          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            {[
+              { label: 'Orange UniSphere', color: '#FF6B00' },
+              { label: 'Bleu Royal', color: '#2563EB' },
+              { label: 'Vert Émeraude', color: '#059669' },
+              { label: 'Violet Majestueux', color: '#7C3AED' },
+              { label: 'Rouge Cramoisi', color: '#DC2626' },
+              { label: 'Sombre Élégant', color: '#1E293B' },
+            ].map((preset) => (
+              <button
+                key={preset.color}
+                onClick={() => {
+                  updateSetting('customPrimaryColor', preset.color);
+                  toast.success(`Couleur ${preset.label} appliquée !`);
+                }}
+                className={`w-9 h-9 rounded-full border-2 transition-all flex items-center justify-center ${
+                  settings.customPrimaryColor === preset.color
+                    ? 'border-black dark:border-white scale-110 shadow-md'
+                    : 'border-transparent hover:scale-105'
+                }`}
+                style={{ backgroundColor: preset.color }}
+                title={preset.label}
+              >
+                {settings.customPrimaryColor === preset.color && (
+                  <CheckCircle size={14} className="text-white drop-shadow" />
+                )}
+              </button>
+            ))}
+
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs text-slate-500">Personnalisé :</span>
+              <input
+                type="color"
+                value={settings.customPrimaryColor || '#FF6B00'}
+                onChange={(e) => updateSetting('customPrimaryColor', e.target.value)}
+                className="w-9 h-9 p-0.5 rounded-lg border border-slate-300 cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Langue */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -471,7 +517,15 @@ function playTestSound(volume: number) {
 }
 
 // Composant Toggle réutilisable
-function ToggleRow({ icon: Icon, label, description, checked, onChange }: any) {
+interface ToggleRowProps {
+  icon?: any;
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}
+
+function ToggleRow({ icon: Icon, label, description, checked, onChange }: ToggleRowProps) {
   return (
     <div className="flex items-center justify-between py-3 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg px-2 -mx-2 transition-colors">
       <div className="flex items-start gap-3 flex-1">

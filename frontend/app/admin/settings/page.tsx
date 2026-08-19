@@ -11,8 +11,13 @@ import {
 import api, { API_BASE_URL } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 
+import { useSettings } from '@/contexts/SettingsContext';
+import { themes } from '@/lib/themes';
+import { Palette } from 'lucide-react';
+
 export default function UniversitySettingsPage() {
   const router = useRouter();
+  const { settings, updateSetting, updateSettings } = useSettings();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -21,7 +26,10 @@ export default function UniversitySettingsPage() {
     name: '', slogan: '', address: '', phone: '',
     email: '', website: '', description: '',
     established_year: '', rector_name: '',
-    academic_year: '', logo: ''
+    academic_year: '', logo: '',
+    theme: 'light-orange',
+    primary_color: '#FF6B00',
+    language: 'fr'
   });
 
   const [subscription, setSubscription] = useState<any>(null);
@@ -36,6 +44,10 @@ export default function UniversitySettingsPage() {
     setLoading(true);
     try {
       const response = await api.get('/api/v1/settings/university/profile');
+      const loadedTheme = response.data.theme || settings.theme || 'light-orange';
+      const loadedColor = response.data.primary_color || settings.customPrimaryColor || '#FF6B00';
+      const loadedLang = response.data.language || settings.language || 'fr';
+
       setFormData({
         name: response.data.name || '',
         slogan: response.data.slogan || '',
@@ -47,7 +59,16 @@ export default function UniversitySettingsPage() {
         established_year: response.data.established_year?.toString() || '',
         rector_name: response.data.rector_name || '',
         academic_year: response.data.academic_year || '',
-        logo: response.data.logo || ''
+        logo: response.data.logo || '',
+        theme: loadedTheme,
+        primary_color: loadedColor,
+        language: loadedLang
+      });
+
+      updateSettings({
+        theme: loadedTheme,
+        customPrimaryColor: loadedColor,
+        language: loadedLang
       });
     } catch (error) {
       toast.error('Erreur lors du chargement du profil');
@@ -70,6 +91,13 @@ export default function UniversitySettingsPage() {
     try {
       await api.put('/api/v1/settings/university/profile', formData);
 
+      // Mettre à jour immédiatement le contexte d'apparence
+      updateSettings({
+        theme: formData.theme,
+        customPrimaryColor: formData.primary_color,
+        language: formData.language as any
+      });
+
       if (newLogoFile) {
         const fd = new FormData();
         fd.append('logo', newLogoFile);
@@ -80,12 +108,11 @@ export default function UniversitySettingsPage() {
         setFormData(prev => ({ ...prev, logo: logoRes.data.logo_url }));
       }
 
-      toast.success('Profil mis à jour avec succès !');
+      toast.success('Profil et thème mis à jour avec succès !');
       window.dispatchEvent(new CustomEvent('universityUpdated'));
       setNewLogoFile(null);
       setPreviewLogo(null);
       setHasChanges(false);
-      setTimeout(() => window.location.reload(), 1500);
     } catch (error: any) {
       toast.error('Erreur lors de la sauvegarde');
     } finally {
@@ -275,12 +302,142 @@ export default function UniversitySettingsPage() {
         <h2 className="text-lg font-bold text-slate-900 mb-4">Description</h2>
         <div className="relative">
           <FileText className="absolute left-3 top-3 text-slate-400" size={18} />
-          <textarea value={formData.description} onChange={(e) => handleChange('description', e.target.value)} rows={6} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] resize-none" />
+          <textarea value={formData.description} onChange={(e) => handleChange('description', e.target.value)} rows={4} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] resize-none" />
+        </div>
+      </div>
+
+      {/* ✅ Apparence & Couleurs de l'Université */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <Palette size={20} className="text-[#FF6B00]" />
+          Apparence & Couleurs de l'Établissement
+        </h2>
+
+        {/* Thème */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-slate-700 mb-3">
+            Thème de l'interface
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {themes.map((theme) => {
+              const isActive = formData.theme === theme.id;
+              return (
+                <button
+                  type="button"
+                  key={theme.id}
+                  onClick={() => {
+                    handleChange('theme', theme.id);
+                    updateSetting('theme', theme.id);
+                  }}
+                  className={`relative p-3 rounded-xl border-2 transition-all ${
+                    isActive
+                      ? 'border-[#FF6B00] bg-orange-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div 
+                    className="h-10 rounded-lg mb-2 border border-slate-200 overflow-hidden flex"
+                    style={{ backgroundColor: theme.colors.background }}
+                  >
+                    <div className="w-1/3 h-full" style={{ backgroundColor: theme.colors.surface }} />
+                    <div className="w-1/3 h-full" style={{ backgroundColor: theme.colors.primary }} />
+                    <div className="w-1/3 h-full" style={{ backgroundColor: theme.colors.text }} />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>{theme.emoji}</span>
+                    <span className="text-xs font-medium text-slate-700 truncate">{theme.name}</span>
+                  </div>
+                  {isActive && <CheckCircle size={14} className="absolute top-2 right-2 text-[#FF6B00]" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Couleur Principale d'Établissement */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Couleur Principale d'Établissement (Brand Color)
+          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            {[
+              { label: 'Orange UniSphere', color: '#FF6B00' },
+              { label: 'Bleu Royal', color: '#2563EB' },
+              { label: 'Vert Émeraude', color: '#059669' },
+              { label: 'Violet Majestueux', color: '#7C3AED' },
+              { label: 'Rouge Cramoisi', color: '#DC2626' },
+              { label: 'Sombre Élégant', color: '#1E293B' },
+            ].map((preset) => (
+              <button
+                type="button"
+                key={preset.color}
+                onClick={() => {
+                  handleChange('primary_color', preset.color);
+                  updateSetting('customPrimaryColor', preset.color);
+                }}
+                className={`w-9 h-9 rounded-full border-2 transition-all flex items-center justify-center ${
+                  formData.primary_color === preset.color
+                    ? 'border-black scale-110 shadow-md'
+                    : 'border-transparent hover:scale-105'
+                }`}
+                style={{ backgroundColor: preset.color }}
+                title={preset.label}
+              >
+                {formData.primary_color === preset.color && <CheckCircle size={14} className="text-white drop-shadow" />}
+              </button>
+            ))}
+
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs text-slate-500">Sélecteur HEX :</span>
+              <input
+                type="color"
+                value={formData.primary_color}
+                onChange={(e) => {
+                  handleChange('primary_color', e.target.value);
+                  updateSetting('customPrimaryColor', e.target.value);
+                }}
+                className="w-9 h-9 p-0.5 rounded-lg border border-slate-300 cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Langue de l'université */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Langue par défaut de l'interface
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[
+              { id: 'fr', flag: '🇫🇷', name: 'Français' },
+              { id: 'en', flag: '🇬🇧', name: 'English' },
+              { id: 'ar', flag: '🇸🇦', name: 'العربية' },
+              { id: 'bm', flag: '🇲🇱', name: 'Bamanankan' },
+            ].map((lang) => (
+              <button
+                type="button"
+                key={lang.id}
+                onClick={() => {
+                  handleChange('language', lang.id);
+                  updateSetting('language', lang.id as any);
+                }}
+                className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                  formData.language === lang.id
+                    ? 'border-[#FF6B00] bg-orange-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <span className="text-2xl">{lang.flag}</span>
+                <span className="text-sm font-medium">{lang.name}</span>
+                {formData.language === lang.id && <CheckCircle size={14} className="text-[#FF6B00] ml-auto" />}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Bouton sauvegarder */}
-      <div className="flex justify-end sticky bottom-6">
+      <div className="flex justify-end sticky bottom-6 z-20">
         <button onClick={handleSave} disabled={saving || !hasChanges} className="flex items-center gap-2 px-8 py-4 bg-[#FF6B00] text-white rounded-xl text-sm font-semibold hover:bg-[#e55f00] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
           <Save size={18} /> {saving ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
         </button>

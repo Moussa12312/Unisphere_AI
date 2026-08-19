@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
+import { getMediaUrl } from "@/lib/api";
 
 export default function StudentCard({
   params,
@@ -202,13 +203,12 @@ export default function StudentCard({
             >
 
               <img
-                src={
-                  student.photo
-                    ? `http://127.0.0.1:8000/uploads/${student.photo}`
-                    : "https://ui-avatars.com/api/?name=Student"
-                }
+                src={getMediaUrl(student.photo, `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || 'Student')}+${encodeURIComponent(student.last_name || '')}`)}
                 alt="Student"
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || 'Student')}+${encodeURIComponent(student.last_name || '')}`;
+                }}
               />
 
             </div>

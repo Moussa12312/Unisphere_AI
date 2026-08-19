@@ -1,6 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   GraduationCap, Briefcase, User, Mail, Phone, MapPin, Link,
@@ -10,7 +11,7 @@ import {
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 
-export default function AlumniRegisterPage() {
+function AlumniRegisterContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token');
@@ -617,5 +618,17 @@ export default function AlumniRegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AlumniRegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50">
+        <Loader2 size={40} className="animate-spin text-[#FF6B00]" />
+      </div>
+    }>
+      <AlumniRegisterContent />
+    </Suspense>
   );
 }

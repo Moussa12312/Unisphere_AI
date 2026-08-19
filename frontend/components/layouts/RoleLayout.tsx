@@ -60,7 +60,7 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
 
   useEffect(() => {
     const checkWidth = () => {
-      const desktop = window.innerWidth >= 600;
+      const desktop = window.innerWidth >= 768;
       setIsDesktop(desktop);
       if (desktop) {
         setIsSidebarOpen(false);
@@ -71,6 +71,13 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
     window.addEventListener('resize', checkWidth);
     return () => window.removeEventListener('resize', checkWidth);
   }, []);
+
+  // Fermer la sidebar sur mobile à chaque changement de page
+  useEffect(() => {
+    if (!isDesktop) {
+      setIsSidebarOpen(false);
+    }
+  }, [pathname, isDesktop]);
 
   if (loading) {
     return (

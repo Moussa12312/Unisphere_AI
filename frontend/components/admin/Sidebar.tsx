@@ -9,7 +9,7 @@ import {
   Upload, CheckCircle, Award, TrendingUp, MessageSquare,
   ClipboardList, Receipt, AlertCircle, FileCheck, School, Building2, DollarSign, Shield,
   QrCode, Edit3, Clock, AlertTriangle, RotateCcw, FileBarChart,
-  BrainCircuit, UserPlus, Folder, Users2, ScrollText, FileSearch, Scale, Lock
+  BrainCircuit, UserPlus, Folder, Users2, ScrollText, FileSearch, Scale, Lock, HelpCircle
 } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { useRouter } from 'next/navigation';
@@ -91,6 +91,7 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Profil Université', href: '/admin/settings', icon: Building2 },
         { label: 'Configuration', href: '/admin/settings/config', icon: GraduationCap },
         { label: 'Sécurité & Audit', href: '/admin/settings/security', icon: Shield },
+        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
@@ -156,6 +157,7 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'PARAMÈTRES',
       items: [
         { label: 'Paramètre', href: '/secretary/settings', icon: Settings },
+        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
@@ -210,7 +212,8 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'PARAMÈTRES',
       items: [
-        { label: 'Paramètre', href: '/censeur/settings/anomalies', icon: Settings },  // ✅ NOUVEAU
+        { label: 'Paramètre', href: '/censeur/settings/anomalies', icon: Settings },
+        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
@@ -270,7 +273,8 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'PARAMÈTRES',
       items: [
-        { label: 'Paramètre', href: '/accountant/settings', icon: Settings },  // ✅ NOUVEAU
+        { label: 'Paramètre', href: '/accountant/settings', icon: Settings },
+        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
@@ -315,7 +319,8 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'PARAMÈTRES',
       items: [
-        { label: 'Paramètre', href: '/teacher/settings', icon: Settings },  // ✅ NOUVEAU
+        { label: 'Paramètre', href: '/teacher/settings', icon: Settings },
+        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
@@ -364,6 +369,7 @@ const MENU_CONFIG: Record<string, Array<{
       items: [
         { label: 'Profil ', href: '/student/profile', icon: Building2 },
         { label: 'paramètre', href: '/student/settings', icon: Shield },
+        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
@@ -401,6 +407,7 @@ const MENU_CONFIG: Record<string, Array<{
       items: [
         { label: 'Profil', href: '/guard/profile', icon: UserCog },
         { label: 'Paramètre', href: '/guard/settings', icon: Settings },
+        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     },
   ],
@@ -433,6 +440,7 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'AUTRE',
       items: [
         { label: 'Paramètres', href: '/alumni/settings', icon: Settings },
+        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
