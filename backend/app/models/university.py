@@ -25,6 +25,8 @@ class University(Base):
     card_config = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True)
     status = Column(String, default="active")  # active, suspended
+    custom_domain = Column(String, nullable=True, unique=True)
+    institution_type = Column(String, nullable=True)
     
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

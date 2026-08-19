@@ -4,6 +4,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from app.database.connection import SessionLocal
 from app.models.user import User
+from app.models.university import University
 from app.core.config import SECRET_KEY, ALGORITHM
 from app.core.permissions import has_permission, get_role_permissions
 
@@ -43,6 +44,15 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     
+    # ✅ Bloque les utilisateurs d'une université suspendue (même déjà connectés)
+    if user.role != "super_admin" and user.university_id:
+        univ = db.query(University).filter(University.id == user.university_id).first()
+        if univ and (univ.is_active == False or univ.status == "suspended"):
+            raise HTTPException(
+                status_code=403,
+                detail="Accès suspendu. Votre université a été bloquée par l'administrateur de la plateforme.",
+            )
+
     return user
 
 

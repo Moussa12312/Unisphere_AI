@@ -442,3 +442,78 @@ def record_payment(
         "total_paid": total_paid,
         "remaining_balance": max(0.0, invoice.amount - total_paid)
     }
+
+
+# ==========================================
+# CREATE UNIVERSITY + ADMIN (onboarding contrôlé)
+# ==========================================
+from app.core.security import pwd_context
+
+class UniversityCreate(BaseModel):
+    university_name: str
+    country: Optional[str] = None
+    institution_type: Optional[str] = None
+    university_email: Optional[str] = None
+    phone: Optional[str] = None
+    custom_domain: Optional[str] = None
+    admin_full_name: str
+    admin_email: str
+    admin_phone: Optional[str] = None
+    admin_password: str
+
+@router.post("/universities")
+def create_university(
+    data: UniversityCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin"))
+):
+    if not data.university_name.strip():
+        raise HTTPException(status_code=400, detail="Nom de l'université requis")
+
+    existing_admin = db.query(User).filter(User.email == data.admin_email).first()
+    if existing_admin:
+        raise HTTPException(status_code=400, detail="Cet email administrateur existe déjà")
+
+    if data.custom_domain:
+        dom = data.custom_domain.strip().lower().replace("https://", "").replace("http://", "").split("/")[0]
+        existing = db.query(University).filter(University.custom_domain == dom).first()
+        if existing:
+            raise HTTPException(status_code=400, detail=f"Le domaine {dom} est déjà utilisé par {existing.name}")
+        data.custom_domain = dom
+    else:
+        data.custom_domain = None
+
+    university = University(
+        name=data.university_name.strip(),
+        email=data.university_email,
+        country=data.country,
+        phone=data.phone,
+        custom_domain=data.custom_domain,
+        institution_type=data.institution_type,
+        is_active=True,
+        status="active",
+    )
+    db.add(university)
+    db.commit()
+    db.refresh(university)
+
+    admin = User(
+        full_name=data.admin_full_name.strip(),
+        email=data.admin_email.strip().lower(),
+        hashed_password=pwd_context.hash(data.admin_password),
+        role="admin",
+        phone=data.admin_phone,
+        university_id=university.id,
+        is_active=True,
+        is_email_verified=True,
+    )
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
+
+    return {
+        "message": f"Université {university.name} créée avec succès",
+        "university_id": university.id,
+        "admin_email": admin.email,
+        "admin_password": data.admin_password,
+    }

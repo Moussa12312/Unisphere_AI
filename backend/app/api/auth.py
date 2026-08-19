@@ -449,3 +449,14 @@ def forgot_password(
         "message": "Mot de passe mis à jour avec succès ! Vous pouvez maintenant vous connecter.",
         "temp_password": temp_password if not new_password else None
     }
+
+# ==========================================
+# CONTACT PLATEFORME (public, pour page suspendu)
+# ==========================================
+@router.get("/platform-contact")
+def platform_contact(db: Session = Depends(get_db)):
+    sa = db.query(User).filter(User.role == "super_admin").first()
+    return {
+        "contact_email": sa.email if sa else "support@unisphere-ai.com",
+        "platform_name": "UniSphere AI",
+    }

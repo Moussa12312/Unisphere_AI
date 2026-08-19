@@ -71,6 +71,10 @@ function LoginForm() {
       router.push(targetRoute);
 
     } catch (error: any) {
+      if (error.response?.status === 403 && String(error.response?.data?.detail || '').toLowerCase().includes('suspendu')) {
+        router.push('/suspended');
+        return;
+      }
       let message = 'Erreur de connexion';
 
       if (error.response?.data?.detail) {

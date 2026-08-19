@@ -441,7 +441,7 @@ LANGUE : Français uniquement."""
         messages.append({"role": "user", "content": message})
         
         completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-20b",
             messages=messages,
             temperature=0.7,
             max_tokens=1500,  # ✅ Réponses plus courtes et naturelles
