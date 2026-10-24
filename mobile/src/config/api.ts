@@ -5,7 +5,7 @@ const getHost = () => {
     return window.location.hostname || '127.0.0.1';
   }
   // IP Wi-Fi active pour Expo Go et smartphones sur le réseau local
-  return '192.168.1.7';
+  return '192.168.1.4';
 };
 
 export const API_CONFIG = {

@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UniSphere AI — Application Mobile sur Téléphone</title>
+  <title>UniSphere AI — QR Code Mobile Expo Go</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #0f172a;
       color: #f8fafc;
       display: flex;
@@ -15,17 +15,17 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: 24px;
+      padding: 20px;
     }
     .card {
       background: #1e293b;
       border: 1px solid #334155;
-      border-radius: 28px;
-      padding: 40px 32px;
-      max-width: 520px;
+      border-radius: 24px;
+      padding: 32px 24px;
+      max-width: 480px;
       width: 100%;
       text-align: center;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
     }
     .badge {
       display: inline-block;
@@ -33,108 +33,81 @@
       color: white;
       font-size: 11px;
       font-weight: 800;
-      padding: 6px 16px;
+      padding: 6px 14px;
       border-radius: 9999px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
     h1 {
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 900;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       color: #ffffff;
-      letter-spacing: -0.5px;
     }
     p.desc {
       color: #94a3b8;
-      font-size: 14px;
-      margin-bottom: 24px;
+      font-size: 13px;
+      margin-bottom: 20px;
       line-height: 1.5;
     }
     .qr-wrapper {
       background: white;
       border-radius: 20px;
-      padding: 20px;
+      padding: 16px;
       display: inline-block;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      margin-bottom: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      margin-bottom: 20px;
     }
-    .qr-placeholder {
-      width: 240px;
-      height: 240px;
-      background: #f8fafc;
+    .qr-img {
+      width: 250px;
+      height: 250px;
+      display: block;
+    }
+    .url-badge {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #38bdf8;
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 14px;
       border-radius: 12px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      border: 2px dashed #cbd5e1;
-    }
-    .qr-icon {
-      font-size: 64px;
-      margin-bottom: 12px;
-    }
-    .qr-text {
-      color: #0f172a;
-      font-weight: 800;
-      font-size: 14px;
+      margin-bottom: 20px;
+      word-break: break-all;
     }
     .spaces-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 24px;
+      gap: 6px;
+      margin-bottom: 20px;
     }
     .space-pill {
       background: #0f172a;
       border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 10px 6px;
+      border-radius: 10px;
+      padding: 8px 4px;
       text-align: center;
     }
-    .space-icon {
-      font-size: 18px;
-      display: block;
-      margin-bottom: 4px;
-    }
-    .space-label {
-      font-size: 10px;
-      font-weight: 700;
-      color: #cbd5e1;
-    }
-    .btn-download {
-      display: block;
-      width: 100%;
-      background: #FF6B00;
-      color: white;
-      font-weight: 800;
-      font-size: 15px;
-      padding: 16px;
-      border-radius: 16px;
-      text-decoration: none;
-      transition: background 0.2s;
-      box-shadow: 0 4px 14px rgba(255, 107, 0, 0.4);
-    }
-    .btn-download:hover {
-      background: #e55f00;
-    }
+    .space-icon { font-size: 16px; display: block; margin-bottom: 2px; }
+    .space-label { font-size: 10px; font-weight: 700; color: #cbd5e1; }
     .instructions {
-      margin-top: 24px;
       text-align: left;
       background: #0f172a;
-      border-radius: 16px;
-      padding: 18px;
+      border-radius: 14px;
+      padding: 16px;
       border: 1px solid #334155;
     }
     .instructions h3 {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 800;
       color: #ffffff;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     .instructions ol {
-      padding-left: 20px;
+      padding-left: 18px;
       color: #94a3b8;
       font-size: 12px;
       line-height: 1.6;
@@ -143,11 +116,16 @@
 </head>
 <body>
   <div class="card">
-    <div class="badge">Application Mobile Universitaire</div>
-    <h1>UniSphere AI sur Téléphone</h1>
-    <p class="desc">Scannez ce QR Code avec l'application <b>Expo Go</b> sur votre smartphone Android ou iPhone pour lancer l'application immédiatement.</p>
+    <div class="badge">Application Mobile Universitaire (8 Espaces)</div>
+    <h1>UniSphere AI Mobile</h1>
+    <p class="desc">Scannez ce QR Code avec l'application <b>Expo Go</b> sur votre téléphone pour charger instantanément l'application.</p>
 
-    <!-- 8 Espaces Inclus -->
+    <div class="qr-wrapper">
+      <img class="qr-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAATYAAAE2AQAAAADDx4MEAAABz0lEQVR4nO2aQY6kMAxFnyeRZhmkOcAcBW42V4Oj1A1g2VLQn0UCVFePRr0pigJ7gUR4UmxFP44dTHzH5h/fwsA555xz7pncbNWa2erwFGFYhl/t3/U4SZJ6ACYzht8ZSJKkfAD/LscNVQZYlzK0twhFOM0h/LsuNzRg3f7zOgdA/PQWZABieva8zv3b6nq0pQyZI2VRUgYIAuaX+ndNrpyjOkA9s6lnNpjMzCwewL/rcPVotVlPeBySlI8ex5m42azbzlLpwxgsAlPE64+dOSTl8qAdq1xoxyBpBGkMro8duboePaFsVbUKHIPUp7ui8OhxnIVbBLGoglYZaQRIEuD62JNj7YjwIA31SXJ97Mwt+1VSkQakXLJGSSe962N3Lqg2dBvuWldAkP3xfuKu3Fp/ZGgf6w/P57tzS/5YEkZNHevXviJHj+Ms3Of6/D6TuD5exW33g6G0FYs+hobl5PsecZyBW+tzrQVg3napDTl6HCfj1vtB2ttPWZcyZha3TPImcZyMC4L0YbV9kiTrdpnXucXil5GpwSCWvUpMv/Iz5nXuv1wribUKLJV6e4v4/ww7c0UfNXckKPcf1WYDZtML/bsaZ/7/rnPOOfcm3F/Q2mY+Xdfv/AAAAABJRU5ErkJggg==" alt="QR Code Expo Go" />
+    </div>
+
+    <div class="url-badge">exp://192.168.1.4:8081</div>
+
     <div class="spaces-grid">
       <div class="space-pill"><span class="space-icon">🎓</span><span class="space-label">Étudiant</span></div>
       <div class="space-pill"><span class="space-icon">👨‍🏫</span><span class="space-label">Enseignant</span></div>
@@ -159,24 +137,13 @@
       <div class="space-pill"><span class="space-icon">🤝</span><span class="space-label">Alumni</span></div>
     </div>
 
-    <div class="qr-wrapper">
-      <div class="qr-placeholder">
-        <span class="qr-icon">📱</span>
-        <span class="qr-text">exp://192.168.100.17:8081</span>
-      </div>
-    </div>
-
-    <a href="#" class="btn-download" onclick="alert('Pour installer l\'application sur votre téléphone :\n1. Lancez dans le dossier mobile : npx expo start\n2. Scannez le QR Code avec Expo Go ou compilez l\'APK avec eas build -p android --profile preview'); return false;">
-      📲 Lancer ou Télécharger l'Application Mobile
-    </a>
-
     <div class="instructions">
-      <h3>Comment installer sur votre téléphone :</h3>
+      <h3>Instructions de scan :</h3>
       <ol>
-        <li>Téléchargez <b>Expo Go</b> gratuitement sur Google Play Store ou App Store.</li>
-        <li>Dans le projet, lancez : <code>cd mobile && npm install && npx expo start</code></li>
-        <li>Scannez le QR code affiché dans votre terminal avec l'appareil photo.</li>
-        <li>Pour générer un fichier <b>APK installable</b> directement : lancez <code>eas build -p android --profile preview</code>.</li>
+        <li>Ouvrez l'application <b>Expo Go</b> sur votre téléphone.</li>
+        <li>Appuyez sur <b>"Scan QR code"</b> et visez l'image ci-dessus.</li>
+        <li>Assurez-vous que votre téléphone est connecté au même réseau Wi-Fi.</li>
+        <li>Vous pouvez aussi entrer manuellement : <code>exp://192.168.1.4:8081</code>.</li>
       </ol>
     </div>
   </div>
