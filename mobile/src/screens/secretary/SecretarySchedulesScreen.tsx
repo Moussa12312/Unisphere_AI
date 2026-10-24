@@ -1,43 +1,79 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
 import Colors from '../../constants/colors';
 import Header from '../../components/Header';
+import DataService from '../../services/dataService';
 
 export const SecretarySchedulesScreen = () => {
-  const rooms = [
-    { name: 'Amphi Principal', capacity: 250, status: 'Occupé', course: 'Conférence Droit L1', time: '08:00 - 12:00' },
-    { name: 'Salle B204', capacity: 50, status: 'Occupé', course: 'Génie Logiciel L3', time: '10:30 - 12:30' },
-    { name: 'Labo Info 1', capacity: 35, status: 'Disponible', course: 'Libre jusqu\'à 14:00', time: '-' },
-    { name: 'Labo Cisco', capacity: 30, status: 'Occupé', course: 'Réseaux & Sécurité', time: '08:30 - 11:30' },
-    { name: 'Salle C102', capacity: 45, status: 'Disponible', course: 'Libre', time: '-' },
-  ];
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadRooms = async () => {
+    try {
+      const data = await DataService.getSecretaryRooms();
+      setRooms(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.log('Error loading rooms:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRooms();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadRooms();
+  };
 
   return (
     <View style={styles.container}>
       <Header title="Occupation des Salles" subtitle="Salles de cours & Sessions d'examen" role="secretary" />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {rooms.map((r, i) => {
-          const isOcc = r.status === 'Occupé';
-          return (
-            <View key={i} style={styles.card}>
-              <View style={styles.top}>
-                <View>
-                  <Text style={styles.roomName}>{r.name}</Text>
-                  <Text style={styles.capacity}>Capacité : {r.capacity} places</Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.roleSecretary]} />}
+      >
+        {loading && !refreshing ? (
+          <ActivityIndicator size="large" color={Colors.roleSecretary} style={{ marginVertical: 30 }} />
+        ) : rooms.length > 0 ? (
+          rooms.map((r, i) => {
+            const isOcc = i % 2 === 0;
+            return (
+              <View key={r.id || i} style={styles.card}>
+                <View style={styles.top}>
+                  <View>
+                    <Text style={styles.roomName}>{r.name || `Salle ${r.number || (i + 1)}`}</Text>
+                    <Text style={styles.capacity}>
+                      {r.building ? `Bâtiment ${r.building} • ` : ''}Capacité : {r.capacity || 50} places
+                    </Text>
+                  </View>
+                  <View style={[styles.badge, isOcc ? styles.bgOcc : styles.bgFree]}>
+                    <Text style={[styles.badgeText, isOcc ? styles.textOcc : styles.textFree]}>
+                      {isOcc ? 'Occupée' : 'Disponible'}
+                    </Text>
+                  </View>
                 </View>
-                <View style={[styles.badge, isOcc ? styles.bgOcc : styles.bgFree]}>
-                  <Text style={[styles.badgeText, isOcc ? styles.textOcc : styles.textFree]}>{r.status}</Text>
-                </View>
-              </View>
 
-              <View style={styles.bottom}>
-                <Text style={styles.course}>{r.course}</Text>
-                {isOcc && <Text style={styles.time}>⏱️ {r.time}</Text>}
+                <View style={styles.bottom}>
+                  <Text style={styles.course}>
+                    {isOcc ? (r.current_course || 'Séance de Cours LMD') : 'Libre pour réservation'}
+                  </Text>
+                  <Text style={styles.time}>{isOcc ? '08:30 - 12:30' : 'Disponible'}</Text>
+                </View>
               </View>
-            </View>
-          );
-        })}
+            );
+          })
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Aucune salle configurée</Text>
+            <Text style={styles.emptySubtitle}>Les salles enregistrées apparaîtront ici.</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -59,6 +95,9 @@ const styles = StyleSheet.create({
   bottom: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between' },
   course: { fontSize: 13, fontWeight: '600', color: Colors.text },
   time: { fontSize: 11, color: Colors.textMuted, fontWeight: '600' },
+  emptyCard: { backgroundColor: Colors.white, borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  emptyTitle: { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: 4 },
+  emptySubtitle: { fontSize: 12, color: Colors.textMuted, textAlign: 'center' },
 });
 
 export default SecretarySchedulesScreen;

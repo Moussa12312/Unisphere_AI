@@ -1,17 +1,37 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, ActivityIndicator } from 'react-native';
 import Colors from '../../constants/colors';
 import Header from '../../components/Header';
+import DataService from '../../services/dataService';
 
 export const SecretaryCertificatesScreen = () => {
-  const [requests, setRequests] = useState([
-    { id: 1, student: 'Moussa Coulibaly', matricule: 'ETU-2026-0842', type: 'Certificat de Scolarité', date: '23/10/2026', status: 'En attente' },
-    { id: 2, student: 'Aminata Diallo', matricule: 'ETU-2026-0112', type: 'Attestation de Réussite', date: '22/10/2026', status: 'En attente' },
-    { id: 3, student: 'Oumar Diop', matricule: 'ETU-2026-0005', type: 'Relevé de Notes Officiel', date: '21/10/2026', status: 'En attente' },
-  ]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadRequests = async () => {
+    try {
+      const data = await DataService.getSecretaryCertificates();
+      setRequests(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.log('Error loading certificate requests:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadRequests();
+  };
 
   const handleAction = (id: number, action: 'Approuver' | 'Rejeter') => {
-    Alert.alert('Action confirmée', `La demande a été marquée comme : ${action}.`);
+    Alert.alert('Action confirmée', `La demande #${id} a été marquée comme : ${action}.`);
     setRequests(requests.filter((r) => r.id !== id));
   };
 
@@ -19,19 +39,27 @@ export const SecretaryCertificatesScreen = () => {
     <View style={styles.container}>
       <Header title="Demandes de Certificats" subtitle="Validation & Signature Numérique" role="secretary" />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {requests.length === 0 ? (
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.roleSecretary]} />}
+      >
+        {loading && !refreshing ? (
+          <ActivityIndicator size="large" color={Colors.roleSecretary} style={{ marginVertical: 30 }} />
+        ) : requests.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>Toutes les demandes ont été traitées !</Text>
+            <Text style={styles.emptyTitle}>Toutes les demandes ont été traitées !</Text>
+            <Text style={styles.emptySubtitle}>Les nouvelles requêtes des étudiants apparaîtront ici.</Text>
           </View>
         ) : (
           requests.map((req) => (
             <View key={req.id} style={styles.card}>
               <View style={styles.cardTop}>
                 <View>
-                  <Text style={styles.typeText}>{req.type}</Text>
-                  <Text style={styles.studentName}>{req.student}</Text>
-                  <Text style={styles.meta}>{req.matricule} • Demandé le {req.date}</Text>
+                  <Text style={styles.typeText}>{req.type || req.request_type || 'Certificat de Scolarité'}</Text>
+                  <Text style={styles.studentName}>{req.student_name || 'Étudiant'}</Text>
+                  <Text style={styles.meta}>
+                    {req.matricule || 'ETU-2026'} • Demandé le {req.created_at ? new Date(req.created_at).toLocaleDateString('fr-FR') : 'Récent'}
+                  </Text>
                 </View>
               </View>
 
@@ -62,7 +90,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, paddingBottom: 32 },
   emptyBox: { padding: 40, alignItems: 'center' },
-  emptyText: { color: Colors.textMuted, fontSize: 14, fontWeight: '600' },
+  emptyTitle: { color: Colors.text, fontSize: 15, fontWeight: '700' },
+  emptySubtitle: { color: Colors.textMuted, fontSize: 12, marginTop: 4, textAlign: 'center' },
   card: { backgroundColor: Colors.white, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
   cardTop: { marginBottom: 14 },
   typeText: { fontSize: 11, fontWeight: '800', color: Colors.roleSecretary, textTransform: 'uppercase' },

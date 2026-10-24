@@ -1,21 +1,43 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, RefreshControl, ActivityIndicator } from 'react-native';
 import Colors from '../../constants/colors';
 import Header from '../../components/Header';
+import DataService from '../../services/dataService';
 
 export const AccountantPaymentsScreen = () => {
+  const [payments, setPayments] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const payments = [
-    { id: 1, receipt: 'REC-2026-0418', student: 'Moussa Coulibaly', matricule: 'ETU-2026-0842', amount: 150000, tranche: 'Tranche 2', method: 'Wave', date: '23/10/2026' },
-    { id: 2, receipt: 'REC-2026-0417', student: 'Aminata Diallo', matricule: 'ETU-2026-0112', amount: 150000, tranche: 'Tranche 2', method: 'Espèces', date: '23/10/2026' },
-    { id: 3, receipt: 'REC-2026-0416', student: 'Oumar Diop', matricule: 'ETU-2026-0005', amount: 50000, tranche: 'Inscription', method: 'Orange Money', date: '22/10/2026' },
-    { id: 4, receipt: 'REC-2026-0415', student: 'Fatoumata Koné', matricule: 'ETU-2026-0002', amount: 200000, tranche: 'Tranche 1 & 2', method: 'Chèque', date: '22/10/2026' },
-  ];
+  const loadPayments = async () => {
+    try {
+      const data = await DataService.getRecentPayments(30);
+      const list = Array.isArray(data) ? data : (data?.payments || data?.items || []);
+      setPayments(list);
+    } catch (e) {
+      console.log('Error loading accountant payments:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
-  const filtered = payments.filter(
-    (p) => p.student.toLowerCase().includes(search.toLowerCase()) || p.receipt.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    loadPayments();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadPayments();
+  };
+
+  const filtered = payments.filter((p) => {
+    const student = p.student_name || (p.student ? `${p.student.first_name || ''} ${p.student.last_name || ''}` : '');
+    const receipt = p.receipt_number || p.reference || `REC-${p.id}`;
+    const q = search.toLowerCase();
+    return student.toLowerCase().includes(q) || receipt.toLowerCase().includes(q);
+  });
 
   return (
     <View style={styles.container}>
@@ -31,24 +53,45 @@ export const AccountantPaymentsScreen = () => {
         />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {filtered.map((p) => (
-          <View key={p.id} style={styles.card}>
-            <View style={styles.cardTop}>
-              <View>
-                <Text style={styles.receipt}>{p.receipt}</Text>
-                <Text style={styles.student}>{p.student}</Text>
-                <Text style={styles.meta}>{p.matricule} • {p.tranche}</Text>
-              </View>
-              <Text style={styles.amount}>{p.amount.toLocaleString()} F</Text>
-            </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.roleAccountant]} />}
+      >
+        {loading && !refreshing ? (
+          <ActivityIndicator size="large" color={Colors.roleAccountant} style={{ marginVertical: 30 }} />
+        ) : filtered.length > 0 ? (
+          filtered.map((p, idx) => {
+            const studentName = p.student_name || (p.student ? `${p.student.first_name || ''} ${p.student.last_name || ''}`.trim() : 'Étudiant');
+            const receipt = p.receipt_number || p.reference || `REC-2026-${String(p.id).padStart(4, '0')}`;
+            const amount = Number(p.amount || 0).toLocaleString();
+            const dateStr = p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : (p.date || 'Récent');
+            const method = p.payment_method || 'Virement / Espèces';
+            return (
+              <View key={p.id || idx} style={styles.card}>
+                <View style={styles.cardTop}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={styles.receipt}>#{receipt}</Text>
+                    <Text style={styles.student}>{studentName}</Text>
+                    <Text style={styles.meta}>
+                      {p.matricule ? `${p.matricule} • ` : ''}{p.payment_type || 'Scolarité'}
+                    </Text>
+                  </View>
+                  <Text style={styles.amount}>{amount} F</Text>
+                </View>
 
-            <View style={styles.cardBottom}>
-              <Text style={styles.method}>💳 {p.method}</Text>
-              <Text style={styles.date}>{p.date}</Text>
-            </View>
+                <View style={styles.cardBottom}>
+                  <Text style={styles.method}>💳 {method}</Text>
+                  <Text style={styles.date}>{dateStr}</Text>
+                </View>
+              </View>
+            );
+          })
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Aucun encaissement trouvé</Text>
+            <Text style={styles.emptySubtitle}>Les paiements enregistrés par la comptabilité apparaîtront ici.</Text>
           </View>
-        ))}
+        )}
       </ScrollView>
     </View>
   );
@@ -68,6 +111,9 @@ const styles = StyleSheet.create({
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
   method: { fontSize: 12, color: Colors.text, fontWeight: '600' },
   date: { fontSize: 11, color: Colors.textLight },
+  emptyCard: { backgroundColor: Colors.white, borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  emptyTitle: { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: 4 },
+  emptySubtitle: { fontSize: 12, color: Colors.textMuted, textAlign: 'center' },
 });
 
 export default AccountantPaymentsScreen;

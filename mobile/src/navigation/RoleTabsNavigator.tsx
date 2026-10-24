@@ -96,9 +96,33 @@ function ScrollableTabBar({ state, descriptors, navigation }: any) {
   );
 }
 
+import AuthService from '../services/authService';
+
+const ROLE_DEMO_EMAILS: Record<string, string> = {
+  student: 'etudiant@unisphere.ai',
+  teacher: 'enseignant@unisphere.ai',
+  secretary: 'secretaire@unisphere.ai',
+  censeur: 'censeur@unisphere.ai',
+  admin: 'admin@unisphere.ai',
+  guard: 'gardien@unisphere.ai',
+  accountant: 'comptable@unisphere.ai',
+  alumni: 'alumni@unisphere.ai',
+};
+
 export const RoleTabsNavigator = ({ initialRole = 'student', onLogout }: { initialRole: string; onLogout: () => void }) => {
   const [currentRole, setCurrentRole] = useState(initialRole.toLowerCase());
-  const [showRoleSwitcher, setShowRoleSwitcher] = useState(false);
+
+  const handleRoleSwitch = async (roleId: string) => {
+    setCurrentRole(roleId);
+    const email = ROLE_DEMO_EMAILS[roleId];
+    if (email) {
+      try {
+        await AuthService.login(email, 'unisphere2026');
+      } catch {
+        await AuthService.setDevRole(roleId);
+      }
+    }
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -111,7 +135,7 @@ export const RoleTabsNavigator = ({ initialRole = 'student', onLogout }: { initi
             return (
               <TouchableOpacity
                 key={r.id}
-                onPress={() => setCurrentRole(r.id)}
+                onPress={() => handleRoleSwitch(r.id)}
                 style={[styles.rolePill, active && styles.rolePillActive]}
               >
                 <Text style={styles.rolePillIcon}>{r.icon}</Text>

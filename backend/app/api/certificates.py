@@ -317,6 +317,7 @@ def download_certificate(
 # 🛡️ ROUTES SECRÉTAIRE / ADMIN / CENSEUR
 # ==========================================
 
+@router.get("/requests")
 @router.get("/secretary/requests")
 def get_all_certificate_requests(
     status: str = None,

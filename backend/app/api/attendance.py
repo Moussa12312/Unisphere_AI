@@ -70,7 +70,7 @@ def get_late_threshold(db: Session, university_id: int) -> time:
 def get_attendance_statistics(
     period: str = Query("week"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("guard", "admin", "secretary", "censeur"))
+    current_user: User = Depends(require_role("guard", "admin", "secretary", "censeur", "teacher"))
 ):
     today = date.today()
     total_students = db.query(Student).filter(
@@ -112,7 +112,7 @@ def get_attendance_statistics(
 @router.get("/today/stats")
 def get_today_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("guard", "admin", "secretary"))
+    current_user: User = Depends(require_role("guard", "admin", "secretary", "censeur", "teacher"))
 ):
     today = date.today()
     total_students = db.query(Student).filter(Student.university_id == current_user.university_id, Student.status == 'active').count()
@@ -131,7 +131,7 @@ def get_today_stats(
 def get_recent_scans(
     limit: int = Query(5),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("guard", "admin", "secretary"))
+    current_user: User = Depends(require_role("guard", "admin", "secretary", "teacher", "censeur"))
 ):
     today = date.today()
     attendances = (

@@ -44,6 +44,7 @@ class InstallmentPaymentRequest(BaseModel):
 # ==========================================
 # DASHBOARD - Vue d'ensemble
 # ==========================================
+@router.get("/summary")
 @router.get("/overview")
 def get_financial_overview(
     period: str = "year",

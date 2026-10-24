@@ -129,18 +129,20 @@ def change_password(
     return {"message": "Mot de passe modifié avec succès"}
 
 @router.get("/")
-def get_all_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_all_users(
+    all_roles: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Accès refusé")
     
-    # ✅ FILTRAGE : Seulement le personnel administratif de notre université
-    # Exclusion des étudiants, enseignants et du super-admin (qui n'est pas membre du personnel universitaire)
-    excluded_roles = ["student", "teacher", "super_admin", "superadmin", "parent"]
+    query = db.query(User).filter(User.university_id == current_user.university_id)
+    if not all_roles:
+        excluded_roles = ["student", "teacher", "super_admin", "superadmin", "parent"]
+        query = query.filter(~User.role.in_(excluded_roles))
     
-    users = db.query(User).filter(
-        User.university_id == current_user.university_id,
-        ~User.role.in_(excluded_roles)  # ✅ Exclusion des rôles
-    ).all()
+    users = query.all()
     
     result = []
     for u in users:

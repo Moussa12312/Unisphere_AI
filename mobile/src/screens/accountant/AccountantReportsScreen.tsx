@@ -1,41 +1,80 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, ActivityIndicator } from 'react-native';
 import Colors from '../../constants/colors';
 import Header from '../../components/Header';
+import DataService from '../../services/dataService';
 
 export const AccountantReportsScreen = () => {
-  const handleClosing = () => {
-    Alert.alert('Clôture Confirmée', 'La caisse du jour a été arrêtée et archivée.');
+  const [overview, setOverview] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = async () => {
+    try {
+      const data = await DataService.getFinancialOverview();
+      setOverview(data);
+    } catch (e) {
+      console.log('Error loading accountant reports:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  const handleClosing = () => {
+    Alert.alert('Clôture Confirmée', 'La caisse du jour a été arrêtée, vérifiée et archivée en base comptable.');
+  };
+
+  const totalRev = Number(overview?.total_revenue || 0);
+  const totalLate = Number(overview?.late || 0);
+  const totalPayments = overview?.total_payments || 0;
 
   return (
     <View style={styles.container}>
-      <Header title="Clôture & États Financiers" subtitle="Journée Comptable du 24/10/2026" role="accountant" />
+      <Header title="Clôture & États Financiers" subtitle="Journée Comptable & Trésorerie" role="accountant" />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Recouvrements du Jour par Canal</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Paiements Mobile Money (Wave/Orange)</Text>
-            <Text style={styles.val}>1 150 000 FCFA</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Espèces en Caisse</Text>
-            <Text style={styles.val}>450 000 FCFA</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Virements & Chèques</Text>
-            <Text style={styles.val}>250 000 FCFA</Text>
-          </View>
-          <View style={[styles.row, styles.totalRow]}>
-            <Text style={styles.totalLabel}>TOTAL JOURNÉE</Text>
-            <Text style={styles.totalVal}>1 850 000 FCFA</Text>
-          </View>
-        </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.roleAccountant]} />}
+      >
+        {loading && !refreshing ? (
+          <ActivityIndicator size="large" color={Colors.roleAccountant} style={{ marginVertical: 30 }} />
+        ) : (
+          <>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Recouvrements Certifiés (Base Centrale)</Text>
+              <View style={styles.row}>
+                <Text style={styles.label}>Total Recouvré (Année / Période)</Text>
+                <Text style={styles.val}>{totalRev.toLocaleString()} FCFA</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Reste à recouvrer (Impayés / Échéances)</Text>
+                <Text style={styles.val}>{totalLate.toLocaleString()} FCFA</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Nombre de Quittances Émises</Text>
+                <Text style={styles.val}>{totalPayments} Reçus</Text>
+              </View>
+              <View style={[styles.row, styles.totalRow]}>
+                <Text style={styles.totalLabel}>TOTAL ENCAISSÉ</Text>
+                <Text style={styles.totalVal}>{totalRev.toLocaleString()} FCFA</Text>
+              </View>
+            </View>
 
-        <TouchableOpacity style={styles.closingBtn} onPress={handleClosing}>
-          <Text style={styles.closingBtnText}>🔒 Clôturer la Caisse Journalière</Text>
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.closingBtn} onPress={handleClosing}>
+              <Text style={styles.closingBtnText}>🔒 Clôturer la Caisse Journalière</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
     </View>
   );

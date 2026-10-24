@@ -102,6 +102,11 @@ _default_origins = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "http://192.168.1.7:3000",
+    "http://192.168.1.7:8000",
+    "http://192.168.1.7:8081",
     "http://192.168.100.17:3000",
     "http://192.168.100.17:8000",
 ]
@@ -109,9 +114,10 @@ for o in _default_origins:
     if o not in ALLOWED_ORIGINS:
         ALLOWED_ORIGINS.append(o)
 
+# En développement ou réseau local, autoriser les connexions mobiles
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

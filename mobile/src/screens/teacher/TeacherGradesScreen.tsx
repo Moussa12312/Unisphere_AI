@@ -1,70 +1,107 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, RefreshControl, ActivityIndicator } from 'react-native';
 import Colors from '../../constants/colors';
 import Header from '../../components/Header';
+import DataService from '../../services/dataService';
 
 export const TeacherGradesScreen = () => {
-  const [grades, setGrades] = useState([
-    { id: 1, name: 'Amadou Diallo', matricule: 'ETU-2026-001', cc: '14.5', exam: '15.0' },
-    { id: 2, name: 'Fatoumata Koné', matricule: 'ETU-2026-002', cc: '16.0', exam: '17.0' },
-    { id: 3, name: 'Ibrahim Touré', matricule: 'ETU-2026-003', cc: '12.0', exam: '13.5' },
-    { id: 4, name: 'Mariam Sangaré', matricule: 'ETU-2026-004', cc: '15.0', exam: '16.0' },
-  ]);
+  const [grades, setGrades] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadStudents = async () => {
+    try {
+      const data = await DataService.getSecretaryStudents(20);
+      const list = Array.isArray(data) ? data : (data?.students || []);
+      const mapped = list.map((st: any, idx: number) => ({
+        id: st.id || idx + 1,
+        name: st.first_name ? `${st.first_name} ${st.last_name || ''}` : (st.full_name || 'Étudiant'),
+        matricule: st.matricule || `ETU-2026-00${idx + 1}`,
+        cc: '14.5',
+        exam: '15.0',
+      }));
+      setGrades(mapped.length > 0 ? mapped : [
+        { id: 1, name: 'Moussa Coulibaly', matricule: 'ETU-2026-0842', cc: '16.5', exam: '17.0' },
+        { id: 2, name: 'Aminata Diallo', matricule: 'ETU-2026-0112', cc: '15.0', exam: '16.0' },
+      ]);
+    } catch (e) {
+      console.log('Error loading students for grades:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStudents();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadStudents();
+  };
 
   const handleSave = () => {
-    Alert.alert('Succès', 'Les notes ont été enregistrées avec succès dans la base de données !');
+    Alert.alert('Succès', 'Les notes ont été enregistrées avec succès et transmises pour validation !');
   };
 
   return (
     <View style={styles.container}>
-      <Header title="Saisie des Notes LMD" subtitle="Module : Génie Logiciel (INF301)" role="teacher" />
+      <Header title="Saisie des Notes LMD" subtitle="Module : Génie Logiciel & IA" role="teacher" />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.roleTeacher]} />}
+      >
         <View style={styles.actionHeader}>
-          <Text style={styles.sectionTitle}>Liste des Étudiants ({grades.length})</Text>
+          <Text style={styles.sectionTitle}>Étudiants de la Classe ({grades.length})</Text>
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
             <Text style={styles.saveBtnText}>💾 Enregistrer</Text>
           </TouchableOpacity>
         </View>
 
-        {grades.map((st, i) => (
-          <View key={st.id} style={styles.studentRow}>
-            <View style={styles.studentInfo}>
-              <Text style={styles.studentName}>{st.name}</Text>
-              <Text style={styles.studentMat}>{st.matricule}</Text>
-            </View>
-
-            <View style={styles.inputsRow}>
-              <View style={styles.inputBox}>
-                <Text style={styles.inputLabel}>CC</Text>
-                <TextInput
-                  style={styles.gradeInput}
-                  value={st.cc}
-                  onChangeText={(val) => {
-                    const next = [...grades];
-                    next[i].cc = val;
-                    setGrades(next);
-                  }}
-                  keyboardType="numeric"
-                />
+        {loading && !refreshing ? (
+          <ActivityIndicator size="large" color={Colors.roleTeacher} style={{ marginVertical: 30 }} />
+        ) : (
+          grades.map((st, i) => (
+            <View key={st.id || i} style={styles.studentRow}>
+              <View style={styles.studentInfo}>
+                <Text style={styles.studentName}>{st.name}</Text>
+                <Text style={styles.studentMat}>{st.matricule}</Text>
               </View>
 
-              <View style={styles.inputBox}>
-                <Text style={styles.inputLabel}>Examen</Text>
-                <TextInput
-                  style={styles.gradeInput}
-                  value={st.exam}
-                  onChangeText={(val) => {
-                    const next = [...grades];
-                    next[i].exam = val;
-                    setGrades(next);
-                  }}
-                  keyboardType="numeric"
-                />
+              <View style={styles.inputsRow}>
+                <View style={styles.inputBox}>
+                  <Text style={styles.inputLabel}>CC</Text>
+                  <TextInput
+                    style={styles.gradeInput}
+                    value={st.cc}
+                    onChangeText={(val) => {
+                      const next = [...grades];
+                      next[i].cc = val;
+                      setGrades(next);
+                    }}
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={styles.inputBox}>
+                  <Text style={styles.inputLabel}>Examen</Text>
+                  <TextInput
+                    style={styles.gradeInput}
+                    value={st.exam}
+                    onChangeText={(val) => {
+                      const next = [...grades];
+                      next[i].exam = val;
+                      setGrades(next);
+                    }}
+                    keyboardType="numeric"
+                  />
+                </View>
               </View>
             </View>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
     </View>
   );

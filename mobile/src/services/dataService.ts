@@ -3,123 +3,103 @@ import api from './api';
 export const DataService = {
   // ── ÉTUDIANT ──
   async getStudentProfile() {
-    try {
-      return await api.get('/students/me');
-    } catch {
-      return { id: 1, full_name: 'Étudiant UniSphere', matricule: 'ETU-2026-001', filiere: 'Informatique', level: 'Licence 3' };
-    }
+    return await api.get<any>('/students/me');
+  },
+  async getStudentDashboard() {
+    return await api.get<any>('/students/me/dashboard');
   },
   async getStudentGrades() {
-    try {
-      return await api.get('/grades/student/me');
-    } catch {
-      return [];
-    }
+    return await api.get<any[]>('/students/me/grades');
   },
   async getStudentCourses() {
-    try {
-      return await api.get('/courses');
-    } catch {
-      return [];
-    }
+    return await api.get<any[]>('/students/me/courses');
+  },
+  async getStudentCard() {
+    return await api.get<any>('/students/me/card');
+  },
+  async getStudentSchedule() {
+    return await api.get<any[]>('/students/me/schedule');
   },
   async getStudentPayments() {
-    try {
-      return await api.get('/payments');
-    } catch {
-      return [];
-    }
+    return await api.get<any>('/students/me/payments');
+  },
+  async getStudentAttendance() {
+    return await api.get<any>('/students/me/attendance');
   },
 
   // ── ENSEIGNANT ──
   async getTeacherCourses() {
-    try {
-      return await api.get('/courses');
-    } catch {
-      return [];
-    }
+    return await api.get<any[]>('/courses');
   },
   async getTeacherAttendance() {
-    try {
-      return await api.get('/attendance/recent');
-    } catch {
-      return [];
-    }
+    return await api.get<any>('/attendance/today/stats');
+  },
+  async getTeacherRecentScans() {
+    return await api.get<any[]>('/attendance/recent');
   },
 
   // ── SECRÉTAIRE ──
-  async getSecretaryStudents() {
-    try {
-      return await api.get('/students?limit=20');
-    } catch {
-      return [];
-    }
+  async getSecretaryStudents(limit = 50) {
+    return await api.get<any>(`/students?limit=${limit}`);
   },
-  async getCertificateRequests() {
-    try {
-      return await api.get('/certificates/requests');
-    } catch {
-      return [];
-    }
+  async getSecretaryCertificates() {
+    return await api.get<any[]>('/certificates/secretary/requests');
+  },
+  async getSecretaryRooms() {
+    return await api.get<any[]>('/rooms');
+  },
+  async getSecretaryClasses() {
+    return await api.get<any[]>('/classes');
   },
 
   // ── CENSEUR ──
   async getCenseurStats() {
-    try {
-      return await api.get('/attendance/statistics');
-    } catch {
-      return { total_students: 120, attendance_rate: 94.5, total_courses: 28 };
-    }
+    return await api.get<any>('/attendance/statistics');
+  },
+  async getCenseurClasses() {
+    return await api.get<any[]>('/classes');
+  },
+  async getCenseurAnomalies() {
+    return await api.get<any>('/grades/anomalies');
   },
 
   // ── ADMIN ──
   async getAdminStats() {
-    try {
-      return await api.get('/statistics/dashboard');
-    } catch {
-      return { total_students: 450, total_teachers: 35, total_filieres: 8 };
-    }
+    return await api.get<any>('/dashboard/stats');
+  },
+  async getAdminUsers() {
+    return await api.get<any[]>('/users?all_roles=true');
   },
 
   // ── GARDIEN ──
   async getGuardStats() {
-    try {
-      return await api.get('/attendance/today/stats');
-    } catch {
-      return { total_present_today: 342, total_expected: 450, total_late: 18 };
-    }
+    return await api.get<any>('/attendance/today/stats');
   },
-  async getRecentScans() {
-    try {
-      return await api.get('/attendance/recent');
-    } catch {
-      return [];
-    }
+  async getRecentScans(limit = 10) {
+    return await api.get<any[]>(`/attendance/recent?limit=${limit}`);
+  },
+  async scanQr(matricule: string) {
+    return await api.post<any>('/attendance/scan', { matricule });
   },
 
   // ── COMPTABLE ──
   async getFinancialOverview() {
-    try {
-      return await api.get('/financials/summary');
-    } catch {
-      return { total_collected: 45000000, total_unpaid: 12500000, total_expenses: 8500000 };
-    }
+    return await api.get<any>('/financials/overview');
   },
-  async getRecentPayments() {
-    try {
-      return await api.get('/payments?limit=15');
-    } catch {
-      return [];
-    }
+  async getRecentPayments(limit = 25) {
+    return await api.get<any>(`/payments?limit=${limit}`);
   },
 
   // ── ALUMNI ──
-  async getAlumniDirectory() {
-    try {
-      return await api.get('/alumni/community');
-    } catch {
-      return [];
-    }
+  async getAlumniCommunity(search = '') {
+    const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    return await api.get<any[]>(`/alumni/community${query}`);
+  },
+  async getAlumniProfile() {
+    return await api.get<any>('/alumni/me/profile');
+  },
+  async getAlumniPromotions() {
+    return await api.get<any[]>('/alumni/promotions');
   },
 };
 

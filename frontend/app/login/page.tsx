@@ -269,6 +269,66 @@ function LoginForm() {
             </button>
           </form>
 
+          {/* Connexion Rapide (8 Espaces) */}
+          <div className="mt-5 pt-4 border-t border-slate-100">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+              <span>⚡ Connexion Rapide (1 Clic)</span>
+              <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold">Live API</span>
+            </p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { label: 'Étudiant', email: 'etudiant@unisphere.ai', icon: '🎓' },
+                { label: 'Enseignant', email: 'enseignant@unisphere.ai', icon: '👨‍🏫' },
+                { label: 'Secrétaire', email: 'secretaire@unisphere.ai', icon: '📁' },
+                { label: 'Censeur', email: 'censeur@unisphere.ai', icon: '⚖️' },
+                { label: 'Admin', email: 'admin@unisphere.ai', icon: '👑' },
+                { label: 'Gardien', email: 'gardien@unisphere.ai', icon: '🛡️' },
+                { label: 'Comptable', email: 'comptable@unisphere.ai', icon: '💰' },
+                { label: 'Alumni', email: 'alumni@unisphere.ai', icon: '🤝' },
+              ].map((acc) => (
+                <button
+                  key={acc.email}
+                  type="button"
+                  onClick={async () => {
+                    setEmail(acc.email);
+                    setPassword('unisphere2026');
+                    setLoading(true);
+                    try {
+                      const res = await api.post('/api/v1/auth/login', {
+                        email: acc.email,
+                        password: 'unisphere2026',
+                        remember_me: true
+                      });
+                      const data = res.data;
+                      localStorage.setItem('token', data.access_token);
+                      localStorage.setItem('user', JSON.stringify(data.user));
+                      toast.success(`Connecté en tant que ${acc.label} !`);
+                      const routes: Record<string, string> = {
+                        admin: '/admin/dashboard',
+                        secretary: '/secretary/dashboard',
+                        censeur: '/censeur/dashboard',
+                        teacher: '/teacher/dashboard',
+                        student: '/student/dashboard',
+                        accountant: '/accountant/dashboard',
+                        guard: '/guard/dashboard',
+                        alumni: '/alumni/dashboard',
+                      };
+                      router.push(routes[data.user.role] || '/');
+                    } catch (err: any) {
+                      toast.error('Erreur lors de la connexion rapide');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50 hover:bg-orange-50 hover:border-orange-300 border border-slate-200 transition-all text-center"
+                >
+                  <span className="text-base">{acc.icon}</span>
+                  <span className="text-[10px] font-bold text-slate-700 mt-0.5 leading-tight">{acc.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="relative my-3">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-slate-200"></div>

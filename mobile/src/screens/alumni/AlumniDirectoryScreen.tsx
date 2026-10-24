@@ -1,21 +1,35 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, RefreshControl, ActivityIndicator } from 'react-native';
 import Colors from '../../constants/colors';
 import Header from '../../components/Header';
+import DataService from '../../services/dataService';
 
 export const AlumniDirectoryScreen = () => {
+  const [alumniList, setAlumniList] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const alumniList = [
-    { id: 1, name: 'Seydou Keita', promo: 'Promo 2023', position: 'Lead Developer @ Société Générale', filiere: 'Informatique', mentoring: true },
-    { id: 2, name: 'Aïssata Bamba', promo: 'Promo 2024', position: 'Auditrice Financière @ PwC', filiere: 'Finance & Comptabilité', mentoring: true },
-    { id: 3, name: 'Mamadou Cissé', promo: 'Promo 2022', position: 'Chef de Projet @ Malitel', filiere: 'Télécoms & Réseaux', mentoring: false },
-    { id: 4, name: 'Korotoumou Traoré', promo: 'Promo 2024', position: 'Data Analyst @ Moov Africa', filiere: 'Data Science', mentoring: true },
-  ];
+  const loadAlumni = async () => {
+    try {
+      const data = await DataService.getAlumniCommunity(search);
+      setAlumniList(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.log('Error loading alumni directory:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
-  const filtered = alumniList.filter(
-    (a) => a.name.toLowerCase().includes(search.toLowerCase()) || a.position.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    loadAlumni();
+  }, [search]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadAlumni();
+  };
 
   return (
     <View style={styles.container}>
@@ -31,25 +45,45 @@ export const AlumniDirectoryScreen = () => {
         />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {filtered.map((a) => (
-          <View key={a.id} style={styles.card}>
-            <View style={styles.top}>
-              <View>
-                <Text style={styles.name}>{a.name}</Text>
-                <Text style={styles.promo}>{a.promo} • {a.filiere}</Text>
-              </View>
-              {a.mentoring && (
-                <View style={styles.mentorBadge}>
-                  <Text style={styles.mentorText}>🌱 Mentor</Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.roleAlumni]} />}
+      >
+        {loading && !refreshing ? (
+          <ActivityIndicator size="large" color={Colors.roleAlumni} style={{ marginVertical: 30 }} />
+        ) : alumniList.length > 0 ? (
+          alumniList.map((a) => {
+            const name = `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Alumni UniSphere';
+            const promo = a.promotion || (a.graduation_year ? `Promo ${a.graduation_year}` : 'Promo Certifiée');
+            const position = a.current_position || 'Professionnel Diplômé';
+            const company = a.company ? `@ ${a.company}` : '';
+            return (
+              <View key={a.id} style={styles.card}>
+                <View style={styles.top}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={styles.name}>{name}</Text>
+                    <Text style={styles.promo}>{promo} • {a.filiere || 'Diplômé UniSphere'}</Text>
+                  </View>
+                  {a.is_open_to_mentoring && (
+                    <View style={styles.mentorBadge}>
+                      <Text style={styles.mentorText}>🌱 Mentor</Text>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
 
-            <Text style={styles.position}>💼 {a.position}</Text>
-            <Text style={styles.contactLink}>Contacter sur le réseau ➔</Text>
+                <Text style={styles.position}>💼 {position} {company}</Text>
+                <Text style={styles.contactLink}>
+                  {a.location ? `📍 ${a.location} • ` : ''}Contacter sur le réseau ➔
+                </Text>
+              </View>
+            );
+          })
+        ) : (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Aucun alumni trouvé</Text>
+            <Text style={styles.emptySubtitle}>Les diplômés inscrits au réseau apparaîtront ici.</Text>
           </View>
-        ))}
+        )}
       </ScrollView>
     </View>
   );
@@ -68,6 +102,9 @@ const styles = StyleSheet.create({
   mentorText: { fontSize: 10, fontWeight: '800', color: Colors.accentGreen },
   position: { fontSize: 13, color: Colors.text, marginTop: 8, fontWeight: '600' },
   contactLink: { fontSize: 12, color: Colors.roleAlumni, fontWeight: '700', marginTop: 10 },
+  emptyCard: { backgroundColor: Colors.white, borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  emptyTitle: { fontSize: 14, fontWeight: '700', color: Colors.text, marginBottom: 4 },
+  emptySubtitle: { fontSize: 12, color: Colors.textMuted, textAlign: 'center' },
 });
 
 export default AlumniDirectoryScreen;
