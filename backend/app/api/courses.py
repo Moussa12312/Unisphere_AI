@@ -98,7 +98,8 @@ def create_course(
         credits=course.credits,
         hours=course.hours,
         university_id=current_user.university_id,
-        filiere_id=course.filiere_id  # ✅ NOUVEAU
+        filiere_id=course.filiere_id,
+        teaching_unit_id=course.teaching_unit_id
     )
     
     db.add(new_course)
@@ -138,17 +139,25 @@ def get_courses(
             if teacher:
                 teacher_name = f"{teacher.first_name} {teacher.last_name}"
         
+        filiere_name = c.filiere.name if c.filiere else c.department
+        semester = c.teaching_unit.semester if c.teaching_unit else None
+
         result.append({
             "id": c.id,
             "title": c.title,
             "code": c.code,
             "department": c.department,
+            "filiere_id": c.filiere_id,
+            "filiere_name": filiere_name,
             "level": c.level,
             "credits": c.credits,
             "hours": c.hours,
             "teacher_id": c.teacher_id,
             "teacher_name": teacher_name,
-            "filiere_id": c.filiere_id
+            "teaching_unit_id": c.teaching_unit_id,
+            "teaching_unit_code": c.teaching_unit.code if c.teaching_unit else None,
+            "teaching_unit_name": c.teaching_unit.name if c.teaching_unit else None,
+            "semester": semester
         })
     return result
 
@@ -182,7 +191,11 @@ def get_course(
         "teacher_id": course.teacher_id,
         "teacher_name": teacher_name,
         "filiere_id": course.filiere_id,
-        "university_id": course.university_id
+        "university_id": course.university_id,
+        "teaching_unit_id": course.teaching_unit_id,
+        "teaching_unit_code": course.teaching_unit.code if course.teaching_unit else None,
+        "teaching_unit_name": course.teaching_unit.name if course.teaching_unit else None,
+        "semester": course.teaching_unit.semester if course.teaching_unit else None
     }
 
 @router.put("/{course_id}")
@@ -300,6 +313,10 @@ def update_course(
             ))
             existing_course.department = filiere.name
             existing_course.filiere_id = course.filiere_id
+
+    # 7. Unité d'Enseignement
+    if course.teaching_unit_id is not None and course.teaching_unit_id != existing_course.teaching_unit_id:
+        existing_course.teaching_unit_id = course.teaching_unit_id if course.teaching_unit_id != 0 else None
 
     # ✅ Valider TOUT
     db.commit()

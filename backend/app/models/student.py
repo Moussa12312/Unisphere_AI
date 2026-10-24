@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Date
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Date
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database.connection import Base
@@ -43,12 +43,38 @@ class Student(Base):
     
     locked_fee_id = Column(Integer, ForeignKey("academic_fees.id"), nullable=True)
 
-    # ✅ NOUVEAUX CHAMPS : Dossiers étudiants
-    birth_certificate = Column(String, nullable=True)   
-    previous_diploma = Column(String, nullable=True)    
-    id_document = Column(String, nullable=True)         
-    photo_id = Column(String, nullable=True)            
-    file_status = Column(String, default="incomplete")  
+    # ✅ TARIFICATION PARTICULIÈRE & RÉDUCTIONS / BOURSES ACCORDÉES
+    discount_amount = Column(Float, default=0.0)             # Montant de la remise (ex: 100000 FCFA)
+    discount_percentage = Column(Float, default=0.0)         # Pourcentage de remise (ex: 15.0%)
+    discount_reason = Column(String, nullable=True)          # Motif ("Accord verbal Direction", "Bourse sociale", etc.)
+    discount_approved_by = Column(String, nullable=True)     # Accordé par ("Direction Générale", etc.)
+    net_tuition_amount = Column(Float, nullable=True)        # Frais nets convenus après déduction (ex: 600000 FCFA)
+
+    # ✅ PLAN DE PAIEMENT (Tranches classiques vs Modalité Mensuelle)
+    payment_plan = Column(String, default="tranches")        # "tranches" ou "mensuel"
+    monthly_deposit = Column(Float, nullable=True)           # Acompte à l'inscription (ex: 350000 FCFA)
+    monthly_installment = Column(Float, nullable=True)       # Mensualité (ex: 100000 FCFA)
+    monthly_months_count = Column(Integer, default=5)        # Nombre de mois (ex: 5)
+
+    # ✅ CHAMPS : Dossiers étudiants (Nouveau vs Ancien)
+    student_type = Column(String, default="new")        # "new" (nouveau) ou "returning" (ancien / réinscription)
+    birth_certificate = Column(String, nullable=True)   # Acte de naissance
+    previous_diploma = Column(String, nullable=True)    # Diplôme précédent
+    id_document = Column(String, nullable=True)         # CNI / Passeport / Carte étudiant
+    photo_id = Column(String, nullable=True)            # Photo d'identité d'inscription
+    
+    # Pièces pour Nouvel Étudiant
+    bac_diploma = Column(String, nullable=True)         # Diplôme / Attestation du Bac
+    bac_transcript = Column(String, nullable=True)      # Relevé de notes du Bac
+    medical_certificate = Column(String, nullable=True) # Certificat médical d'aptitude
+    
+    # Pièces pour Ancien Étudiant (Réinscription)
+    previous_transcript = Column(String, nullable=True) # Relevé de notes N-1
+    success_certificate = Column(String, nullable=True) # Attestation de passage / réussite
+    financial_clearance = Column(String, nullable=True) # Quitus financier / reçu solde
+    reenrollment_form = Column(String, nullable=True)   # Fiche de réinscription signée
+    
+    file_status = Column(String, default="incomplete")  # "complete", "incomplete", "validated"  
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

@@ -18,6 +18,7 @@ export default function StudentPaymentDetailPage() {
   
   const studentId = parseInt(params.studentId as string);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
@@ -25,6 +26,28 @@ export default function StudentPaymentDetailPage() {
       loadData();
     }
   }, [studentId]);
+
+  const downloadDocument = async (url: string, filename: string) => {
+    try {
+      setDownloading(true);
+      toast.info('Génération du document en cours...');
+      const response = await api.get(url, { responseType: 'blob' });
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success('Document téléchargé avec succès');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.response?.data?.detail || 'Erreur lors du téléchargement du document');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -346,15 +369,37 @@ export default function StudentPaymentDetailPage() {
           Documents
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <button className="flex items-center gap-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-sm font-medium transition-colors border border-blue-200">
+          <button 
+            disabled={downloading}
+            onClick={() => {
+              if (paidTranches.length > 0) {
+                const targetTranche = paidTranches[0];
+                downloadDocument(
+                  `/api/v1/documents/generate-receipt/${targetTranche.id || studentId}`,
+                  `recu_tranche_1_${studentId}.pdf`
+                );
+              } else {
+                toast.info('Aucune tranche payée pour le moment');
+              }
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 text-blue-700 rounded-xl text-sm font-medium transition-colors border border-blue-200 cursor-pointer"
+          >
             <Download size={16} />
             Télécharger reçu tranche 1
           </button>
-          <button className="flex items-center gap-2 px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-sm font-medium transition-colors border border-purple-200">
+          <button 
+            disabled={downloading}
+            onClick={() => downloadDocument(`/api/v1/documents/generate-financial-statement/${studentId}`, `releve_financier_${studentId}.pdf`)}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 text-purple-700 rounded-xl text-sm font-medium transition-colors border border-purple-200 cursor-pointer"
+          >
             <Download size={16} />
             Télécharger relevé financier
           </button>
-          <button className="flex items-center gap-2 px-4 py-3 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl text-sm font-medium transition-colors border border-green-200">
+          <button 
+            disabled={downloading}
+            onClick={() => downloadDocument(`/api/v1/documents/generate-payment-certificate/${studentId}`, `attestation_paiement_${studentId}.pdf`)}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-green-50 hover:bg-green-100 disabled:opacity-50 text-green-700 rounded-xl text-sm font-medium transition-colors border border-green-200 cursor-pointer"
+          >
             <Download size={16} />
             Télécharger attestation de paiement
           </button>

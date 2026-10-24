@@ -25,6 +25,9 @@ class Attendance(Base):
     # Qui a scanné
     scanned_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     
+    # Commentaire / justification
+    comment = Column(String, nullable=True)
+    
     # Metadata
     university_id = Column(Integer, ForeignKey("universities.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

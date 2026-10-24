@@ -64,6 +64,7 @@ function LoginForm() {
         guard: '/guard/dashboard',
         alumni: '/alumni/dashboard',
         super_admin: '/superadmin/dashboard',
+        superadmin: '/superadmin/dashboard',
         parent: '/parent/dashboard',
       };
 

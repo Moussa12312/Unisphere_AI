@@ -25,6 +25,7 @@ def get_db():
 def get_grades_by_context(
     session_id: int,
     course_id: int,
+    class_id: int = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher"))
 ):
@@ -36,16 +37,31 @@ def get_grades_by_context(
     if not course:
         raise HTTPException(status_code=404, detail="Cours non trouvé")
     
-    students = db.query(Student).filter(
-        Student.university_id == current_user.university_id,
-        Student.filiere == course.department,
-        Student.level == course.level
-    ).order_by(Student.last_name, Student.first_name).all()
+    if class_id:
+        students = db.query(Student).filter(
+            Student.university_id == current_user.university_id,
+            Student.class_room_id == class_id
+        ).order_by(Student.last_name, Student.first_name).all()
+    else:
+        filiere_name = course.filiere.name if course.filiere else course.department
+        students = db.query(Student).filter(
+            Student.university_id == current_user.university_id,
+            (Student.filiere == filiere_name) | (Student.filiere == course.department),
+            Student.level == course.level
+        ).order_by(Student.last_name, Student.first_name).all()
     
     existing_grades = db.query(Grade).filter(
         Grade.session_id == session_id,
         Grade.course_id == course_id
     ).all()
+
+    existing_grade_student_ids = [g.student_id for g in existing_grades]
+    if existing_grade_student_ids:
+        current_ids = {s.id for s in students}
+        missing_ids = [sid for sid in existing_grade_student_ids if sid not in current_ids]
+        if missing_ids:
+            extra = db.query(Student).filter(Student.id.in_(missing_ids)).all()
+            students.extend(extra)
     
     grades_map = {g.student_id: g for g in existing_grades}
     
@@ -65,6 +81,14 @@ def get_grades_by_context(
             "grade_id": grade.id if grade else None
         })
     
+    from app.models.academic_config import AcademicConfig
+    ac_config = db.query(AcademicConfig).filter(
+        AcademicConfig.university_id == current_user.university_id
+    ).first()
+    default_cc = ac_config.default_cc_coefficient if ac_config else 0.3
+    default_exam = ac_config.default_exam_coefficient if ac_config else 0.7
+    max_grade = ac_config.max_grade if ac_config else 20.0
+
     return {
         "course": {
             "id": course.id,
@@ -74,6 +98,9 @@ def get_grades_by_context(
             "department": course.department,
             "credits": course.credits  # ✅ AJOUTÉ
         },
+        "default_cc_coefficient": default_cc,
+        "default_exam_coefficient": default_exam,
+        "max_grade": max_grade,
         "students": result
     }
 
@@ -180,7 +207,12 @@ def get_grades_stats(
         Grade.course_id == course_id
     ).count()
     
-    passing = len([s for s in scores if s >= 10])
+    from app.models.academic_config import AcademicConfig
+    ac_config = db.query(AcademicConfig).filter(
+        AcademicConfig.university_id == current_user.university_id
+    ).first()
+    min_pass = ac_config.min_passing_grade if ac_config else 10.0
+    passing = len([s for s in scores if s >= min_pass])
     
     return {
         "total_students": total_students,
@@ -281,8 +313,20 @@ def bulk_save_grades(
     course_id = data.get("course_id")
     grades_data = data.get("grades", [])
     status = data.get("status", "draft")
-    cc_coefficient = data.get("cc_coefficient", 0.3)
-    exam_coefficient = data.get("exam_coefficient", 0.7)
+    
+    # ✅ APPLICATION RÉELLE : Récupération de la configuration académique de l'université
+    from app.models.academic_config import AcademicConfig
+    ac_config = db.query(AcademicConfig).filter(
+        AcademicConfig.university_id == current_user.university_id
+    ).first()
+    
+    default_cc = ac_config.default_cc_coefficient if ac_config else 0.3
+    default_exam = ac_config.default_exam_coefficient if ac_config else 0.7
+    max_grade = ac_config.max_grade if ac_config else 20.0
+    
+    # Priorité aux coefficients configurés par l'établissement s'ils ne sont pas spécifiés
+    cc_coefficient = float(data["cc_coefficient"]) if data.get("cc_coefficient") is not None else default_cc
+    exam_coefficient = float(data["exam_coefficient"]) if data.get("exam_coefficient") is not None else default_exam
     
     # ✅ CORRECTION : Teacher ne peut que sauvegarder en draft
     if current_user.role == "teacher" and status == "validated":
@@ -307,10 +351,31 @@ def bulk_save_grades(
         exam_score = g.get("exam_score")
         comment = g.get("comment")
         
-        if cc_score is not None and (cc_score < 0 or cc_score > 20):
-            raise HTTPException(status_code=400, detail=f"Note CC invalide: {cc_score}")
-        if exam_score is not None and (exam_score < 0 or exam_score > 20):
-            raise HTTPException(status_code=400, detail=f"Note Examen invalide: {exam_score}")
+        # Validation dynamique et professionnelle du barème académique (0 à max_grade / 20)
+        score_val = g.get("score")
+        if score_val is not None:
+            try:
+                score_val = float(score_val)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Format de note invalide")
+            if score_val < 0 or score_val > max_grade:
+                raise HTTPException(status_code=400, detail=f"Note invalide: {score_val}/20 (doit être comprise entre 0 et {max_grade}/20)")
+
+        if cc_score is not None:
+            try:
+                cc_score = float(cc_score)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Format de note CC invalide")
+            if cc_score < 0 or cc_score > max_grade:
+                raise HTTPException(status_code=400, detail=f"Note CC invalide: {cc_score}/20 (doit être comprise entre 0 et {max_grade}/20)")
+
+        if exam_score is not None:
+            try:
+                exam_score = float(exam_score)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Format de note Examen invalide")
+            if exam_score < 0 or exam_score > max_grade:
+                raise HTTPException(status_code=400, detail=f"Note Examen invalide: {exam_score}/20 (doit être comprise entre 0 et {max_grade}/20)")
         
         final_score = None
         if cc_score is not None and exam_score is not None:
@@ -319,6 +384,11 @@ def bulk_save_grades(
             final_score = cc_score
         elif exam_score is not None:
             final_score = exam_score
+        elif score_val is not None:
+            final_score = score_val
+            
+        if final_score is not None:
+            final_score = min(max_grade, max(0.0, final_score))
         
         existing = db.query(Grade).filter(
             Grade.student_id == student_id,

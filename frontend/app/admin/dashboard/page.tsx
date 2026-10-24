@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Users, GraduationCap, BookOpen, TrendingUp, TrendingDown, Bot, Loader2 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -168,7 +169,7 @@ const formatTimeAgo = (dateStr: string | null) => {
               </p>
               <p className="text-xs mt-2 flex items-center text-slate-500">
                 <BookOpen size={12} className="mr-1" />
-                Matières actives
+                Modules actifs
               </p>
             </div>
             <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -323,9 +324,12 @@ const formatTimeAgo = (dateStr: string | null) => {
               <p className="text-lg font-bold">+{stats.students.new_this_month}</p>
             </div>
           </div>
-          <button className="w-full bg-white text-[#0a1628] font-semibold py-2 rounded-lg text-sm hover:bg-slate-100 transition-colors">
+          <Link 
+            href="/admin/statistics"
+            className="block text-center w-full bg-white text-[#0a1628] font-semibold py-2 rounded-lg text-sm hover:bg-slate-100 transition-colors"
+          >
             Voir plus d'insights
-          </button>
+          </Link>
         </div>
       </div>
     </div>

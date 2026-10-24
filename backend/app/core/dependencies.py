@@ -58,11 +58,47 @@ def get_current_user(
 
 def require_role(*roles: str):
     """
-    Vérifie que l'utilisateur a UN des rôles spécifiés.
+    Vérifie que l'utilisateur a UN des rôles spécifiés (gère les équivalences FR/EN).
     Usage: current_user: User = Depends(require_role("admin", "censeur"))
     """
+    role_synonyms = {
+        "secretary": {"secretary", "secretaire"},
+        "secretaire": {"secretary", "secretaire"},
+        "guard": {"guard", "gardien"},
+        "gardien": {"guard", "gardien"},
+        "accountant": {"accountant", "comptable"},
+        "comptable": {"accountant", "comptable"},
+        "censeur": {"censeur", "censor"},
+        "censor": {"censeur", "censor"},
+        "teacher": {"teacher", "enseignant", "professeur"},
+        "enseignant": {"teacher", "enseignant", "professeur"},
+        "student": {"student", "etudiant"},
+        "etudiant": {"student", "etudiant"},
+        "super_admin": {"super_admin", "superadmin"},
+        "superadmin": {"super_admin", "superadmin"}
+    }
+    
+    expanded_roles = set()
+    for r in roles:
+        expanded_roles.add(r.lower())
+        if r.lower() in role_synonyms:
+            expanded_roles.update(role_synonyms[r.lower()])
+
     def role_checker(current_user: User = Depends(get_current_user)):
-        if current_user.role not in roles:
+        user_role = (current_user.role or "").lower()
+        user_roles_set = {user_role}
+        if user_role in role_synonyms:
+            user_roles_set.update(role_synonyms[user_role])
+            
+        # Super admin a un accès maître sur la plateforme
+        if "super_admin" in user_roles_set or "superadmin" in user_roles_set:
+            return current_user
+
+        # ✅ Secrétaire a autorité et délégation totale pour effectuer toutes les tâches du censeur et des enseignants
+        if "secretary" in user_roles_set or "secretaire" in user_roles_set:
+            user_roles_set.update({"censeur", "censor", "teacher", "enseignant", "professeur"})
+            
+        if not user_roles_set.intersection(expanded_roles):
             raise HTTPException(
                 status_code=403,
                 detail=f"Access denied. Required roles: {', '.join(roles)}"

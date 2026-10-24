@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { getMediaUrl } from "@/lib/api";
+import api, { getMediaUrl } from "@/lib/api";
 
 export default function StudentCard({
   params,
@@ -20,20 +20,12 @@ export default function StudentCard({
 
       try {
 
-        const response = await fetch(
-          `http://127.0.0.1:8000/students/${resolvedParams.id}`
-        );
-
-        const data =
-          await response.json();
-
-        console.log(data);
-
-        setStudent(data);
+        const response = await api.get(`/api/v1/students/${resolvedParams.id}`);
+        setStudent(response.data);
 
       } catch (error) {
 
-        console.log(error);
+        console.error("Erreur chargement carte etudiant:", error);
       }
     }
 
@@ -336,9 +328,19 @@ export default function StudentCard({
                 >
 
                     <img
-                    src={`http://127.0.0.1:8000/qr_codes/${student.qr_code}`}
+                    src={
+                      student.qr_code && student.qr_code.startsWith('http')
+                        ? student.qr_code
+                        : student.qr_code
+                        ? `/qr_codes/${student.qr_code.replace(/^.*[\\\/]/, '')}`
+                        : `/api/v1/students/${student.id}/qrcode`
+                    }
                     alt="QR Code"
                     className="w-full h-full object-contain"
+                    onError={(e: any) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = `/api/v1/students/${student.id}/qrcode`;
+                    }}
                     />
 
                 </div>

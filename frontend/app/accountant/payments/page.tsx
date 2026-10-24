@@ -283,9 +283,20 @@ export default function PaymentsPage() {
               tranches: []
             };
             
-            const paidTranches = summary.tranches?.filter((t: any) => t.status === 'paid') || [];
-            const availableTranches = summary.tranches?.filter((t: any) => t.status === 'available') || [];
-            const lockedTranches = summary.tranches?.filter((t: any) => t.status === 'locked') || [];
+            const rawTranches = summary.tranches || [];
+            const uniqueTranches: any[] = [];
+            const seenNums = new Set();
+            for (const t of rawTranches) {
+              const k = t.number ?? t.name;
+              if (!seenNums.has(k)) {
+                seenNums.add(k);
+                uniqueTranches.push(t);
+              }
+            }
+
+            const paidTranches = uniqueTranches.filter((t: any) => t.status === 'paid');
+            const availableTranches = uniqueTranches.filter((t: any) => t.status === 'available');
+            const lockedTranches = uniqueTranches.filter((t: any) => t.status === 'locked');
 
             return (
               <div key={student.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-shadow">

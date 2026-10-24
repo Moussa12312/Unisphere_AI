@@ -93,10 +93,11 @@ export default function CreatePaymentPage() {
   };
 
   const handleSelectTranche = (tranche: any) => {
+    const defaultAmount = tranche.remaining != null && tranche.remaining > 0 ? tranche.remaining : tranche.amount;
     setFormData({
       ...formData,
       tranche_id: String(tranche.id),
-      amount: tranche.amount.toString()
+      amount: String(defaultAmount)
     });
   };
 
@@ -315,11 +316,29 @@ export default function CreatePaymentPage() {
                     {selectedStudent.first_name.charAt(0)}{selectedStudent.last_name.charAt(0)}
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-slate-900">
-                      {selectedStudent.first_name} {selectedStudent.last_name}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-slate-900">
+                        {selectedStudent.first_name} {selectedStudent.last_name}
+                      </p>
+                      {studentSummary && (
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                          studentSummary.is_monthly || studentSummary.payment_plan === 'mensuel'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : 'bg-blue-100 text-blue-800 border border-blue-200'
+                        }`}>
+                          {studentSummary.is_monthly || studentSummary.payment_plan === 'mensuel'
+                            ? '📅 Modalité Mensuelle'
+                            : '🏛️ Par Tranches'}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-slate-600">
                       {selectedStudent.matricule} • <span className="text-[#FF6B00] font-medium">{selectedStudent.level}</span>
+                      {studentSummary?.monthly_plan?.formatted_summary && (
+                        <span className="block text-xs text-emerald-700 font-medium mt-0.5">
+                          Formule : {studentSummary.monthly_plan.formatted_summary}
+                        </span>
+                      )}
                     </p>
                   </div>
                   <CheckCircle className="text-green-600" size={24} />
@@ -416,8 +435,16 @@ export default function CreatePaymentPage() {
                     <Layers className="text-white" size={20} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-white">Tranches disponibles au paiement</h2>
-                    <p className="text-xs text-white/80">Sélectionnez une tranche pour pré-remplir le montant</p>
+                    <h2 className="text-lg font-bold text-white">
+                      {studentSummary?.is_monthly || studentSummary?.payment_plan === 'mensuel'
+                        ? 'Échéances & Mensualités disponibles'
+                        : 'Tranches disponibles au paiement'}
+                    </h2>
+                    <p className="text-xs text-white/80">
+                      {studentSummary?.is_monthly || studentSummary?.payment_plan === 'mensuel'
+                        ? 'Sélectionnez une mensualité pour pré-remplir le montant'
+                        : 'Sélectionnez une tranche pour pré-remplir le montant'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -452,7 +479,14 @@ export default function CreatePaymentPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-lg font-bold text-[#FF6B00]">{formatFCFA(tranche.amount)}</p>
+                          <p className="text-lg font-bold text-[#FF6B00]">
+                            {formatFCFA(tranche.remaining != null && tranche.remaining > 0 ? tranche.remaining : tranche.amount)}
+                          </p>
+                          {tranche.is_partially_paid && (
+                            <p className="text-[11px] text-emerald-600 font-medium">
+                              (Reste dû sur {formatFCFA(tranche.amount)})
+                            </p>
+                          )}
                           {formData.tranche_id === String(tranche.id) && (
                             <CheckCircle size={16} className="text-[#FF6B00] ml-auto mt-1" />
                           )}

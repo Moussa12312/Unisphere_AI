@@ -40,9 +40,11 @@ export interface GradeStats {
 
 export const gradeService = {
   // ✅ Récupérer les notes avec CC + Examen
-  getByContext: async (sessionId: number, courseId: number): Promise<GradeContext> => {
+  getByContext: async (sessionId: number, courseId: number, classId?: number): Promise<GradeContext> => {
+    const params: any = { session_id: sessionId, course_id: courseId };
+    if (classId) params.class_id = classId;
     const response = await api.get('/api/v1/grades/by-context', {
-      params: { session_id: sessionId, course_id: courseId }
+      params
     });
     return response.data;
   },

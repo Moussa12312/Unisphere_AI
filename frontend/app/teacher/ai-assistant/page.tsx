@@ -54,7 +54,7 @@ export default function TeacherAIAssistantPage() {
       icon: BookOpen,
       title: 'Créer un syllabus',
       description: 'Plan de cours détaillé',
-      prompt: 'Crée un syllabus complet pour un cours de [MATIÈRE] de niveau [NIVEAU] sur un semestre de 15 semaines. Inclus : objectifs pédagogiques, plan détaillé semaine par semaine, bibliographie, modalités d\'évaluation.',
+      prompt: 'Crée un syllabus complet pour un cours de [MODULE] de niveau [NIVEAU] sur un semestre de 15 semaines. Inclus : objectifs pédagogiques, plan détaillé semaine par semaine, bibliographie, modalités d\'évaluation.',
       color: 'from-purple-500 to-pink-600'
     },
     {

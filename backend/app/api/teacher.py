@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
+import qrcode
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from datetime import date, datetime
@@ -452,6 +454,23 @@ def get_teacher_profile(
     if not teacher:
         raise HTTPException(status_code=404, detail="Profil enseignant non trouvé")
     
+    # Vérification et génération automatique du QR code si nécessaire
+    os.makedirs("qr_codes", exist_ok=True)
+    qr_filename = teacher.qr_code or f"TEACHER_{teacher.id}.png"
+    qr_filename = os.path.basename(qr_filename)
+    qr_path = os.path.join("qr_codes", qr_filename)
+    if not os.path.exists(qr_path) or os.path.getsize(qr_path) == 0:
+        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=2)
+        qr.add_data(f"TEACHER-{teacher.id}")
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        img.save(qr_path)
+        teacher.qr_code = qr_filename
+        db.commit()
+    elif teacher.qr_code != qr_filename:
+        teacher.qr_code = qr_filename
+        db.commit()
+
     return {
         "id": teacher.id,
         "first_name": teacher.first_name,
@@ -463,6 +482,37 @@ def get_teacher_profile(
         "photo": teacher.photo,
         "qr_code": teacher.qr_code
     }
+
+
+@router.get("/qrcode")
+@router.get("/qr-code")
+def get_current_teacher_qrcode(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("teacher"))
+):
+    """Télécharger ou afficher le QR code de l'enseignant connecté"""
+    teacher = db.query(Teacher).filter(
+        Teacher.user_id == current_user.id,
+        Teacher.university_id == current_user.university_id
+    ).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Profil enseignant non trouvé")
+
+    os.makedirs("qr_codes", exist_ok=True)
+    qr_filename = teacher.qr_code or f"TEACHER_{teacher.id}.png"
+    qr_filename = os.path.basename(qr_filename)
+    qr_path = os.path.join("qr_codes", qr_filename)
+    if not os.path.exists(qr_path) or os.path.getsize(qr_path) == 0:
+        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=2)
+        qr.add_data(f"TEACHER-{teacher.id}")
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        img.save(qr_path)
+        teacher.qr_code = qr_filename
+        db.commit()
+
+    return FileResponse(qr_path, media_type="image/png", filename=f"QR_TEACHER_{teacher.id}.png")
+
 
 
 # ==========================================

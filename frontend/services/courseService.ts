@@ -11,6 +11,11 @@ export interface Course {
   teacher_id: number | null;
   teacher_name: string;
   filiere_id?: number;
+  filiere_name?: string;
+  semester?: string;
+  teaching_unit_id?: number;
+  teaching_unit_code?: string;
+  teaching_unit_name?: string;
 }
 
 export interface CourseHistory {

@@ -37,7 +37,7 @@ export default function CenseurGradesPage() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [grades, setGrades] = useState<Grade[]>([]);
-  const [filterStatus, setFilterStatus] = useState('draft');
+  const [filterStatus, setFilterStatus] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
   const [filterSession, setFilterSession] = useState('');
   const [search, setSearch] = useState('');
@@ -281,10 +281,10 @@ export default function CenseurGradesPage() {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
           >
+            <option value="">Tous les statuts</option>
             <option value="draft">🟠 En attente</option>
             <option value="validated">✅ Validées</option>
             <option value="rejected">❌ Rejetées</option>
-            <option value="">Tous les statuts</option>
           </select>
           <select
             value={filterCourse}

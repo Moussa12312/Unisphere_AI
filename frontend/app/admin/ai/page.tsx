@@ -57,9 +57,12 @@ export default function AIAssistantPage() {
     setIsLoading(true);
 
     try {
-      const response = await api.post('/api/v1/ai/chat', {
-        message: text.trim()
-      });
+      let response;
+      try {
+        response = await api.post('/api/v1/ai-assistant/chat', { message: text.trim() });
+      } catch {
+        response = await api.post('/api/v1/ai/chat', { message: text.trim() });
+      }
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),

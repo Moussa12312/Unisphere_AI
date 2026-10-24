@@ -13,6 +13,7 @@ export interface ClassRoom {
   main_teacher_id: number | null;
   main_teacher_name: string;
   university_id: number;
+  students_count?: number;
 }
 
 export interface Announcement {
@@ -45,6 +46,16 @@ export const classService = {
   getById: async (id: number): Promise<ClassRoom> => {
     const response = await api.get(`/api/v1/classes/${id}`);
     return response.data;
+  },
+
+  getStudents: async (id: number): Promise<any[]> => {
+    try {
+      const response = await api.get(`/api/v1/classes/${id}/students`);
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error('Erreur chargement etudiants de la classe:', error);
+      return [];
+    }
   },
 
   create: async (data: any): Promise<any> => {

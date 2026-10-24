@@ -24,6 +24,9 @@ from app.models.payment_tranche import PaymentTranche
 from app.models.alumni import AlumniProfile, AlumniInvitation, AlumniConnection, AlumniMessage
 from app.models.scan_session import ScanSession
 from app.models.censor import Censor
+from app.models.teaching_unit import TeachingUnit
+from app.models.room import Room
+from app.models.exam_schedule import ExamSchedule
 
 
 __all__ = [
@@ -52,5 +55,8 @@ __all__ = [
     "AlumniInvitation", 
     "AlumniConnection",
     "AlumniMessage",
-    "ScanSession"
+    "ScanSession",
+    "TeachingUnit",
+    "Room",
+    "ExamSchedule"
 ]

@@ -434,7 +434,7 @@ export default function SecretaryDashboardPage() {
                 href="/secretary/courses"
                 className="flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
               >
-                <span className="text-sm font-medium">Cours & Matières</span>
+                <span className="text-sm font-medium">Cours & Modules</span>
                 <ArrowRight size={16} />
               </Link>
               <Link

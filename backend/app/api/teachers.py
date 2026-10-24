@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
@@ -84,6 +85,64 @@ def get_teachers(
     return [format_teacher(t) for t in teachers]
 
 
+def format_teacher_detail(teacher: Teacher, db: Session) -> dict:
+    """Enrichit le profil enseignant avec les cours réels, les statistiques d'évaluations et d'heures"""
+    from app.models.course import Course
+    from app.models.student import Student
+    from app.models.grade import Grade
+
+    base = format_teacher(teacher)
+    
+    courses = db.query(Course).filter(
+        Course.teacher_id == teacher.id,
+        Course.university_id == teacher.university_id
+    ).all()
+    
+    courses_list = []
+    course_ids = []
+    total_hours = 0
+    student_ids_set = set()
+    
+    for c in courses:
+        course_ids.append(c.id)
+        f_name = c.filiere.name if getattr(c, 'filiere', None) else (getattr(c, 'department', '') or '')
+        c_hours = getattr(c, 'hours', 20) or 20
+        total_hours += c_hours
+        
+        q = db.query(Student.id).filter(
+            Student.level == c.level,
+            Student.university_id == teacher.university_id
+        )
+        if f_name:
+            q = q.filter(Student.filiere.ilike(f"%{f_name}%"))
+        st_ids = [row[0] for row in q.all()]
+        student_ids_set.update(st_ids)
+        
+        courses_list.append({
+            "id": c.id,
+            "title": c.title,
+            "code": c.code,
+            "level": c.level,
+            "credits": c.credits or 3,
+            "hours": c_hours,
+            "filiere_name": f_name or "N/A",
+            "students_count": len(st_ids)
+        })
+        
+    evaluations_count = db.query(Grade).filter(Grade.course_id.in_(course_ids)).count() if course_ids else 0
+    
+    base.update({
+        "courses": courses_list,
+        "courses_count": len(courses_list),
+        "students_count": len(student_ids_set),
+        "total_hours": total_hours,
+        "hours_count": total_hours,
+        "evaluations_count": evaluations_count,
+        "grades_count": evaluations_count
+    })
+    return base
+
+
 # ==========================================
 # DÉTAIL D'UN ENSEIGNANT
 # ==========================================
@@ -93,7 +152,7 @@ def get_teacher(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary", "censeur", "accountant", "teacher"))
 ):
-    """Détail d'un enseignant spécifique"""
+    """Détail d'un enseignant spécifique avec ses cours et statistiques connectées"""
     teacher = db.query(Teacher).filter(
         Teacher.id == teacher_id,
         Teacher.university_id == current_user.university_id
@@ -102,7 +161,7 @@ def get_teacher(
     if not teacher:
         raise HTTPException(status_code=404, detail="Enseignant non trouvé")
     
-    return format_teacher(teacher)
+    return format_teacher_detail(teacher, db)
 
 
 # ==========================================
@@ -114,7 +173,7 @@ async def create_teacher(
     last_name: str = Form(...),
     email: str = Form(...),
     department: str = Form(None),
-    speciality: str = Form(...),
+    speciality: str = Form(None),
     phone: str = Form(None),
     filiere_id: int = Form(None),
     photo: UploadFile = File(None),
@@ -123,17 +182,18 @@ async def create_teacher(
 ):
     """Créer un nouvel enseignant (form-data pour upload photo)"""
     
-    if not filiere_id and not department:
-        raise HTTPException(status_code=400, detail="Filière ou département requis")
-    
     if filiere_id:
         filiere = db.query(Filiere).filter(
             Filiere.id == filiere_id,
             Filiere.university_id == current_user.university_id
         ).first()
-        if not filiere:
-            raise HTTPException(status_code=404, detail="Filière non trouvée")
-        department = filiere.name
+        if filiere:
+            department = filiere.name
+    
+    if not department:
+        department = "Enseignement Général"
+    if not speciality:
+        speciality = department
     
     existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
@@ -354,7 +414,7 @@ async def upload_teacher_photo(
 def delete_teacher(
     teacher_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    current_user: User = Depends(require_role("admin", "secretary"))
 ):
     """Supprimer un enseignant"""
     teacher = db.query(Teacher).filter(
@@ -394,7 +454,7 @@ def delete_teacher(
 def reset_teacher_password(
     teacher_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    current_user: User = Depends(require_role("admin", "secretary"))
 ):
     """Réinitialiser le mot de passe"""
     teacher = db.query(Teacher).filter(
@@ -460,3 +520,44 @@ def update_teacher_password(
         return {"message": "Mot de passe mis à jour avec succès"}
     
     raise HTTPException(status_code=404, detail="Utilisateur associé non trouvé")
+
+
+# ==========================================
+# QR CODE DE L'ENSEIGNANT (Génération et Affichage)
+# ==========================================
+@router.get("/{teacher_id}/qr-code")
+@router.get("/{teacher_id}/qrcode")
+def get_teacher_qr_code(
+    teacher_id: int,
+    db: Session = Depends(get_db)
+):
+    """Génère et retourne l'image PNG du QR code d'un enseignant"""
+    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Enseignant non trouvé")
+    
+    os.makedirs("qr_codes", exist_ok=True)
+    qr_filename = teacher.qr_code or f"TEACHER_{teacher.id}.png"
+    qr_filename = os.path.basename(qr_filename)
+    qr_path = os.path.join("qr_codes", qr_filename)
+    
+    if os.path.exists(qr_path) and os.path.getsize(qr_path) > 0:
+        return FileResponse(qr_path, media_type="image/png", filename=f"QR_TEACHER_{teacher.id}.png")
+    
+    # Génération du QR code s'il n'existe pas encore sur le disque
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(f"TEACHER-{teacher.id}")
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    img.save(qr_path)
+    
+    if teacher.qr_code != qr_filename:
+        teacher.qr_code = qr_filename
+        db.commit()
+        
+    return FileResponse(qr_path, media_type="image/png", filename=f"QR_TEACHER_{teacher.id}.png")

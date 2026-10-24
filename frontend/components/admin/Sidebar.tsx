@@ -9,7 +9,8 @@ import {
   Upload, CheckCircle, Award, TrendingUp, MessageSquare,
   ClipboardList, Receipt, AlertCircle, FileCheck, School, Building2, DollarSign, Shield,
   QrCode, Edit3, Clock, AlertTriangle, RotateCcw, FileBarChart,
-  BrainCircuit, UserPlus, Folder, Users2, ScrollText, FileSearch, Scale, Lock, HelpCircle
+  BrainCircuit, UserPlus, Folder, Users2, ScrollText, FileSearch, Scale, Lock, HelpCircle,
+  Layers, FileSpreadsheet, Printer
 } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { useRouter } from 'next/navigation';
@@ -45,8 +46,10 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'SCOLARITÉ',
       items: [
         { label: 'Étudiants', href: '/admin/students', icon: Users },
+        { label: 'Inscription en masse', href: '/admin/students/bulk', icon: FileSpreadsheet },
         { label: 'Enseignants', href: '/admin/teachers', icon: GraduationCap },
         { label: 'Cours', href: '/admin/courses', icon: BookOpen },
+        { label: 'Unités d\'Enseignement (UEs)', href: '/admin/teaching-units', icon: Layers },
         { label: 'Notes & Résultats', href: '/admin/grades', icon: FileText },
       ]
     },
@@ -54,6 +57,7 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'FINANCES',
       items: [
+        { label: 'Reçus', href: '/accountant/receipts', icon: Printer },
         { label: 'Statistiques financières', href: '/admin/statistics', icon: TrendingUp },
         { label: 'Rapports financiers', href: '/admin/financial-reports', icon: Receipt },
       ]
@@ -112,26 +116,43 @@ const MENU_CONFIG: Record<string, Array<{
       items: [
         { label: 'Tous les étudiants', href: '/secretary/students', icon: Users },
         { label: 'Inscriptions', href: '/secretary/students/enrollment', icon: UserPlus },
-        { label: 'Dossiers', href: '/secretary/students/files', icon: Folder }, // ✅ CORRIGÉ
+        { label: 'Inscription en masse', href: '/secretary/students/bulk', icon: FileSpreadsheet },
+        { label: 'Dossiers', href: '/secretary/students/files', icon: Folder },
+        { label: 'Cartes Étudiants (Impression)', href: '/secretary/student-cards', icon: CreditCard },
       ]
     },
 
     {
-      title: 'PÉDAGOGIE',
+      title: 'PÉDAGOGIE & ENSEIGNEMENT',
       items: [
         { label: 'Enseignants', href: '/secretary/teachers', icon: GraduationCap },
         { label: 'Classes', href: '/secretary/classes', icon: Users2 },
-        { label: 'Cours & Matières', href: '/secretary/courses', icon: BookOpen },
+        { label: 'Cours & Modules', href: '/secretary/courses', icon: BookOpen },
         { label: 'Emploi du temps', href: '/secretary/schedule', icon: Calendar },
+        { label: 'Faire l\'appel (Présences)', href: '/teacher/attendance', icon: UserCheck },
       ]
     },
 
     {
-      title: 'NOTES',
+      title: 'EXAMENS & NOTES',
       items: [
         { label: 'Saisie des notes', href: '/secretary/grades/entry', icon: Edit3 },
+        { label: 'Notes à valider', href: '/censeur/grades/pending', icon: CheckCircle, badge: 'urgent' },
         { label: 'Sessions d\'examens', href: '/secretary/exam-sessions', icon: FileText },
-        { label: 'Bulletins', href: '/secretary/grades/report-cards', icon: FileCheck },
+        { label: 'Bulletins de notes', href: '/censeur/bulletins', icon: FileCheck },
+        { label: 'Relevés de notes', href: '/censeur/documents/transcripts', icon: ScrollText },
+        { label: 'Rattrapages', href: '/censeur/exams/makeup', icon: RotateCcw },
+        { label: 'Anomalies', href: '/censeur/grades/anomalies', icon: AlertTriangle },
+      ]
+    },
+
+    {
+      title: 'SUIVI ACADÉMIQUE',
+      items: [
+        { label: 'Unités d\'Enseignement (UEs)', href: '/admin/teaching-units', icon: Layers },
+        { label: 'Performance', href: '/censeur/academic/performance', icon: TrendingUp },
+        { label: 'Statistiques', href: '/censeur/academic/statistics', icon: BarChart3 },
+        { label: 'Rapports académiques', href: '/censeur/academic/reports', icon: FileBarChart },
       ]
     },
 
@@ -140,7 +161,7 @@ const MENU_CONFIG: Record<string, Array<{
       items: [
         { label: 'Générer documents', href: '/secretary/documents/generate', icon: FileCheck },
         { label: 'Mes documents', href: '/secretary/documents', icon: FileText },
-        { label: 'Demandes d\'attestations', href: '/secretary/certificate-requests', icon: FileCheck },
+        { label: 'Demandes d\'attestations & relevés', href: '/secretary/certificate-requests', icon: FileCheck },
         { label: 'Upload Cours PDF', href: '/secretary/upload-materials', icon: Upload },
       ]
     },
@@ -178,6 +199,7 @@ const MENU_CONFIG: Record<string, Array<{
       items: [
         { label: 'Saisie des notes', href: '/censeur/grades/entry', icon: Edit3 },
         { label: 'Notes à valider', href: '/censeur/grades/pending', icon: CheckCircle, badge: 'urgent' },
+        { label: 'Bulletins de notes', href: '/censeur/bulletins', icon: FileCheck },
         { label: 'Historique', href: '/censeur/grades/history', icon: Clock },
         { label: 'Anomalies', href: '/censeur/grades/anomalies', icon: AlertTriangle },
       ]
@@ -195,6 +217,7 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'SUIVI ACADÉMIQUE',
       items: [
+        { label: 'Unités d\'Enseignement (UEs)', href: '/censeur/teaching-units', icon: Layers },
         { label: 'Performance', href: '/censeur/academic/performance', icon: TrendingUp },
         { label: 'Statistiques', href: '/censeur/academic/statistics', icon: BarChart3 },
         { label: 'Rapports', href: '/censeur/academic/reports', icon: FileBarChart },
@@ -230,6 +253,13 @@ const MENU_CONFIG: Record<string, Array<{
     },
 
     {
+      title: 'REÇUS',
+      items: [
+        { label: 'Reçus', href: '/accountant/receipts', icon: Printer },
+      ]
+    },
+
+    {
       title: 'PAIEMENTS',
       items: [
         { label: 'Enregistrer paiement', href: '/accountant/payments/create', icon: Calculator },
@@ -242,11 +272,11 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'FINANCES',
       items: [
-        { label: 'Dépenses', href: '/accountant/expenses', icon: TrendingUp },
-        { label: 'Fournisseurs', href: '/accountant/suppliers', icon: Building2 },
-        { label: 'Trésorerie', href: '/accountant/treasury', icon: DollarSign },
-        { label: 'Salaires', href: '/accountant/payroll', icon: Users },
         { label: 'Budget', href: '/accountant/budget', icon: BarChart3 },
+        { label: 'Trésorerie', href: '/accountant/treasury', icon: DollarSign },
+        { label: 'Fournisseurs', href: '/accountant/suppliers', icon: Building2 },
+        { label: 'Dépenses', href: '/accountant/expenses', icon: TrendingUp },
+        { label: 'Salaires', href: '/accountant/payroll', icon: Users },
         { label: 'Immobilisations', href: '/accountant/fixed-assets', icon: School },
       ]
     },

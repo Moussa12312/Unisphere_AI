@@ -33,7 +33,7 @@ const ROLE_GUIDES: RoleGuide[] = [
     role: 'admin',
     label: 'Administrateur',
     badge: 'Gestion Établissement',
-    icon: Building2Icon,
+    icon: School,
     color: 'text-[#FF6B00]',
     bgLight: 'bg-orange-50 border-orange-200',
     summary: 'L\'Administrateur pilote l\'ensemble de l\'établissement : configuration générale, personnalisation des thèmes & couleurs, organisation pédagogique, finances et délibérations.',
@@ -253,7 +253,7 @@ const ROLE_GUIDES: RoleGuide[] = [
         description: 'Suivez vos résultats et votre planning hebdomadaire.',
         steps: [
           'Sur le Tableau de bord, visualisez votre moyenne générale et votre assiduité.',
-          'Consultez "Pédagogie" → "Mes notes" pour le détail par matière.',
+          'Consultez "Pédagogie" → "Mes notes" pour le détail par module.',
           'Accédez à "Mon emploi du temps" pour vérifier vos salles et horaires de cours.'
         ]
       },
@@ -380,12 +380,37 @@ const ROLE_GUIDES: RoleGuide[] = [
   }
 ];
 
-function Building2Icon(props: any) {
-  return <School {...props} />;
-}
+
+
+const normalizeRole = (r?: string): string => {
+  if (!r) return 'admin';
+  const clean = r.toLowerCase().trim();
+  const map: Record<string, string> = {
+    'super_admin': 'superadmin',
+    'superadmin': 'superadmin',
+    'admin': 'admin',
+    'secretary': 'secretary',
+    'secretaire': 'secretary',
+    'censeur': 'censeur',
+    'censor': 'censeur',
+    'accountant': 'accountant',
+    'comptable': 'accountant',
+    'teacher': 'teacher',
+    'enseignant': 'teacher',
+    'professeur': 'teacher',
+    'student': 'student',
+    'etudiant': 'student',
+    'guard': 'guard',
+    'gardien': 'guard',
+    'alumni': 'alumni'
+  };
+  return map[clean] || clean;
+};
 
 export default function UserGuidePage() {
+  const [currentUserRole, setCurrentUserRole] = useState<string>('admin');
   const [selectedRole, setSelectedRole] = useState<string>('admin');
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
@@ -393,14 +418,22 @@ export default function UserGuidePage() {
       const userStr = localStorage.getItem('user');
       if (userStr) {
         const u = JSON.parse(userStr);
-        if (u?.role && ROLE_GUIDES.some(g => g.role === u.role)) {
-          setSelectedRole(u.role);
+        const norm = normalizeRole(u?.role);
+        setCurrentUserRole(norm);
+        if (norm === 'superadmin') {
+          setIsSuperAdmin(true);
+          setSelectedRole('superadmin');
+        } else {
+          setIsSuperAdmin(false);
+          setSelectedRole(norm);
         }
       }
     } catch {}
   }, []);
 
-  const currentGuide = ROLE_GUIDES.find(g => g.role === selectedRole) || ROLE_GUIDES[0];
+  // Pour tout rôle autre que superadmin, forcer strictement le guide sur son propre rôle
+  const effectiveRole = isSuperAdmin ? selectedRole : currentUserRole;
+  const currentGuide = ROLE_GUIDES.find(g => g.role === effectiveRole) || ROLE_GUIDES[0];
   const IconComponent = currentGuide.icon;
 
   const filteredSections = currentGuide.sections.filter(s => 
@@ -420,9 +453,13 @@ export default function UserGuidePage() {
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full text-xs font-semibold text-orange-400 mb-3">
               <Sparkles size={14} /> Guide Officiel UniSphere AI
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">Manuel d'Utilisation du SaaS</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {isSuperAdmin ? "Manuel d'Utilisation Global SaaS" : `Manuel d'Utilisation — Espace ${currentGuide.label}`}
+            </h1>
             <p className="text-slate-300 mt-1 text-sm max-w-2xl">
-              Découvrez en détail le fonctionnement et les fonctionnalités de la plateforme adaptées à chaque rôle.
+              {isSuperAdmin
+                ? "Vue Super Administrateur : consultez l'ensemble des modules, procédures et flux de la plateforme pour tous les rôles."
+                : `Découvrez en détail les procédures, actions et outils dédiés à votre profil ${currentGuide.label}.`}
             </p>
           </div>
 
@@ -440,29 +477,53 @@ export default function UserGuidePage() {
         </div>
       </div>
 
-      {/* Sélecteur de Rôle (Barre d'onglets réactive) */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-sm overflow-x-auto scrollbar-hide">
-        <div className="flex gap-1 min-w-max">
-          {ROLE_GUIDES.map((g) => {
-            const Icon = g.icon;
-            const isActive = selectedRole === g.role;
-            return (
-              <button
-                key={g.role}
-                onClick={() => setSelectedRole(g.role)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-[#FF6B00] text-white shadow-md shadow-orange-500/20'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <Icon size={16} />
-                <span>{g.label}</span>
-              </button>
-            );
-          })}
+      {/* SÉLECTEUR DE RÔLE : RÉSERVÉ EXCLUSIVEMENT AU SUPERADMIN */}
+      {isSuperAdmin ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+            <Crown size={16} className="text-amber-600 flex-shrink-0" />
+            <span><strong>Mode Super Administrateur :</strong> Vous avez l'autorisation globale de consulter les manuels de tous les rôles.</span>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-sm overflow-x-auto scrollbar-hide">
+            <div className="flex gap-1 min-w-max">
+              {ROLE_GUIDES.map((g) => {
+                const Icon = g.icon;
+                const isActive = selectedRole === g.role;
+                return (
+                  <button
+                    key={g.role}
+                    onClick={() => setSelectedRole(g.role)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      isActive
+                        ? 'bg-[#FF6B00] text-white shadow-md shadow-orange-500/20'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Icon size={16} />
+                    <span>{g.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* VUE UTILISATEUR STANDARD : VERROUILLÉE STRICTEMENT SUR SON PROPRE RÔLE */
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${currentGuide.bgLight} ${currentGuide.color}`}>
+              <IconComponent size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Manuel dédié à votre fonction</p>
+              <h2 className="text-lg font-bold text-slate-900">Espace {currentGuide.label}</h2>
+            </div>
+          </div>
+          <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full">
+            {currentGuide.badge}
+          </span>
+        </div>
+      )}
 
       {/* Carte Résumé du Rôle */}
       <div className={`p-6 rounded-2xl border-2 transition-all ${currentGuide.bgLight}`}>

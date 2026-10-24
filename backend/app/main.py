@@ -1,3 +1,10 @@
+import sys
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -36,11 +43,6 @@ from app.models.accounting import Supplier, ExpenseCategory, Expense, BankAccoun
 from app.models.ledger import Account, JournalEntry, JournalEntryLine, FiscalYear, BankReconciliation
 from app.models.client_billing import ClientInvoice, ClientPayment
 
-# ✅ Enregistrer automatiquement toutes les tables SQLAlchemy
-try:
-    Base.metadata.create_all(bind=engine)
-except Exception as e:
-    print(f"[WARNING] Erreur creation tables: {e}")
 _optional_models = [
     ('app.models.incident', 'Incident'),
     ('app.models.alumni', 'AlumniProfile'),
@@ -63,6 +65,12 @@ for module_path, _ in _optional_models:
         __import__(module_path)
     except ImportError:
         pass
+
+# ✅ Enregistrer automatiquement toutes les tables SQLAlchemy
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"[WARNING] Erreur creation tables: {e}")
 
 
 
@@ -87,8 +95,19 @@ app = FastAPI(
 # ============================================
 # CORS
 # ============================================
-_frontend_urls = os.getenv("FRONTEND_URL", "http://localhost:3000")
-ALLOWED_ORIGINS = [url.strip() for url in _frontend_urls.split(",") if url.strip()]
+_frontend_urls = (os.getenv("FRONTEND_URL", "") + "," + os.getenv("CORS_ORIGINS", "")).split(",")
+ALLOWED_ORIGINS = [url.strip() for url in _frontend_urls if url.strip()]
+_default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://192.168.100.17:3000",
+    "http://192.168.100.17:8000",
+]
+for o in _default_origins:
+    if o not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append(o)
 
 app.add_middleware(
     CORSMiddleware,
@@ -124,8 +143,8 @@ class AddSlashMiddleware:
                 if len(parts) == 4 and parts[3]:
                     resource = parts[3]
                     
-                    # Ne pas ajouter de slash si c'est un ID numérique
-                    if not resource.isdigit() and not path.endswith('/'):
+                    # Ne pas ajouter de slash si c'est un ID numérique ou une route spécifique
+                    if not resource.isdigit() and not path.endswith('/') and resource not in ['health', 'docs', 'openapi.json']:
                         scope["path"] = path + "/"
                         
         
@@ -151,6 +170,7 @@ roles_router = try_import_router("app.api.roles")
 dashboard_router = try_import_router("app.api.dashboard")
 statistics_router = try_import_router("app.api.statistics")
 ai_router = try_import_router("app.api.ai_assistant")
+ai_compat_router = try_import_router("app.api.ai_assistant", "ai_compat_router")
 security_router = try_import_router("app.api.security")
 universities_router = try_import_router("app.api.universities")
 
@@ -195,6 +215,10 @@ deliberations_router = try_import_router("app.api.deliberations")
 
 censors_router = try_import_router("app.api.censors")
 superadmin_router = try_import_router("app.api.superadmin")
+teaching_units_router = try_import_router("app.api.teaching_units")
+rooms_router = try_import_router("app.api.rooms")
+exam_schedules_router = try_import_router("app.api.exam_schedules")
+subscriptions_router = try_import_router("app.api.subscriptions")
 
 
 # ============================================
@@ -207,6 +231,7 @@ all_routers = {
     "dashboard": dashboard_router,
     "statistics": statistics_router,
     "ai": ai_router,
+    "ai_compat": ai_compat_router,
     "security": security_router,
     "universities": universities_router,
     "superadmin": superadmin_router,
@@ -219,6 +244,8 @@ all_routers = {
     "classes": classes_router,
     "schedules": schedules_router,
     "exam_sessions": exam_sessions_router,
+    "exam_schedules": exam_schedules_router,
+    "rooms": rooms_router,
     "grades": grades_router,
     "attendance": attendance_router,
     "academic": academic_router,
@@ -243,6 +270,8 @@ all_routers = {
     "scan_sessions": scan_sessions_router,
     "deliberations": deliberations_router,
     "censors": censors_router,
+    "teaching_units": teaching_units_router,
+    "subscriptions": subscriptions_router,
 }
 
 registered = []
@@ -256,8 +285,11 @@ for name, router in all_routers.items():
 # ============================================
 # MOUNTS STATIQUES
 # ============================================
-app.mount("/qr_codes", StaticFiles(directory="qr_codes"), name="qr_codes")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+BASE_DIR = Path(__file__).resolve().parent.parent
+(BASE_DIR / "qr_codes").mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "uploads").mkdir(parents=True, exist_ok=True)
+app.mount("/qr_codes", StaticFiles(directory=str(BASE_DIR / "qr_codes")), name="qr_codes")
+app.mount("/uploads", StaticFiles(directory=str(BASE_DIR / "uploads")), name="uploads")
 
 
 # ============================================
@@ -268,9 +300,11 @@ def root():
     return {"message": "UniSphere AI Backend Running", "docs": "/docs"}
 
 @app.get("/health")
+@app.get("/health/")
 def health_check():
     return {"status": "healthy"}
 
 @app.get("/api/v1/health")
+@app.get("/api/v1/health/")
 def health_check_v1():
     return {"status": "healthy"}

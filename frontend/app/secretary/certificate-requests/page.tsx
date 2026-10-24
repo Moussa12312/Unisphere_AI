@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   FileText, Download, Loader2, Search, Clock, 
-  CheckCircle2, AlertCircle, Upload, X 
+  CheckCircle2, AlertCircle, Upload, X, Sparkles, Eye
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
@@ -32,6 +32,7 @@ export default function SecretaryCertificateRequestsPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [generatingId, setGeneratingId] = useState<number | null>(null);
 
   useEffect(() => {
     loadRequests();
@@ -48,6 +49,31 @@ export default function SecretaryCertificateRequestsPage() {
       toast.error('Erreur lors du chargement des demandes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAutoGenerate = async (requestId: number) => {
+    setGeneratingId(requestId);
+    try {
+      const res = await api.post(`/api/v1/certificates/secretary/requests/${requestId}/generate`);
+      toast.success(res.data?.message || 'Document institutionnel officiel généré avec succès !');
+      loadRequests();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Erreur lors de la génération automatique');
+    } finally {
+      setGeneratingId(null);
+    }
+  };
+
+  const handlePreview = async (requestId: number) => {
+    try {
+      const res = await api.get(`/api/v1/certificates/secretary/requests/${requestId}/preview`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+    } catch (error: any) {
+      toast.error("Erreur lors de l'ouverture du document");
     }
   };
 
@@ -226,14 +252,27 @@ export default function SecretaryCertificateRequestsPage() {
                 </div>
                 
                 {req.status === 'pending' && (
-                  <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-sm font-medium cursor-pointer transition-colors">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <button
+                      onClick={() => handleAutoGenerate(req.id)}
+                      disabled={generatingId === req.id}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg text-sm font-semibold shadow-sm transition-all"
+                    >
+                      {generatingId === req.id ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Sparkles size={16} />
+                      )}
+                      Générer Officiel
+                    </button>
+
+                    <label className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium cursor-pointer transition-colors">
                       {uploading && actionModal?.requestId === req.id ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
                         <Upload size={16} />
                       )}
-                      Valider & Upload PDF
+                      Upload Manuel
                       <input
                         type="file"
                         accept=".pdf"
@@ -245,9 +284,10 @@ export default function SecretaryCertificateRequestsPage() {
                         }}
                       />
                     </label>
+
                     <button
                       onClick={() => setActionModal({ type: 'reject', requestId: req.id })}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-sm font-medium transition-colors"
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-sm font-medium transition-colors"
                     >
                       <X size={16} />
                       Refuser
@@ -255,10 +295,19 @@ export default function SecretaryCertificateRequestsPage() {
                   </div>
                 )}
                 
-                {req.status === 'approved' && req.file_path && (
-                  <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-4 py-2 rounded-lg">
-                    <CheckCircle2 size={16} />
-                    Document fourni
+                {req.status === 'approved' && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePreview(req.id)}
+                      className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors"
+                    >
+                      <Eye size={16} />
+                      Aperçu Officiel
+                    </button>
+                    <div className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 px-2.5 py-1.5 rounded-lg font-medium">
+                      <CheckCircle2 size={14} />
+                      Validé
+                    </div>
                   </div>
                 )}
               </div>

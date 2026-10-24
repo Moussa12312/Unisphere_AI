@@ -73,9 +73,18 @@ export const reportCardService = {
     return response.data;
   },
 
-  // ✅ Générer le PDF avec toutes les infos
+  // ✅ Générer le PDF standard du bulletin
   generatePDF: async (studentId: number, sessionId: number): Promise<Blob> => {
     const response = await api.get(`/api/v1/report-cards/generate-pdf/${studentId}`, {
+      params: { session_id: sessionId },
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  // 🎓 Générer le Relevé de Notes Officiel LMD (avec UEs, filigrane noble & QR Code sécurisé)
+  generateLMDTranscriptPDF: async (studentId: number, sessionId: number): Promise<Blob> => {
+    const response = await api.get(`/api/v1/report-cards/generate-lmd-pdf/${studentId}`, {
       params: { session_id: sessionId },
       responseType: 'blob'
     });

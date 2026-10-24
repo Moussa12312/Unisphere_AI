@@ -29,6 +29,16 @@ def get_db():
         db.close()
 
 
+def is_session_expired(session) -> bool:
+    if not session or not session.expires_at:
+        return False
+    exp = session.expires_at
+    if exp.tzinfo is None:
+        return exp < datetime.utcnow()
+    return exp < datetime.now(timezone.utc)
+
+
+
 # ==========================================
 # SCHEMAS
 # ==========================================
@@ -257,7 +267,7 @@ def get_session_public(token: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Session non trouvée")
     
     # Vérifier expiration
-    if session.expires_at < datetime.now(timezone.utc):
+    if is_session_expired(session):
         session.status = "expired"
         db.commit()
         raise HTTPException(status_code=410, detail="Cette session a expiré")
@@ -312,7 +322,7 @@ async def upload_scanned_document(
     if session.status != "active":
         raise HTTPException(status_code=400, detail="Session non active")
     
-    if session.expires_at < datetime.now(timezone.utc):
+    if is_session_expired(session):
         raise HTTPException(status_code=410, detail="Session expirée")
     
     # Limiter à 10 documents

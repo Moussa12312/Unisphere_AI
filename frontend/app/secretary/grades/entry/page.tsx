@@ -9,6 +9,7 @@ import { examSessionService, ExamSession } from '@/services/examSessionService';
 import { courseService, Course } from '@/services/courseService';
 import { classService, ClassRoom } from '@/services/classService';
 import { gradeService, GradeEntry } from '@/services/gradeService';
+import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 import { getApiErrorMessage } from '@/lib/errorHandler';
 
@@ -26,6 +27,9 @@ export default function SecretaryGradesEntryPage() {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [search, setSearch] = useState('');
+  const [ccCoeff, setCcCoeff] = useState(0.3);
+  const [examCoeff, setExamCoeff] = useState(0.7);
+  const [maxGrade, setMaxGrade] = useState(20.0);
 
   useEffect(() => {
     loadInitialData();
@@ -34,14 +38,20 @@ export default function SecretaryGradesEntryPage() {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [sessionsData, classesData, coursesData] = await Promise.all([
+      const [sessionsData, classesData, coursesData, configRes] = await Promise.all([
         examSessionService.getAll(),
         classService.getAll(),
-        courseService.getAll()
+        courseService.getAll(),
+        api.get('/api/v1/settings/academic/config').catch(() => ({ data: {} }))
       ]);
-      setSessions(sessionsData.filter(s => s.status !== 'closed'));
+      setSessions(sessionsData.filter((s: ExamSession) => s.status !== 'closed'));
       setClasses(classesData);
       setCourses(coursesData);
+      if (configRes?.data) {
+        if (configRes.data.default_cc_coefficient !== undefined) setCcCoeff(configRes.data.default_cc_coefficient);
+        if (configRes.data.default_exam_coefficient !== undefined) setExamCoeff(configRes.data.default_exam_coefficient);
+        if (configRes.data.max_grade !== undefined) setMaxGrade(configRes.data.max_grade);
+      }
     } catch (error) {
       toast.error('Erreur lors du chargement');
     } finally {
@@ -61,6 +71,10 @@ export default function SecretaryGradesEntryPage() {
     try {
       const contextData = await gradeService.getByContext(selectedSessionId, selectedCourseId);
       setGrades(contextData.students);
+      const ctx = contextData as any;
+      if (ctx.default_cc_coefficient !== undefined) setCcCoeff(ctx.default_cc_coefficient);
+      if (ctx.default_exam_coefficient !== undefined) setExamCoeff(ctx.default_exam_coefficient);
+      if (ctx.max_grade !== undefined) setMaxGrade(ctx.max_grade);
       setHasChanges(false);
     } catch (error) {
       toast.error('Erreur lors du chargement des notes');
@@ -69,20 +83,36 @@ export default function SecretaryGradesEntryPage() {
     }
   };
 
-  // ✅ NOUVEAU : Gérer CC et Examen séparément
+  // ✅ Gérer CC et Examen dynamiquement selon la configuration de l'établissement (Plafond strict 20/20)
   const handleGradeChange = (studentId: number, field: 'cc_score' | 'exam_score', value: string) => {
+    let parsedVal: number | null = null;
+    if (value !== '') {
+      const num = parseFloat(value);
+      if (isNaN(num)) return;
+      if (num < 0) {
+        parsedVal = 0;
+        toast.warning('La note ne peut pas être inférieure à 0.');
+      } else if (num > maxGrade) {
+        parsedVal = maxGrade;
+        toast.warning(`La note maximale autorisée est de ${maxGrade}/20.`);
+      } else {
+        parsedVal = Math.round(num * 100) / 100;
+      }
+    }
+
     setGrades(prev => prev.map(g => {
       if (g.student_id === studentId) {
-        const updated = { ...g, [field]: value === '' ? null : parseFloat(value) };
-        // Calculer la note finale automatiquement
+        const updated = { ...g, [field]: parsedVal };
+        // Calculer la note finale automatiquement avec les coefficients réels
         const cc = updated.cc_score;
         const exam = updated.exam_score;
         if (cc !== null && exam !== null && !isNaN(cc) && !isNaN(exam)) {
-          updated.score = Math.round((cc * 0.3 + exam * 0.7) * 100) / 100;
+          const calculated = Math.round((cc * ccCoeff + exam * examCoeff) * 100) / 100;
+          updated.score = Math.min(maxGrade, Math.max(0, calculated));
         } else if (cc !== null && !isNaN(cc)) {
-          updated.score = cc;
+          updated.score = Math.min(maxGrade, Math.max(0, cc));
         } else if (exam !== null && !isNaN(exam)) {
-          updated.score = exam;
+          updated.score = Math.min(maxGrade, Math.max(0, exam));
         } else {
           updated.score = null;
         }
@@ -96,6 +126,19 @@ export default function SecretaryGradesEntryPage() {
 
   const handleSave = async (status: 'draft' | 'validated') => {
     if (!selectedSessionId || !selectedCourseId) return;
+
+    // Validation préalable stricte du barème 0 à 20
+    for (const g of grades) {
+      if (g.cc_score !== null && (g.cc_score < 0 || g.cc_score > maxGrade)) {
+        toast.error(`La note CC de ${g.student_name} (${g.cc_score}) dépasse le barème (0-${maxGrade}).`);
+        return;
+      }
+      if (g.exam_score !== null && (g.exam_score < 0 || g.exam_score > maxGrade)) {
+        toast.error(`La note d'examen de ${g.student_name} (${g.exam_score}) dépasse le barème (0-${maxGrade}).`);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const gradesData = grades
@@ -112,8 +155,8 @@ export default function SecretaryGradesEntryPage() {
         course_id: selectedCourseId,
         grades: gradesData,
         status,
-        cc_coefficient: 0.3,
-        exam_coefficient: 0.7
+        cc_coefficient: ccCoeff,
+        exam_coefficient: examCoeff
       });
 
       toast.success(
@@ -134,7 +177,23 @@ export default function SecretaryGradesEntryPage() {
     ? courses.filter(c => {
         const selectedClass = classes.find(cl => cl.id === selectedClassId);
         if (!selectedClass) return false;
-        return c.department === selectedClass.filiere_name && c.level === selectedClass.level;
+
+        const matchLevel = !c.level || c.level === selectedClass.level;
+        if (!matchLevel) return false;
+
+        const cleanClassFiliere = (selectedClass.filiere_name || '').toLowerCase().trim();
+        const cleanCourseDept = (c.department || '').toLowerCase().trim();
+        const cleanCourseFiliere = (c.filiere_name || '').toLowerCase().trim();
+
+        const matchFiliere = 
+          (c.filiere_id && selectedClass.filiere_id && c.filiere_id === selectedClass.filiere_id) ||
+          (cleanCourseFiliere && cleanCourseFiliere === cleanClassFiliere) ||
+          (cleanCourseDept && cleanCourseDept === cleanClassFiliere) ||
+          (cleanCourseDept && cleanClassFiliere.includes(cleanCourseDept)) ||
+          (cleanCourseFiliere && cleanClassFiliere.includes(cleanCourseFiliere)) ||
+          (cleanClassFiliere && cleanCourseDept.includes(cleanClassFiliere));
+
+        return matchFiliere;
       })
     : courses;
 
@@ -288,8 +347,8 @@ export default function SecretaryGradesEntryPage() {
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase">#</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Étudiant</th>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Matricule</th>
-                      <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase w-32">CC (30%)</th>
-                      <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase w-32">Examen (70%)</th>
+                      <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase w-32">CC ({Math.round(ccCoeff * 100)}%)</th>
+                      <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase w-32">Examen ({Math.round(examCoeff * 100)}%)</th>
                       <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase w-32">Finale</th>
                       <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase w-24">Statut</th>
                     </tr>
@@ -308,11 +367,11 @@ export default function SecretaryGradesEntryPage() {
                           <input
                             type="number"
                             min="0"
-                            max="20"
+                            max={maxGrade}
                             step="0.25"
                             value={grade.cc_score !== null ? grade.cc_score : ''}
                             onChange={(e) => handleGradeChange(grade.student_id, 'cc_score', e.target.value)}
-                            placeholder="0-20"
+                            placeholder={`0-${maxGrade}`}
                             className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                           />
                         </td>
@@ -320,11 +379,11 @@ export default function SecretaryGradesEntryPage() {
                           <input
                             type="number"
                             min="0"
-                            max="20"
+                            max={maxGrade}
                             step="0.25"
                             value={grade.exam_score !== null ? grade.exam_score : ''}
                             onChange={(e) => handleGradeChange(grade.student_id, 'exam_score', e.target.value)}
-                            placeholder="0-20"
+                            placeholder={`0-${maxGrade}`}
                             className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                           />
                         </td>

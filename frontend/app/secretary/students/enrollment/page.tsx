@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Save, User, Mail, GraduationCap,
-  Upload, X, Loader2, Camera
+  Upload, X, Loader2, Camera, FileText, CheckCircle2,
+  AlertCircle, RefreshCw, FileUp, Paperclip, Calendar
 } from 'lucide-react';
 import api from '@/lib/api';
 import { filiereService } from '@/services/filiereService';
@@ -16,9 +17,22 @@ export default function SecretaryEnrollmentPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [studentType, setStudentType] = useState<'new' | 'returning'>('new');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const toast = useToast();
+
+  const [dossierFiles, setDossierFiles] = useState<{ [key: string]: File | null }>({
+    birth_certificate: null,
+    bac_diploma: null,
+    bac_transcript: null,
+    id_document: null,
+    medical_certificate: null,
+    previous_transcript: null,
+    success_certificate: null,
+    financial_clearance: null,
+    reenrollment_form: null,
+  });
 
   const [filieres, setFilieres] = useState<any[]>([]);
   const [domaines, setDomaines] = useState<string[]>([]);
@@ -43,7 +57,11 @@ export default function SecretaryEnrollmentPage() {
     parent_name: '',
     parent_phone: '',
     parent_email: '',
-    id_number: ''
+    id_number: '',
+    payment_plan: 'tranches',
+    monthly_deposit: '',
+    monthly_installment: '',
+    monthly_months_count: '5'
   });
 
   useEffect(() => {
@@ -164,6 +182,17 @@ export default function SecretaryEnrollmentPage() {
     toast.success("Formulaire pré-rempli et document prêt à être enregistré !");
   };
 
+  const handleDossierFileChange = (docKey: string, file: File | null) => {
+    if (file && file.size > 15 * 1024 * 1024) {
+      toast.error('Le fichier ne doit pas dépasser 15MB');
+      return;
+    }
+    setDossierFiles(prev => ({ ...prev, [docKey]: file }));
+    if (file) {
+      toast.success(`Fichier ${file.name} joint`);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -182,12 +211,25 @@ export default function SecretaryEnrollmentPage() {
         }
       });
 
+      submitData.append('student_type', studentType);
+
       if (photoFile) {
         submitData.append('photo', photoFile);
       }
 
+      if (scannedFilePath) {
+        submitData.append('scanned_file_path', scannedFilePath);
+      }
+
+      // Ajout des pièces du dossier selon le type d'inscription
+      Object.entries(dossierFiles).forEach(([key, file]) => {
+        if (file) {
+          submitData.append(key, file);
+        }
+      });
+
       await api.post('/api/v1/students/', submitData);
-      toast.success('Étudiant créé avec succès !');
+      toast.success('Étudiant créé avec succès et dossier enregistré !');
       router.push('/secretary/students');
     } catch (error: any) {
       const msg = error.response?.data?.detail || error.message || 'Erreur lors de la création';
@@ -240,6 +282,60 @@ export default function SecretaryEnrollmentPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Sélecteur de type d'étudiant */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+            <GraduationCap size={20} className="text-[#FF6B00]" />
+            Type d'inscription & Profil de l'étudiant
+          </h2>
+          <p className="text-sm text-slate-500 mb-4">
+            Sélectionnez la catégorie d'inscription pour adapter automatiquement les pièces justificatives demandées.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => setStudentType('new')}
+              className={`p-4 rounded-xl border-2 text-left flex items-start gap-4 transition-all ${
+                studentType === 'new'
+                  ? 'border-[#FF6B00] bg-orange-50/50 shadow-sm'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
+            >
+              <div className={`p-3 rounded-lg ${studentType === 'new' ? 'bg-[#FF6B00] text-white' : 'bg-slate-100 text-slate-500'}`}>
+                <GraduationCap size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900">🎓 Nouvel Étudiant</span>
+                  {studentType === 'new' && <span className="text-xs bg-[#FF6B00] text-white px-2 py-0.5 rounded-full font-medium">Sélectionné</span>}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Première inscription à l'université (L1 ou nouveau transfert). Collecte : Acte de naissance, Diplôme Bac, Relevé Bac, CNI.</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStudentType('returning')}
+              className={`p-4 rounded-xl border-2 text-left flex items-start gap-4 transition-all ${
+                studentType === 'returning'
+                  ? 'border-[#FF6B00] bg-orange-50/50 shadow-sm'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
+            >
+              <div className={`p-3 rounded-lg ${studentType === 'returning' ? 'bg-[#FF6B00] text-white' : 'bg-slate-100 text-slate-500'}`}>
+                <RefreshCw size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900">🔄 Ancien Étudiant (Réinscription)</span>
+                  {studentType === 'returning' && <span className="text-xs bg-[#FF6B00] text-white px-2 py-0.5 rounded-full font-medium">Sélectionné</span>}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Étudiant réinscrit pour l'année supérieure (L2, L3, M1, M2). Collecte : Relevé N-1, Attestation de réussite, Quitus financier.</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Photo */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -414,6 +510,419 @@ export default function SecretaryEnrollmentPage() {
           </div>
         </div>
 
+        {/* Dossier d'inscription & Pièces jointes */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <FileText size={20} className="text-[#FF6B00]" />
+                Dossier administratif & Pièces justificatives
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Toutes les pièces ci-dessous sont <strong>facultatives</strong> lors de l'enregistrement. L'inscription peut être finalisée immédiatement.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-xs font-semibold text-slate-700">
+              <Paperclip size={14} className="text-[#FF6B00]" />
+              {studentType === 'new'
+                ? `${[dossierFiles.birth_certificate, dossierFiles.bac_diploma, dossierFiles.bac_transcript, dossierFiles.id_document].filter(Boolean).length} pièce(s) jointe(s)`
+                : `${[dossierFiles.previous_transcript, dossierFiles.success_certificate, dossierFiles.financial_clearance].filter(Boolean).length} pièce(s) jointe(s)`
+              }
+            </div>
+          </div>
+
+          {/* Grille des pièces selon le type */}
+          {studentType === 'new' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Acte de naissance */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Facultatif</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Extrait d'acte de naissance</h3>
+                    <p className="text-xs text-slate-500">Document d'état civil original ou légalisé</p>
+                  </div>
+                  {dossierFiles.birth_certificate ? (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Joint
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-medium">
+                      Non renseigné
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center justify-between p-2.5 bg-white border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-[#FF6B00] transition-colors">
+                    <span className="text-xs text-slate-600 truncate max-w-[200px]">
+                      {dossierFiles.birth_certificate ? dossierFiles.birth_certificate.name : 'Sélectionner un fichier (PDF, JPG, PNG)'}
+                    </span>
+                    <span className="text-xs font-semibold text-[#FF6B00] bg-orange-50 px-2.5 py-1 rounded">Parcourir</span>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleDossierFileChange('birth_certificate', e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {dossierFiles.birth_certificate && (
+                    <button
+                      type="button"
+                      onClick={() => handleDossierFileChange('birth_certificate', null)}
+                      className="text-xs text-red-500 hover:underline mt-1 inline-block"
+                    >
+                      Supprimer ce fichier
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Diplôme / Attestation du Bac */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Facultatif</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Diplôme ou Attestation du Bac</h3>
+                    <p className="text-xs text-slate-500">Attestation de réussite ou diplôme officiel du Bac</p>
+                  </div>
+                  {dossierFiles.bac_diploma ? (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Joint
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-medium">
+                      Non renseigné
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center justify-between p-2.5 bg-white border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-[#FF6B00] transition-colors">
+                    <span className="text-xs text-slate-600 truncate max-w-[200px]">
+                      {dossierFiles.bac_diploma ? dossierFiles.bac_diploma.name : 'Sélectionner un fichier (PDF, JPG, PNG)'}
+                    </span>
+                    <span className="text-xs font-semibold text-[#FF6B00] bg-orange-50 px-2.5 py-1 rounded">Parcourir</span>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleDossierFileChange('bac_diploma', e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {dossierFiles.bac_diploma && (
+                    <button
+                      type="button"
+                      onClick={() => handleDossierFileChange('bac_diploma', null)}
+                      className="text-xs text-red-500 hover:underline mt-1 inline-block"
+                    >
+                      Supprimer ce fichier
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Relevé de notes du Bac */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Facultatif</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Relevé de notes du Bac</h3>
+                    <p className="text-xs text-slate-500">Relevé officiel des notes de l'examen</p>
+                  </div>
+                  {dossierFiles.bac_transcript ? (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Joint
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-medium">
+                      Non renseigné
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center justify-between p-2.5 bg-white border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-[#FF6B00] transition-colors">
+                    <span className="text-xs text-slate-600 truncate max-w-[200px]">
+                      {dossierFiles.bac_transcript ? dossierFiles.bac_transcript.name : 'Sélectionner un fichier (PDF, JPG, PNG)'}
+                    </span>
+                    <span className="text-xs font-semibold text-[#FF6B00] bg-orange-50 px-2.5 py-1 rounded">Parcourir</span>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleDossierFileChange('bac_transcript', e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {dossierFiles.bac_transcript && (
+                    <button
+                      type="button"
+                      onClick={() => handleDossierFileChange('bac_transcript', null)}
+                      className="text-xs text-red-500 hover:underline mt-1 inline-block"
+                    >
+                      Supprimer ce fichier
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Pièce d'identité */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Facultatif</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Pièce d'identité (CNI / Passeport)</h3>
+                    <p className="text-xs text-slate-500">Carte d'identité nationale, passeport ou attestation</p>
+                  </div>
+                  {dossierFiles.id_document ? (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Joint
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-medium">
+                      Non renseigné
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center justify-between p-2.5 bg-white border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-[#FF6B00] transition-colors">
+                    <span className="text-xs text-slate-600 truncate max-w-[200px]">
+                      {dossierFiles.id_document ? dossierFiles.id_document.name : 'Sélectionner un fichier (PDF, JPG, PNG)'}
+                    </span>
+                    <span className="text-xs font-semibold text-[#FF6B00] bg-orange-50 px-2.5 py-1 rounded">Parcourir</span>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleDossierFileChange('id_document', e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {dossierFiles.id_document && (
+                    <button
+                      type="button"
+                      onClick={() => handleDossierFileChange('id_document', null)}
+                      className="text-xs text-red-500 hover:underline mt-1 inline-block"
+                    >
+                      Supprimer ce fichier
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Certificat médical */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors md:col-span-2">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Optionnel</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Certificat médical d'aptitude</h3>
+                    <p className="text-xs text-slate-500">Certificat d'aptitude physique et médicale délivré par un médecin</p>
+                  </div>
+                  {dossierFiles.medical_certificate ? (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Joint
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">Non renseigné</span>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center justify-between p-2.5 bg-white border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-[#FF6B00] transition-colors">
+                    <span className="text-xs text-slate-600 truncate max-w-[300px]">
+                      {dossierFiles.medical_certificate ? dossierFiles.medical_certificate.name : 'Sélectionner un fichier (PDF, JPG, PNG)'}
+                    </span>
+                    <span className="text-xs font-semibold text-[#FF6B00] bg-orange-50 px-2.5 py-1 rounded">Parcourir</span>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleDossierFileChange('medical_certificate', e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {dossierFiles.medical_certificate && (
+                    <button
+                      type="button"
+                      onClick={() => handleDossierFileChange('medical_certificate', null)}
+                      className="text-xs text-red-500 hover:underline mt-1 inline-block"
+                    >
+                      Supprimer ce fichier
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Grille pour Ancien Étudiant (Réinscription) */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Relevé de notes N-1 */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Facultatif</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Relevé de notes de l'année précédente (N-1)</h3>
+                    <p className="text-xs text-slate-500">Relevé académique officiel attestant des UE validées</p>
+                  </div>
+                  {dossierFiles.previous_transcript ? (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Joint
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-medium">
+                      Non renseigné
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center justify-between p-2.5 bg-white border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-[#FF6B00] transition-colors">
+                    <span className="text-xs text-slate-600 truncate max-w-[200px]">
+                      {dossierFiles.previous_transcript ? dossierFiles.previous_transcript.name : 'Sélectionner un fichier (PDF, JPG, PNG)'}
+                    </span>
+                    <span className="text-xs font-semibold text-[#FF6B00] bg-orange-50 px-2.5 py-1 rounded">Parcourir</span>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleDossierFileChange('previous_transcript', e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {dossierFiles.previous_transcript && (
+                    <button
+                      type="button"
+                      onClick={() => handleDossierFileChange('previous_transcript', null)}
+                      className="text-xs text-red-500 hover:underline mt-1 inline-block"
+                    >
+                      Supprimer ce fichier
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Attestation de passage / réussite */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Facultatif</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Attestation de passage ou réussite</h3>
+                    <p className="text-xs text-slate-500">Décision du jury autorisant l'accès au niveau supérieur</p>
+                  </div>
+                  {dossierFiles.success_certificate ? (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Joint
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-medium">
+                      Non renseigné
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center justify-between p-2.5 bg-white border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-[#FF6B00] transition-colors">
+                    <span className="text-xs text-slate-600 truncate max-w-[200px]">
+                      {dossierFiles.success_certificate ? dossierFiles.success_certificate.name : 'Sélectionner un fichier (PDF, JPG, PNG)'}
+                    </span>
+                    <span className="text-xs font-semibold text-[#FF6B00] bg-orange-50 px-2.5 py-1 rounded">Parcourir</span>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleDossierFileChange('success_certificate', e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {dossierFiles.success_certificate && (
+                    <button
+                      type="button"
+                      onClick={() => handleDossierFileChange('success_certificate', null)}
+                      className="text-xs text-red-500 hover:underline mt-1 inline-block"
+                    >
+                      Supprimer ce fichier
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Quitus financier */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Facultatif</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Quitus financier / Solde N-1</h3>
+                    <p className="text-xs text-slate-500">Attestation ou reçu prouvant le solde de la scolarité passée</p>
+                  </div>
+                  {dossierFiles.financial_clearance ? (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Joint
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-medium">
+                      Non renseigné
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center justify-between p-2.5 bg-white border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-[#FF6B00] transition-colors">
+                    <span className="text-xs text-slate-600 truncate max-w-[200px]">
+                      {dossierFiles.financial_clearance ? dossierFiles.financial_clearance.name : 'Sélectionner un fichier (PDF, JPG, PNG)'}
+                    </span>
+                    <span className="text-xs font-semibold text-[#FF6B00] bg-orange-50 px-2.5 py-1 rounded">Parcourir</span>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleDossierFileChange('financial_clearance', e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {dossierFiles.financial_clearance && (
+                    <button
+                      type="button"
+                      onClick={() => handleDossierFileChange('financial_clearance', null)}
+                      className="text-xs text-red-500 hover:underline mt-1 inline-block"
+                    >
+                      Supprimer ce fichier
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Carte étudiant précédente */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Optionnel</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Ancienne carte d'étudiant / CNI</h3>
+                    <p className="text-xs text-slate-500">Carte d'étudiant UniSphere ou pièce d'identité</p>
+                  </div>
+                  {dossierFiles.id_document ? (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Joint
+                    </span>
+                  ) : (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">Non renseigné</span>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center justify-between p-2.5 bg-white border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-[#FF6B00] transition-colors">
+                    <span className="text-xs text-slate-600 truncate max-w-[200px]">
+                      {dossierFiles.id_document ? dossierFiles.id_document.name : 'Sélectionner un fichier (PDF, JPG, PNG)'}
+                    </span>
+                    <span className="text-xs font-semibold text-[#FF6B00] bg-orange-50 px-2.5 py-1 rounded">Parcourir</span>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => handleDossierFileChange('id_document', e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                  {dossierFiles.id_document && (
+                    <button
+                      type="button"
+                      onClick={() => handleDossierFileChange('id_document', null)}
+                      className="text-xs text-red-500 hover:underline mt-1 inline-block"
+                    >
+                      Supprimer ce fichier
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Parent/Tuteur */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -434,6 +943,121 @@ export default function SecretaryEnrollmentPage() {
               <input type="email" name="parent_email" value={formData.parent_email} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]" placeholder="parent@email.com" />
             </div>
           </div>
+        </div>
+
+        {/* Modalité de Paiement de la Scolarité */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Calendar size={20} className="text-[#FF6B00]" />
+              Modalité de Paiement de la Scolarité
+            </h2>
+            <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+              Formule de règlement
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mb-4">
+            Choisissez si l'étudiant s'acquitte de sa scolarité selon l'échéancier classique par tranches ou selon la modalité mensuelle (acompte + mensualités étalées).
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, payment_plan: 'tranches' })}
+              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                formData.payment_plan === 'tranches'
+                  ? 'border-[#FF6B00] bg-orange-50/40 shadow-sm'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 text-sm">🏛️ Paiement par Tranches</span>
+                {formData.payment_plan === 'tranches' && (
+                  <span className="text-[11px] bg-[#FF6B00] text-white px-2 py-0.5 rounded-full font-semibold">
+                    Sélectionné
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1.5">
+                Règlement standard en 3 tranches (P1, P2, P3 selon les dates limites académiques).
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, payment_plan: 'mensuel' })}
+              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                formData.payment_plan === 'mensuel'
+                  ? 'border-emerald-500 bg-emerald-50/40 shadow-sm'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 text-sm">📅 Modalité Mensuelle</span>
+                {formData.payment_plan === 'mensuel' && (
+                  <span className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-semibold">
+                    Sélectionné
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1.5">
+                Acompte à l'inscription + mensualités étalées sur les mois académiques (ex: 5 mois).
+              </p>
+            </button>
+          </div>
+
+          {formData.payment_plan === 'mensuel' && (
+            <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                  Paramètres de l'échelonnement mensuel :
+                </span>
+                <span className="text-[11px] text-emerald-700 italic">
+                  (Laissez vide pour appliquer les montants par défaut configurés pour le niveau)
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Acompte Inscription (FCFA)</label>
+                  <input
+                    type="number"
+                    name="monthly_deposit"
+                    value={formData.monthly_deposit}
+                    onChange={handleChange}
+                    placeholder="Auto ou ex: 350000"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mensualité (FCFA / mois)</label>
+                  <input
+                    type="number"
+                    name="monthly_installment"
+                    value={formData.monthly_installment}
+                    onChange={handleChange}
+                    placeholder="Défaut: 100000"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nombre de mois</label>
+                  <input
+                    type="number"
+                    name="monthly_months_count"
+                    min="1"
+                    max="12"
+                    value={formData.monthly_months_count}
+                    onChange={handleChange}
+                    placeholder="Défaut: 5"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-emerald-800">
+                💡 Exemple : Pour une scolarité de 850 000 F, 350 000 F à l'inscription puis 100 000 F × 5 mois.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Boutons */}

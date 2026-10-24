@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Eye, Pencil, Trash2, Plus, Search, Loader2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Eye, Pencil, Trash2, Plus, Search, Loader2, ChevronRight, ChevronDown, UploadCloud } from 'lucide-react';
 import Link from 'next/link';
 import { studentService } from '@/services/studentService';
 import { useToast } from '@/components/ToastProvider';
@@ -160,7 +160,14 @@ export default function StudentsPage() {
           />
         </div>
       
-        <div className="">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/students/bulk"
+            className="bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors"
+          >
+            <UploadCloud size={16} />
+            Inscription en masse
+          </Link>
           <Link
             href="/admin/students/create"
             className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"

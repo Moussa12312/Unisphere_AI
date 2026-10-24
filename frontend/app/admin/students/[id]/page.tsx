@@ -11,6 +11,7 @@ import api from '@/lib/api';
 import { API_BASE_URL } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
+import StudentDossierSection from '@/components/students/StudentDossierSection';
 
 export default function AdminStudentDetailPage() {
   const params = useParams();
@@ -27,11 +28,45 @@ export default function AdminStudentDetailPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [newPassword, setNewPassword] = useState<string | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [discountForm, setDiscountForm] = useState({
+    discount_amount: '',
+    discount_percentage: '',
+    discount_reason: '',
+    discount_approved_by: ''
+  });
+  const [savingDiscount, setSavingDiscount] = useState(false);
+
+  // Modalité de paiement (tranches vs mensuel)
+  const [paymentSummary, setPaymentSummary] = useState<any>(null);
+  const [loadingPaymentSummary, setLoadingPaymentSummary] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [planForm, setPlanForm] = useState({
+    payment_plan: 'tranches',
+    monthly_deposit: '',
+    monthly_installment: '',
+    monthly_months_count: '5'
+  });
 
   useEffect(() => {
     loadStudent();
     loadStats();
+    loadPaymentSummary();
   }, [params.id]);
+
+  const loadPaymentSummary = async () => {
+    if (!params.id || isNaN(Number(params.id))) return;
+    try {
+      setLoadingPaymentSummary(true);
+      const res = await api.get(`/api/v1/payments/student/${params.id}/summary`);
+      setPaymentSummary(res.data);
+    } catch (e) {
+      console.error('Erreur chargement résumé paiement:', e);
+    } finally {
+      setLoadingPaymentSummary(false);
+    }
+  };
 
   const loadStudent = async () => {
     if (!params.id || isNaN(Number(params.id))) {
@@ -123,6 +158,85 @@ export default function AdminStudentDetailPage() {
     }
   };
 
+  const handleOpenDiscountModal = () => {
+    if (!student) return;
+    setDiscountForm({
+      discount_amount: student.discount_amount ? student.discount_amount.toString() : '',
+      discount_percentage: student.discount_percentage ? student.discount_percentage.toString() : '',
+      discount_reason: student.discount_reason || '',
+      discount_approved_by: student.discount_approved_by || ''
+    });
+    setShowDiscountModal(true);
+  };
+
+  const handleSaveDiscount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingDiscount(true);
+    try {
+      await api.patch(`/api/v1/students/${params.id}/discount`, {
+        discount_amount: discountForm.discount_amount ? parseFloat(discountForm.discount_amount) : 0,
+        discount_percentage: discountForm.discount_percentage ? parseFloat(discountForm.discount_percentage) : 0,
+        discount_reason: discountForm.discount_reason,
+        discount_approved_by: discountForm.discount_approved_by
+      });
+      toast.success('Tarification / Remise mise à jour avec succès !');
+      setShowDiscountModal(false);
+      await loadStudent();
+      await loadStats();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Erreur lors de la mise à jour");
+    } finally {
+      setSavingDiscount(false);
+    }
+  };
+
+  const handleOpenPlanModal = () => {
+    if (!student) return;
+    setPlanForm({
+      payment_plan: student.payment_plan || 'tranches',
+      monthly_deposit: student.monthly_deposit != null ? student.monthly_deposit.toString() : '',
+      monthly_installment: student.monthly_installment != null ? student.monthly_installment.toString() : '',
+      monthly_months_count: student.monthly_months_count != null ? student.monthly_months_count.toString() : '5'
+    });
+    setShowPlanModal(true);
+  };
+
+  const applyStandardMonthlyFormula = () => {
+    const net = student?.net_tuition_amount || paymentSummary?.total_amount || 0;
+    const months = 5;
+    const installment = 100000;
+    const deposit = Math.max(0, net - (months * installment));
+    setPlanForm({
+      payment_plan: 'mensuel',
+      monthly_deposit: deposit > 0 ? deposit.toString() : '0',
+      monthly_installment: installment.toString(),
+      monthly_months_count: months.toString()
+    });
+    toast.success(`Formule standard appliquée : Acompte ${deposit.toLocaleString('fr-FR')} F + 5 × 100 000 F`);
+  };
+
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingPlan(true);
+    try {
+      await api.patch(`/api/v1/students/${params.id}/payment-plan`, {
+        payment_plan: planForm.payment_plan,
+        monthly_deposit: planForm.monthly_deposit ? parseFloat(planForm.monthly_deposit) : null,
+        monthly_installment: planForm.monthly_installment ? parseFloat(planForm.monthly_installment) : null,
+        monthly_months_count: planForm.monthly_months_count ? parseInt(planForm.monthly_months_count) : 5
+      });
+      toast.success('Modalité de paiement mise à jour avec succès !');
+      setShowPlanModal(false);
+      await loadStudent();
+      await loadPaymentSummary();
+      await loadStats();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Erreur lors du changement de modalité");
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
   const getPhotoUrl = () => {
     if (!student?.photo) return null;
     if (student.photo.startsWith('http')) return student.photo;
@@ -130,9 +244,10 @@ export default function AdminStudentDetailPage() {
   };
 
   const getQrCodeUrl = () => {
-    if (!student?.qr_code) return null;
-    if (student.qr_code.startsWith('http')) return student.qr_code;
-    return `${API_BASE_URL}/qr_codes/${student.qr_code}`;
+    if (!student?.id) return null;
+    if (student.qr_code && student.qr_code.startsWith('http')) return student.qr_code;
+    const filename = student.qr_code ? student.qr_code.replace(/^.*[\\\/]/, '') : `STUDENT_${student.id}.png`;
+    return `/qr_codes/${filename}`;
   };
 
   const formatDate = (date?: string) => {
@@ -277,9 +392,26 @@ export default function AdminStudentDetailPage() {
 
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-slate-900 mb-4">QR Code & Matricule</h3>
-            <div className="bg-slate-50 p-4 rounded-lg flex justify-center">
-              {qrCodeUrl ? (
-                <img src={qrCodeUrl} alt="QR Code" className="w-32 h-32" />
+            <div className="bg-slate-50 p-4 rounded-lg flex flex-col items-center justify-center">
+              {student ? (
+                <>
+                  <img 
+                    src={qrCodeUrl || `/api/v1/students/${student.id}/qrcode`} 
+                    alt="QR Code" 
+                    className="w-32 h-32 bg-white p-1 rounded-lg border border-slate-200" 
+                    onError={(e: any) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = `/api/v1/students/${student.id}/qrcode`;
+                    }}
+                  />
+                  <a
+                    href={`/api/v1/students/${student.id}/qrcode`}
+                    download={`QR_${student.matricule || student.id}.png`}
+                    className="inline-flex items-center gap-1.5 text-xs text-[#FF6B00] hover:text-[#e55f00] font-medium mt-3"
+                  >
+                    Télécharger le QR
+                  </a>
+                </>
               ) : (
                 <div className="w-32 h-32 bg-slate-200 rounded-lg flex items-center justify-center">
                   <p className="text-xs text-slate-400 text-center">QR code<br/>non disponible</p>
@@ -422,6 +554,199 @@ export default function AdminStudentDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Bloc Tarification & Réduction négociée */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-700 font-bold text-lg">
+                  💰
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">Tarification & Réduction négociée</h3>
+                  <p className="text-xs text-slate-500">Traçabilité comptable des accords et remises de la direction</p>
+                </div>
+              </div>
+              <button
+                onClick={handleOpenDiscountModal}
+                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 self-start sm:self-auto shadow-sm"
+              >
+                <Pencil size={13} />
+                {student?.discount_amount > 0 || student?.discount_percentage > 0 ? 'Ajuster la remise' : 'Accorder une remise'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-100">
+                <p className="text-xs text-slate-500">Remise accordée</p>
+                <p className="text-base font-bold text-emerald-700 mt-1">
+                  {student?.discount_amount > 0
+                    ? `${Number(student.discount_amount).toLocaleString('fr-FR')} FCFA`
+                    : student?.discount_percentage > 0
+                      ? `${student.discount_percentage}%`
+                      : 'Aucune remise (Tarif plein)'
+                  }
+                </p>
+              </div>
+
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-100">
+                <p className="text-xs text-slate-500">Net exigible dû</p>
+                <p className="text-base font-bold text-slate-900 mt-1 font-mono">
+                  {student?.net_tuition_amount != null
+                    ? `${Number(student.net_tuition_amount).toLocaleString('fr-FR')} FCFA`
+                    : 'Standard catalogue'
+                  }
+                </p>
+              </div>
+
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-100">
+                <p className="text-xs text-slate-500">Motif & Approbateur</p>
+                <p className="text-xs font-semibold text-slate-800 mt-1 truncate">
+                  {student?.discount_reason ? `« ${student.discount_reason} »` : 'Non spécifié'}
+                </p>
+                {student?.discount_approved_by && (
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Validé par : <strong>{student.discount_approved_by}</strong>
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Modalité de Paiement & Échéancier */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg ${
+                  student?.payment_plan === 'mensuel' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {student?.payment_plan === 'mensuel' ? '📅' : '🏛️'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 text-sm">Modalité de Paiement de la Scolarité</h3>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                      student?.payment_plan === 'mensuel'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-blue-100 text-blue-800 border border-blue-200'
+                    }`}>
+                      {student?.payment_plan === 'mensuel' ? '📅 Modalité Mensuelle' : '🏛️ Par Tranches (P1, P2, P3)'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {student?.payment_plan === 'mensuel'
+                      ? (paymentSummary?.monthly_plan?.formatted_summary || 'Échelonnement avec acompte et mensualités')
+                      : 'Règlement standard par tranches académiques'
+                    }
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleOpenPlanModal}
+                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 self-start sm:self-auto shadow-sm"
+              >
+                <Pencil size={13} />
+                Changer la formule
+              </button>
+            </div>
+
+            {/* Détails de la formule active */}
+            {student?.payment_plan === 'mensuel' && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 p-3 bg-emerald-50/50 rounded-lg border border-emerald-100 text-xs">
+                <div>
+                  <span className="text-slate-500">Acompte à l'inscription :</span>
+                  <p className="font-bold text-emerald-800 text-sm mt-0.5">
+                    {paymentSummary?.monthly_plan?.deposit != null
+                      ? `${Number(paymentSummary.monthly_plan.deposit).toLocaleString('fr-FR')} FCFA`
+                      : student?.monthly_deposit != null
+                        ? `${Number(student.monthly_deposit).toLocaleString('fr-FR')} FCFA`
+                        : '--'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Mensualité étalée :</span>
+                  <p className="font-bold text-emerald-800 text-sm mt-0.5">
+                    {paymentSummary?.monthly_plan?.installment != null
+                      ? `${Number(paymentSummary.monthly_plan.installment).toLocaleString('fr-FR')} FCFA / mois`
+                      : student?.monthly_installment != null
+                        ? `${Number(student.monthly_installment).toLocaleString('fr-FR')} FCFA / mois`
+                        : '100 000 FCFA / mois'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Durée d'étalement :</span>
+                  <p className="font-bold text-emerald-800 text-sm mt-0.5">
+                    {paymentSummary?.monthly_plan?.months_count || student?.monthly_months_count || 5} mois consécutifs
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Échéancier détaillé (Tranches ou Mensualités) */}
+            {loadingPaymentSummary ? (
+              <div className="flex items-center justify-center py-6 gap-2 text-xs text-slate-400">
+                <Loader2 size={16} className="animate-spin text-[#FF6B00]" /> Chargement de l'échéancier...
+              </div>
+            ) : paymentSummary?.tranches && paymentSummary.tranches.length > 0 ? (
+              <div className="mt-4">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Échéancier détaillé des versements :
+                </h4>
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                      <tr>
+                        <th className="py-2 px-3 text-left">Échéance</th>
+                        <th className="py-2 px-3 text-right">Montant dû</th>
+                        <th className="py-2 px-3 text-right">Payé</th>
+                        <th className="py-2 px-3 text-right">Reste</th>
+                        <th className="py-2 px-3 text-center">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paymentSummary.tranches.map((tranche: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50/50">
+                          <td className="py-2.5 px-3 font-medium text-slate-900">
+                            <div className="flex items-center gap-1.5">
+                              <span>{tranche.name}</span>
+                              {tranche.due_date && (
+                                <span className="text-[10px] text-slate-400">
+                                  ({new Date(tranche.due_date).toLocaleDateString('fr-FR')})
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">
+                            {Number(tranche.amount).toLocaleString('fr-FR')} F
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-emerald-700 font-semibold">
+                            {Number(tranche.paid_amount || 0).toLocaleString('fr-FR')} F
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-700">
+                            {Number(tranche.remaining || 0).toLocaleString('fr-FR')} F
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              tranche.status === 'paid'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : tranche.status === 'partial' || tranche.status === 'available'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {tranche.status === 'paid' ? 'Payé' : tranche.status === 'available' ? 'Exigible' : tranche.status === 'partial' ? 'Partiel' : 'À venir'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Dossier administratif & Pièces d'inscription */}
+          <StudentDossierSection studentId={params.id as string} onUpdate={loadStudent} />
         </div>
       </div>
 
@@ -453,6 +778,209 @@ export default function AdminStudentDetailPage() {
                 Fermer
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Ajuster la remise */}
+      {showDiscountModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span>💰</span> Ajuster la remise négociée
+              </h3>
+              <button onClick={() => setShowDiscountModal(false)} className="text-slate-400 hover:text-slate-600">
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Enregistrez la réduction accordée oralement par la direction. Le système calculera immédiatement le net dû et préviendra tout faux déficit en caisse.
+            </p>
+            <form onSubmit={handleSaveDiscount} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Remise fixe (FCFA)</label>
+                <input
+                  type="number"
+                  value={discountForm.discount_amount}
+                  onChange={(e) => setDiscountForm({ ...discountForm, discount_amount: e.target.value })}
+                  placeholder="Ex: 100000"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Ou Remise en pourcentage (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={discountForm.discount_percentage}
+                  onChange={(e) => setDiscountForm({ ...discountForm, discount_percentage: e.target.value })}
+                  placeholder="Ex: 15"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Motif de la réduction</label>
+                <input
+                  type="text"
+                  value={discountForm.discount_reason}
+                  onChange={(e) => setDiscountForm({ ...discountForm, discount_reason: e.target.value })}
+                  placeholder="Ex: Accord Directeur Général - Négociation familiale"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Accordé / Validé par</label>
+                <input
+                  type="text"
+                  value={discountForm.discount_approved_by}
+                  onChange={(e) => setDiscountForm({ ...discountForm, discount_approved_by: e.target.value })}
+                  placeholder="Ex: Directeur Général"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowDiscountModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingDiscount}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-[#FF6B00] hover:bg-[#e55f00] rounded-lg disabled:opacity-50 shadow-md"
+                >
+                  {savingDiscount ? 'Enregistrement...' : 'Enregistrer la remise'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Modifier la modalité de paiement */}
+      {showPlanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span>📅</span> Modalité de paiement de la scolarité
+              </h3>
+              <button onClick={() => setShowPlanModal(false)} className="text-slate-400 hover:text-slate-600">
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={handleSavePlan} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-2">
+                  Choisissez le mode de règlement :
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPlanForm({ ...planForm, payment_plan: 'tranches' })}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      planForm.payment_plan === 'tranches'
+                        ? 'border-[#FF6B00] bg-orange-50/50 font-semibold text-slate-900'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <p className="text-xs font-bold">🏛️ Par Tranches</p>
+                    <p className="text-[11px] text-slate-500 mt-1">3 tranches classiques (P1, P2, P3)</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPlanForm({ ...planForm, payment_plan: 'mensuel' })}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      planForm.payment_plan === 'mensuel'
+                        ? 'border-emerald-600 bg-emerald-50/50 font-semibold text-slate-900'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <p className="text-xs font-bold">📅 Modalité Mensuelle</p>
+                    <p className="text-[11px] text-slate-500 mt-1">Acompte initial + 5 mensualités</p>
+                  </button>
+                </div>
+              </div>
+
+              {planForm.payment_plan === 'mensuel' && (
+                <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-900">
+                      Paramètres de l'échelonnement :
+                    </span>
+                    <button
+                      type="button"
+                      onClick={applyStandardMonthlyFormula}
+                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[11px] font-semibold transition-colors shadow-sm"
+                    >
+                      ⚡ Formule standard (5 × 100 000 F)
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Acompte (FCFA)</label>
+                      <input
+                        type="number"
+                        value={planForm.monthly_deposit}
+                        onChange={(e) => setPlanForm({ ...planForm, monthly_deposit: e.target.value })}
+                        placeholder="Ex: 350000"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Mensualité (FCFA)</label>
+                      <input
+                        type="number"
+                        value={planForm.monthly_installment}
+                        onChange={(e) => setPlanForm({ ...planForm, monthly_installment: e.target.value })}
+                        placeholder="Défaut: 100000"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Nombre de mois</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="12"
+                        value={planForm.monthly_months_count}
+                        onChange={(e) => setPlanForm({ ...planForm, monthly_months_count: e.target.value })}
+                        placeholder="Défaut: 5"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-emerald-800 italic">
+                    ℹ️ Total couvert : {Number((parseFloat(planForm.monthly_deposit || '0')) + (parseFloat(planForm.monthly_installment || '100000') * parseInt(planForm.monthly_months_count || '5'))).toLocaleString('fr-FR')} FCFA.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowPlanModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPlan}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50 shadow-md"
+                >
+                  {savingPlan ? 'Enregistrement...' : 'Enregistrer la formule'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

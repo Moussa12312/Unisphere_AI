@@ -11,6 +11,8 @@ from app.models.university import University
 from app.models.user import User
 from app.core.dependencies import require_role
 from datetime import datetime, timedelta
+from app.models.teaching_unit import TeachingUnit
+from app.services.pdf_generator import generate_lmd_transcript_pdf
 from reportlab.lib.pagesizes import A4, landscape  
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -31,16 +33,17 @@ def get_db():
         db.close()
 
 
-def get_mention(average: float) -> str:
-    if average < 10:
+def get_mention(average: float, max_grade: float = 20.0) -> str:
+    scale = (max_grade / 20.0) if max_grade > 0 else 1.0
+    if average < (10 * scale):
         return "Insuffisant"
-    elif average < 12:
+    elif average < (12 * scale):
         return "Passable"
-    elif average < 14:
+    elif average < (14 * scale):
         return "Assez Bien"
-    elif average < 16:
+    elif average < (16 * scale):
         return "Bien"
-    elif average < 18:
+    elif average < (18 * scale):
         return "Très Bien"
     else:
         return "Excellent"
@@ -103,7 +106,7 @@ def calculate_report_card(
     student_id: int,
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary"))
+    current_user: User = Depends(require_role("admin", "secretary", "censeur"))
 ):
     """Calcule les moyennes pondérées par crédits"""
     
@@ -132,19 +135,52 @@ def calculate_report_card(
     if not grades_with_courses:
         raise HTTPException(status_code=400, detail="Aucune note trouvée")
     
+    # ✅ APPLICATION RÉELLE : Récupération des règles académiques (Notation, Assiduité, Délibération)
+    from app.models.academic_config import AcademicConfig
+    from app.models.attendance import Attendance
+    
+    ac_config = db.query(AcademicConfig).filter(
+        AcademicConfig.university_id == current_user.university_id
+    ).first()
+    
+    min_passing_grade = ac_config.min_passing_grade if ac_config else 10.0
+    max_grade = ac_config.max_grade if ac_config else 20.0
+    allow_compensation = ac_config.allow_compensation if ac_config else True
+    min_attendance_rate = ac_config.min_attendance_rate if ac_config else 75.0
+
+    # 1. Vérification réelle du taux d'assiduité requis par l'université
+    student_attendances = db.query(Attendance).filter(
+        Attendance.student_id == student_id,
+        Attendance.university_id == current_user.university_id
+    ).all()
+    total_att = len(student_attendances)
+    present_att = sum(1 for a in student_attendances if a.status in ["present", "late", "excused"])
+    attendance_rate = round((present_att / total_att * 100), 1) if total_att > 0 else 100.0
+    is_attendance_valid = attendance_rate >= min_attendance_rate
+
     total_weighted_score = 0
     total_credits = 0
-    obtained_credits = 0
     
     for grade, course in grades_with_courses:
         credits = course.credits or 3
         total_weighted_score += grade.score * credits
         total_credits += credits
-        if grade.score >= 10:
-            obtained_credits += credits
     
     average = total_weighted_score / total_credits if total_credits > 0 else 0
-    mention = get_mention(average)
+    
+    # 2. Validation des crédits (directe ou par compensation selon la configuration)
+    obtained_credits = 0
+    for grade, course in grades_with_courses:
+        credits = course.credits or 3
+        if grade.score >= min_passing_grade:
+            obtained_credits += credits
+        elif allow_compensation and average >= min_passing_grade and is_attendance_valid:
+            # Validé par compensation entre matières
+            obtained_credits += credits
+
+    mention = get_mention(average, max_grade)
+    if not is_attendance_valid:
+        mention = f"Assiduité insuffisante ({attendance_rate}% < {min_attendance_rate}%)"
     
     students_averages = get_students_averages(
         db, session_id, current_user.university_id, 
@@ -197,7 +233,7 @@ def get_student_detail(
     student_id: int,
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "teacher", "student"))
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher", "student"))
 ):
     """Récupère toutes les notes avec crédits"""
     
@@ -289,205 +325,177 @@ def generate_pdf(
     student_id: int,
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "teacher", "student"))
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher", "student"))
 ):
-    """Génère le PDF du bulletin"""
-    
-    # ✅ ÉTAPE 1 : Récupérer TOUTES les données D'ABORD
+    """Génère le bulletin officiel conforme 1:1 à la maquette institutionnelle ECOB sur une seule page"""
+    return generate_lmd_pdf(
+        student_id=student_id,
+        session_id=session_id,
+        db=db,
+        current_user=current_user
+    )
+
+
+
+@router.get("/generate-lmd-pdf/{student_id}")
+def generate_lmd_pdf(
+    student_id: int,
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher", "student"))
+):
+    """Génère le relevé de notes officiel LMD institutionnel structuré par Unités d'Enseignement (UEs)"""
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
-    
+
+    if current_user.role == "student" and student.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
+
     session = db.query(ExamSession).filter(ExamSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session non trouvée")
-    
+
     university = db.query(University).filter(University.id == student.university_id).first()
-    
-    # ✅ JOIN avec Course pour avoir les crédits
+
     grades_with_courses = db.query(Grade, Course).join(Course).filter(
         Grade.student_id == student_id,
         Grade.session_id == session_id
     ).all()
 
-    # Calculer la moyenne pondérée
-    total_weighted = 0
-    total_credits = 0
+    if not grades_with_courses:
+        raise HTTPException(status_code=404, detail="Aucune note enregistrée pour cet étudiant dans cette session")
+
+    # Groupement par Unité d'Enseignement
+    tu_map = {}
+    tu_ids = {c.teaching_unit_id for _, c in grades_with_courses if c.teaching_unit_id}
+    all_tus = db.query(TeachingUnit).filter(TeachingUnit.id.in_(tu_ids)).all() if tu_ids else []
+    tu_by_id = {tu.id: tu for tu in all_tus}
 
     for grade, course in grades_with_courses:
-        if grade.score is not None:
-            credits = course.credits or 3
-            total_weighted += grade.score * credits
-            total_credits += credits
+        if grade.score is None:
+            continue
+        
+        t_unit = tu_by_id.get(course.teaching_unit_id)
+        if t_unit:
+            u_key = f"tu_{t_unit.id}"
+            u_code = t_unit.code
+            u_name = t_unit.name
+            u_credits = t_unit.credits or 6
+        else:
+            # Regroupement automatique par matière
+            u_key = "tu_default"
+            u_code = f"UE-{student.filiere[:3].upper() if student.filiere else 'GEN'}-101"
+            u_name = f"Unité d'Enseignement Fondamentale ({student.filiere or 'Tronc commun'})"
+            u_credits = 6
 
-    average = total_weighted / total_credits if total_credits > 0 else 0
-    mention = get_mention(average)
-    
-    # Calculer le rang
+        if u_key not in tu_map:
+            tu_map[u_key] = {
+                "code": u_code,
+                "name": u_name,
+                "credits": u_credits,
+                "courses": []
+            }
+
+        coeff = grade.coefficient or course.credits or 1.0
+        tu_map[u_key]["courses"].append({
+            "title": course.title,
+            "code": course.code,
+            "cc_score": grade.cc_score,
+            "exam_score": grade.exam_score,
+            "score": grade.score,
+            "coefficient": coeff,
+            "credits": course.credits or 3
+        })
+
+    # Calcul des moyennes d'UE et crédits
+    units_list = []
+    total_credits_earned = 0
+    total_credits_possible = 0
+    grand_weighted_sum = 0.0
+    grand_coeff_sum = 0.0
+
+    for u_key, u_data in tu_map.items():
+        courses = u_data["courses"]
+        if not courses:
+            continue
+        c_weight = sum(c["score"] * c["coefficient"] for c in courses)
+        c_coeff = sum(c["coefficient"] for c in courses)
+        ue_avg = c_weight / c_coeff if c_coeff > 0 else 0.0
+        u_data["average"] = ue_avg
+        
+        grand_weighted_sum += c_weight
+        grand_coeff_sum += c_coeff
+        
+        u_credits = u_data.get("credits", 6)
+        total_credits_possible += u_credits
+        
+        from app.models.academic_config import AcademicConfig
+        ac_config = db.query(AcademicConfig).filter(
+            AcademicConfig.university_id == student.university_id
+        ).first()
+        min_pass = getattr(ac_config, 'min_passing_grade', 10.0) or 10.0
+        allow_comp = getattr(ac_config, 'allow_compensation', True) if getattr(ac_config, 'allow_compensation', None) is not None else True
+
+        if ue_avg >= min_pass or (allow_comp and ue_avg >= (min_pass * 0.8) and c_weight > 0):  # Validé ou compensable selon config
+            total_credits_earned += u_credits
+
+        units_list.append(u_data)
+
+    general_avg = grand_weighted_sum / grand_coeff_sum if grand_coeff_sum > 0 else 0.0
+
+    # Classement de la session
     students_averages = get_students_averages(
-        db, session_id, current_user.university_id,
+        db, session_id, student.university_id,
         student.filiere, student.level
     )
-    rank = next((i+1 for i, (sid, _) in enumerate(students_averages) if sid == student_id), len(students_averages)+1)
-    
-    # ✅ ÉTAPE 2 : Créer le PDF (maintenant que toutes les variables existent)
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
-    elements = []
-    styles = getSampleStyleSheet()
-    
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        alignment=TA_CENTER,
-        spaceAfter=10
+    rank = next((i + 1 for i, (sid, _) in enumerate(students_averages) if sid == student_id), 1)
+
+    pdf_bytes = generate_lmd_transcript_pdf(
+        student=student,
+        university=university,
+        session=session,
+        units_with_grades=units_list,
+        general_average=general_avg,
+        total_credits_earned=total_credits_earned,
+        total_credits_possible=max(total_credits_possible, 30),
+        rank=rank,
+        total_students=len(students_averages) or 1,
+        academic_config=ac_config
     )
-    
-    header_style = ParagraphStyle(
-        'Header',
-        parent=styles['Normal'],
-        fontSize=10,
-        alignment=TA_CENTER,
-        spaceAfter=5
-    )
-    
-    # ✅ LOGO DE L'UNIVERSITÉ (maintenant que university existe)
-    logo_path = f"uploads/logos/{university.logo}" if university and getattr(university, 'logo', None) else None
-    if logo_path and Path(logo_path).exists():
-        elements.append(Image(str(logo_path), width=3*cm, height=3*cm))
-        elements.append(Spacer(1, 0.3*cm))
-    
-    # En-tête
-    elements.append(Paragraph("REPUBLIQUE DU MALI", header_style))
-    elements.append(Paragraph("Un Peuple - Un But - Une Foi", header_style))
-    elements.append(Spacer(1, 0.3*cm))
-    elements.append(Paragraph("MINISTERE DE L'ENSEIGNEMENT SUPERIEUR", header_style))
-    elements.append(Paragraph("ET DE LA RECHERCHE SCIENTIFIQUE", header_style))
-    elements.append(Spacer(1, 0.5*cm))
-    
-    if university:
-        elements.append(Paragraph(f"<b>{university.name.upper()}</b>", title_style))
-        if university.address:
-            elements.append(Paragraph(university.address, header_style))
-    
-    elements.append(Spacer(1, 0.3*cm))
-    elements.append(Paragraph(f"<b>ANNEE UNIVERSITAIRE {session.name}</b>", header_style))
-    elements.append(Paragraph(f"<b>RELEVÉ DE NOTES - {session.session_type.upper()}</b>", header_style))
-    elements.append(Spacer(1, 0.5*cm))
-    
-    # Informations étudiant
-    student_data = [
-        ['Nom:', student.last_name.upper(), 'Prénom:', student.first_name],
-        ['Date de naissance:', student.date_of_birth.strftime('%d/%m/%Y') if student.date_of_birth else 'N/A', 
-         'Matricule:', student.matricule or 'N/A'],
-        ['Filière:', student.filiere or 'N/A', 'Niveau:', student.level or 'N/A']
-    ]
-    
-    student_table = Table(student_data, colWidths=[4*cm, 5*cm, 4*cm, 5*cm])
-    student_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey)
-    ]))
-    elements.append(student_table)
-    elements.append(Spacer(1, 0.5*cm))
-    
-    # Tableau des notes avec crédits
-    data = [['UE', 'Matière', 'CC', 'Exam', 'Note/20', 'Crédits', 'Moy. Pond.', '%', 'Mention']]
 
-    for grade, course in grades_with_courses:
-        if grade.score is not None:
-            credits = course.credits or 3
-            weighted = grade.score * credits
-            percentage = (grade.score / 20) * 100
-            letter = get_letter_grade(grade.score)
-            
-            data.append([
-                Paragraph(f"<b>{course.code or ''}</b>", ParagraphStyle('UEStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER, textColor=colors.HexColor('#FF6B00'))),
-                Paragraph(course.title, ParagraphStyle('MatiereStyle', parent=styles['Normal'], fontSize=9, alignment=TA_LEFT)),
-                Paragraph(f"{grade.cc_score:.2f}" if grade.cc_score else "-", ParagraphStyle('CCStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER)),
-                Paragraph(f"{grade.exam_score:.2f}" if grade.exam_score else "-", ParagraphStyle('ExamStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER)),
-                Paragraph(f"<b>{grade.score:.2f}</b>", ParagraphStyle('NoteStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER, textColor=colors.green if grade.score >= 10 else colors.red)),
-                Paragraph(f"<b>{credits}</b>", ParagraphStyle('CreditsStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER, textColor=colors.HexColor('#6B46C1'))),
-                Paragraph(f"{weighted:.2f}", ParagraphStyle('MoyStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER)),
-                Paragraph(f"{percentage:.1f}%", ParagraphStyle('PctStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER)),
-                Paragraph(f"<b>{letter}</b>", ParagraphStyle('LetterStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER, textColor=colors.HexColor('#FF6B00')))
-            ])
-
-    # Ligne total
-    data.append([
-        '',
-        Paragraph("<b>MOYENNE GÉNÉRALE</b>", ParagraphStyle('TotalStyle', parent=styles['Normal'], fontSize=9, alignment=TA_LEFT)),
-        '',
-        '',
-        Paragraph(f"<b>{average:.2f}</b>", ParagraphStyle('TotalNoteStyle', parent=styles['Normal'], fontSize=10, alignment=TA_CENTER, textColor=colors.HexColor('#FF6B00'))),
-        Paragraph(f"<b>{total_credits}</b>", ParagraphStyle('TotalCreditsStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER)),
-        Paragraph(f"<b>{total_weighted:.2f}</b>", ParagraphStyle('TotalMoyStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER)),
-        Paragraph(f"<b>{(average/20)*100:.1f}%</b>", ParagraphStyle('TotalPctStyle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER)),
-        Paragraph(f"<b>{get_letter_grade(average)}</b>", ParagraphStyle('TotalLetterStyle', parent=styles['Normal'], fontSize=10, alignment=TA_CENTER, textColor=colors.HexColor('#FF6B00')))
-    ])
-
-    table = Table(data, colWidths=[2.5*cm, 4.5*cm, 1.5*cm, 1.5*cm, 1.8*cm, 1.5*cm, 2*cm, 1.5*cm, 1.8*cm])
-    
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FF6B00')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        *[('BACKGROUND', (0, i), (-1, i), colors.HexColor('#FFF5EB') if i % 2 == 0 else colors.white) 
-          for i in range(1, len(data)-1)],
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#FFE5CC')),
-        ('LINEABOVE', (0, -1), (-1, -1), 2, colors.HexColor('#FF6B00')),
-        *[('BACKGROUND', (0, i), (0, i), colors.HexColor('#FFF0E0')) 
-          for i in range(1, len(data))],
-        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
-    ]))
-    
-    elements.append(table)
-    elements.append(Spacer(1, 0.5*cm))
-    
-    # Mention finale
-    mention_text = f"<b>MOYENNE GÉNÉRALE: {average:.2f}/20</b> - <b>MENTION: {mention.upper()}</b> - <b>RANG: {rank}/{len(students_averages)}</b>"
-    
-    elements.append(Paragraph(mention_text, ParagraphStyle(
-        'Mention',
-        parent=styles['Normal'],
-        fontSize=12,
-        alignment=TA_CENTER,
-        textColor=colors.HexColor('#FF6B00'),
-        spaceAfter=1*cm
-    )))
-    
-    # Date et signature
-    elements.append(Spacer(1, 1*cm))
-    elements.append(Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d/%m/%Y')}", 
-                             ParagraphStyle('Date', parent=styles['Normal'], alignment=TA_RIGHT)))
-    elements.append(Spacer(1, 1.5*cm))
-    elements.append(Paragraph("<b>Le Directeur</b>", header_style))
-    elements.append(Spacer(1, 1*cm))
-    elements.append(Paragraph("_________________________", header_style))
-    
-    doc.build(elements)
-    buffer.seek(0)
-    
+    filename = f"releve_lmd_{student.matricule or student.id}_{session_id}.pdf"
     return Response(
-        content=buffer.getvalue(),
+        content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=bulletin_{student.matricule or student_id}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+@router.get("/me/lmd-pdf")
+def get_my_lmd_transcript_pdf(
+    session_id: int = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("student"))
+):
+    """Télécharge le relevé de notes officiel LMD de l'étudiant connecté"""
+    student = db.query(Student).filter(Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Profil étudiant introuvable")
+
+    if session_id:
+        session = db.query(ExamSession).filter(ExamSession.id == session_id).first()
+    else:
+        latest_grade = db.query(Grade).filter(Grade.student_id == student.id).order_by(Grade.created_at.desc()).first()
+        if latest_grade and latest_grade.session_id:
+            session = db.query(ExamSession).filter(ExamSession.id == latest_grade.session_id).first()
+        else:
+            session = db.query(ExamSession).filter(ExamSession.university_id == student.university_id).order_by(ExamSession.start_date.desc()).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Aucune session académique disponible")
+
+    return generate_lmd_pdf(student.id, session.id, db, current_user)
 
 
 @router.get("/student/{student_id}")
@@ -524,7 +532,7 @@ def generate_report_card_landscape(
     student_id: int,
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "teacher", "student"))
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher", "student"))
 ):
     """Génère le relevé de notes en format PAYSAGE (comme l'image 5)"""
     student = db.query(Student).filter(Student.id == student_id).first()

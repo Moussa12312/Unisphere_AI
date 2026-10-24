@@ -6,6 +6,7 @@ from app.models.announcement import Announcement
 from app.models.filiere import Filiere
 from app.models.teacher import Teacher
 from app.models.user import User
+from app.models.student import Student
 from app.core.dependencies import get_current_user, require_role
 from datetime import datetime
 
@@ -65,6 +66,8 @@ def get_classes(
             if teacher:
                 teacher_name = f"{teacher.first_name} {teacher.last_name}"
         
+        student_count = db.query(Student).filter(Student.class_room_id == c.id).count()
+        
         result.append({
             "id": c.id,
             "name": c.name,
@@ -77,7 +80,8 @@ def get_classes(
             "academic_year": c.academic_year,
             "main_teacher_id": c.main_teacher_id,
             "main_teacher_name": teacher_name,
-            "university_id": c.university_id
+            "university_id": c.university_id,
+            "students_count": student_count
         })
     
     return result
@@ -108,6 +112,8 @@ def get_class(
         if teacher:
             teacher_name = f"{teacher.first_name} {teacher.last_name}"
             
+    student_count = db.query(Student).filter(Student.class_room_id == class_room.id).count()
+            
     return {
         "id": class_room.id,
         "name": class_room.name,
@@ -120,8 +126,43 @@ def get_class(
         "academic_year": class_room.academic_year,
         "main_teacher_id": class_room.main_teacher_id,
         "main_teacher_name": teacher_name,
-        "university_id": class_room.university_id
+        "university_id": class_room.university_id,
+        "students_count": student_count
     }
+
+@router.get("/{class_id}/students")
+def get_class_students(
+    class_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "teacher", "censeur"))
+):
+    class_room = db.query(ClassRoom).filter(
+        ClassRoom.id == class_id,
+        ClassRoom.university_id == current_user.university_id
+    ).first()
+    if not class_room:
+        raise HTTPException(status_code=404, detail="Classe non trouvée")
+    
+    students = db.query(Student).filter(
+        Student.class_room_id == class_id,
+        Student.university_id == current_user.university_id
+    ).order_by(Student.last_name, Student.first_name).all()
+    
+    return [
+        {
+            "id": s.id,
+            "matricule": s.matricule,
+            "first_name": s.first_name,
+            "last_name": s.last_name,
+            "email": s.email,
+            "phone": s.phone,
+            "gender": s.gender,
+            "level": s.level,
+            "filiere": s.filiere,
+            "status": s.status
+        }
+        for s in students
+    ]
 
 @router.put("/{class_id}")
 def update_class(

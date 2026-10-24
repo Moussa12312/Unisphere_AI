@@ -219,26 +219,26 @@ export default function CenseurStatisticsPage() {
         </div>
       </div>
 
-      {/* Performance par matière */}
+      {/* Performance par module */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <BookOpen size={20} className="text-[#FF6B00]" />
-            Performance par matière
+            Performance par module
           </h2>
         </div>
 
         {data?.courses_stats?.length === 0 ? (
           <div className="p-16 text-center">
             <BookOpen size={48} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">Aucune statistique par matière</p>
+            <p className="text-slate-500">Aucune statistique par module</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Matière</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Module</th>
                   <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Notes</th>
                   <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Moyenne</th>
                   <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Min</th>

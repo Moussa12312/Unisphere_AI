@@ -31,6 +31,24 @@ export const paymentTrancheService = {
     return response.data;
   },
 
+  configureThreeTranches: async (data: {
+    level: string;
+    domain?: string | null;
+    payment_type?: string;
+    academic_year: string;
+    sync_associated_domains?: boolean;
+    tranches: Array<{
+      tranche_number: number;
+      tranche_name: string;
+      percentage: number;
+      amount: number;
+      due_date?: string | null;
+    }>;
+  }) => {
+    const response = await api.post('/api/v1/payment-tranches/configure-three', data);
+    return response.data;
+  },
+
   update: async (id: number, data: any) => {
     const response = await api.put(`/api/v1/payment-tranches/${id}`, data);
     return response.data;

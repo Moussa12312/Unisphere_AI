@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Calendar, Plus, Search, Edit3, Trash2, Eye, X, Save,
   Loader2, AlertTriangle, FileText, CheckCircle2, Clock, Lock
@@ -317,7 +318,15 @@ export default function SecretaryExamSessionsPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Link
+                      href={`/secretary/exam-sessions/${session.id}/schedule`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-95"
+                      title="Gérer et imprimer le calendrier des examens"
+                    >
+                      <Calendar size={13} />
+                      Calendrier des Épreuves
+                    </Link>
                     <button
                       onClick={() => { setSelectedSession(session); setShowDetailModal(true); }}
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

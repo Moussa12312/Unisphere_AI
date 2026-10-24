@@ -225,7 +225,9 @@ def get_academic_config(
         "allow_makeup_exam": config.allow_makeup_exam,
         "min_gpa_to_pass": config.min_gpa_to_pass,
         "current_academic_year": config.current_academic_year,
-        "semester_system": config.semester_system
+        "semester_system": config.semester_system,
+        "penalty_amount": getattr(config, "penalty_amount", 5000.0) or 5000.0,
+        "penalty_auto_apply": getattr(config, "penalty_auto_apply", True) if getattr(config, "penalty_auto_apply", None) is not None else True
     }
 
 

@@ -16,6 +16,7 @@ class Course(Base):
     hours = Column(Integer, default=20)
     university_id = Column(Integer, ForeignKey("universities.id"), nullable=False)
     filiere_id = Column(Integer, ForeignKey("filieres.id"), nullable=True)  
+    teaching_unit_id = Column(Integer, ForeignKey("teaching_units.id"), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -24,4 +25,5 @@ class Course(Base):
     teacher = relationship("Teacher", back_populates="courses")
     grades = relationship("Grade", back_populates="course", cascade="all, delete-orphan")
     filiere = relationship("Filiere")  
+    teaching_unit = relationship("TeachingUnit", back_populates="courses")
     history = relationship("CourseHistory", back_populates="course", cascade="all, delete-orphan")

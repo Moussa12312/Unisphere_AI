@@ -146,9 +146,16 @@ export default function UnpaidPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-semibold text-red-600 text-sm">
-                        {formatAmount(student.overdue_amount || 0)}
-                      </span>
+                      <div>
+                        <span className="font-semibold text-red-600 text-sm">
+                          {formatAmount(student.total_with_penalties || student.overdue_amount || 0)}
+                        </span>
+                        {student.penalty_amount > 0 && (
+                          <p className="text-[11px] text-amber-700 font-medium">
+                            dont {formatAmount(student.penalty_amount)} pénalité
+                          </p>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">

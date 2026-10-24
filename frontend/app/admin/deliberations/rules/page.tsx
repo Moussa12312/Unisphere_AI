@@ -164,7 +164,7 @@ export default function DeliberationRulesPage() {
                 </div>
                 <div>
                   <p className="text-lg font-bold text-slate-700">{rule.max_failed_courses}</p>
-                  <p className="text-xs text-slate-400">Matières max.</p>
+                  <p className="text-xs text-slate-400">Modules max.</p>
                 </div>
               </div>
             </div>
@@ -213,7 +213,7 @@ export default function DeliberationRulesPage() {
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Nombre max. de matières en échec (rattrapage)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Nombre max. de modules en échec (rattrapage)</label>
                 <input type="number" value={formData.max_failed_courses} onChange={(e) => setFormData({ ...formData, max_failed_courses: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]" />
               </div>

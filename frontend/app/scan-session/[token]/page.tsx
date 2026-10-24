@@ -33,11 +33,17 @@ interface SessionInfo {
 }
 
 const DOCUMENT_TYPES = [
-  { id: 'cni', label: 'Carte d\'identité', icon: User, required: true },
   { id: 'birth_certificate', label: 'Acte de naissance', icon: FileText, required: true },
-  { id: 'photo', label: 'Photo d\'identité', icon: ImageIcon, required: true },
-  { id: 'bac', label: 'Baccalauréat', icon: FileText, required: false },
-  { id: 'other', label: 'Autre document', icon: FileText, required: false },
+  { id: 'bac_diploma', label: 'Diplôme / Attestation Bac', icon: FileText, required: true },
+  { id: 'bac_transcript', label: 'Relevé de notes du Bac', icon: FileText, required: true },
+  { id: 'cni', label: 'Carte d\'identité / CNI', icon: User, required: true },
+  { id: 'previous_transcript', label: 'Relevé de notes N-1 (Réinscription)', icon: FileText, required: false },
+  { id: 'success_certificate', label: 'Attestation de réussite / passage', icon: FileText, required: false },
+  { id: 'financial_clearance', label: 'Quitus financier / Solde', icon: FileText, required: false },
+  { id: 'medical_certificate', label: 'Certificat médical d\'aptitude', icon: FileText, required: false },
+  { id: 'reenrollment_form', label: 'Fiche de réinscription signée', icon: FileText, required: false },
+  { id: 'photo', label: 'Photo d\'identité', icon: ImageIcon, required: false },
+  { id: 'other', label: 'Autre document justificatif', icon: FileText, required: false },
 ];
 
 export default function ScanSessionPage() {

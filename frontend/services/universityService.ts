@@ -18,7 +18,7 @@ export const universityService = {
   },
 
   getCardConfig: async () => {
-    const response = await api.get('/api/v1/university/card-config');
+    const response = await api.get('/api/v1/settings/university/card-config');
     return response.data;
   },
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, desc
 from datetime import datetime, timedelta, date
@@ -181,26 +181,10 @@ def create_payment(
                        f"Référence : {existing_payment.reference}"
             )
     
-    # 3. Récupérer le montant total configuré
-    total_amount = data.amount
-    
-    if data.payment_type in ["scolarite", "inscription"]:
-        if student.locked_fee_id:
-            locked_fee = db.query(AcademicFee).filter(AcademicFee.id == student.locked_fee_id).first()
-            if locked_fee and locked_fee.payment_type == data.payment_type:
-                total_amount = locked_fee.amount
-        else:
-            active_fee = db.query(AcademicFee).filter(
-                AcademicFee.university_id == current_user.university_id,
-                AcademicFee.level == student.level,
-                AcademicFee.payment_type == data.payment_type,
-                AcademicFee.academic_year == academic_year
-            ).first()
-            if active_fee:
-                total_amount = active_fee.amount
-                student.locked_fee_id = active_fee.id
-                active_fee.is_locked = True
-                active_fee.locked_count += 1
+    # 3. Récupérer le montant total configuré (en prenant en compte Domaine + Remise négociée)
+    from app.utils.tuition import resolve_student_tuition_breakdown
+    breakdown = resolve_student_tuition_breakdown(db, student, current_user.university_id, data.payment_type)
+    total_amount = breakdown["net_amount"]
     
     # 4. Vérifier que le montant ne dépasse pas le total
     if data.amount > total_amount:
@@ -341,12 +325,9 @@ def get_unpaid_students(
     today = date.today()
     
     for student in students:
-        # Récupérer les tranches configurées
-        configured_tranches = db.query(PaymentTranche).filter(
-            PaymentTranche.university_id == current_user.university_id,
-            PaymentTranche.level == student.level,
-            PaymentTranche.payment_type == 'scolarite'
-        ).order_by(PaymentTranche.tranche_number.asc()).all()
+        # Récupérer les tranches configurées (dédoublonnées et adaptées à l'année courante et au domaine)
+        from app.utils.tuition import get_configured_tranches_for_student
+        configured_tranches = get_configured_tranches_for_student(db, student, current_user.university_id, 0)
         
         if not configured_tranches:
             continue
@@ -392,6 +373,15 @@ def get_unpaid_students(
         if overdue_tranches:
             total_due = sum(float(t.amount) for t in configured_tranches)
             
+            # Récupérer la configuration de pénalité de l'établissement
+            from app.models.academic_config import AcademicConfig
+            ac_config = db.query(AcademicConfig).filter(
+                AcademicConfig.university_id == current_user.university_id
+            ).first()
+            penalty_rate = getattr(ac_config, "penalty_amount", 5000.0) if ac_config else 5000.0
+            penalty_auto = getattr(ac_config, "penalty_auto_apply", True) if ac_config else True
+            penalty_total = (len(overdue_tranches) * penalty_rate) if penalty_auto else 0.0
+            
             unpaid_students.append({
                 "student_id": student.id,
                 "student_name": f"{student.first_name} {student.last_name}",
@@ -402,6 +392,8 @@ def get_unpaid_students(
                 "total_paid": total_paid,
                 "balance": total_due - total_paid,
                 "overdue_amount": total_overdue,
+                "penalty_amount": penalty_total,
+                "total_with_penalties": total_overdue + penalty_total,
                 "overdue_count": len(overdue_tranches),
                 "overdue_tranches": overdue_tranches,
                 "pending_count": len(overdue_tranches)
@@ -961,14 +953,9 @@ def get_payment_receipt(
     if not creator:
         creator = current_user
     
-    # ✅ RÉCUPÉRER LES TRANCHES CONFIGURÉES
-    from app.models.payment_tranche import PaymentTranche
-    
-    configured_tranches = db.query(PaymentTranche).filter(
-        PaymentTranche.university_id == current_user.university_id,
-        PaymentTranche.level == student.level,
-        PaymentTranche.payment_type == (payment.payment_type or 'scolarite')
-    ).order_by(PaymentTranche.tranche_number.asc()).all()
+    # ✅ RÉCUPÉRER LES TRANCHES CONFIGURÉES DÉDOUBLONNÉES
+    from app.utils.tuition import get_configured_tranches_for_student
+    configured_tranches = get_configured_tranches_for_student(db, student, current_user.university_id, 0)
     
     # ✅ Total dû = somme des tranches
     total_amount = sum(float(t.amount) for t in configured_tranches) if configured_tranches else 0
@@ -980,43 +967,44 @@ def get_payment_receipt(
     
     total_paid_real = sum(float(p.amount) for p in all_payments if p.amount)
     
-    # ✅✅✅ LOGIQUE : Déterminer quelles tranches sont payées
+    # ✅✅✅ LOGIQUE : Déterminer la ventilation exacte des paiements sur les tranches
     paid_tranches = []
     remaining_tranches = []
-    cumulative_tranches = 0.0
-    
+    rem_alloc = float(total_paid_real)
+
     for tranche in configured_tranches:
         tranche_amount = float(tranche.amount)
-        cumulative_tranches += tranche_amount
-        
-        # ✅ Si le total payé réel >= cumul des tranches jusqu'ici → tranche payée
-        if total_paid_real >= cumulative_tranches:
-            paid_tranches.append({
-                "tranche_number": tranche.tranche_number,
-                "tranche_name": tranche.tranche_name,
-                "amount": round(tranche_amount),
-                "due_date": tranche.due_date.isoformat() if tranche.due_date else None,
-                "status": "paid"
-            })
+        if rem_alloc >= tranche_amount and tranche_amount > 0:
+            tranche_paid = tranche_amount
+            st = "paid"
+            rem_alloc -= tranche_amount
+        elif rem_alloc > 0:
+            tranche_paid = rem_alloc
+            st = "partial"
+            rem_alloc = 0
         else:
-            # ✅ Sinon → tranche non payée
-            remaining_tranches.append({
-                "tranche_number": tranche.tranche_number,
-                "tranche_name": tranche.tranche_name,
-                "amount": round(tranche_amount),
-                "due_date": tranche.due_date.isoformat() if tranche.due_date else None,
-                "status": "pending"
-            })
-    
-    # ✅✅✅ CORRECTION : Montant payé = somme des tranches payées
-    total_paid = sum(t["amount"] for t in paid_tranches)
-    
-    # ✅ Reste à payer = somme des tranches restantes
-    balance = sum(t["amount"] for t in remaining_tranches)
-    
-    # Pourcentage payé (basé sur les tranches)
+            tranche_paid = 0.0
+            st = "pending"
+
+        tr_data = {
+            "tranche_number": tranche.tranche_number,
+            "tranche_name": tranche.tranche_name,
+            "amount": round(tranche_amount),
+            "paid_amount": round(tranche_paid),
+            "remaining": round(max(0, tranche_amount - tranche_paid)),
+            "due_date": tranche.due_date.isoformat() if tranche.due_date else None,
+            "status": st
+        }
+        if st == "paid":
+            paid_tranches.append(tr_data)
+        else:
+            remaining_tranches.append(tr_data)
+
+    # ✅ Le total payé réel et le reste à payer réel sans perdre aucun centime
+    total_paid = round(total_paid_real)
+    balance = round(max(0, total_amount - total_paid_real))
     paid_percentage = round((total_paid / total_amount) * 100) if total_amount > 0 else 0
-    
+
     # Statut
     if paid_percentage >= 100:
         status = "paid"
@@ -1072,3 +1060,377 @@ def get_payment_receipt(
             }
         }
     }
+
+
+# ==========================================
+# 📄 QUITUS FINANCIER & CERTIFICAT DE SOLDE PDF
+# ==========================================
+@router.get("/me/quitus-pdf")
+def get_my_quitus_pdf(
+    academic_year: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("student"))
+):
+    """Télécharge le Quitus Financier officiel de l'étudiant connecté"""
+    student = db.query(Student).filter(Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Profil étudiant introuvable")
+
+    university = db.query(University).filter(University.id == student.university_id).first()
+    year = academic_year or get_current_academic_year(db, student.university_id)
+
+    payments = db.query(Payment).filter(
+        Payment.student_id == student.id,
+        Payment.university_id == student.university_id,
+        Payment.status.in_(["completed", "partial"])
+    ).order_by(Payment.created_at.asc()).all()
+
+    from app.services.pdf_generator import generate_financial_clearance_pdf
+    pdf_bytes = generate_financial_clearance_pdf(
+        student=student,
+        university=university,
+        payments=payments,
+        academic_year=year
+    )
+
+    filename = f"quitus_financier_{student.matricule or student.id}_{year.replace('/', '-')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@router.get("/students/{student_id}/quitus-pdf")
+def get_student_quitus_pdf(
+    student_id: int,
+    academic_year: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant", "secretary", "censeur", "student"))
+):
+    """Génère le Quitus Financier officiel et certificat de solde en PDF sécurisé"""
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Étudiant introuvable")
+
+    if current_user.role == "student" and student.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
+
+    university = db.query(University).filter(University.id == student.university_id).first()
+    year = academic_year or get_current_academic_year(db, student.university_id)
+
+    payments = db.query(Payment).filter(
+        Payment.student_id == student_id,
+        Payment.university_id == student.university_id,
+        Payment.status.in_(["completed", "partial"])
+    ).order_by(Payment.created_at.asc()).all()
+
+    from app.services.pdf_generator import generate_financial_clearance_pdf
+    pdf_bytes = generate_financial_clearance_pdf(
+        student=student,
+        university=university,
+        payments=payments,
+        academic_year=year
+    )
+
+    filename = f"quitus_financier_{student.matricule or student.id}_{year.replace('/', '-')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+# ==========================================
+# 📄 CENTRE DE TOUS LES REÇUS DE L'ÉTABLISSEMENT
+# ==========================================
+@router.get("/all-receipts")
+def get_all_receipts(
+    type_filter: Optional[str] = Query("all", description="all, tuition, expense, payroll, cash"),
+    period: Optional[str] = Query("all", description="all, today, week, month, year"),
+    search: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant", "secretary"))
+):
+    """
+    Récupère TOUS les reçus et justificatifs officiels émis par l'établissement :
+    - Reçus de paiement de scolarité (étudiants)
+    - Bons de décaissement (dépenses / fournisseurs)
+    - Bulletins / Reçus de paiement de salaire (personnel)
+    - Bons d'opération de trésorerie / caisse
+    """
+    from app.models.accounting import Expense, PayrollEntry, CashTransaction, BankAccount
+    university_id = current_user.university_id
+    today = date.today()
+
+    start_date = None
+    if period == "today":
+        start_date = today
+    elif period == "week":
+        start_date = today - timedelta(days=7)
+    elif period == "month":
+        start_date = today.replace(day=1)
+    elif period == "year":
+        start_date = today.replace(month=1, day=1)
+
+    all_receipts = []
+
+    # 1. Reçus de scolarité (Payment)
+    if type_filter in ["all", "tuition"]:
+        q_pay = db.query(Payment).filter(
+            Payment.university_id == university_id,
+            Payment.status.in_(["completed", "partial"])
+        )
+        if start_date:
+            q_pay = q_pay.filter(Payment.payment_date >= start_date)
+        payments = q_pay.order_by(Payment.payment_date.desc(), Payment.id.desc()).all()
+
+        for p in payments:
+            st = p.student
+            st_name = f"{st.first_name} {st.last_name}" if st else "Étudiant inconnu"
+            matricule = st.matricule if st else "—"
+            filiere = st.filiere if st else "—"
+            level = st.level if st else "—"
+            
+            p_date_str = p.payment_date.isoformat() if p.payment_date else (p.created_at.date().isoformat() if p.created_at else str(today))
+            rec_num = p.receipt_number or f"REC-{p.id:06d}"
+            
+            all_receipts.append({
+                "id": f"tuition-{p.id}",
+                "original_id": p.id,
+                "type": "tuition",
+                "type_label": "Scolarité",
+                "receipt_number": rec_num,
+                "reference": p.reference or f"REF-{p.id}",
+                "party_name": st_name,
+                "party_detail": f"{matricule} • {level} {filiere}".strip(),
+                "party_matricule": matricule,
+                "amount": float(p.amount),
+                "direction": "credit",
+                "payment_method": p.payment_method or "especes",
+                "date": p_date_str,
+                "status": "completed",
+                "description": p.description or f"Paiement scolarité ({p.payment_type})",
+                "student_id": p.student_id,
+                "print_url": f"/accountant/payments/receipt/{p.id}"
+            })
+
+    # 2. Bons de décaissement (Expense)
+    if type_filter in ["all", "expense"]:
+        q_exp = db.query(Expense).filter(
+            Expense.university_id == university_id,
+            Expense.status.in_(["paid", "completed"])
+        )
+        if start_date:
+            q_exp = q_exp.filter(Expense.expense_date >= start_date)
+        expenses = q_exp.order_by(Expense.expense_date.desc(), Expense.id.desc()).all()
+
+        for exp in expenses:
+            sup_name = exp.supplier.name if exp.supplier else "Bénéficiaire divers"
+            cat_name = exp.category.name if exp.category else "Charge générale"
+            rec_num = exp.reference or f"BD-{exp.expense_date.strftime('%Y%m%d') if exp.expense_date else 'EXP'}-{exp.id:04d}"
+            exp_date_str = exp.expense_date.isoformat() if exp.expense_date else str(today)
+
+            all_receipts.append({
+                "id": f"expense-{exp.id}",
+                "original_id": exp.id,
+                "type": "expense",
+                "type_label": "Bon de Décaissement",
+                "receipt_number": rec_num,
+                "reference": exp.reference or f"EXP-{exp.id}",
+                "party_name": sup_name,
+                "party_detail": cat_name,
+                "party_matricule": "Fournisseur",
+                "amount": float(exp.amount),
+                "direction": "debit",
+                "payment_method": exp.payment_method or "virement",
+                "date": exp_date_str,
+                "status": "completed",
+                "description": exp.title or "Dépense de fonctionnement",
+                "expense_id": exp.id,
+                "print_url": f"/accountant/receipts?view=expense&id={exp.id}"
+            })
+
+    # 3. Bulletins / Reçus de Salaire (PayrollEntry)
+    if type_filter in ["all", "payroll"]:
+        q_payr = db.query(PayrollEntry).filter(
+            PayrollEntry.university_id == university_id,
+            PayrollEntry.status == "paid"
+        )
+        if start_date:
+            q_payr = q_payr.filter(PayrollEntry.paid_date >= start_date)
+        payrolls = q_payr.order_by(PayrollEntry.paid_date.desc(), PayrollEntry.id.desc()).all()
+
+        for pr in payrolls:
+            staff_user = pr.user
+            staff_name = f"{staff_user.first_name} {staff_user.last_name}" if staff_user else "Personnel"
+            role_label = getattr(staff_user, "role", "Personnel") if staff_user else "Personnel"
+            pr_date = pr.paid_date or (pr.created_at.date() if pr.created_at else today)
+            rec_num = f"BS-{pr.period.replace('-', '')}-{pr.id:04d}"
+
+            all_receipts.append({
+                "id": f"payroll-{pr.id}",
+                "original_id": pr.id,
+                "type": "payroll",
+                "type_label": "Bulletin de Salaire",
+                "receipt_number": rec_num,
+                "reference": f"PAY-{pr.period}-{pr.id}",
+                "party_name": staff_name,
+                "party_detail": f"Poste : {role_label} • Période : {pr.period}",
+                "party_matricule": "Personnel",
+                "amount": float(pr.net_salary),
+                "direction": "debit",
+                "payment_method": "virement",
+                "date": pr_date.isoformat(),
+                "status": "completed",
+                "description": f"Rémunération période {pr.period}",
+                "payroll_id": pr.id,
+                "print_url": f"/accountant/receipts?view=payroll&id={pr.id}"
+            })
+
+    # 4. Bons de Caisse / Trésorerie (CashTransaction)
+    if type_filter in ["all", "cash"]:
+        q_cash = db.query(CashTransaction).filter(
+            CashTransaction.university_id == university_id
+        )
+        if start_date:
+            q_cash = q_cash.filter(CashTransaction.transaction_date >= start_date)
+        cash_txs = q_cash.order_by(CashTransaction.transaction_date.desc(), CashTransaction.id.desc()).all()
+
+        for ct in cash_txs:
+            b_acc = db.query(BankAccount).filter(BankAccount.id == ct.bank_account_id).first()
+            acc_name = b_acc.name if b_acc else "Caisse / Banque"
+            tx_type_str = "Entrée de caisse" if ct.transaction_type == "in" else ("Sortie de caisse" if ct.transaction_type == "out" else "Virement interne")
+            rec_num = f"BC-{ct.transaction_date.strftime('%Y%m%d') if ct.transaction_date else 'TX'}-{ct.id:04d}"
+
+            all_receipts.append({
+                "id": f"cash-{ct.id}",
+                "original_id": ct.id,
+                "type": "cash",
+                "type_label": "Bon de Caisse",
+                "receipt_number": rec_num,
+                "reference": f"TX-{ct.id}",
+                "party_name": acc_name,
+                "party_detail": tx_type_str,
+                "party_matricule": "Trésorerie",
+                "amount": float(ct.amount),
+                "direction": "credit" if ct.transaction_type == "in" else "debit",
+                "payment_method": "especes",
+                "date": ct.transaction_date.isoformat() if ct.transaction_date else str(today),
+                "status": "completed",
+                "description": ct.description or tx_type_str,
+                "cash_id": ct.id,
+                "print_url": f"/accountant/receipts?view=cash&id={ct.id}"
+            })
+
+    if search:
+        s_low = search.lower()
+        all_receipts = [
+            r for r in all_receipts
+            if s_low in r["party_name"].lower()
+            or s_low in r["receipt_number"].lower()
+            or s_low in r["reference"].lower()
+            or s_low in r["description"].lower()
+            or s_low in r["party_detail"].lower()
+        ]
+
+    all_receipts.sort(key=lambda x: (x["date"], x["id"]), reverse=True)
+
+    total_count = len(all_receipts)
+    total_credit = sum(r["amount"] for r in all_receipts if r["direction"] == "credit")
+    total_debit = sum(r["amount"] for r in all_receipts if r["direction"] == "debit")
+
+    return {
+        "receipts": all_receipts,
+        "total_count": total_count,
+        "total_credit": total_credit,
+        "total_debit": total_debit,
+        "tuition_count": sum(1 for r in all_receipts if r["type"] == "tuition"),
+        "expense_count": sum(1 for r in all_receipts if r["type"] == "expense"),
+        "payroll_count": sum(1 for r in all_receipts if r["type"] == "payroll"),
+        "cash_count": sum(1 for r in all_receipts if r["type"] == "cash"),
+    }
+
+
+@router.get("/expense-receipt/{expense_id}")
+def get_expense_receipt(
+    expense_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant"))
+):
+    """Génère les données officielles pour imprimer le Bon de Décaissement"""
+    from app.models.accounting import Expense
+    expense = db.query(Expense).filter(Expense.id == expense_id, Expense.university_id == current_user.university_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Dépense non trouvée")
+    university = db.query(University).filter(University.id == current_user.university_id).first()
+    creator = db.query(User).filter(User.id == expense.created_by).first() if expense.created_by else current_user
+
+    return {
+        "voucher": {
+            "id": expense.id,
+            "voucher_number": expense.reference or f"BD-{expense.expense_date.strftime('%Y%m%d') if expense.expense_date else 'EXP'}-{expense.id:04d}",
+            "reference": expense.reference,
+            "title": expense.title,
+            "description": expense.description,
+            "amount": float(expense.amount),
+            "date": expense.expense_date.isoformat() if expense.expense_date else str(date.today()),
+            "payment_method": expense.payment_method,
+            "status": expense.status,
+            "category_name": expense.category.name if expense.category else "Général",
+            "supplier_name": expense.supplier.name if expense.supplier else "Bénéficiaire divers",
+            "supplier_phone": expense.supplier.phone if expense.supplier else None,
+            "supplier_address": expense.supplier.address if expense.supplier else None
+        },
+        "university": {
+            "name": university.name if university else "Université",
+            "address": university.address if university else "",
+            "phone": university.phone if university else "",
+            "email": university.email if university else "",
+            "logo": university.logo if university else None
+        },
+        "creator": {
+            "name": f"{creator.first_name} {creator.last_name}" if creator else "Service Comptabilité",
+            "role": getattr(creator, "role", "Comptable") if creator else "Comptable"
+        }
+    }
+
+
+@router.get("/payroll-receipt/{payroll_id}")
+def get_payroll_receipt(
+    payroll_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant"))
+):
+    """Génère les données officielles pour imprimer le Bulletin de Salaire"""
+    from app.models.accounting import PayrollEntry
+    entry = db.query(PayrollEntry).filter(PayrollEntry.id == payroll_id, PayrollEntry.university_id == current_user.university_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Bulletin non trouvé")
+    university = db.query(University).filter(University.id == current_user.university_id).first()
+    staff = entry.user
+
+    return {
+        "payslip": {
+            "id": entry.id,
+            "slip_number": f"BS-{entry.period.replace('-', '')}-{entry.id:04d}",
+            "period": entry.period,
+            "gross_salary": float(entry.gross_salary),
+            "deductions": float(entry.deductions or 0),
+            "net_salary": float(entry.net_salary),
+            "paid_date": entry.paid_date.isoformat() if entry.paid_date else str(date.today()),
+            "status": entry.status
+        },
+        "staff": {
+            "id": staff.id if staff else None,
+            "name": f"{staff.first_name} {staff.last_name}" if staff else "Employé",
+            "email": staff.email if staff else "",
+            "role": staff.role if staff else "Personnel"
+        },
+        "university": {
+            "name": university.name if university else "Université",
+            "address": university.address if university else "",
+            "phone": university.phone if university else "",
+            "logo": university.logo if university else None
+        }
+    }

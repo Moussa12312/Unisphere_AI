@@ -16,7 +16,7 @@
 }
 
 body {
-  font-family: 'Times New Roman', system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background-color: #f1f5f9;
   color: #0f172a;
 }
@@ -193,7 +193,7 @@ body {
 }
 
 /* ============================================
-   IMPRESSION : pleine largeur, sans sidebar
+   IMPRESSION : Document propre, sans chrome UI
    ============================================ */
 @media print {
   @page {
@@ -204,17 +204,33 @@ body {
   html,
   body {
     background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
   }
 
-  /* 1. Masquer la navigation */
+  /* 1. Masquer la navigation, sidebar, headers, boutons et widgets flottants */
   aside,
   header,
   nav,
-  .print\:hidden {
+  footer,
+  button,
+  .print\:hidden,
+  .no-print,
+  [role="navigation"],
+  .toaster {
     display: none !important;
   }
 
-  /* 2. Débloquer les conteneurs (sinon 1 seule page) */
+  /* 2. Annuler les décalages de marge (ex: ml-60 de la sidebar) */
+  [class*="ml-"],
+  [class*="sm:ml-"],
+  [class*="md:ml-"],
+  [class*="lg:ml-"] {
+    margin-left: 0 !important;
+  }
+
+  /* 3. Débloquer tous les conteneurs scrollables et viewport */
   html,
   body,
   main,
@@ -224,40 +240,51 @@ body {
     height: auto !important;
     overflow: visible !important;
     max-height: none !important;
+    position: static !important;
   }
 
-  /* 3. Supprimer les paddings/marges du layout */
+  /* 4. Supprimer les paddings/marges du layout principal */
   main {
     padding: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
   }
 
-  main>div {
+  main > div {
     max-width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
   }
 
-  /* 4. ✅ Le reçu prend TOUTE la largeur de la feuille */
-  .receipt-wrapper {
+  /* 5. ✅ Le reçu ou bon de caisse prend toute la largeur utile sans déborder */
+  .receipt-wrapper,
+  .printable-voucher,
+  .voucher-sheet {
     max-width: 100% !important;
     width: 100% !important;
     margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
   }
 
   .receipt-sheet {
     width: 100% !important;
     max-width: 100% !important;
     box-shadow: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    padding: 0 !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 24px !important;
+    background: white !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
-  /* 5. Couleurs fidèles */
-  .receipt-sheet,
-  .receipt-sheet * {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  /* 6. Couleurs d'impression fidèles et nettes */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }

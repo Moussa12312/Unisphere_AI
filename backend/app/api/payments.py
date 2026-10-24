@@ -60,19 +60,10 @@ def create_payment(
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
 
-    # 2. ✅ CALCULER LE MONTANT TOTAL DÛ
-    total_amount = 0
-    try:
-        from app.models.academic_fee import AcademicFee
-        fee = db.query(AcademicFee).filter(
-            AcademicFee.level == student.level,
-            AcademicFee.payment_type == data.payment_type,
-            AcademicFee.university_id == current_user.university_id
-        ).first()
-        if fee:
-            total_amount = fee.amount
-    except Exception:
-        total_amount = 450000  # Fallback
+    # 2. ✅ CALCULER LE MONTANT TOTAL DÛ (Prise en compte du Domaine + Remise négociée)
+    from app.utils.tuition import resolve_student_tuition_breakdown
+    breakdown = resolve_student_tuition_breakdown(db, student, current_user.university_id, data.payment_type)
+    total_amount = breakdown["net_amount"]
     
     # 3. ✅ CALCULER LE TOTAL DÉJÀ PAYÉ
     existing_payments = db.query(Payment).filter(
@@ -275,40 +266,37 @@ def get_payments_summary(
     paid_students = 0
     late_students = 0
     
-    try:
-        from app.models.academic_fee import AcademicFee
-    except ImportError:
-        AcademicFee = None
-    
+    from app.utils.tuition import resolve_student_tuition_breakdown
+    total_catalog_gross = 0
+    total_discounts_granted = 0
+
     for student in students:
-        # Montant dû pour cet étudiant
-        student_amount = 450000  # Valeur par défaut
-        if AcademicFee:
-            fee = db.query(AcademicFee).filter(
-                AcademicFee.level == student.level,
-                AcademicFee.payment_type == 'scolarite',
-                AcademicFee.university_id == current_user.university_id
-            ).first()
-            if fee:
-                student_amount = fee.amount
+        # Montant net dû pour cet étudiant (domaine + remise déduite)
+        breakdown = resolve_student_tuition_breakdown(db, student, current_user.university_id, "scolarite")
+        student_amount = breakdown["net_amount"]
+        total_catalog_gross += breakdown["base_amount"]
+        total_discounts_granted += breakdown["discount_amount"]
         
         # Montant payé
         payments = db.query(Payment).filter(
-            Payment.student_id == student.id
+            Payment.student_id == student.id,
+            Payment.status == "completed"
         ).all()
         student_paid = sum(p.amount for p in payments if p.amount)
         
         total_due += student_amount
         total_paid += student_paid
         
-        if student_paid >= student_amount:
+        if student_paid >= student_amount and student_amount > 0:
             paid_students += 1
         elif student_paid > 0 and student_paid < student_amount:
-            # Vérifier si en retard
+            # En retard ou partiel
             late_students += 1
     
     return {
         "total_due": total_due,
+        "total_catalog_gross": total_catalog_gross,
+        "total_discounts_granted": total_discounts_granted,
         "total_paid": total_paid,
         "total_remaining": max(0, total_due - total_paid),
         "students_count": len(students),
@@ -317,20 +305,38 @@ def get_payments_summary(
         "payment_rate": round((total_paid / total_due) * 100, 1) if total_due > 0 else 0
     }
     
+# ✅ RÉSUMÉ DES PAIEMENTS DE L'ÉTUDIANT CONNECTÉ
+@router.get("/me/summary")
+def get_my_payment_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("student"))
+):
+    """Récupère l'échéancier et le résumé des paiements de l'étudiant connecté"""
+    student = db.query(Student).filter(Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Profil étudiant non trouvé")
+    return get_student_payment_summary(student.id, db=db, current_user=current_user)
+
 # ✅ RÉSUMÉ DES PAIEMENTS D'UN ÉTUDIANT
 @router.get("/student/{student_id}/summary")
 def get_student_payment_summary(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant", "secretary"))
+    current_user: User = Depends(require_role("admin", "accountant", "secretary", "student"))
 ):
-    """Récupère le résumé des paiements d'un étudiant avec tranches configurées"""
+    """Récupère le résumé des paiements d'un étudiant avec tranches configurées ou modalité mensuelle"""
     
     # 1. Vérifier l'étudiant
-    student = db.query(Student).filter(
-        Student.id == student_id,
-        Student.university_id == current_user.university_id
-    ).first()
+    if current_user.role == "student":
+        student = db.query(Student).filter(
+            Student.id == student_id,
+            Student.user_id == current_user.id
+        ).first()
+    else:
+        student = db.query(Student).filter(
+            Student.id == student_id,
+            Student.university_id == current_user.university_id
+        ).first()
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
     
@@ -340,19 +346,11 @@ def get_student_payment_summary(
         Payment.status == "completed"
     ).order_by(Payment.created_at.asc()).all()
     
-    # 3. Calculer le montant total dû
-    total_amount = 0
-    try:
-        from app.models.academic_fee import AcademicFee
-        fee = db.query(AcademicFee).filter(
-            AcademicFee.level == student.level,
-            AcademicFee.payment_type == 'scolarite',
-            AcademicFee.university_id == current_user.university_id
-        ).first()
-        if fee:
-            total_amount = fee.amount
-    except Exception:
-        total_amount = 450000
+    # 3. Calculer le montant net dû et la décomposition financière
+    from app.utils.tuition import resolve_student_tuition_breakdown, get_configured_tranches_for_student, get_monthly_schedule_for_student
+    breakdown = resolve_student_tuition_breakdown(db, student, current_user.university_id, "scolarite")
+    total_amount = breakdown["net_amount"]
+    base_amount = breakdown["base_amount"]
     
     # 4. Calculer le total payé
     total_paid = sum(p.amount for p in payments if p.amount)
@@ -367,75 +365,51 @@ def get_student_payment_summary(
     else:
         status = 'unpaid'
     
-    # 5. ✅ RÉCUPÉRER LES TRANCHES CONFIGURÉES
-    configured_tranches = db.query(PaymentTranche).filter(
-        PaymentTranche.university_id == current_user.university_id,
-        PaymentTranche.level == student.level,
-        PaymentTranche.payment_type == 'scolarite'
-    ).order_by(PaymentTranche.tranche_number).all()
-    
-    # 6. ✅ GÉNÉRER LES TRANCHES AVEC LA BONNE LOGIQUE
+    # 5. ✅ GESTION SELON LE PLAN : MENSUEL VS TRANCHES
     tranches = []
+    is_monthly = getattr(student, "payment_plan", "tranches") == "mensuel"
+    configured_tranches = []
+
+    if is_monthly:
+        # ✅ MODE MENSUEL : Génération de l'échéancier mensuel (Acompte + Mensualités)
+        tranches = get_monthly_schedule_for_student(breakdown, total_paid, payments)
+    else:
+        # ✅ MODE TRANCHES : Tranches configurées (priorité au domaine de l'étudiant)
+        configured_tranches = get_configured_tranches_for_student(db, student, current_user.university_id, total_amount)
     
-    if configured_tranches:
-        # ✅ CAS 1 : Tranches configurées existent
-        
-        # ✅ CAS 1a : Paiement total atteint → TOUTES les tranches payées
-        if total_paid >= total_amount and total_amount > 0:
-            cumulative = 0
-            for ct in configured_tranches:
-                tranche_amount = ct.amount or (total_amount * ct.percentage / 100) if total_amount > 0 else 0
-                
-                # Trouver les paiements associés à cette tranche
-                tranche_payments = [p for p in payments if p.tranche_id == ct.id]
-                first_payment = tranche_payments[0] if tranche_payments else None
-                
-                tranches.append({
-                    "id": ct.id,
-                    "number": ct.tranche_number,
-                    "name": ct.tranche_name or f"Tranche {ct.tranche_number}",
-                    "amount": round(tranche_amount),
-                    "percentage": ct.percentage,
-                    "status": "paid",  # ✅ TOUJOURS PAYÉ si total atteint
-                    "due_date": ct.due_date.isoformat() if ct.due_date else None,
-                    "paid_amount": round(tranche_amount),
-                    "remaining": 0,
-                    "payment_date": first_payment.payment_date.isoformat() if first_payment and first_payment.payment_date else None,
-                    "payment_method": first_payment.payment_method if first_payment else None,
-                    "receipt_number": first_payment.receipt_number if first_payment else None
-                })
-        
-        # ✅ CAS 1b : Paiement partiel → Répartir proportionnellement
-        else:
-            cumulative_paid = 0
-            remaining_to_allocate = total_paid
+        if configured_tranches:
+            # ✅ CAS 1 : Tranches configurées existent
+            # Répartition FIFO chronologique rigoureuse des versements réels
+            payment_pool = [{"payment": p, "remaining_amount": float(p.amount)} for p in payments]
             
-            for ct in configured_tranches:
-                tranche_amount = ct.amount or (total_amount * ct.percentage / 100) if total_amount > 0 else 0
-                
-                # Calculer combien de cette tranche est payée
-                if remaining_to_allocate >= tranche_amount:
-                    # Tranche entièrement payée
-                    tranche_paid = tranche_amount
+            for idx, ct in enumerate(configured_tranches):
+                tranche_amount = float(ct.amount or (total_amount * ct.percentage / 100) if total_amount > 0 else 0)
+                tranche_needed = tranche_amount
+                tranche_paid = 0.0
+                contributing_payments = []
+
+                for pool_item in payment_pool:
+                    if tranche_needed <= 0:
+                        break
+                    if pool_item["remaining_amount"] > 0:
+                        allocated = min(tranche_needed, pool_item["remaining_amount"])
+                        tranche_paid += allocated
+                        tranche_needed -= allocated
+                        pool_item["remaining_amount"] -= allocated
+                        contributing_payments.append((pool_item["payment"], allocated))
+
+                # Statut de la tranche
+                if tranche_paid >= tranche_amount and tranche_amount > 0:
                     tranche_status = "paid"
-                    remaining_to_allocate -= tranche_amount
-                elif remaining_to_allocate > 0:
-                    # Tranche partiellement payée
-                    tranche_paid = remaining_to_allocate
-                    tranche_status = "available"
-                    remaining_to_allocate = 0
+                elif tranche_paid > 0:
+                    tranche_status = "available"  # Partiellement payée et immédiatement exigible
                 else:
-                    # Tranche non payée
-                    tranche_paid = 0
-                    # ✅ NE PAS VERROUILLER si c'est la première tranche ou si la précédente est payée
-                    if len(tranches) == 0 or tranches[-1]['status'] == 'paid':
+                    if len(tranches) == 0 or tranches[-1]["status"] == "paid":
                         tranche_status = "available"
                     else:
                         tranche_status = "locked"
-                
-                # Trouver les paiements associés
-                tranche_payments = [p for p in payments if p.tranche_id == ct.id]
-                first_payment = tranche_payments[0] if tranche_payments else None
+
+                first_payment = contributing_payments[0][0] if contributing_payments else None
                 
                 tranches.append({
                     "id": ct.id,
@@ -447,67 +421,89 @@ def get_student_payment_summary(
                     "due_date": ct.due_date.isoformat() if ct.due_date else None,
                     "paid_amount": round(tranche_paid),
                     "remaining": round(max(0, tranche_amount - tranche_paid)),
+                    "is_partially_paid": 0 < tranche_paid < tranche_amount,
                     "payment_date": first_payment.payment_date.isoformat() if first_payment and first_payment.payment_date else None,
                     "payment_method": first_payment.payment_method if first_payment else None,
                     "receipt_number": first_payment.receipt_number if first_payment else None
                 })
-    else:
-        # ✅ CAS 2 : Pas de tranches configurées → Créer 3 tranches par défaut
-        tranche_amount = total_amount / 3 if total_amount > 0 else 0
-        today = date.today()
-        year = today.year
-        base_dates = [
-            date(year, 10, 31),
-            date(year + 1, 1, 31),
-            date(year + 1, 4, 30)
-        ]
-        
-        remaining_to_allocate = total_paid
-        
-        for i in range(3):
-            tranche_end = (i + 1) * tranche_amount
+        else:
+            # ✅ CAS 2 : Pas de tranches configurées → Créer 3 tranches par défaut
+            tranche_amount = total_amount / 3 if total_amount > 0 else 0
+            today = date.today()
+            year = today.year
+            base_dates = [
+                date(year, 10, 31),
+                date(year + 1, 1, 31),
+                date(year + 1, 4, 30)
+            ]
             
-            # Calculer le statut basé sur le montant payé
-            if remaining_to_allocate >= tranche_amount:
-                tranche_paid = tranche_amount
-                tranche_status = "paid"
-                remaining_to_allocate -= tranche_amount
-            elif remaining_to_allocate > 0:
-                tranche_paid = remaining_to_allocate
-                tranche_status = "available"
-                remaining_to_allocate = 0
-            else:
-                tranche_paid = 0
-                if i == 0 or (tranches and tranches[-1]['status'] == 'paid'):
+            remaining_to_allocate = total_paid
+            
+            for i in range(3):
+                tranche_end = (i + 1) * tranche_amount
+                
+                # Calculer le statut basé sur le montant payé
+                if remaining_to_allocate >= tranche_amount:
+                    tranche_paid = tranche_amount
+                    tranche_status = "paid"
+                    remaining_to_allocate -= tranche_amount
+                elif remaining_to_allocate > 0:
+                    tranche_paid = remaining_to_allocate
                     tranche_status = "available"
+                    remaining_to_allocate = 0
                 else:
-                    tranche_status = "locked"
-            
-            tranches.append({
-                "id": i + 1,
-                "number": i + 1,
-                "name": f"Tranche {i + 1}",
-                "amount": round(tranche_amount),
-                "percentage": 33.33,
-                "status": tranche_status,
-                "due_date": base_dates[i].isoformat(),
-                "paid_amount": round(tranche_paid),
-                "remaining": round(max(0, tranche_amount - tranche_paid)),
-                "payment_date": None,
-                "payment_method": None,
-                "receipt_number": None
-            })
+                    tranche_paid = 0
+                    if i == 0 or (tranches and tranches[-1]['status'] == 'paid'):
+                        tranche_status = "available"
+                    else:
+                        tranche_status = "locked"
+                
+                tranches.append({
+                    "id": i + 1,
+                    "number": i + 1,
+                    "name": f"Tranche {i + 1}",
+                    "amount": round(tranche_amount),
+                    "percentage": 33.33,
+                    "status": tranche_status,
+                    "due_date": base_dates[i].isoformat(),
+                    "paid_amount": round(tranche_paid),
+                    "remaining": round(max(0, tranche_amount - tranche_paid)),
+                    "payment_date": None,
+                    "payment_method": None,
+                    "receipt_number": None
+                })
+
+    # Dédoublonnage défensif par numéro de tranche
+    deduped_tranches = []
+    seen_numbers = set()
+    for tr in tranches:
+        t_num = tr.get("number")
+        if t_num not in seen_numbers:
+            seen_numbers.add(t_num)
+            deduped_tranches.append(tr)
+    tranches = deduped_tranches
     
     return {
         "student_id": student_id,
         "student_name": f"{student.first_name} {student.last_name}",
+        "matricule": student.matricule,
         "level": student.level,
-        "total_amount": total_amount,
-        "total_paid": total_paid,
-        "total_remaining": total_remaining,
+        "domain": student.domain,
+        "filiere": student.filiere,
+        "base_amount": breakdown["base_amount"],
+        "discount_amount": breakdown["discount_amount"],
+        "discount_percentage": breakdown["discount_percentage"],
+        "discount_reason": breakdown["discount_reason"],
+        "discount_approved_by": breakdown["discount_approved_by"],
+        "total_amount": round(total_amount),
+        "total_paid": round(total_paid),
+        "total_remaining": round(total_remaining),
         "paid_percentage": paid_percentage,
         "status": status,
         "payments_count": len(payments),
+        "payment_plan": getattr(student, "payment_plan", "tranches") or "tranches",
+        "is_monthly": is_monthly,
+        "monthly_plan": breakdown.get("monthly_plan"),
         "tranches": tranches,
         "using_configured_tranches": len(configured_tranches) > 0
     }
@@ -529,3 +525,69 @@ def get_payment(
     return payment
 
 
+@router.get("/{payment_id}/receipt")
+def get_payment_receipt_endpoint(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "accountant", "censeur", "student"))
+):
+    """Récupère les détails et reçu du paiement"""
+    from app.api.financials import get_payment_receipt
+    return get_payment_receipt(payment_id=payment_id, db=db, current_user=current_user)
+
+
+@router.get("/{payment_id}/receipt/pdf")
+def get_payment_receipt_pdf(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "accountant", "censeur", "student"))
+):
+    from app.api.documents import generate_receipt_pdf
+    return generate_receipt_pdf(payment_id=payment_id, db=db, current_user=current_user)
+
+
+@router.get("/student/{student_id}/statement/pdf")
+def get_student_statement_pdf(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "accountant", "censeur", "student"))
+):
+    from app.api.documents import generate_financial_statement_pdf
+    return generate_financial_statement_pdf(student_id=student_id, db=db, current_user=current_user)
+
+
+@router.get("/student/{student_id}/certificate/pdf")
+def get_student_certificate_pdf(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "accountant", "censeur", "student"))
+):
+    from app.api.documents import generate_payment_certificate_pdf
+    return generate_payment_certificate_pdf(student_id=student_id, db=db, current_user=current_user)
+
+
+@router.delete("/{payment_id}")
+def delete_payment(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant"))
+):
+    """
+    Supprime ou annule un paiement erroné ou en doublon (réservé admin et comptable).
+    """
+    payment = db.query(Payment).filter(
+        Payment.id == payment_id,
+        Payment.university_id == current_user.university_id
+    ).first()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Paiement non trouvé")
+
+    receipt_num = payment.receipt_number
+    amount = payment.amount
+    db.delete(payment)
+    db.commit()
+
+    return {
+        "message": f"Paiement {receipt_num} de {amount:,.0f} FCFA supprimé avec succès.",
+        "deleted_id": payment_id
+    }

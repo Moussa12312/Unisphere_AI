@@ -131,7 +131,7 @@ export default function AlumniStudentDetailPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 text-slate-500 text-sm mb-2">
             <BookOpen size={16} />
-            Matières notées
+            Modules notés
           </div>
           <p className="text-3xl font-bold text-slate-900">{grades.length}</p>
         </div>
@@ -171,12 +171,12 @@ export default function AlumniStudentDetailPage() {
         </div>
       </div>
 
-      {/* Notes par matière */}
+      {/* Notes par module */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
             <FileText size={18} className="text-[#FF6B00]" />
-            Notes par matière
+            Notes par module
           </h2>
         </div>
         {grades.length === 0 ? (
@@ -188,7 +188,7 @@ export default function AlumniStudentDetailPage() {
             <table className="w-full">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600">Matière</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600">Module</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-600">CC</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-600">Examen</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-600">Note finale</th>

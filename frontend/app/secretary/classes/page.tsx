@@ -9,6 +9,7 @@ import { teacherService } from '@/services/teacherService';
 import { filiereService } from '@/services/filiereService';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
+import RoomSelect from '@/components/RoomSelect';
 
 export default function SecretaryClassesPage() {
   const toast = useToast();
@@ -25,6 +26,8 @@ export default function SecretaryClassesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ClassRoom | null>(null);
+  const [classStudents, setClassStudents] = useState<any[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     domain: '',
@@ -178,6 +181,20 @@ export default function SecretaryClassesPage() {
       } catch (error: any) {
         toast.error(error.response?.data?.detail || 'Erreur lors de la suppression');
       }
+    }
+  };
+
+  const openDetailModal = async (classRoom: ClassRoom) => {
+    setSelectedClass(classRoom);
+    setShowDetailModal(true);
+    setLoadingStudents(true);
+    try {
+      const students = await classService.getStudents(classRoom.id);
+      setClassStudents(students);
+    } catch (e) {
+      setClassStudents([]);
+    } finally {
+      setLoadingStudents(false);
     }
   };
 
@@ -341,6 +358,7 @@ export default function SecretaryClassesPage() {
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Niveau</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Filière</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Salle</th>
+                  <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Effectif</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Enseignant</th>
                   <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Actions</th>
                 </tr>
@@ -375,13 +393,19 @@ export default function SecretaryClassesPage() {
                         </span>
                       )}
                     </td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <Users size={12} />
+                        {classRoom.students_count ?? 0}
+                      </span>
+                    </td>
                     <td className="py-3 px-4 text-sm text-slate-600">
                       {classRoom.main_teacher_name || 'Non assigné'}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => { setSelectedClass(classRoom); setShowDetailModal(true); }}
+                          onClick={() => openDetailModal(classRoom)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Voir"
                         >
@@ -479,28 +503,11 @@ export default function SecretaryClassesPage() {
                   )}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Salle</label>
-                  <input
-                    type="text"
-                    value={formData.room}
-                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
-                    placeholder="Ex: Salle 101"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Bâtiment</label>
-                  <input
-                    type="text"
-                    value={formData.building}
-                    onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                    placeholder="Ex: Bloc A"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-              </div>
+              <RoomSelect
+                roomValue={formData.room}
+                buildingValue={formData.building}
+                onRoomChange={(room, building) => setFormData({ ...formData, room, building: building || '' })}
+              />
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Enseignant principal</label>
                 <select
@@ -601,26 +608,11 @@ export default function SecretaryClassesPage() {
                   )}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Salle</label>
-                  <input
-                    type="text"
-                    value={formData.room}
-                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Bâtiment</label>
-                  <input
-                    type="text"
-                    value={formData.building}
-                    onChange={(e) => setFormData({ ...formData, building: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-              </div>
+              <RoomSelect
+                roomValue={formData.room}
+                buildingValue={formData.building}
+                onRoomChange={(room, building) => setFormData({ ...formData, room, building: building || '' })}
+              />
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Enseignant principal</label>
                 <select
@@ -657,56 +649,108 @@ export default function SecretaryClassesPage() {
         </div>
       )}
 
-      {/* MODAL DÉTAIL */}
+      {/* MODAL DÉTAIL AVEC LISTE RÉELLE DES ÉTUDIANTS */}
       {showDetailModal && selectedClass && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-slate-900">Détails de la classe</h2>
-              <button onClick={() => setShowDetailModal(false)} className="text-slate-400 hover:text-slate-600">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-slate-900">{selectedClass.name}</h2>
+                  <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+                    {selectedClass.level}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">{selectedClass.filiere_name} • {selectedClass.academic_year}</p>
+              </div>
+              <button 
+                onClick={() => setShowDetailModal(false)} 
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              >
                 <X size={20} />
               </button>
             </div>
-            <div className="space-y-3">
+
+            {/* Infos Clés */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-xl mb-6 text-xs">
               <div>
-                <p className="text-xs text-slate-500 mb-1">Nom</p>
-                <p className="text-sm font-semibold text-slate-900">{selectedClass.name}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Niveau</p>
-                  <p className="text-sm font-semibold text-slate-900">{selectedClass.level}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Filière</p>
-                  <p className="text-sm text-slate-900">{selectedClass.filiere_name}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Salle</p>
-                  <p className="text-sm font-semibold text-slate-900">{selectedClass.room || 'Non assignée'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Bâtiment</p>
-                  <p className="text-sm font-semibold text-slate-900">{selectedClass.building || 'Non défini'}</p>
-                </div>
+                <span className="text-slate-400 font-medium">Salle & Bâtiment</span>
+                <p className="font-semibold text-slate-800 mt-0.5">
+                  {selectedClass.room || 'Non assignée'} {selectedClass.building ? `(${selectedClass.building})` : ''}
+                </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 mb-1">Enseignant principal</p>
-                <p className="text-sm text-slate-900">{selectedClass.main_teacher_name || 'Non assigné'}</p>
+                <span className="text-slate-400 font-medium">Professeur Principal</span>
+                <p className="font-semibold text-slate-800 mt-0.5">{selectedClass.main_teacher_name || 'Non assigné'}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 mb-1">Année académique</p>
-                <p className="text-sm text-slate-900">{selectedClass.academic_year}</p>
+                <span className="text-slate-400 font-medium">Capacité Salle</span>
+                <p className="font-semibold text-slate-800 mt-0.5">{selectedClass.capacity ? `${selectedClass.capacity} places` : 'Illimitée'}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 font-medium">Étudiants Inscrits</span>
+                <p className="font-bold text-emerald-600 mt-0.5 text-sm">{classStudents.length} inscrits</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowDetailModal(false)}
-              className="w-full mt-5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium"
-            >
-              Fermer
-            </button>
+
+            {/* Liste des Étudiants */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Users size={16} className="text-[#FF6B00]" />
+                  Étudiants inscrits dans cette classe ({classStudents.length})
+                </h3>
+              </div>
+
+              {loadingStudents ? (
+                <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center">
+                  <Loader2 size={32} className="animate-spin text-[#FF6B00] mb-2" />
+                  <p className="text-xs">Chargement de la liste des étudiants...</p>
+                </div>
+              ) : classStudents.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <p className="text-sm text-slate-500">Aucun étudiant n'est rattaché à cette classe pour l'instant.</p>
+                </div>
+              ) : (
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-100 border-b border-slate-200 font-semibold text-slate-600">
+                      <tr>
+                        <th className="py-2.5 px-3">#</th>
+                        <th className="py-2.5 px-3">Matricule</th>
+                        <th className="py-2.5 px-3">Nom & Prénom</th>
+                        <th className="py-2.5 px-3">Email</th>
+                        <th className="py-2.5 px-3 text-right">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {classStudents.map((st, idx) => (
+                        <tr key={st.id || idx} className="hover:bg-slate-50">
+                          <td className="py-2 px-3 text-slate-400">{idx + 1}</td>
+                          <td className="py-2 px-3 font-mono font-semibold text-[#FF6B00]">{st.matricule}</td>
+                          <td className="py-2 px-3 font-medium text-slate-900">{st.first_name} {st.last_name}</td>
+                          <td className="py-2 px-3 text-slate-500">{st.email}</td>
+                          <td className="py-2 px-3 text-right">
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-semibold">
+                              {st.status || 'Actif'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
       )}

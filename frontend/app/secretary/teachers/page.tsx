@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   GraduationCap, Plus, Search, Edit3, Trash2, Eye, X, Save,
   Loader2, Mail, Phone, BookOpen
@@ -330,14 +331,14 @@ export default function SecretaryTeachersPage() {
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => { setSelectedTeacher(teacher); setShowDetailModal(true); }}
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/secretary/teachers/${teacher.id}`}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Voir"
+                          title="Voir le dossier complet"
                         >
                           <Eye size={16} />
-                        </button>
+                        </Link>
                         <button
                           onClick={() => openEditModal(teacher)}
                           className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
@@ -596,17 +597,22 @@ export default function SecretaryTeachersPage() {
               {/* QR Code */}
               <div className="border-t border-slate-100 pt-3 text-center">
                 <p className="text-xs font-semibold text-slate-500 mb-2">QR Code</p>
-                {selectedTeacher.qr_code ? (
-                  <img
-                    src={`/qr_codes/${selectedTeacher.qr_code}`}
-                    alt="QR Code Enseignant"
-                    className="w-32 h-32 mx-auto bg-slate-50 p-2 border border-slate-200 rounded-xl object-contain"
-                  />
-                ) : (
-                  <div className="w-32 h-32 mx-auto bg-slate-100 rounded-xl flex items-center justify-center text-xs text-slate-400">
-                    Pas de QR Code
-                  </div>
-                )}
+                <img
+                  src={selectedTeacher.qr_code ? `/qr_codes/${selectedTeacher.qr_code.replace(/^.*[\\\/]/, '')}` : `/api/v1/teachers/${selectedTeacher.id}/qrcode`}
+                  alt="QR Code Enseignant"
+                  className="w-32 h-32 mx-auto bg-slate-50 p-2 border border-slate-200 rounded-xl object-contain"
+                  onError={(e: any) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = `/api/v1/teachers/${selectedTeacher.id}/qrcode`;
+                  }}
+                />
+                <a
+                  href={`/api/v1/teachers/${selectedTeacher.id}/qrcode`}
+                  download={`QR_TEACHER_${selectedTeacher.first_name}_${selectedTeacher.last_name}.png`}
+                  className="inline-block mt-2 text-xs font-semibold text-[#FF6B00] hover:text-[#e55f00]"
+                >
+                  Télécharger le QR
+                </a>
               </div>
             </div>
             <button

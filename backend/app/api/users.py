@@ -134,8 +134,8 @@ def get_all_users(db: Session = Depends(get_db), current_user: User = Depends(ge
         raise HTTPException(status_code=403, detail="Accès refusé")
     
     # ✅ FILTRAGE : Seulement le personnel administratif de notre université
-    # Exclusion des rôles "student" et "teacher" qui ont leurs propres pages
-    excluded_roles = ["student", "teacher"]
+    # Exclusion des étudiants, enseignants et du super-admin (qui n'est pas membre du personnel universitaire)
+    excluded_roles = ["student", "teacher", "super_admin", "superadmin", "parent"]
     
     users = db.query(User).filter(
         User.university_id == current_user.university_id,
@@ -185,3 +185,62 @@ def create_user(
     db.commit()
     db.refresh(new_user)
     return {"message": "Compte créé avec succès"}
+
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+
+class AdminPasswordReset(BaseModel):
+    new_password: str
+
+@router.patch("/{user_id}/status")
+def update_user_status(
+    user_id: int,
+    data: UserStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Vous ne pouvez pas modifier votre propre statut")
+    user.is_active = data.is_active
+    db.commit()
+    db.refresh(user)
+    return {"message": f"Statut mis à jour ({'Actif' if user.is_active else 'Inactif'})", "is_active": user.is_active}
+
+@router.post("/{user_id}/reset-password")
+def admin_reset_password(
+    user_id: int,
+    data: AdminPasswordReset,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    user.hashed_password = hash_password(data.new_password)
+    db.commit()
+    return {"message": "Mot de passe réinitialisé avec succès"}
+
+@router.delete("/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Impossible de supprimer son propre compte")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    db.delete(user)
+    db.commit()
+    return {"message": "Compte supprimé avec succès"}

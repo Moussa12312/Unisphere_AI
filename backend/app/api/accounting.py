@@ -460,7 +460,7 @@ def get_eligible_staff(db: Session = Depends(get_db), current_user: User = Depen
     """✅ AJOUTÉ : liste tout le personnel (staff + enseignants) pouvant recevoir un salaire."""
     users = db.query(User).filter(
         User.university_id == current_user.university_id,
-        User.role != "student"
+        User.role.notin_(["student", "super_admin", "superadmin", "parent"])
     ).all()
     return [{"id": u.id, "full_name": u.full_name, "role": u.role} for u in users]
 

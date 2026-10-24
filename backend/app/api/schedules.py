@@ -196,3 +196,163 @@ def delete_schedule(
     db.commit()
     
     return {"message": "Emploi du temps supprimé"}
+
+
+@router.post("/batch")
+def create_batch_schedules(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary"))
+):
+    """Planification rapide par lot de plusieurs créneaux"""
+    items = data.get("items", [])
+    if not items:
+        raise HTTPException(status_code=400, detail="Aucun créneau fourni")
+        
+    created = []
+    for item in items:
+        new_schedule = Schedule(
+            course_id=item.get("course_id"),
+            class_id=item.get("class_id"),
+            teacher_id=item.get("teacher_id"),
+            room=item.get("room"),
+            building=item.get("building"),
+            day_of_week=item.get("day_of_week"),
+            start_time=item.get("start_time"),
+            end_time=item.get("end_time"),
+            university_id=current_user.university_id
+        )
+        db.add(new_schedule)
+        created.append(new_schedule)
+    db.commit()
+    return {"message": f"{len(created)} créneaux planifiés avec succès", "count": len(created)}
+
+
+@router.delete("/clear-class/{class_id}")
+def clear_class_schedules(
+    class_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary"))
+):
+    """Efface tout l'emploi du temps d'une classe pour recommencer à zéro"""
+    deleted = db.query(Schedule).filter(
+        Schedule.class_id == class_id,
+        Schedule.university_id == current_user.university_id
+    ).delete()
+    db.commit()
+    return {"message": f"{deleted} créneaux supprimés pour cette classe"}
+
+
+@router.post("/auto-generate")
+def auto_generate_schedule(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary"))
+):
+    """Générateur automatique intelligent de l'emploi du temps de la semaine"""
+    class_id = data.get("class_id")
+    if not class_id:
+        raise HTTPException(status_code=400, detail="Veuillez sélectionner une classe")
+    
+    class_room = db.query(ClassRoom).filter(
+        ClassRoom.id == class_id,
+        ClassRoom.university_id == current_user.university_id
+    ).first()
+    if not class_room:
+        raise HTTPException(status_code=404, detail="Classe non trouvée")
+    
+    # Trouver les cours de cette filière / classe
+    courses_query = db.query(Course).filter(Course.university_id == current_user.university_id)
+    if class_room.filiere_id:
+        courses = courses_query.filter(Course.filiere_id == class_room.filiere_id).all()
+    else:
+        courses = courses_query.filter(Course.level == class_room.level).all()
+        
+    if not courses:
+        courses = db.query(Course).filter(
+            Course.university_id == current_user.university_id,
+            Course.level == class_room.level
+        ).all()
+        
+    if not courses:
+        raise HTTPException(status_code=400, detail="Aucun cours trouvé pour cette filière/classe")
+        
+    # Créneaux types standards de cours
+    days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
+    slots = [
+        ("08:00", "10:00"),
+        ("10:00", "12:00"),
+        ("14:00", "16:00"),
+        ("16:00", "18:00")
+    ]
+    
+    # Nettoyer les anciens créneaux si demandé
+    if data.get("replace_existing", True):
+        db.query(Schedule).filter(
+            Schedule.class_id == class_id,
+            Schedule.university_id == current_user.university_id
+        ).delete()
+        
+    teachers = db.query(Teacher).filter(Teacher.university_id == current_user.university_id).all()
+    default_teacher_id = teachers[0].id if teachers else None
+    
+    created = []
+    course_index = 0
+    total_courses = len(courses)
+    
+    for day in days:
+        if course_index >= total_courses and not data.get("repeat_modules", False):
+            break
+        for start_t, end_t in slots:
+            if course_index >= total_courses:
+                if not data.get("repeat_modules", False):
+                    break
+            course = courses[course_index % total_courses]
+            teacher_id = course.teacher_id or default_teacher_id
+            
+            # Vérifier si l'enseignant a un conflit
+            conflict = db.query(Schedule).filter(
+                Schedule.university_id == current_user.university_id,
+                Schedule.day_of_week == day,
+                Schedule.teacher_id == teacher_id,
+                Schedule.start_time < end_t,
+                Schedule.end_time > start_t
+            ).first()
+            
+            # Si conflit, tenter un autre enseignant disponible
+            if conflict and teachers:
+                for alt_t in teachers:
+                    if alt_t.id != teacher_id:
+                        alt_conflict = db.query(Schedule).filter(
+                            Schedule.university_id == current_user.university_id,
+                            Schedule.day_of_week == day,
+                            Schedule.teacher_id == alt_t.id,
+                            Schedule.start_time < end_t,
+                            Schedule.end_time > start_t
+                        ).first()
+                        if not alt_conflict:
+                            teacher_id = alt_t.id
+                            break
+            
+            new_s = Schedule(
+                course_id=course.id,
+                class_id=class_id,
+                teacher_id=teacher_id,
+                room=class_room.room or "Salle Principale",
+                building=class_room.building or "Bloc A",
+                day_of_week=day,
+                start_time=start_t,
+                end_time=end_t,
+                university_id=current_user.university_id
+            )
+            db.add(new_s)
+            created.append(new_s)
+            course_index += 1
+            if course_index >= total_courses and not data.get("repeat_modules", False):
+                break
+                
+    db.commit()
+    return {
+        "message": f"Emploi du temps généré avec succès ({len(created)} créneaux)",
+        "count": len(created)
+    }

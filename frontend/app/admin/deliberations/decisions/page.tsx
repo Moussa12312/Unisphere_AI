@@ -174,7 +174,7 @@ export default function DeliberationDecisionsPage() {
             <tr>
               <th className="text-left px-4 py-3 font-medium text-slate-600">Étudiant</th>
               <th className="text-center px-4 py-3 font-medium text-slate-600">Moyenne</th>
-              <th className="text-center px-4 py-3 font-medium text-slate-600">Matières en échec</th>
+              <th className="text-center px-4 py-3 font-medium text-slate-600">Modules en échec</th>
               <th className="text-center px-4 py-3 font-medium text-slate-600">Proposition</th>
               <th className="text-center px-4 py-3 font-medium text-slate-600">Décision finale</th>
             </tr>

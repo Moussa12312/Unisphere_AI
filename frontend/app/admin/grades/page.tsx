@@ -68,7 +68,7 @@ export default function AdminGradesPage() {
     if (selectedSessionId && selectedCourseId) {
       loadGrades();
     }
-  }, [selectedSessionId, selectedCourseId]);
+  }, [selectedSessionId, selectedCourseId, selectedClassId]);
 
   const loadGrades = async () => {
     if (!selectedSessionId || !selectedCourseId) return;
@@ -76,7 +76,7 @@ export default function AdminGradesPage() {
     setLoadingGrades(true);
     try {
       const [contextData, statsData] = await Promise.all([
-        gradeService.getByContext(selectedSessionId, selectedCourseId),
+        gradeService.getByContext(selectedSessionId, selectedCourseId, selectedClassId || undefined),
         gradeService.getStats(selectedSessionId, selectedCourseId)
       ]);
       
@@ -89,12 +89,30 @@ export default function AdminGradesPage() {
     }
   };
 
-  // Filtrer les cours selon la classe
+  // Filtrer les cours selon la classe sélectionnée
   const filteredCourses = selectedClassId
     ? courses.filter(c => {
         const selectedClass = classes.find(cl => cl.id === selectedClassId);
         if (!selectedClass) return false;
-        return c.department === selectedClass.filiere_name && c.level === selectedClass.level;
+
+        // 1. Vérification du niveau (L1, L2, L3, M1, M2)
+        const matchLevel = !c.level || c.level === selectedClass.level;
+        if (!matchLevel) return false;
+
+        // 2. Vérification de la filière (via filiere_id, filiere_name, ou department)
+        const cleanClassFiliere = (selectedClass.filiere_name || '').toLowerCase().trim();
+        const cleanCourseDept = (c.department || '').toLowerCase().trim();
+        const cleanCourseFiliere = (c.filiere_name || '').toLowerCase().trim();
+
+        const matchFiliere = 
+          (c.filiere_id && selectedClass.filiere_id && c.filiere_id === selectedClass.filiere_id) ||
+          (cleanCourseFiliere && cleanCourseFiliere === cleanClassFiliere) ||
+          (cleanCourseDept && cleanCourseDept === cleanClassFiliere) ||
+          (cleanCourseDept && cleanClassFiliere.includes(cleanCourseDept)) ||
+          (cleanCourseFiliere && cleanClassFiliere.includes(cleanCourseFiliere)) ||
+          (cleanClassFiliere && cleanCourseDept.includes(cleanClassFiliere));
+
+        return matchFiliere;
       })
     : courses;
 
@@ -235,7 +253,8 @@ export default function AdminGradesPage() {
             <select
               value={selectedClassId || ''}
               onChange={(e) => {
-                setSelectedClassId(e.target.value ? parseInt(e.target.value) : null);
+                const nextId = e.target.value ? parseInt(e.target.value) : null;
+                setSelectedClassId(nextId);
                 setSelectedCourseId(null);
               }}
               className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
@@ -251,7 +270,7 @@ export default function AdminGradesPage() {
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">
               <BookOpen size={12} className="inline mr-1" />
-              Cours / Matière
+              Cours / Module {filteredCourses.length > 0 ? `(${filteredCourses.length} cours)` : ''}
             </label>
             <select
               value={selectedCourseId || ''}
@@ -260,10 +279,16 @@ export default function AdminGradesPage() {
               className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white disabled:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
             >
               <option value="">
-                {!selectedClassId ? 'Choisissez une classe...' : 'Sélectionner un cours...'}
+                {!selectedClassId 
+                  ? 'Choisissez une classe d\'abord...' 
+                  : filteredCourses.length === 0 
+                    ? 'Aucun cours disponible pour cette classe' 
+                    : 'Sélectionner un cours...'}
               </option>
               {filteredCourses.map(c => (
-                <option key={c.id} value={c.id}>{c.title} ({c.code})</option>
+                <option key={c.id} value={c.id}>
+                  {c.semester ? `[${c.semester}] ` : ''}{c.title} ({c.code})
+                </option>
               ))}
             </select>
           </div>

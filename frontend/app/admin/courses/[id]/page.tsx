@@ -85,6 +85,29 @@ export default function CourseDetailPage() {
               <div><p className="text-xs text-slate-500 mb-1">Département</p><p className="text-sm font-medium text-slate-900">{course.department}</p></div>
               <div><p className="text-xs text-slate-500 mb-1">Niveau</p><p className="text-sm font-medium text-slate-900">{course.level}</p></div>
               <div><p className="text-xs text-slate-500 mb-1">Enseignant</p><p className="text-sm font-medium text-slate-900">{course.teacher_name || 'Non assigné'}</p></div>
+              <div className="col-span-2 pt-2 border-t border-slate-100">
+                <p className="text-xs text-slate-500 mb-1">Unité d'Enseignement (UE LMD)</p>
+                {course.teaching_unit_code ? (
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 bg-purple-100 text-purple-800 rounded-lg text-xs font-mono font-bold">
+                      {course.teaching_unit_code}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {course.teaching_unit_name || ''}
+                    </span>
+                    {course.semester && (
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-bold">
+                        {course.semester}
+                      </span>
+                    )}
+                    <Link href="/admin/teaching-units" className="ml-auto text-xs text-[#FF6B00] hover:underline font-medium">
+                      Voir la maquette LMD →
+                    </Link>
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-400 italic">Aucune UE rattachée</span>
+                )}
+              </div>
             </div>
           </div>
         </div>

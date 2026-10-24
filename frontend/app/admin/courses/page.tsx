@@ -81,7 +81,9 @@ const getDepartmentAbbreviation = (department: string): string => {
 
   const filtered = courses.filter((c: any) =>
     c.title.toLowerCase().includes(search.toLowerCase()) ||
-    c.code.toLowerCase().includes(search.toLowerCase())
+    c.code.toLowerCase().includes(search.toLowerCase()) ||
+    (c.teaching_unit_code && c.teaching_unit_code.toLowerCase().includes(search.toLowerCase())) ||
+    (c.teaching_unit_name && c.teaching_unit_name.toLowerCase().includes(search.toLowerCase()))
   );
 
   if (loading) {
@@ -97,7 +99,7 @@ const getDepartmentAbbreviation = (department: string): string => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
             type="text"
-            placeholder="Rechercher par titre ou code..."
+            placeholder="Rechercher par titre, code ou UE..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
@@ -113,8 +115,9 @@ const getDepartmentAbbreviation = (department: string): string => {
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>
-                <th className="pl-12 py-3 text-left text-xs font-medium text-slate-500 uppercase">Code</th>
+                <th className="pl-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Code & Titre</th>
                 <th className="pl-2 py-3 text-left text-xs font-medium text-slate-500 uppercase">Filière / Niveau</th>
+                <th className="pl-2 py-3 text-left text-xs font-medium text-slate-500 uppercase">Unité d'Enseignement (UE)</th>
                 <th className="pl-3 py-3 text-left text-xs font-medium text-slate-500 uppercase">Enseignant</th>
                 <th className="pl-1 py-3 text-left text-xs font-medium text-slate-500 uppercase">Crédits</th>
                 <th className="pl-7 py-3 text-left text-xs font-medium text-slate-500 uppercase">Heures</th>
@@ -124,21 +127,30 @@ const getDepartmentAbbreviation = (department: string): string => {
             <tbody className="bg-white divide-y divide-slate-200">
               {filtered.map((course: any) => (
                 <tr key={course.id} className="hover:bg-slate-50">
-                  <td className="py-3 px-4  whitespace-nowrap font-mono text-sm font-medium text-slate-900">
+                  <td className="py-3 px-4 whitespace-nowrap font-mono text-sm font-medium text-slate-900">
                     <div>
-                      <p>
+                      <p className="font-bold text-slate-900">
                         {course.code}
                       </p>
-                      <p className=" text-xs text-orange-500 w-35">
+                      <p className="text-xs text-orange-600 font-sans">
                         {course.title}
                       </p>
-                                          
                     </div>
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
-                    <span className="py-3 px-4 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                    <span className="py-1 px-2.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
                       {getDepartmentAbbreviation(course.department)} - {course.level}
                     </span>
+                  </td>
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    {course.teaching_unit_code ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 border border-purple-200 text-purple-700 text-xs font-semibold rounded-lg">
+                        <span className="font-mono">{course.teaching_unit_code}</span>
+                        {course.teaching_unit_name && <span className="text-[11px] font-normal text-purple-600">• {course.teaching_unit_name}</span>}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">Non rattachée</span>
+                    )}
                   </td>
                   <td className="py-3 pl-1 text-sm text-slate-600">{course.teacher_name}</td>
                   <td className="px-6 py-4 text-sm text-center font-medium text-slate-900">{course.credits}</td>

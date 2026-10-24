@@ -160,11 +160,11 @@ export default function AccountantDashboard() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
           {[
-            { href: '/accountant/expenses', label: 'Dépenses' },
-            { href: '/accountant/suppliers', label: 'Fournisseurs' },
-            { href: '/accountant/treasury', label: 'Trésorerie' },
-            { href: '/accountant/payroll', label: 'Salaires' },
             { href: '/accountant/budget', label: 'Budget' },
+            { href: '/accountant/treasury', label: 'Trésorerie' },
+            { href: '/accountant/suppliers', label: 'Fournisseurs' },
+            { href: '/accountant/expenses', label: 'Dépenses' },
+            { href: '/accountant/payroll', label: 'Salaires' },
             { href: '/accountant/fixed-assets', label: 'Immobilisations' },
             { href: '/accountant/ledger', label: 'Journal' },
             { href: '/accountant/trial-balance', label: 'Balance' },

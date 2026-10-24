@@ -2,7 +2,7 @@ import RoleLayout from '@/components/layouts/RoleLayout';
 
 export default function CenseurLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RoleLayout allowedRoles={['censeur', 'admin']}>
+    <RoleLayout allowedRoles={['censeur', 'admin', 'secretary']}>
       {children}
     </RoleLayout>
   );

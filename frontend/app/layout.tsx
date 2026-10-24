@@ -3,6 +3,7 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ToastProvider";
 import ConfirmProvider from '@/components/ConfirmProvider';
 import { SettingsProvider } from '@/contexts/SettingsContext';
+import StartupAnimation from '@/components/StartupAnimation';
 
 export const metadata: Metadata = {
   title: "UniSphere AI",
@@ -20,6 +21,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body>
+        <StartupAnimation />
         <SettingsProvider>
           <ToastProvider>
             <ConfirmProvider>

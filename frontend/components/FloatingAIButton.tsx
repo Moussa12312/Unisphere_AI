@@ -29,7 +29,7 @@ export default function FloatingAIButton() {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={`
-          fixed bottom-6 right-6 z-40
+          fixed bottom-6 right-6 z-40 print:hidden
           group
           flex items-center gap-3
           bg-orange-600

@@ -8,9 +8,10 @@ try:
             DATABASE_URL,
             pool_size=30,
             max_overflow=50,
-            pool_timeout=60,
+            pool_timeout=5,
             pool_recycle=1800,
             pool_pre_ping=True,
+            connect_args={"connect_timeout": 2},
             echo=False,
         )
         with engine.connect() as conn:
@@ -21,9 +22,12 @@ try:
             connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
         )
 except Exception as e:
-    print(f"[WARNING] Connexion PostgreSQL non disponible, basculement vers SQLite")
+    import os
+    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    sqlite_path = os.path.join(backend_dir, "unisphere.db").replace("\\", "/")
+    print(f"[WARNING] Connexion PostgreSQL non disponible, basculement vers SQLite ({sqlite_path})")
     engine = create_engine(
-        "sqlite:///./unisphere.db",
+        f"sqlite:///{sqlite_path}",
         connect_args={"check_same_thread": False}
     )
 

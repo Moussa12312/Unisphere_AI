@@ -34,7 +34,7 @@ export default function AccountantReceiptPage() {
   if (!receipt) return <div className="text-center py-12 text-slate-500">Impossible de charger le reçu</div>;
 
   return (
-    <div className="p-6">
+    <div className="p-6 print:p-0 print:m-0">
       <ReceiptTemplate 
         receipt={receipt} 
         showBackButton={true} 

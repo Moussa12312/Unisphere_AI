@@ -49,13 +49,18 @@ export default function TeacherGradesEntryPage() {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [coursesRes, sessionsRes] = await Promise.all([
+      const [coursesRes, sessionsRes, configRes] = await Promise.all([
         api.get('/api/v1/teacher/courses'),
-        api.get('/api/v1/exam-sessions/').catch(() => ({ data: [] }))
+        api.get('/api/v1/exam-sessions/').catch(() => ({ data: [] })),
+        api.get('/api/v1/settings/academic/config').catch(() => ({ data: {} }))
       ]);
       setCourses(Array.isArray(coursesRes.data) ? coursesRes.data : []);
       const sessionsData = Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
       setSessions(sessionsData);
+      if (configRes?.data) {
+        if (configRes.data.default_cc_coefficient !== undefined) setCcCoeff(configRes.data.default_cc_coefficient);
+        if (configRes.data.default_exam_coefficient !== undefined) setExamCoeff(configRes.data.default_exam_coefficient);
+      }
       if (coursesRes.data.length > 0) setSelectedCourse(coursesRes.data[0].id);
       if (sessionsData.length > 0) setSelectedSession(sessionsData[0].id);
     } catch (error) {
@@ -72,6 +77,8 @@ export default function TeacherGradesEntryPage() {
         params: { session_id: selectedSession, course_id: selectedCourse }
       });
       const data = response.data;
+      if (data.default_cc_coefficient !== undefined) setCcCoeff(data.default_cc_coefficient);
+      if (data.default_exam_coefficient !== undefined) setExamCoeff(data.default_exam_coefficient);
       const studentsList = data.students || [];
       setStudents(studentsList);
 

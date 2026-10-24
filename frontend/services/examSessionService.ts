@@ -22,6 +22,11 @@ export const examSessionService = {
     }
   },
 
+  getById: async (id: number): Promise<ExamSession> => {
+    const response = await api.get(`/api/v1/exam-sessions/${id}`);
+    return response.data;
+  },
+
   create: async (data: any): Promise<any> => {
     const response = await api.post('/api/v1/exam-sessions/', data);
     return response.data;

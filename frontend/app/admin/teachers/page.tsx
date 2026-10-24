@@ -520,7 +520,7 @@ export default function AdminTeachersPage() {
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
                 <p className="text-xs text-slate-500 mt-1">
-                  Domaine d'expertise ou matière principale enseignée
+                  Domaine d'expertise ou module principal enseigné
                 </p>
               </div>
 

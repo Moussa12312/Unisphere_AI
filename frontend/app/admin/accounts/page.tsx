@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   MoreVertical, Shield, UserCog, Users, Plus, Search, 
-  Calculator, Key, Info
+  Calculator, Key, Info, UserCheck, UserX, Trash2
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -27,6 +27,30 @@ export default function AccountsPage() {
       toast.error('Erreur lors du chargement des comptes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (account: any) => {
+    try {
+      const newStatus = !account.is_active;
+      await api.patch(`/api/v1/users/${account.id}/status`, { is_active: newStatus });
+      toast.success(newStatus ? 'Compte activé' : 'Compte désactivé');
+      setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, is_active: newStatus } : a));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Erreur lors du changement de statut');
+    }
+  };
+
+  const handleDelete = async (account: any) => {
+    if (!window.confirm(`Voulez-vous vraiment supprimer le compte de ${account.full_name} ?`)) {
+      return;
+    }
+    try {
+      await api.delete(`/api/v1/users/${account.id}`);
+      toast.success('Compte supprimé avec succès');
+      setAccounts(prev => prev.filter(a => a.id !== account.id));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Erreur lors de la suppression');
     }
   };
 
@@ -75,10 +99,11 @@ export default function AccountsPage() {
           <h1 className="text-3xl font-bold text-slate-900">Gestion des Comptes</h1>
           <p className="text-slate-500 mt-1">Gérez les accès du personnel administratif</p>
         </div>
-        <Link href="/admin/accounts/create">
-          <button className="flex items-center gap-2 px-4 py-2 bg-[#FF6B00] text-white rounded-lg text-sm font-medium hover:bg-[#e55f00] shadow-md transition-colors">
-            <Plus size={16} /> Créer un compte
-          </button>
+        <Link 
+          href="/admin/accounts/create"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF6B00] text-white rounded-lg text-sm font-medium hover:bg-[#e55f00] shadow-md transition-colors"
+        >
+          <Plus size={16} /> Créer un compte
         </Link>
       </div>
 
@@ -143,9 +168,26 @@ export default function AccountsPage() {
                   </td>
                   <td className="px-6 py-4 text-slate-500">{account.last_login}</td>
                   <td className="px-6 py-4 text-right">
-                    <button className="p-2 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors">
-                      <MoreVertical size={16} />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => handleToggleStatus(account)}
+                        title={account.is_active ? "Désactiver le compte" : "Activer le compte"}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          account.is_active 
+                            ? 'text-amber-600 hover:bg-amber-50' 
+                            : 'text-green-600 hover:bg-green-50'
+                        }`}
+                      >
+                        {account.is_active ? <UserX size={16} /> : <UserCheck size={16} />}
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(account)}
+                        title="Supprimer le compte"
+                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

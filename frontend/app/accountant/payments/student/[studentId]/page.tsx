@@ -18,6 +18,7 @@ export default function StudentPaymentDetailPage() {
   
   const studentId = parseInt(params.studentId as string);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
@@ -25,6 +26,28 @@ export default function StudentPaymentDetailPage() {
       loadData();
     }
   }, [studentId]);
+
+  const downloadDocument = async (url: string, filename: string) => {
+    try {
+      setDownloading(true);
+      toast.info('Génération du document en cours...');
+      const response = await api.get(url, { responseType: 'blob' });
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success('Document téléchargé avec succès');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.response?.data?.detail || 'Erreur lors du téléchargement du document');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -102,9 +125,20 @@ export default function StudentPaymentDetailPage() {
   }
 
   const { student, summary } = data;
-  const paidTranches = summary?.tranches?.filter((t: any) => t.status === 'paid') || [];
-  const availableTranches = summary?.tranches?.filter((t: any) => t.status === 'available') || [];
-  const lockedTranches = summary?.tranches?.filter((t: any) => t.status === 'locked') || [];
+  const rawTranches = summary?.tranches || [];
+  const uniqueTranches: any[] = [];
+  const seenNums = new Set();
+  for (const t of rawTranches) {
+    const k = t.number ?? t.name;
+    if (!seenNums.has(k)) {
+      seenNums.add(k);
+      uniqueTranches.push(t);
+    }
+  }
+
+  const paidTranches = uniqueTranches.filter((t: any) => t.status === 'paid');
+  const availableTranches = uniqueTranches.filter((t: any) => t.status === 'available');
+  const lockedTranches = uniqueTranches.filter((t: any) => t.status === 'locked');
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -125,11 +159,25 @@ export default function StudentPaymentDetailPage() {
             {student.first_name.charAt(0)}{student.last_name.charAt(0)}
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              {student.first_name} {student.last_name}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-slate-900">
+                {student.first_name} {student.last_name}
+              </h1>
+              {summary?.is_monthly || summary?.payment_plan === 'mensuel' ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  📅 Modalité Mensuelle
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                  🏛️ Par Tranches
+                </span>
+              )}
+            </div>
             <p className="text-slate-500 mt-1">
               🎓 {student.matricule} • {student.filiere} {student.level}
+              {summary?.monthly_plan?.formatted_summary && (
+                <span className="ml-2 text-emerald-700 font-medium">({summary.monthly_plan.formatted_summary})</span>
+              )}
             </p>
           </div>
         </div>
@@ -199,7 +247,7 @@ export default function StudentPaymentDetailPage() {
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Calendar size={20} className="text-[#FF6B00]" />
-            Historique des tranches
+            {summary?.is_monthly || summary?.payment_plan === 'mensuel' ? 'Échéancier des mensualités' : 'Historique des tranches'}
           </h2>
         </div>
 
@@ -263,14 +311,22 @@ export default function StudentPaymentDetailPage() {
                       <h3 className="font-bold text-slate-900">{tranche.name}</h3>
                       {getTrancheStatusBadge(tranche.status)}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                       <div>
-                        <p className="text-xs text-slate-500">Montant</p>
+                        <p className="text-xs text-slate-500">Montant de la tranche</p>
                         <p className="font-semibold text-slate-900">{formatFCFA(tranche.amount)}</p>
                       </div>
+                      {tranche.paid_amount > 0 && (
+                        <div>
+                          <p className="text-xs text-slate-500">Déjà versé (acompte)</p>
+                          <p className="font-semibold text-emerald-600">✓ {formatFCFA(tranche.paid_amount)}</p>
+                        </div>
+                      )}
                       <div>
-                        <p className="text-xs text-slate-500">Statut</p>
-                        <p className="font-semibold text-blue-700">EN ATTENTE 🔵</p>
+                        <p className="text-xs text-slate-500">{tranche.paid_amount > 0 ? "Solde restant dû" : "Statut"}</p>
+                        <p className={`font-bold ${tranche.paid_amount > 0 ? "text-orange-600" : "text-blue-700"}`}>
+                          {tranche.paid_amount > 0 ? formatFCFA(tranche.remaining) : "EN ATTENTE 🔵"}
+                        </p>
                       </div>
                       {tranche.due_date && (
                         <div>
@@ -283,10 +339,10 @@ export default function StudentPaymentDetailPage() {
                 </div>
                 <Link
                   href={`/accountant/payments/create?student=${student.id}&tranche=${tranche.id}`}
-                  className="px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-colors"
+                  className="px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-colors whitespace-nowrap shadow-sm"
                 >
                   <DollarSign size={14} />
-                  Payer cette tranche
+                  {tranche.paid_amount > 0 ? `Régler le reliquat (${formatFCFA(tranche.remaining)})` : 'Payer cette tranche'}
                 </Link>
               </div>
             </div>
@@ -346,15 +402,37 @@ export default function StudentPaymentDetailPage() {
           Documents
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <button className="flex items-center gap-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-sm font-medium transition-colors border border-blue-200">
+          <button 
+            disabled={downloading}
+            onClick={() => {
+              if (paidTranches.length > 0) {
+                const targetTranche = paidTranches[0];
+                downloadDocument(
+                  `/api/v1/documents/generate-receipt/${targetTranche.id || studentId}`,
+                  `recu_tranche_1_${studentId}.pdf`
+                );
+              } else {
+                toast.info('Aucune tranche payée pour le moment');
+              }
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 text-blue-700 rounded-xl text-sm font-medium transition-colors border border-blue-200 cursor-pointer"
+          >
             <Download size={16} />
             Télécharger reçu tranche 1
           </button>
-          <button className="flex items-center gap-2 px-4 py-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-sm font-medium transition-colors border border-purple-200">
+          <button 
+            disabled={downloading}
+            onClick={() => downloadDocument(`/api/v1/documents/generate-financial-statement/${studentId}`, `releve_financier_${studentId}.pdf`)}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 text-purple-700 rounded-xl text-sm font-medium transition-colors border border-purple-200 cursor-pointer"
+          >
             <Download size={16} />
             Télécharger relevé financier
           </button>
-          <button className="flex items-center gap-2 px-4 py-3 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl text-sm font-medium transition-colors border border-green-200">
+          <button 
+            disabled={downloading}
+            onClick={() => downloadDocument(`/api/v1/documents/generate-payment-certificate/${studentId}`, `attestation_paiement_${studentId}.pdf`)}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-green-50 hover:bg-green-100 disabled:opacity-50 text-green-700 rounded-xl text-sm font-medium transition-colors border border-green-200 cursor-pointer"
+          >
             <Download size={16} />
             Télécharger attestation de paiement
           </button>

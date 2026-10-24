@@ -100,7 +100,7 @@ export default function CreateCoursePage() {
 
       <div className="flex items-center gap-4 mb-6">
         <div>
-          <p className="text-slate-500 mt-1">Ajouter une matière au catalogue.</p>
+          <p className="text-slate-500 mt-1">Ajouter un module au catalogue.</p>
         </div>
       </div>
 

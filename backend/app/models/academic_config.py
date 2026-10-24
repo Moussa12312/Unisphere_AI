@@ -34,5 +34,9 @@ class AcademicConfig(Base):
     # ✅ NOUVEAU : Heure limite de présence (défaut 08:30)
     late_threshold_time = Column(Time, default=time(8, 30))
     
+    # ✅ PÉNALITÉS DE RETARD
+    penalty_amount = Column(Float, default=5000.0)
+    penalty_auto_apply = Column(Boolean, default=True)
+    
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

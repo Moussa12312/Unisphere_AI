@@ -10,12 +10,14 @@ class PaymentTranche(Base):
     id = Column(Integer, primary_key=True, index=True)
     university_id = Column(Integer, ForeignKey("universities.id"), nullable=False)
     
-    # Niveau et type de paiement
+    # Niveau, Domaine et type de paiement
     level = Column(String, nullable=False)  # "L1", "L2", "L3", "M1", "M2"
+    domain = Column(String, nullable=True, default=None)  # "Sciences de Gestion", etc.
     payment_type = Column(String, nullable=False)  # "scolarite", "inscription", "autre"
     academic_year = Column(String, nullable=False)  # "2025-2026"
     
     # Configuration des tranches
+    plan_type = Column(String, default="tranches")  # "tranches" ou "mensuel"
     tranche_number = Column(Integer, nullable=False)  # 1, 2, 3...
     tranche_name = Column(String, nullable=False)  # "1ère tranche", "2ème tranche"...
     percentage = Column(Float, nullable=False)  # Pourcentage du montant total (ex: 30.0 pour 30%)

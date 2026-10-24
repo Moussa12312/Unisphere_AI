@@ -19,6 +19,20 @@ interface Teacher {
   photo: string;
   qr_code: string;
   university_name: string;
+  courses_count?: number;
+  students_count?: number;
+  total_hours?: number;
+  evaluations_count?: number;
+  courses?: Array<{
+    id: number;
+    title: string;
+    code: string;
+    level: string;
+    credits: number;
+    hours: number;
+    filiere_name: string;
+    students_count: number;
+  }>;
 }
 
 export default function TeacherDetailPage() {
@@ -130,8 +144,25 @@ export default function TeacherDetailPage() {
             <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">{teacher.department}</span>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 text-center">
-            <h3 className="text-sm font-semibold text-slate-900 mb-3">QR Code</h3>
-            {teacher.qr_code ? <img src={`${API_BASE_URL}/qr_codes/${teacher.qr_code}`} alt="QR" className="w-32 h-32 mx-auto" /> : <div className="w-32 h-32 bg-slate-200 rounded-lg mx-auto flex items-center justify-center text-xs text-slate-400">Pas de QR</div>}
+            <h3 className="text-sm font-semibold text-slate-900 mb-3">QR Code Enseignant</h3>
+            <div className="flex justify-center mb-3">
+              <img 
+                src={teacher.qr_code ? `/qr_codes/${teacher.qr_code.replace(/^.*[\\\/]/, '')}` : `/api/v1/teachers/${teacher.id}/qrcode`} 
+                alt="QR Code" 
+                className="w-32 h-32 mx-auto rounded-lg border border-slate-200 p-1 bg-white"
+                onError={(e: any) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = `/api/v1/teachers/${teacher.id}/qrcode`;
+                }}
+              />
+            </div>
+            <a
+              href={`/api/v1/teachers/${teacher.id}/qrcode`}
+              download={`QR_TEACHER_${teacher.first_name}_${teacher.last_name}.png`}
+              className="inline-flex items-center gap-1.5 text-xs text-[#FF6B00] hover:text-[#e55f00] font-medium"
+            >
+              Télécharger le QR
+            </a>
           </div>
         </div>
         <div className="lg:col-span-2 space-y-5">
@@ -147,10 +178,89 @@ export default function TeacherDetailPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4"><div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3"><BookOpen size={20} className="text-blue-600" /></div><p className="text-xs text-slate-500 mb-1">Cours</p><p className="text-2xl font-bold text-slate-900">--</p></div>
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4"><div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mb-3"><Users size={20} className="text-orange-600" /></div><p className="text-xs text-slate-500 mb-1">Étudiants</p><p className="text-2xl font-bold text-slate-900">--</p></div>
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4"><div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mb-3"><Clock size={20} className="text-green-600" /></div><p className="text-xs text-slate-500 mb-1">Heures</p><p className="text-2xl font-bold text-slate-900">--</p></div>
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4"><div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-3"><Award size={20} className="text-purple-600" /></div><p className="text-xs text-slate-500 mb-1">Évaluations</p><p className="text-2xl font-bold text-slate-900">--</p></div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
+                <BookOpen size={20} className="text-blue-600" />
+              </div>
+              <p className="text-xs text-slate-500 mb-1">Cours assignés</p>
+              <p className="text-2xl font-bold text-slate-900">{teacher.courses_count ?? (teacher.courses?.length ?? 0)}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mb-3">
+                <Users size={20} className="text-orange-600" />
+              </div>
+              <p className="text-xs text-slate-500 mb-1">Étudiants</p>
+              <p className="text-2xl font-bold text-slate-900">{teacher.students_count ?? 0}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mb-3">
+                <Clock size={20} className="text-green-600" />
+              </div>
+              <p className="text-xs text-slate-500 mb-1">Volume horaire</p>
+              <p className="text-2xl font-bold text-slate-900">{teacher.total_hours ?? (teacher.courses?.length ?? 0) * 20}h</p>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
+                <Award size={20} className="text-purple-600" />
+              </div>
+              <p className="text-xs text-slate-500 mb-1">Évaluations / Notes</p>
+              <p className="text-2xl font-bold text-slate-900">{teacher.evaluations_count ?? 0}</p>
+            </div>
+          </div>
+
+          {/* LISTE DES COURS ASSIGNÉS */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                <BookOpen size={18} className="text-[#FF6B00]" />
+                Cours sous la responsabilité de l'enseignant
+              </h3>
+              <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full">
+                {(teacher.courses || []).length} cours
+              </span>
+            </div>
+            {(!teacher.courses || teacher.courses.length === 0) ? (
+              <div className="p-8 text-center text-slate-400 text-sm">
+                Aucun cours n'est actuellement assigné à cet enseignant.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-xs text-slate-500 uppercase border-b border-slate-100">
+                    <tr>
+                      <th className="py-3 px-4">Code</th>
+                      <th className="py-3 px-4">Intitulé du cours</th>
+                      <th className="py-3 px-4">Filière</th>
+                      <th className="py-3 px-4">Niveau</th>
+                      <th className="py-3 px-4 text-center">Crédits</th>
+                      <th className="py-3 px-4 text-center">Volume</th>
+                      <th className="py-3 px-4 text-center">Étudiants</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {teacher.courses.map((c: any) => (
+                      <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-4 font-mono font-bold text-xs text-blue-600">{c.code}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-900">{c.title}</td>
+                        <td className="py-3 px-4 text-slate-600">{c.filiere_name}</td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 font-bold text-xs rounded border border-amber-200">
+                            {c.level}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center font-bold text-slate-700">{c.credits}</td>
+                        <td className="py-3 px-4 text-center text-slate-600">{c.hours}h</td>
+                        <td className="py-3 px-4 text-center">
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 font-bold text-xs rounded-full">
+                            {c.students_count}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>

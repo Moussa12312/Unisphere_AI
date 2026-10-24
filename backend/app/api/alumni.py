@@ -85,6 +85,24 @@ class ChatMessage(BaseModel):
     content: str
 
 
+def is_invitation_expired(invitation):
+    if not invitation or not invitation.expires_at:
+        return False
+    exp = invitation.expires_at
+    if exp.tzinfo is not None:
+        return exp < datetime.now(timezone.utc)
+    return exp < datetime.utcnow()
+
+def get_invitation_hours_left(invitation):
+    if not invitation or not invitation.expires_at:
+        return 720
+    exp = invitation.expires_at
+    if exp.tzinfo is not None:
+        diff = (exp - datetime.now(timezone.utc)).total_seconds()
+    else:
+        diff = (exp - datetime.utcnow()).total_seconds()
+    return max(1, int(diff / 3600))
+
 # ==========================================
 # 🔗 1. INVITATIONS (Admin)
 # ==========================================
@@ -111,7 +129,6 @@ def create_invitation(
     db.commit()
     db.refresh(invitation)
 
-
     invitation_url = f"{FRONTEND_URL}/register-alumni?token={token}"
 
     return {
@@ -119,7 +136,10 @@ def create_invitation(
         "token": token,
         "url": invitation_url,
         "max_uses": max_uses,
-        "expires_at": expires_at.isoformat(),
+        "used_count": invitation.used_count or 0,
+        "is_active": invitation.is_active,
+        "expires_at": invitation.expires_at.isoformat() if invitation.expires_at else None,
+        "created_at": invitation.created_at.isoformat() if invitation.created_at else None,
         "message": "Lien d'invitation créé avec succès"
     }
 
@@ -138,7 +158,7 @@ def list_invitations(
         {
             "id": inv.id,
             "token": inv.token,
-            "url": f"/alumni/register?token={inv.token}",
+            "url": f"{FRONTEND_URL}/register-alumni?token={inv.token}",
             "max_uses": inv.max_uses,
             "used_count": inv.used_count,
             "is_active": inv.is_active,
@@ -183,7 +203,7 @@ def send_invitation_by_email(
     university_name = university.name if university else "UniSphere AI"
     
     # Calculer les heures restantes
-    hours_left = int((invitation.expires_at - datetime.now(timezone.utc)).total_seconds() / 3600)
+    hours_left = get_invitation_hours_left(invitation)
     
     # Construire l'URL d'inscription
     invitation_url = f"{FRONTEND_URL}/register-alumni?token={data.token}"
@@ -252,7 +272,7 @@ def validate_invitation(
     if not invitation:
         raise HTTPException(status_code=404, detail="Lien d'invitation invalide ou expiré")
 
-    if invitation.expires_at and invitation.expires_at < datetime.now(timezone.utc):
+    if is_invitation_expired(invitation):
         raise HTTPException(status_code=410, detail="Ce lien d'invitation a expiré")
 
     if invitation.used_count >= invitation.max_uses:
@@ -282,7 +302,7 @@ def register_alumni(
     if not invitation:
         raise HTTPException(status_code=404, detail="Lien d'invitation invalide")
 
-    if invitation.expires_at and invitation.expires_at < datetime.now(timezone.utc):
+    if is_invitation_expired(invitation):
         raise HTTPException(status_code=410, detail="Ce lien d'invitation a expiré")
 
     if invitation.used_count >= invitation.max_uses:
@@ -514,7 +534,7 @@ def get_alumni_community(
     filiere: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("student"))
+    current_user: User = Depends(require_role("student", "alumni", "admin", "secretary"))
 ):
     """Liste des alumni actifs et visibles"""
     query = db.query(AlumniProfile).filter(
@@ -596,7 +616,7 @@ def get_alumni_community(
 @router.get("/promotions")
 def get_promotions(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("student"))
+    current_user: User = Depends(require_role("student", "alumni", "admin", "secretary"))
 ):
     """Liste des promotions"""
     results = db.query(
@@ -626,7 +646,7 @@ def get_promotions(
 def get_alumni_profile(
     alumni_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("student"))
+    current_user: User = Depends(require_role("student", "alumni", "admin", "secretary"))
 ):
     """Profil détaillé d'un alumni (visible par étudiant)"""
     alumni = db.query(AlumniProfile).filter(

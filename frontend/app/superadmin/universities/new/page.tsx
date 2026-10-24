@@ -108,7 +108,7 @@ export default function NewUniversityPage() {
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2 relative">
                 <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={form.university_name} onChange={(e) => set('university_name', e.target.value)} placeholder="Nom officiel (ex: École de Commerce EcoB)" className={inputClass} required />
+                <input value={form.university_name} onChange={(e) => set('university_name', e.target.value)} placeholder="Nom officiel (ex: Institut Supérieur d'Excellence)" className={inputClass} required />
               </div>
               <div className="relative">
                 <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -126,7 +126,7 @@ export default function NewUniversityPage() {
               </div>
               <div className="relative">
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="email" value={form.university_email} onChange={(e) => set('university_email', e.target.value)} placeholder="Email officiel (contact@ecob.com)" className={inputClass} />
+                <input type="email" value={form.university_email} onChange={(e) => set('university_email', e.target.value)} placeholder="Email officiel (contact@universite.edu)" className={inputClass} />
               </div>
               <div className="relative">
                 <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -134,7 +134,7 @@ export default function NewUniversityPage() {
               </div>
               <div className="sm:col-span-2 relative">
                 <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={form.custom_domain} onChange={(e) => set('custom_domain', e.target.value)} placeholder="Domaine personnalisé (ex: ecob.com) — optionnel" className={inputClass} />
+                <input value={form.custom_domain} onChange={(e) => set('custom_domain', e.target.value)} placeholder="Domaine personnalisé (ex: universite.edu) — optionnel" className={inputClass} />
               </div>
             </div>
           </div>
@@ -148,7 +148,7 @@ export default function NewUniversityPage() {
               </div>
               <div className="relative">
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="email" value={form.admin_email} onChange={(e) => set('admin_email', e.target.value)} placeholder="Email de connexion (admin@ecob.com)" className={inputClass} required />
+                <input type="email" value={form.admin_email} onChange={(e) => set('admin_email', e.target.value)} placeholder="Email de connexion (admin@universite.edu)" className={inputClass} required />
               </div>
               <div className="relative">
                 <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />

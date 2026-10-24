@@ -27,47 +27,38 @@ export default function SecretaryEditStudentPage() {
     first_name: '', last_name: '', date_of_birth: '', place_of_birth: '',
     gender: '', nationality: '', email: '', phone: '', address: '',
     matricule: '', level: '', filiere: '', domain: '',
-    parent_name: '', parent_phone: '', parent_email: ''
+    parent_name: '', parent_phone: '', parent_email: '',
+    payment_plan: 'tranches',
+    monthly_deposit: '',
+    monthly_installment: '',
+    monthly_months_count: '5'
   });
 
   useEffect(() => {
     if (studentId) {
-      loadFilieres();
-      loadStudent();
+      loadInitialData();
     }
   }, [studentId]);
 
-  const loadFilieres = async () => {
-    try {
-      const data: any[] = await filiereService.getAll() || [];
-      setFilieres(data);
-      setDomaines(Array.from(new Set(data.map((f: any) => f.domain).filter(Boolean))));
-    } catch (error) {
-      toast.error('Erreur chargement filières');
-    }
-  };
-
-  useEffect(() => {
-    if (formData.domain && filieres.length > 0) {
-      setFilieresByDomaine(filieres.filter((f: any) => f.domain === formData.domain));
-    }
-  }, [formData.domain, filieres]);
-
-  useEffect(() => {
-    if (formData.filiere && formData.domain && filieres.length > 0) {
-      const filiere = filieres.find((f: any) => f.domain === formData.domain && f.name === formData.filiere);
-      if (filiere?.levels) {
-        setLevelsOfFiliere(filiere.levels.split(',').map((l: string) => l.trim()).filter(Boolean));
-      }
-    }
-  }, [formData.filiere, formData.domain, filieres]);
-
-  const loadStudent = async () => {
+  const loadInitialData = async () => {
     setLoadingData(true);
     try {
-      const response = await api.get(`/api/v1/students/${studentId}`);
-      const data = response.data;
-      
+      const [filieresData, studentRes] = await Promise.all([
+        filiereService.getAll(),
+        api.get(`/api/v1/students/${studentId}`)
+      ]);
+      const fList: any[] = Array.isArray(filieresData) ? filieresData : [];
+      setFilieres(fList);
+      const domList = Array.from(new Set(fList.map((f: any) => f.domain).filter(Boolean))) as string[];
+      setDomaines(domList);
+
+      const data = studentRes.data;
+      let resolvedDomain = data.domain || '';
+      if (!resolvedDomain && data.filiere) {
+        const match = fList.find((f: any) => f.name.toLowerCase() === data.filiere.toLowerCase());
+        if (match?.domain) resolvedDomain = match.domain;
+      }
+
       setFormData({
         first_name: data.first_name || '',
         last_name: data.last_name || '',
@@ -79,12 +70,16 @@ export default function SecretaryEditStudentPage() {
         phone: data.phone || '',
         address: data.address || '',
         matricule: data.matricule || '',
-        level: data.level || '',
+        level: data.level || 'L1',
         filiere: data.filiere || '',
-        domain: data.domain || '',
+        domain: resolvedDomain,
         parent_name: data.parent_name || '',
         parent_phone: data.parent_phone || '',
-        parent_email: data.parent_email || ''
+        parent_email: data.parent_email || '',
+        payment_plan: data.payment_plan || 'tranches',
+        monthly_deposit: data.monthly_deposit != null ? data.monthly_deposit.toString() : '',
+        monthly_installment: data.monthly_installment != null ? data.monthly_installment.toString() : '',
+        monthly_months_count: data.monthly_months_count != null ? data.monthly_months_count.toString() : '5'
       });
 
       if (data.photo) {
@@ -261,24 +256,72 @@ export default function SecretaryEditStudentPage() {
               <p className="text-xs text-slate-500 mt-1">Le matricule ne peut pas être modifié</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Domaine <span className="text-red-500">*</span></label>
-              <select name="domain" value={formData.domain} onChange={handleChange} required disabled={domaines.length === 0} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white disabled:bg-slate-100">
-                <option value="">Sélectionner un domaine...</option>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Domaine</label>
+              <select
+                name="domain"
+                value={formData.domain}
+                onChange={(e) => {
+                  const newDom = e.target.value;
+                  const matching = newDom ? filieres.filter((f: any) => f.domain === newDom) : filieres;
+                  const nextF = matching.length > 0 ? matching[0].name : formData.filiere;
+                  setFormData(prev => ({ ...prev, domain: newDom, filiere: nextF }));
+                }}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
+              >
+                <option value="">🌟 Tous les domaines académiques</option>
                 {domaines.map((d: string) => (<option key={d} value={d}>{d}</option>))}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Filière <span className="text-red-500">*</span></label>
-              <select name="filiere" value={formData.filiere} onChange={handleChange} required disabled={!formData.domain || filieresByDomaine.length === 0} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white disabled:bg-slate-100">
-                <option value="">{!formData.domain ? 'Choisissez d\'abord un domaine...' : 'Sélectionner une filière...'}</option>
-                {filieresByDomaine.map((f: any) => (<option key={f.id} value={f.name}>{f.name}</option>))}
+              <select
+                name="filiere"
+                value={formData.filiere}
+                onChange={(e) => {
+                  const newF = e.target.value;
+                  const fObj = filieres.find((f: any) => f.name === newF);
+                  const newDom = fObj?.domain || formData.domain;
+                  let newLvl = formData.level;
+                  if (fObj?.levels) {
+                    const valid = fObj.levels.split(',').map((l: string) => l.trim()).filter(Boolean);
+                    if (valid.length > 0 && !valid.includes(newLvl)) newLvl = valid[0];
+                  }
+                  setFormData(prev => ({ ...prev, filiere: newF, domain: newDom, level: newLvl }));
+                }}
+                required
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
+              >
+                {!formData.domain ? (
+                  domaines.map((dom) => (
+                    <optgroup key={dom} label={dom}>
+                      {filieres.filter((f: any) => f.domain === dom).map((f: any) => (
+                        <option key={f.id} value={f.name}>{f.name}</option>
+                      ))}
+                    </optgroup>
+                  ))
+                ) : (
+                  filieres.filter((f: any) => f.domain === formData.domain).map((f: any) => (
+                    <option key={f.id} value={f.name}>{f.name}</option>
+                  ))
+                )}
               </select>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-2">Niveau <span className="text-red-500">*</span></label>
-              <select name="level" value={formData.level} onChange={handleChange} required disabled={levelsOfFiliere.length === 0} className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white disabled:bg-slate-100">
-                <option value="">{!formData.filiere ? 'Choisissez d\'abord une filière...' : 'Sélectionner un niveau...'}</option>
-                {levelsOfFiliere.map((l: string) => (<option key={l} value={l}>{l}</option>))}
+              <select
+                name="level"
+                value={formData.level}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
+              >
+                {(() => {
+                  const selObj = filieres.find((f: any) => f.name === formData.filiere);
+                  const lvls = selObj?.levels
+                    ? selObj.levels.split(',').map((l: string) => l.trim()).filter(Boolean)
+                    : ['L1', 'L2', 'L3', 'M1', 'M2'];
+                  return lvls.map((l: string) => (<option key={l} value={l}>{l}</option>));
+                })()}
               </select>
             </div>
           </div>

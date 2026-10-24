@@ -72,161 +72,229 @@ export default function ReceiptTemplate({ receipt, showBackButton = false, backU
         </button>
       </div>
 
-      {/* ✅ FEUILLE — taille normale, espacements confortables */}
-      <div className="receipt-sheet bg-white rounded-2xl border border-slate-200 shadow-lg p-10 print:shadow-none print:rounded-none print:border-none print:p-0 text-[12px] leading-relaxed text-slate-900">
+      {/* ✅ FEUILLE OFFICIELLE — Double encadrement solennel, filigrane et cachet d'État */}
+      <div className="receipt-sheet relative bg-white border-2 border-slate-800 p-8 shadow-xl print:shadow-none print:m-0 text-[12px] leading-relaxed text-slate-900 overflow-hidden">
+        
+        {/* Filigrane officiel en arrière-plan */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.035] select-none z-0">
+          <div className="text-center transform -rotate-25 scale-125">
+            <p className="text-8xl font-black uppercase tracking-widest text-slate-900">UNISPHERE</p>
+            <p className="text-4xl font-bold uppercase tracking-wider text-slate-900 mt-2">DOCUMENT OFFICIEL</p>
+          </div>
+        </div>
 
-        {/* ===== En-tête ===== */}
-        <div className="flex items-start justify-between pb-5 mb-6 border-b-2 border-[#FF6B00]">
-          <div className="flex items-center gap-4">
-            {u.logo && (
-              <img src={`${API_BASE_URL}/uploads/logos/${u.logo}`} alt="Logo" className="w-16 h-16 object-contain" />
-            )}
-            <div>
-              <p className="font-bold text-[15px] uppercase">{u.name || 'Université'}</p>
-              {u.address && <p className="text-[11px] text-slate-500">{u.address}</p>}
-              {u.phone && <p className="text-[11px] text-slate-500">Tél : {u.phone}</p>}
+        {/* Filet d'encadrement intérieur fin */}
+        <div className="border border-slate-300 p-6 relative z-10">
+
+          {/* ===== EN-TÊTE NATIONAL & MINISTÉRIEL (Style République & Ministère) ===== */}
+          <div className="grid grid-cols-3 items-start pb-4 mb-4 border-b border-slate-300 text-center">
+            <div className="text-left">
+              <p className="font-extrabold text-[10px] uppercase text-slate-800 leading-tight">
+                MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR<br />ET DE LA RECHERCHE SCIENTIFIQUE
+              </p>
+              <p className="text-[9px] text-slate-500 mt-0.5">Direction Générale de l'Enseignement Supérieur</p>
+            </div>
+
+            <div className="flex flex-col items-center">
+              {u.logo ? (
+                <img src={`${API_BASE_URL}/uploads/logos/${u.logo}`} alt="Logo" className="w-14 h-14 object-contain mb-1" />
+              ) : (
+                <div className="w-12 h-12 rounded-full border-2 border-slate-800 flex items-center justify-center font-black text-sm text-[#FF6B00] mb-1">
+                  UNI
+                </div>
+              )}
+              <p className="font-black text-[13px] uppercase tracking-wide text-slate-900 leading-tight">{u.name || 'UNIVERSITÉ'}</p>
+              {u.phone && <p className="text-[10px] text-slate-500">Tél : {u.phone}</p>}
+            </div>
+
+            <div className="text-right">
+              <p className="font-extrabold text-[10px] uppercase text-slate-800 leading-tight">
+                RÉPUBLIQUE DU MALI<br />
+                <span className="italic font-normal lowercase tracking-normal">Un Peuple - Un But - Une Foi</span>
+              </p>
+              <p className="font-mono text-[9px] text-slate-400 mt-0.5">Système LMD Officiel</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="font-bold text-[16px] text-[#FF6B00]">REÇU DE PAIEMENT</p>
-            <p className="font-mono text-[12px] mt-1">N° {p.receipt_number || `REC-${p.id}`}</p>
-            <p className="text-[11px] text-slate-500">Réf : {p.reference || '—'}</p>
-          </div>
-        </div>
 
-        {/* ===== Infos sur la même horizontale ===== */}
-        <div className="grid grid-cols-2 gap-5 mb-6">
-          <div className="border border-slate-300 rounded-lg p-4">
-            <p className="font-bold text-[11px] uppercase text-[#FF6B00] border-b border-slate-200 pb-2 mb-3">
-              Informations étudiant
-            </p>
-            <table className="w-full">
-              <tbody>
-                <tr><td className="text-slate-500 py-1 pr-2 w-24">Nom</td><td className="font-semibold py-1">{s.name || '—'}</td></tr>
-                <tr><td className="text-slate-500 py-1 pr-2">Matricule</td><td className="font-mono font-semibold py-1">{s.matricule || '—'}</td></tr>
-                <tr><td className="text-slate-500 py-1 pr-2">Niveau</td><td className="py-1">{s.level || '—'}</td></tr>
-                <tr><td className="text-slate-500 py-1 pr-2">Filière</td><td className="py-1">{s.filiere || '—'}</td></tr>
-              </tbody>
-            </table>
+          {/* ===== TITRE MAJEUR DU REÇU ===== */}
+          <div className="text-center py-2 mb-5 border-y-2 border-slate-800 bg-slate-50/70">
+            <h1 className="text-lg font-black text-slate-900 tracking-wider uppercase">
+              REÇU OFFICIEL DE RÈGLEMENT & QUITTANCE
+            </h1>
+            <div className="flex justify-center items-center gap-6 text-[11px] font-mono mt-0.5 text-slate-700">
+              <span><b>N° Reçu :</b> <span className="text-[#FF6B00] font-bold">{p.receipt_number || `REC-${p.id}`}</span></span>
+              <span>•</span>
+              <span><b>Référence :</b> {p.reference || '—'}</span>
+              <span>•</span>
+              <span><b>Date :</b> {dateFr(p.payment_date || p.created_at)}</span>
+            </div>
           </div>
-          <div className="border border-slate-300 rounded-lg p-4">
-            <p className="font-bold text-[11px] uppercase text-[#FF6B00] border-b border-slate-200 pb-2 mb-3">
-              Détails du paiement
-            </p>
-            <table className="w-full">
-              <tbody>
-                <tr><td className="text-slate-500 py-1 pr-2 w-24">Date</td><td className="font-semibold py-1">{dateFr(p.payment_date || p.created_at)}</td></tr>
-                <tr><td className="text-slate-500 py-1 pr-2">Type</td><td className="capitalize py-1">{(p.payment_type || 'scolarite').replace('_', ' ')}</td></tr>
-                <tr><td className="text-slate-500 py-1 pr-2">Méthode</td><td className="capitalize py-1">{(p.payment_method || 'espèces').replace('_', ' ')}</td></tr>
-                <tr><td className="text-slate-500 py-1 pr-2">Encaissé par</td><td className="py-1">{c.name || 'Comptable'}</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
 
-        {/* ===== Tableau des tranches ===== */}
-        <table className="w-full border border-slate-300 mb-6">
-          <thead>
-            <tr className="bg-[#FF6B00] text-white">
-              <th className="border border-slate-300 px-3 py-2 text-left text-[11px]">Tranche</th>
-              <th className="border border-slate-300 px-3 py-2 text-right text-[11px]">Montant</th>
-              <th className="border border-slate-300 px-3 py-2 text-center text-[11px]">Échéance</th>
-              <th className="border border-slate-300 px-3 py-2 text-center text-[11px]">Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paid.map((tr: any, i: number) => (
-              <tr key={`p${i}`}>
-                <td className="border border-slate-300 px-3 py-1.5">{tr.tranche_name}</td>
-                <td className="border border-slate-300 px-3 py-1.5 text-right font-semibold">{fmt(tr.amount)} FCFA</td>
-                <td className="border border-slate-300 px-3 py-1.5 text-center">{dateFr(tr.due_date)}</td>
-                <td className="border border-slate-300 px-3 py-1.5 text-center font-bold text-green-700">PAYÉE</td>
-              </tr>
-            ))}
-            {remaining.map((tr: any, i: number) => (
-              <tr key={`r${i}`}>
-                <td className="border border-slate-300 px-3 py-1.5">{tr.tranche_name}</td>
-                <td className="border border-slate-300 px-3 py-1.5 text-right font-semibold">{fmt(tr.amount)} FCFA</td>
-                <td className="border border-slate-300 px-3 py-1.5 text-center">{dateFr(tr.due_date)}</td>
-                <td className="border border-slate-300 px-3 py-1.5 text-center font-bold text-orange-600">À PAYER</td>
-              </tr>
-            ))}
-            {paid.length === 0 && remaining.length === 0 && (
-              <tr>
-                <td colSpan={4} className="border border-slate-300 px-3 py-1.5 text-center text-slate-500">Paiement unique</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {/* ===== Totaux ===== */}
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          <div className="border border-slate-300 rounded-lg p-3 text-center">
-            <p className="text-[10px] text-slate-500 uppercase">Total dû</p>
-            <p className="font-bold text-[14px]">{fmt(p.total_amount)} FCFA</p>
-          </div>
-          <div className="border border-green-600 rounded-lg p-3 text-center bg-green-50">
-            <p className="text-[10px] text-green-700 uppercase">Total payé</p>
-            <p className="font-bold text-[14px] text-green-700">{fmt(t.total_paid ?? p.amount)} FCFA</p>
-          </div>
-          <div className="border border-orange-500 rounded-lg p-3 text-center bg-orange-50">
-            <p className="text-[10px] text-orange-700 uppercase">Reste à payer</p>
-            <p className="font-bold text-[14px] text-orange-700">{fmt(t.total_remaining ?? p.balance)} FCFA</p>
-          </div>
-        </div>
-        <p className="italic text-[11px] mb-7">
-          Arrêté le présent reçu à la somme de :{' '}
-          <span className="font-semibold not-italic">{enLettres(t.total_paid ?? p.amount)} francs CFA</span>.
-        </p>
-
-        {/* ===== Partie comptable en bas + signatures & cachets ===== */}
-        <div className="border-2 border-slate-400 rounded-lg p-5">
-          <p className="font-bold text-[11px] uppercase text-slate-700 border-b border-slate-300 pb-2 mb-4">
-            Partie comptable — Visa & signatures
-          </p>
+          {/* ===== CARTOUCHE D'IDENTITÉ DE L'ÉTUDIANT & DÉTAILS COMPTABLES ===== */}
           <div className="grid grid-cols-2 gap-4 mb-5">
-            <div className="flex justify-between border-b border-dotted border-slate-400 pb-1">
-              <span className="text-slate-500">Imputation</span>
-              <span className="font-mono">706000 — Frais de scolarité</span>
+            <div className="border border-slate-300 rounded p-3 bg-white">
+              <p className="font-bold text-[10px] uppercase text-slate-700 border-b border-slate-200 pb-1.5 mb-2 flex items-center justify-between">
+                <span>Identité de l'Étudiant</span>
+                <span className="text-[9px] font-normal text-slate-400">Cycle Initial</span>
+              </p>
+              <table className="w-full text-[11px]">
+                <tbody>
+                  <tr><td className="text-slate-500 py-0.5 w-24">Nom & Prénoms :</td><td className="font-bold py-0.5 text-slate-900">{s.name || '—'}</td></tr>
+                  <tr><td className="text-slate-500 py-0.5">N° Matricule :</td><td className="font-mono font-bold py-0.5 text-[#FF6B00]">{s.matricule || '—'}</td></tr>
+                  <tr><td className="text-slate-500 py-0.5">Niveau :</td><td className="py-0.5 font-medium">{s.level || '—'}</td></tr>
+                  <tr><td className="text-slate-500 py-0.5">Filière :</td><td className="py-0.5 font-medium">{s.filiere || '—'}</td></tr>
+                </tbody>
+              </table>
             </div>
-            <div className="flex justify-between border-b border-dotted border-slate-400 pb-1">
-              <span className="text-slate-500">Pièce jointe</span>
-              <span className="font-mono">{p.reference || '—'}</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-6 text-center">
-            <div>
-              <p className="font-semibold mb-1">Le Comptable</p>
-              <p className="text-[10px] text-slate-500 mb-10">{c.name || ''}</p>
-            </div>
-            <div>
-              <p className="font-semibold mb-2">Signature & Cachets</p>
-              <div className="h-16 border border-dashed border-slate-400 rounded"></div>
-            </div>
-            <div>
-              <p className="font-semibold mb-1">L'Étudiant / Le Parent</p>
-              <p className="text-[10px] text-slate-500 mb-10">{s.name || ''}</p>
-            </div>
-          </div>
-        </div>
 
-        {/* ===== Pied de page ===== */}
-        <p className="text-center text-[10px] text-slate-500 mt-6">
-          Ce reçu généré électroniquement fait foi de paiement. {u.name}{u.email ? ` • ${u.email}` : ''}
-        </p>
+            <div className="border border-slate-300 rounded p-3 bg-white">
+              <p className="font-bold text-[10px] uppercase text-slate-700 border-b border-slate-200 pb-1.5 mb-2 flex items-center justify-between">
+                <span>Paramètres d'Encaissement</span>
+                <span className="text-[9px] font-normal text-slate-400">Journal Caisse/Banque</span>
+              </p>
+              <table className="w-full text-[11px]">
+                <tbody>
+                  <tr><td className="text-slate-500 py-0.5 w-24">Objet :</td><td className="font-bold py-0.5 capitalize">{(p.payment_type || 'scolarite').replace('_', ' ')}</td></tr>
+                  <tr><td className="text-slate-500 py-0.5">Mode règlement :</td><td className="font-semibold py-0.5 capitalize">{(p.payment_method || 'espèces').replace('_', ' ')}</td></tr>
+                  <tr><td className="text-slate-500 py-0.5">Imputation :</td><td className="font-mono py-0.5">706000 — Droits de scolarité</td></tr>
+                  <tr><td className="text-slate-500 py-0.5">Comptable :</td><td className="py-0.5 font-medium">{c.name || 'Agent Comptable'}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ===== TABLEAU DES TRANCHES & ÉCHÉANCES ===== */}
+          <table className="w-full border-collapse border border-slate-400 mb-5 text-[11px]">
+            <thead>
+              <tr className="bg-slate-800 text-white font-bold uppercase text-[10px]">
+                <th className="border border-slate-400 px-3 py-2 text-left">Désignation de la Tranche</th>
+                <th className="border border-slate-400 px-3 py-2 text-right">Montant Exigible</th>
+                <th className="border border-slate-400 px-3 py-2 text-center">Date d'Échéance</th>
+                <th className="border border-slate-400 px-3 py-2 text-center">Situation / Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paid.map((tr: any, i: number) => (
+                <tr key={`p${i}`} className="hover:bg-slate-50">
+                  <td className="border border-slate-300 px-3 py-1.5 font-medium">{tr.tranche_name}</td>
+                  <td className="border border-slate-300 px-3 py-1.5 text-right font-bold font-mono">{fmt(tr.amount)} FCFA</td>
+                  <td className="border border-slate-300 px-3 py-1.5 text-center">{dateFr(tr.due_date)}</td>
+                  <td className="border border-slate-300 px-3 py-1.5 text-center font-bold text-emerald-700 bg-emerald-50/50">RÉGLÉE</td>
+                </tr>
+              ))}
+              {remaining.map((tr: any, i: number) => (
+                <tr key={`r${i}`} className="hover:bg-slate-50">
+                  <td className="border border-slate-300 px-3 py-1.5 font-medium">{tr.tranche_name}</td>
+                  <td className="border border-slate-300 px-3 py-1.5 text-right font-bold font-mono">{fmt(tr.amount)} FCFA</td>
+                  <td className="border border-slate-300 px-3 py-1.5 text-center">{dateFr(tr.due_date)}</td>
+                  <td className="border border-slate-300 px-3 py-1.5 text-center font-bold text-amber-700 bg-amber-50/50">À PAYER</td>
+                </tr>
+              ))}
+              {paid.length === 0 && remaining.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="border border-slate-300 px-3 py-2 text-center text-slate-500 italic">Paiement unique de scolarité</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {/* ===== TOTAUX COMPTABLES ===== */}
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="border border-slate-400 rounded p-2.5 text-center bg-slate-50">
+              <p className="text-[9px] text-slate-500 uppercase font-bold">Total Dû Annuel</p>
+              <p className="font-black text-sm font-mono mt-0.5 text-slate-900">{fmt(p.total_amount)} FCFA</p>
+            </div>
+            <div className="border border-emerald-600 rounded p-2.5 text-center bg-emerald-50/60">
+              <p className="text-[9px] text-emerald-800 uppercase font-bold">Total Payé à ce jour</p>
+              <p className="font-black text-sm font-mono mt-0.5 text-emerald-700">{fmt(t.total_paid ?? p.amount)} FCFA</p>
+            </div>
+            <div className="border border-orange-500 rounded p-2.5 text-center bg-orange-50/60">
+              <p className="text-[9px] text-orange-800 uppercase font-bold">Solde Restant Dû</p>
+              <p className="font-black text-sm font-mono mt-0.5 text-orange-700">{fmt(t.total_remaining ?? p.balance)} FCFA</p>
+            </div>
+          </div>
+
+          {/* Formule juridique d'arrêt de compte */}
+          <p className="text-[11px] mb-5 bg-slate-50 border-l-2 border-[#FF6B00] px-3 py-1.5 text-slate-800">
+            Arrêté le présent reçu à la somme de :{' '}
+            <span className="font-black uppercase">{enLettres(t.total_paid ?? p.amount)} francs CFA</span>.
+          </p>
+
+          {/* ===== ZONE DE VISA, SIGNATURES & CACHET OFFICIEL (STYLE ECOB / MINISTÈRE) ===== */}
+          <div className="border border-slate-400 rounded p-4 bg-white">
+            <div className="grid grid-cols-3 gap-4 text-center items-center">
+              
+              {/* Le Comptable */}
+              <div>
+                <p className="font-bold text-[11px] text-slate-800">L'Agent Comptable</p>
+                <p className="text-[10px] text-slate-500 mt-1">{c.name || 'Service Financier'}</p>
+                <div className="h-14 flex items-end justify-center">
+                  <span className="text-[9px] text-slate-400 italic">Signature certifiée</span>
+                </div>
+              </div>
+
+              {/* Cachet rond officiel d'institution */}
+              <div className="flex flex-col items-center justify-center">
+                <div className="relative w-24 h-24 rounded-full border-2 border-dashed border-blue-600/70 p-1 flex items-center justify-center">
+                  <div className="w-full h-full rounded-full border border-blue-700 flex flex-col items-center justify-center text-blue-800 text-[8px] font-black uppercase text-center leading-tight p-1 select-none">
+                    <span className="text-[7px] text-blue-600 tracking-tighter">★ SERVICES FINANCIERS ★</span>
+                    <span className="my-0.5 font-extrabold text-[9px] text-blue-900 border-y border-blue-400 py-0.5 px-1">QUITTANCE VALIDÉE</span>
+                    <span className="text-[7px] font-mono text-blue-700">{dateFr(p.payment_date || p.created_at)}</span>
+                  </div>
+                </div>
+                <p className="text-[9px] text-slate-400 mt-1 italic">Sceau et timbre officiel</p>
+              </div>
+
+              {/* L'Étudiant / Déposant */}
+              <div>
+                <p className="font-bold text-[11px] text-slate-800">L'Étudiant(e) / Pour Acquit</p>
+                <p className="text-[10px] text-slate-500 mt-1">{s.name || ''}</p>
+                <div className="h-14 flex items-end justify-center">
+                  <span className="text-[9px] text-slate-400 italic">Reçu en main propre</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* ===== PIED DE PAGE OFFICIEL (Mention légale et authentification) ===== */}
+          <div className="mt-4 pt-3 border-t border-slate-300 text-center text-[9px] text-slate-500">
+            <p className="font-semibold text-slate-700">
+              Document officiel généré électroniquement • Fait foi de paiement libératoire conformément aux règlements universitaires.
+            </p>
+            <p className="mt-0.5 text-slate-400">
+              Ratures et surcharges interdites • {u.name || 'UniSphere AI'} • Contact : {u.phone || '+223 20 00 00 00'} {u.email ? `• ${u.email}` : ''}
+            </p>
+          </div>
+
+        </div>
       </div>
 
-      {/* ===== CSS IMPRESSION : marges généreuses, ne remplit pas la feuille ===== */}
+      {/* ===== CSS IMPRESSION : marges généreuses, document propre et cadré sur 1 page A4 ===== */}
       <style jsx global>{`
         @media print {
-          @page { size: A4 portrait; margin: 15mm 12mm; }
-          html, body { background: #fff !important; }
+          @page { size: A4 portrait; margin: 10mm 12mm; }
+          html, body { 
+            background: #fff !important; 
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .receipt-wrapper {
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
           .receipt-sheet {
             box-shadow: none !important;
-            border: none !important;
-            border-radius: 0 !important;
-            padding: 0 !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 12px !important;
+            padding: 24px !important;
             max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 auto !important;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           .receipt-sheet, .receipt-sheet * {
             -webkit-print-color-adjust: exact;

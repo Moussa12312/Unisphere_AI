@@ -98,9 +98,21 @@ def create_exam_session(
         else:
             status = "open"
     
+    session_type = data.get("session_type", "semester1")
+    if session_type == "makeup":
+        from app.models.academic_config import AcademicConfig
+        ac_config = db.query(AcademicConfig).filter(
+            AcademicConfig.university_id == current_user.university_id
+        ).first()
+        if ac_config and not ac_config.allow_makeup_exam:
+            raise HTTPException(
+                status_code=400,
+                detail="Les sessions de rattrapage sont désactivées selon les règles de délibération de l'établissement."
+            )
+
     new_session = ExamSession(
         name=data.get("name"),
-        session_type=data.get("session_type", "semester1"),
+        session_type=session_type,
         start_date=start_date,
         end_date=end_date,
         status=status,
@@ -137,6 +149,16 @@ def update_exam_session(
     if "name" in data:
         session.name = data["name"]
     if "session_type" in data:
+        if data["session_type"] == "makeup":
+            from app.models.academic_config import AcademicConfig
+            ac_config = db.query(AcademicConfig).filter(
+                AcademicConfig.university_id == current_user.university_id
+            ).first()
+            if ac_config and not ac_config.allow_makeup_exam:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Les sessions de rattrapage sont désactivées selon les règles de délibération de l'établissement."
+                )
         session.session_type = data["session_type"]
     if "status" in data:
         session.status = data["status"]

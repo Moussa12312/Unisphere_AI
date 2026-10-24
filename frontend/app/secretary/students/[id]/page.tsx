@@ -12,6 +12,7 @@ import api from '@/lib/api';
 import { API_BASE_URL } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
+import StudentDossierSection from '@/components/students/StudentDossierSection';
 
 export default function SecretaryStudentDetailPage() {
   const params = useParams();
@@ -105,9 +106,10 @@ export default function SecretaryStudentDetailPage() {
   };
 
   const getQrCodeUrl = () => {
-    if (!student?.qr_code) return null;
-    if (student.qr_code.startsWith('http')) return student.qr_code;
-    return `${API_BASE_URL}/qr_codes/${student.qr_code}`;
+    if (!student?.id) return null;
+    if (student.qr_code && student.qr_code.startsWith('http')) return student.qr_code;
+    const filename = student.qr_code ? student.qr_code.replace(/^.*[\\\/]/, '') : `STUDENT_${student.id}.png`;
+    return `/qr_codes/${filename}`;
   };
 
   const formatDate = (date?: string) => {
@@ -232,9 +234,26 @@ export default function SecretaryStudentDetailPage() {
           </div>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
             <h3 className="text-sm font-semibold text-slate-900 mb-4">QR Code & Matricule</h3>
-            <div className="bg-slate-50 p-4 rounded-lg flex justify-center">
-              {qrCodeUrl ? (
-                <img src={qrCodeUrl} alt="QR Code" className="w-32 h-32" />
+            <div className="bg-slate-50 p-4 rounded-lg flex flex-col items-center justify-center">
+              {student ? (
+                <>
+                  <img 
+                    src={qrCodeUrl || `/api/v1/students/${student.id}/qrcode`} 
+                    alt="QR Code" 
+                    className="w-32 h-32 bg-white p-1 rounded-lg border border-slate-200" 
+                    onError={(e: any) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = `/api/v1/students/${student.id}/qrcode`;
+                    }}
+                  />
+                  <a
+                    href={`/api/v1/students/${student.id}/qrcode`}
+                    download={`QR_${student.matricule || student.id}.png`}
+                    className="inline-flex items-center gap-1.5 text-xs text-[#FF6B00] hover:text-[#e55f00] font-medium mt-3"
+                  >
+                    Télécharger le QR
+                  </a>
+                </>
               ) : (
                 <div className="w-32 h-32 bg-slate-200 rounded-lg flex items-center justify-center"><p className="text-xs text-slate-400 text-center">QR code<br/>non disponible</p></div>
               )}
@@ -370,6 +389,9 @@ export default function SecretaryStudentDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Dossier administratif & Pièces d'inscription */}
+          <StudentDossierSection studentId={params.id as string} onUpdate={loadStudent} />
         </div>
       </div>
     </div>

@@ -23,7 +23,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
   useEffect(() => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      if (user.role !== 'super_admin') {
+      if (user.role !== 'super_admin' && user.role !== 'superadmin') {
         router.push('/login');
         return;
       }

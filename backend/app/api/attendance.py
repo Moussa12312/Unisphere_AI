@@ -312,7 +312,7 @@ def get_my_course_attendance(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("student"))
 ):
-    """Récupère les statistiques de présence de l'étudiant, groupées par matière (Ignore les scans gardien)"""
+    """Récupère les statistiques de présence de l'étudiant, groupées par module (Ignore les scans gardien)"""
     student = db.query(Student).filter(Student.user_id == current_user.id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Profil étudiant non trouvé")
@@ -330,7 +330,7 @@ def get_my_course_attendance(
             course = db.query(Course).filter(Course.id == cid).first()
             course_stats[cid] = {
                 "course_id": cid,
-                "course_name": getattr(course, 'title', getattr(course, 'name', 'Matière')) if course else "Matière",
+                "course_name": getattr(course, 'title', getattr(course, 'name', 'Module')) if course else "Module",
                 "total": 0, "present": 0, "late": 0, "absent": 0, "excused": 0
             }
         
@@ -356,33 +356,38 @@ def get_my_course_attendance(
 @router.get("/teacher/courses")
 def get_teacher_courses(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("teacher", "admin", "secretary"))
+    current_user: User = Depends(require_role("teacher", "admin", "secretary", "censeur"))
 ):
-    """Récupère uniquement les cours assignés à l'enseignant connecté"""
+    """Récupère uniquement les cours assignés à l'enseignant connecté, ou tous les cours pour le staff"""
     from app.models.teacher import Teacher
     
-    # 1. Trouver le profil Teacher lié à l'utilisateur connecté
+    user_role = (current_user.role or "").lower()
+    is_staff = user_role in ["admin", "secretary", "secretaire", "censeur", "censor"]
+    
     teacher = db.query(Teacher).filter(Teacher.user_id == current_user.id).first()
-    if not teacher:
-        # Fallback pour admin/secrétaire qui n'ont pas de profil teacher mais veulent voir les cours
-        if current_user.role in ["admin", "secretary"]:
+    if not teacher or is_staff:
+        if is_staff:
             courses = db.query(Course).filter(Course.university_id == current_user.university_id).all()
-        else:
+        elif not teacher:
             raise HTTPException(status_code=404, detail="Profil enseignant non trouvé")
+        else:
+            courses = db.query(Course).filter(
+                Course.teacher_id == teacher.id,
+                Course.university_id == current_user.university_id
+            ).all()
     else:
-        # 2. Filtrer les cours par l'ID de cet enseignant
         courses = db.query(Course).filter(
             Course.teacher_id == teacher.id,
             Course.university_id == current_user.university_id
         ).all()
 
-    # 3. Formater la réponse pour le frontend
     result = []
     for c in courses:
-        # Gestion sécurisée du nom de la filière (que ce soit une string ou une relation)
         filiere_name = ""
-        if hasattr(c, 'filiere'):
-            filiere_name = getattr(c.filiere, 'name', str(c.filiere)) if c.filiere else str(c.filiere)
+        if hasattr(c, 'filiere') and c.filiere:
+            filiere_name = getattr(c.filiere, 'name', str(c.filiere))
+        elif hasattr(c, 'department') and c.department:
+            filiere_name = c.department
         
         result.append({
             "id": c.id,
@@ -398,32 +403,28 @@ def get_course_roster(
     course_id: int,
     date: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("teacher", "admin", "secretary"))
+    current_user: User = Depends(require_role("teacher", "admin", "secretary", "censeur"))
 ):
     """Récupère la liste des étudiants d'un cours pour faire l'appel"""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Cours non trouvé")
 
-    # ✅ CORRECTION : Extraire le nom de la filière (String) au lieu de l'objet Filiere
     filiere_name = ""
     if hasattr(course, 'filiere') and course.filiere:
-        # Si c'est une relation, on prend le nom. Sinon, on convertit en string.
         filiere_name = getattr(course.filiere, 'name', str(course.filiere))
-    elif hasattr(course, 'filiere_name'):
-        filiere_name = course.filiere_name
-    else:
-        filiere_name = str(getattr(course, 'filiere', ''))
+    elif hasattr(course, 'department') and course.department:
+        filiere_name = course.department
 
-    # Récupérer les étudiants de la même filière et niveau que le cours
-    students = db.query(Student).filter(
-        Student.filiere == filiere_name,  # ✅ Maintenant on compare String avec String
+    query = db.query(Student).filter(
         Student.level == course.level,
-        Student.university_id == current_user.university_id,
-        Student.status == "active"
-    ).all()
+        Student.university_id == current_user.university_id
+    )
+    if filiere_name:
+        query = query.filter(Student.filiere.ilike(f"%{filiere_name}%"))
 
-    # Récupérer les présences déjà enregistrées pour ce cours et cette date
+    students = query.order_by(Student.last_name, Student.first_name).all()
+
     target_date = datetime.strptime(date, "%Y-%m-%d").date()
     existing_attendance = db.query(Attendance).filter(
         Attendance.course_id == course_id,
@@ -438,7 +439,7 @@ def get_course_roster(
             "student_id": s.id,
             "student_name": f"{s.first_name} {s.last_name}",
             "matricule": s.matricule,
-            "current_status": attendance_map.get(s.id, "absent") # Défaut: absent si pas encore appelé
+            "current_status": attendance_map.get(s.id, "present")
         })
 
     return {
@@ -452,9 +453,9 @@ def get_course_roster(
 def mark_bulk_attendance(
     data: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("teacher", "admin", "secretary"))
+    current_user: User = Depends(require_role("teacher", "admin", "secretary", "censeur"))
 ):
-    """Enregistre l'appel d'un cours pour une date donnée"""
+    """Enregistre l'appel d'un cours pour une date donnée sans restriction d'heure"""
     course_id = data.get("course_id")
     date_str = data.get("date")
     records = data.get("records", [])
@@ -463,10 +464,11 @@ def mark_bulk_attendance(
         raise HTTPException(status_code=400, detail="Données incomplètes")
 
     target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    current_time = datetime.now().time()
 
     for record in records:
         student_id = record.get("student_id")
-        status = record.get("status", "absent")
+        status = record.get("status", "present")
         comment = record.get("comment", "")
 
         existing = db.query(Attendance).filter(
@@ -479,11 +481,14 @@ def mark_bulk_attendance(
             existing.status = status
             existing.comment = comment
             existing.scanned_by = current_user.id
+            if not existing.check_in_time and status in ["present", "late"]:
+                existing.check_in_time = current_time
         else:
             new_att = Attendance(
                 student_id=student_id,
                 course_id=course_id,
                 date=target_date,
+                check_in_time=current_time if status in ["present", "late"] else None,
                 status=status,
                 comment=comment,
                 method="teacher_appel",
@@ -494,3 +499,64 @@ def mark_bulk_attendance(
 
     db.commit()
     return {"message": "Appel enregistré avec succès"}
+
+
+# ==========================================
+# ⚙️ CONFIGURATION DES PRÉSENCES
+# ==========================================
+
+@router.get("/config")
+def get_attendance_config(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "censeur", "secretary", "guard"))
+):
+    """Récupère la configuration de seuil de présence"""
+    from app.models.academic_config import AcademicConfig
+    config = db.query(AcademicConfig).filter(
+        AcademicConfig.university_id == current_user.university_id
+    ).first()
+    
+    threshold_str = "08:30"
+    if config and config.late_threshold_time:
+        threshold_str = config.late_threshold_time.strftime("%H:%M")
+        
+    return {
+        "late_threshold": threshold_str,
+        "min_attendance_rate": getattr(config, 'min_attendance_rate', 75.0) if config else 75.0
+    }
+
+@router.put("/config")
+def update_attendance_config(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "censeur", "secretary"))
+):
+    """Met à jour le seuil d'heure de retard et le taux minimum"""
+    from app.models.academic_config import AcademicConfig
+    config = db.query(AcademicConfig).filter(
+        AcademicConfig.university_id == current_user.university_id
+    ).first()
+    
+    if not config:
+        config = AcademicConfig(university_id=current_user.university_id)
+        db.add(config)
+        db.flush()
+        
+    late_threshold = data.get("late_threshold")
+    if late_threshold:
+        try:
+            parts = str(late_threshold).strip().split(":")
+            h, m = int(parts[0]), int(parts[1])
+            config.late_threshold_time = time(h, m)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Format d'heure invalide (ex: 08:30)")
+            
+    if "min_attendance_rate" in data:
+        config.min_attendance_rate = float(data["min_attendance_rate"])
+        
+    db.commit()
+    return {
+        "message": "Configuration sauvegardée avec succès",
+        "late_threshold": config.late_threshold_time.strftime("%H:%M") if config.late_threshold_time else "08:30",
+        "min_attendance_rate": config.min_attendance_rate
+    }

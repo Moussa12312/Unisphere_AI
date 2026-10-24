@@ -1,22 +1,66 @@
 'use client';
 
-import React, { useState } from 'react';
-import { CreditCard, Search, Download, Filter, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CreditCard, Search, Download, CheckCircle2, Clock, Loader2, ArrowUpRight, Banknote } from 'lucide-react';
+import api from '@/lib/api';
+import paymentService from '@/services/paymentService';
+import { toast } from 'react-hot-toast';
+import Link from 'next/link';
 
 export default function AdminPaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const payments = [
-    { id: 'PAY-2026-001', student: 'Alpha Diallo', matricule: 'ETU-2026-001', amount: 150000, type: 'Frais d\'inscription', date: '2026-01-15', status: 'Payé', method: 'Mobile Money' },
-    { id: 'PAY-2026-002', student: 'Fatoumata Barry', matricule: 'ETU-2026-002', amount: 200000, type: 'Tranche 1 Scolarité', date: '2026-01-20', status: 'Payé', method: 'Carte Bancaire' },
-    { id: 'PAY-2026-003', student: 'Ibrahima Camara', matricule: 'ETU-2026-003', amount: 200000, type: 'Tranche 1 Scolarité', date: '2026-01-25', status: 'En attente', method: 'Virement' },
-  ];
+  useEffect(() => {
+    loadPayments();
+  }, []);
 
-  const filteredPayments = payments.filter(p =>
-    p.student.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.matricule.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const loadPayments = async () => {
+    setLoading(true);
+    try {
+      const res = await paymentService.getAll({ page_size: 100 });
+      const data = Array.isArray(res) ? res : (res.data || res.items || []);
+      setPayments(data);
+    } catch (err) {
+      console.error('Erreur chargement paiements:', err);
+      toast.error('Impossible de charger les paiements');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (payments.length === 0) {
+      toast.error('Aucune donnée à exporter');
+      return;
+    }
+    const headers = ['ID,Reference,Etudiant,Montant,Devise,Type,Methode,Statut,Date\n'];
+    const rows = payments.map(p => {
+      const studentName = p.student_name || `${p.student?.first_name || ''} ${p.student?.last_name || ''}`.trim() || 'N/A';
+      return `"${p.id}","${p.reference || p.receipt_number || ''}","${studentName}","${p.amount}","${p.currency || 'FCFA'}","${p.payment_type || ''}","${p.payment_method || ''}","${p.status || ''}","${p.payment_date || p.created_at || ''}"`;
+    });
+    const blob = new Blob([headers.join('') + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rapport_paiements_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Rapport exporté avec succès !');
+  };
+
+  const filteredPayments = payments.filter(p => {
+    const studentName = (p.student_name || `${p.student?.first_name || ''} ${p.student?.last_name || ''}`).toLowerCase();
+    const matricule = (p.matricule || p.student?.matricule || '').toLowerCase();
+    const ref = (p.reference || p.receipt_number || p.id?.toString() || '').toLowerCase();
+    const q = searchTerm.toLowerCase();
+    return studentName.includes(q) || matricule.includes(q) || ref.includes(q);
+  });
+
+  const totalAmount = payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+  const completedCount = payments.filter(p => p.status === 'completed' || p.status === 'Payé').length;
+  const pendingCount = payments.filter(p => p.status === 'pending' || p.status === 'En attente').length;
 
   return (
     <div className="p-6 space-y-6">
@@ -27,23 +71,36 @@ export default function AdminPaymentsPage() {
           </h1>
           <p className="text-slate-500 text-sm">Vue d'ensemble des règlements et encaissements de l'université.</p>
         </div>
-        <button className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium shadow">
-          <Download className="w-4 h-4" /> Exporter le rapport
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/academic-fees"
+            className="flex items-center gap-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white px-4 py-2 rounded-lg font-medium shadow transition-colors text-sm"
+          >
+            <Banknote className="w-4 h-4" /> Configurer Frais & Tranches
+          </Link>
+          <button 
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium shadow transition-colors text-sm"
+          >
+            <Download className="w-4 h-4" /> Exporter (CSV)
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <p className="text-xs text-slate-500 font-medium uppercase">Total Encaissé</p>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1 font-mono">550 000 FCFA</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1 font-mono">
+            {totalAmount.toLocaleString('fr-FR')} FCFA
+          </p>
         </div>
         <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <p className="text-xs text-slate-500 font-medium uppercase">Paiements Validés</p>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">2</p>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">{completedCount}</p>
         </div>
         <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <p className="text-xs text-slate-500 font-medium uppercase">En Attente de Validation</p>
-          <p className="text-2xl font-bold text-amber-500 mt-1">1</p>
+          <p className="text-2xl font-bold text-amber-500 mt-1">{pendingCount}</p>
         </div>
       </div>
 
@@ -59,44 +116,68 @@ export default function AdminPaymentsPage() {
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="p-4">N° Transaction</th>
-                <th className="p-4">Étudiant</th>
-                <th className="p-4">Type</th>
-                <th className="p-4">Montant</th>
-                <th className="p-4">Date</th>
-                <th className="p-4">Statut</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {filteredPayments.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                  <td className="p-4 font-mono font-medium text-slate-900 dark:text-white">{p.id}</td>
-                  <td className="p-4">
-                    <p className="font-medium text-slate-900 dark:text-white">{p.student}</p>
-                    <p className="text-xs font-mono text-slate-500">{p.matricule}</p>
-                  </td>
-                  <td className="p-4 text-slate-600 dark:text-slate-300">{p.type}</td>
-                  <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">{p.amount.toLocaleString('fr-FR')} FCFA</td>
-                  <td className="p-4 text-slate-500 text-xs">{p.date}</td>
-                  <td className="p-4">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      p.status === 'Payé'
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                        : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-                    }`}>
-                      {p.status === 'Payé' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                      {p.status}
-                    </span>
-                  </td>
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="p-4">N° Transaction</th>
+                  <th className="p-4">Étudiant</th>
+                  <th className="p-4">Type</th>
+                  <th className="p-4">Montant</th>
+                  <th className="p-4">Date</th>
+                  <th className="p-4">Statut</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                {filteredPayments.map((p) => {
+                  const studentName = p.student_name || `${p.student?.first_name || ''} ${p.student?.last_name || ''}`.trim() || `Étudiant #${p.student_id}`;
+                  const matricule = p.matricule || p.student?.matricule || `ID #${p.student_id}`;
+                  const isPaid = p.status === 'completed' || p.status === 'Payé';
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="p-4 font-mono font-medium text-slate-900 dark:text-white">
+                        {p.reference || p.receipt_number || `PAY-${p.id}`}
+                      </td>
+                      <td className="p-4">
+                        <p className="font-medium text-slate-900 dark:text-white">{studentName}</p>
+                        <p className="text-xs font-mono text-slate-500">{matricule}</p>
+                      </td>
+                      <td className="p-4 text-slate-600 dark:text-slate-300 capitalize">{p.payment_type || 'Scolarité'}</td>
+                      <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">
+                        {Number(p.amount).toLocaleString('fr-FR')} {p.currency || 'FCFA'}
+                      </td>
+                      <td className="p-4 text-slate-500 text-xs">
+                        {p.payment_date || (p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : 'N/A')}
+                      </td>
+                      <td className="p-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          isPaid
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                            : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                        }`}>
+                          {isPaid ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                          {isPaid ? 'Payé' : 'En attente'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredPayments.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-500">
+                      Aucun paiement enregistré pour le moment.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

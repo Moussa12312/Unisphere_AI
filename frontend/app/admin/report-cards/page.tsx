@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   Loader2, Download, FileText, Search, Users, Award,
-  TrendingUp, Calendar, Eye, CheckCircle2, AlertCircle
+  TrendingUp, Calendar, Eye, CheckCircle2, AlertCircle, Printer
 } from 'lucide-react';
 import { studentService } from '@/services/studentService';
 import { examSessionService, ExamSession } from '@/services/examSessionService';
@@ -121,6 +121,42 @@ export default function AdminReportCardsPage() {
       toast.error('Erreur lors de la génération du PDF');
     } finally {
       setGenerating(null);
+    }
+  };
+
+  const handlePreview = async (studentId: number) => {
+    if (!selectedSessionId) return;
+    try {
+      const pdfBlob = await reportCardService.generatePDF(studentId, selectedSessionId);
+      const url = window.URL.createObjectURL(pdfBlob);
+      window.open(url, '_blank');
+    } catch (error) {
+      toast.error("Erreur lors de l'aperçu du bulletin");
+    }
+  };
+
+  const handlePrint = async (studentId: number) => {
+    if (!selectedSessionId) return;
+    try {
+      const pdfBlob = await reportCardService.generatePDF(studentId, selectedSessionId);
+      const url = window.URL.createObjectURL(pdfBlob);
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        }, 200);
+      };
+    } catch (error) {
+      toast.error("Erreur lors de l'impression du bulletin");
     }
   };
 
@@ -364,18 +400,35 @@ export default function AdminReportCardsPage() {
                       )}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={() => handleGeneratePDF(card.student.id)}
-                        disabled={generating === card.student.id}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-                      >
-                        {generating === card.student.id ? (
-                          <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                          <Download size={12} />
-                        )}
-                        PDF
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => handlePreview(card.student.id)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Aperçu (1 page)"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          onClick={() => handlePrint(card.student.id)}
+                          className="p-1.5 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                          title="Imprimer (1 page)"
+                        >
+                          <Printer size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleGeneratePDF(card.student.id)}
+                          disabled={generating === card.student.id}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                          title="Télécharger PDF (1 page)"
+                        >
+                          {generating === card.student.id ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Download size={12} />
+                          )}
+                          <span>PDF</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

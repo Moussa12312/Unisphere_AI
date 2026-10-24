@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Users, Search, Plus, Eye, Trash2,
-  Download, ChevronLeft, ChevronRight,  Printer
+  Download, ChevronLeft, ChevronRight, Printer, UploadCloud, CreditCard
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
@@ -155,13 +155,27 @@ export default function SecretaryStudentsPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Link
+            href="/secretary/student-cards"
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md"
+          >
+            <CreditCard size={16} />
+            Imprimer les Cartes
+          </Link>
           <button
             onClick={() => setShowQRModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-all shadow-md"
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-all"
           >
             <Printer size={16} />
-            Print QR Codes
+            QR Codes seuls
           </button>
+          <Link
+            href="/secretary/students/bulk"
+            className="flex items-center gap-2 px-5 py-2.5 bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 rounded-xl text-sm font-semibold transition-all shadow-sm"
+          >
+            <UploadCloud size={16} />
+            Inscription en masse
+          </Link>
           <Link
             href="/secretary/students/enrollment"
             className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-medium transition-all shadow-md"

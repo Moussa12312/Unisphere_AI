@@ -65,19 +65,21 @@ export default function StudentCoursesPage() {
     try {
       let fileUrl = "";
 
-      // 1. Si c'est déjà une URL absolue (commence par http), on l'utilise telle quelle
       if (material.file_path.startsWith('http')) {
         fileUrl = material.file_path;
-      } 
-      // 2. Sinon, on construit l'URL correcte
-      else {
-        // Si le chemin en BDD est "materials/fichier.docx", on veut "/uploads/materials/fichier.docx"
-        // Si le chemin en BDD est juste "fichier.docx", on ajoute "materials/"
-        const cleanPath = material.file_path.startsWith('materials/') 
-          ? material.file_path 
-          : `materials/${material.file_path}`;
-          
-        fileUrl = `${API_BASE_URL}/uploads/${cleanPath}`;
+      } else {
+        const p = material.file_path.replace(/\\/g, '/');
+        if (p.startsWith('/uploads/')) {
+          fileUrl = p;
+        } else if (p.startsWith('uploads/')) {
+          fileUrl = `/${p}`;
+        } else if (p.startsWith('courses/')) {
+          fileUrl = `/uploads/${p}`;
+        } else if (p.startsWith('materials/')) {
+          fileUrl = `/uploads/${p}`;
+        } else {
+          fileUrl = `/uploads/courses/${p}`;
+        }
       }
 
       console.log("Téléchargement depuis :", fileUrl);

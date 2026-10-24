@@ -40,6 +40,21 @@ export const scheduleService = {
   delete: async (id: number): Promise<any> => {
     const response = await api.delete(`/api/v1/schedules/${id}`);
     return response.data;
+  },
+
+  createBatch: async (items: any[]): Promise<any> => {
+    const response = await api.post('/api/v1/schedules/batch', { items });
+    return response.data;
+  },
+
+  autoGenerate: async (data: { class_id: number; replace_existing?: boolean; repeat_modules?: boolean }): Promise<any> => {
+    const response = await api.post('/api/v1/schedules/auto-generate', data);
+    return response.data;
+  },
+
+  clearClass: async (classId: number): Promise<any> => {
+    const response = await api.delete(`/api/v1/schedules/clear-class/${classId}`);
+    return response.data;
   }
 };
 

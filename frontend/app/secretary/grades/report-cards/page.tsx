@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   Loader2, AlertCircle, Download, CheckCircle2, FileText, Search, Users, Award,
-  ChevronRight, ChevronDown, TrendingUp, Eye, FolderOpen, X
+  ChevronRight, ChevronDown, TrendingUp, Eye, FolderOpen, X, Printer
 } from 'lucide-react';
 import { reportCardService, StudentDetail } from '@/services/reportCardService';
 import { studentService } from '@/services/studentService';
@@ -154,6 +154,32 @@ export default function SecretaryReportCardsPage() {
       window.open(url, '_blank');
     } catch (error) {
       toast.error('Erreur lors de l\'aperçu');
+    }
+  };
+
+  const handlePrint = async (studentId: number) => {
+    if (!selectedSessionId) return;
+    
+    try {
+      const pdfBlob = await reportCardService.generatePDF(studentId, selectedSessionId);
+      const url = window.URL.createObjectURL(pdfBlob);
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        }, 200);
+      };
+    } catch (error) {
+      toast.error('Erreur lors de l\'impression');
     }
   };
 
@@ -475,7 +501,7 @@ export default function SecretaryReportCardsPage() {
                     <thead className="bg-gradient-to-r from-slate-50 to-slate-100">
                       <tr>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Code</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Matière</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Module</th>
                         <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase">CC</th>
                         <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Examen</th>
                         <th className="text-center py-3 px-4 text-xs font-semibold text-slate-600 uppercase">Note/20</th>
@@ -589,18 +615,25 @@ export default function SecretaryReportCardsPage() {
                 </div>
               </div>
 
-              {/* Boutons télécharger */}
-              <div className="flex justify-end gap-2">
+              {/* Boutons télécharger et imprimer */}
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  onClick={() => handlePrint(selectedStudentDetail.student.id)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                >
+                  <Printer size={16} />
+                  Imprimer (1 page)
+                </button>
                 <button
                   onClick={() => handlePreview(selectedStudentDetail.student.id)}
-                  className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-medium flex items-center gap-2"
+                  className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
                 >
                   <Eye size={16} />
-                  Aperçu PDF
+                  Aperçu (1 page)
                 </button>
                 <button
                   onClick={() => handleGeneratePDF(selectedStudentDetail.student.id)}
-                  className="px-4 py-2 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-[#e55f00] hover:to-orange-600 text-white rounded-lg text-sm font-medium flex items-center gap-2"
+                  className="px-4 py-2 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-[#e55f00] hover:to-orange-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-all"
                 >
                   <Download size={16} />
                   Télécharger PDF

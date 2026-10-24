@@ -42,3 +42,20 @@ class Grade(Base):
     session = relationship("ExamSession")
     grader = relationship("User", foreign_keys=[graded_by])
     university = relationship("University")
+
+    # ✅ Validation professionnelle stricte du barème (0 à 20/20)
+    from sqlalchemy.orm import validates
+
+    @validates("score", "cc_score", "exam_score")
+    def validate_score_bounds(self, key, value):
+        if value is not None:
+            try:
+                num = float(value)
+            except (TypeError, ValueError):
+                raise ValueError(f"Le champ {key} doit être une valeur numérique valide.")
+            if num < 0.0:
+                raise ValueError(f"La note ({key}: {num}) ne peut pas être négative.")
+            if num > 20.0:
+                raise ValueError(f"La note ({key}: {num}) ne peut pas dépasser 20/20. Barème académique officiel sur 20 points.")
+            return round(num, 2)
+        return value

@@ -172,12 +172,25 @@ export default function TeacherProfilePage() {
                 <GraduationCap size={18} className="text-[#FF6B00]" />
                 Mon QR Code
               </h3>
-              <div className="flex items-center gap-6">
-                <img
-                  src={`${API_BASE_URL}/qr_codes/${profile.qr_code}`}
-                  alt="QR Code"
-                  className="w-32 h-32 bg-white p-2 rounded-xl border border-slate-200"
-                />
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="text-center">
+                  <img
+                    src={profile.qr_code ? `/qr_codes/${profile.qr_code.replace(/^.*[\\\/]/, '')}` : `/api/v1/teacher/qrcode`}
+                    alt="QR Code"
+                    className="w-32 h-32 bg-white p-2 rounded-xl border border-slate-200"
+                    onError={(e: any) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = `/api/v1/teacher/qrcode`;
+                    }}
+                  />
+                  <a
+                    href="/api/v1/teacher/qrcode"
+                    download="Mon_QR_Code_Enseignant.png"
+                    className="inline-block mt-2 text-xs font-semibold text-[#FF6B00] hover:text-[#e55f00]"
+                  >
+                    Télécharger
+                  </a>
+                </div>
                 <div>
                   <p className="text-sm text-slate-600 mb-2">
                     Ce QR code vous identifie dans l'université. Vous pouvez l'utiliser pour :

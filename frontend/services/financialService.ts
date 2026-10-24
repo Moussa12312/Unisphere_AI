@@ -108,8 +108,13 @@ export const financialService = {
   },
 
   getReceipt: async (id: number) => {
-    const response = await api.get(`/api/v1/students/me/receipts/${id}`);
-    return response.data;
+    try {
+      const response = await api.get(`/api/v1/financials/receipt/${id}`);
+      return response.data;
+    } catch {
+      const response = await api.get(`/api/v1/students/me/receipts/${id}`);
+      return response.data;
+    }
   },
 };
 
