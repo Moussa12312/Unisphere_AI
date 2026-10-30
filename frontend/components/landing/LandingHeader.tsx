@@ -28,19 +28,19 @@ export default function LandingHeader({ onOpenLogin, onOpenRegister }: LandingHe
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-xs transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-        
+
         {/* Logo & Identité */}
-        <div 
+        <div
           onClick={() => scrollToSection('top')}
           className="flex items-center gap-3 cursor-pointer group select-none"
         >
           <div className="relative w-11 h-11 rounded-xl bg-gradient-to-tr from-[#FF6B00] to-amber-500 p-0.5 shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
             <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center overflow-hidden">
-              <Image 
-                src="/logo.png" 
-                alt="UniSphere AI Logo" 
-                width={36} 
-                height={36} 
+              <Image
+                src="/logo.png"
+                alt="UniSphere AI Logo"
+                width={36}
+                height={36}
                 className="object-contain"
                 onError={(e) => {
                   // Fallback si l'image n'est pas trouvée
@@ -174,16 +174,7 @@ export default function LandingHeader({ onOpenLogin, onOpenRegister }: LandingHe
               <LogIn size={18} className="text-slate-600" />
               Se connecter
             </button>
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenRegister();
-              }}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-[#FF6B00] to-orange-600 shadow-md shadow-orange-500/20"
-            >
-              <span>Créer un compte / Essai gratuit</span>
-              <ArrowRight size={18} />
-            </button>
+
           </div>
         </div>
       )}

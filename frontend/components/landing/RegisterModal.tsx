@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  X, Building2, User, Mail, Phone, ArrowRight, 
-  CheckCircle2, Sparkles, ShieldCheck, Check, GraduationCap 
+import {
+  X, Building2, User, Mail, Phone, ArrowRight,
+  CheckCircle2, Sparkles, ShieldCheck, Check, GraduationCap
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -14,17 +14,17 @@ interface RegisterModalProps {
   onSwitchToLogin: () => void;
 }
 
-export default function RegisterModal({ 
-  isOpen, 
-  initialPlan = 'etablissement', 
-  onClose, 
-  onSwitchToLogin 
+export default function RegisterModal({
+  isOpen,
+  initialPlan = 'etablissement',
+  onClose,
+  onSwitchToLogin
 }: RegisterModalProps) {
   const [selectedPlan, setSelectedPlan] = useState(initialPlan);
   const [universityName, setUniversityName] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('+225 ');
+  const [phone, setPhone] = useState('+223 ');
   const [roleTitle, setRoleTitle] = useState('Direction / Recteur');
   const [submitting, setSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -61,9 +61,9 @@ export default function RegisterModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-      
+
       {/* Conteneur de la Modale */}
-      <div 
+      <div
         className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -137,7 +137,7 @@ export default function RegisterModal({
           ) : (
             /* Formulaire standard d'inscription */
             <form onSubmit={handleSubmit} className="space-y-5">
-              
+
               {/* Sélecteur de Formule */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
@@ -145,19 +145,18 @@ export default function RegisterModal({
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { id: 'decouverte', label: 'Découverte', price: '49k/m' },
-                    { id: 'etablissement', label: 'Établissement', price: '149k/m', highlight: true },
-                    { id: 'campus', label: 'Campus Intégral', price: '249k/m' },
+                    { id: 'decouverte', label: 'Découverte', price: '150k/m' },
+                    { id: 'etablissement', label: 'Établissement', price: '225k/m', highlight: true },
+                    { id: 'campus', label: 'Campus Intégral', price: '275k/m' },
                   ].map((plan) => (
                     <button
                       key={plan.id}
                       type="button"
                       onClick={() => setSelectedPlan(plan.id)}
-                      className={`p-2.5 rounded-xl border text-center transition-all ${
-                        selectedPlan === plan.id
+                      className={`p-2.5 rounded-xl border text-center transition-all ${selectedPlan === plan.id
                           ? 'border-[#FF6B00] bg-orange-50/70 text-slate-900 shadow-2xs font-extrabold ring-2 ring-orange-500/20'
                           : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'
-                      }`}
+                        }`}
                     >
                       <p className="text-xs font-bold">{plan.label}</p>
                       <p className="text-[11px] text-[#FF6B00] font-mono">{plan.price}</p>
@@ -177,7 +176,7 @@ export default function RegisterModal({
                     type="text"
                     value={universityName}
                     onChange={(e) => setUniversityName(e.target.value)}
-                    placeholder="Ex: Institut Universitaire Polytechnique d'Abidjan"
+                    placeholder="Ex: Institut Supérieur ECOB Bamako"
                     required
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#FF6B00] focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
                   />
@@ -196,7 +195,7 @@ export default function RegisterModal({
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Dr. Moussa Coulibaly"
+                      placeholder="Amadou Coulibaly"
                       required
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#FF6B00] focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
                     />
@@ -234,7 +233,7 @@ export default function RegisterModal({
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="direction@universite.ci"
+                      placeholder="chakirunisphereai@gmail.com"
                       required
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#FF6B00] focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
                     />
@@ -251,7 +250,7 @@ export default function RegisterModal({
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+225 07 00 00 00 00"
+                      placeholder="+223 94 37 21 23"
                       required
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#FF6B00] focus:ring-2 focus:ring-orange-500/20 outline-none transition-all font-mono"
                     />

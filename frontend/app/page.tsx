@@ -8,9 +8,9 @@ import PricingSection from '@/components/landing/PricingSection';
 import FooterSection from '@/components/landing/FooterSection';
 import LoginModal from '@/components/landing/LoginModal';
 import RegisterModal from '@/components/landing/RegisterModal';
-import { 
-  Building2, Users, GraduationCap, ShieldCheck, 
-  Sparkles, CheckCircle2, ArrowRight 
+import {
+  Building2, Users, GraduationCap, ShieldCheck,
+  Sparkles, CheckCircle2, ArrowRight
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -31,16 +31,16 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans flex flex-col selection:bg-[#FF6B00]/20 selection:text-[#FF6B00]">
-      
+
       {/* 1. EN-TÊTE DE NAVIGATION (STICKY HEADER) */}
-      <LandingHeader 
+      <LandingHeader
         onOpenLogin={handleOpenLogin}
         onOpenRegister={handleOpenRegister}
       />
 
       <main className="flex-1">
         {/* 2. SECTION HÉROS (AU-DESSUS DE LA LIGNE DE FLOTTAISON) */}
-        <HeroSection 
+        <HeroSection
           onOpenLogin={handleOpenLogin}
           onOpenRegister={handleOpenRegister}
         />
@@ -70,12 +70,12 @@ export default function HomePage() {
         </section>
 
         {/* 3. SECTION "FONCTIONNALITÉS CLÉS" (GRILLE DE BÉNÉFICES) */}
-        <FeaturesSection 
+        <FeaturesSection
           onOpenRegister={handleOpenRegister}
         />
 
         {/* 4. SECTION "GRILLE TARIFAIRE ACCESSIBLE" (PRICING) */}
-        <PricingSection 
+        <PricingSection
           onSelectPlan={(plan) => handleOpenRegister(plan)}
         />
 
@@ -116,25 +116,19 @@ export default function HomePage() {
       </main>
 
       {/* 5. PIED DE PAGE (FOOTER) */}
-      <FooterSection 
+      <FooterSection
         onOpenLogin={handleOpenLogin}
         onOpenRegister={handleOpenRegister}
       />
 
       {/* MODALE DE CONNEXION */}
-      <LoginModal 
+      <LoginModal
         isOpen={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
         onSwitchToRegister={() => handleOpenRegister()}
       />
 
-      {/* MODALE D'INSCRIPTION / ESSAI GRATUIT */}
-      <RegisterModal 
-        isOpen={registerModalOpen}
-        initialPlan={selectedPlan}
-        onClose={() => setRegisterModalOpen(false)}
-        onSwitchToLogin={handleOpenLogin}
-      />
+
 
     </div>
   );

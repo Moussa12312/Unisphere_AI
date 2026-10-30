@@ -151,3 +151,4 @@ export default function LogoutConfirmModal({
 
   return createPortal(modalContent, document.body);
 }
+

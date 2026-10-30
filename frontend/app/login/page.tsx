@@ -264,7 +264,7 @@ function LoginForm() {
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="ex: admin@unisphere.ai, enseignant, ou matricule..."
+                  placeholder="ex: chakirunisphereai@gmail.com ou matricule..."
                   required
                   className="w-full pl-11 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all"
                 />

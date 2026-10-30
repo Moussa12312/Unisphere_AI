@@ -3,8 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { 
-  GraduationCap, ShieldCheck, Mail, Phone, MapPin, 
+import {
+  GraduationCap, ShieldCheck, Mail, Phone, MapPin,
   ArrowUp, Sparkles, Smartphone, Download
 } from 'lucide-react';
 
@@ -28,10 +28,10 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
   return (
     <footer className="bg-slate-950 text-slate-300 pt-16 pb-12 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* Grille principale du footer */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 pb-12 border-b border-slate-800">
-          
+
           {/* Colonne 1 : Identité & Baseline (lg:col-span-4) */}
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-3">
@@ -57,11 +57,15 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
             <div className="pt-2 flex flex-col gap-2 text-xs text-slate-400 font-medium">
               <div className="flex items-center gap-2">
                 <MapPin size={15} className="text-[#FF6B00] shrink-0" />
-                <span>Abidjan, Côte d&apos;Ivoire • Desservant l&apos;ensemble de la zone UEMOA</span>
+                <span>Sotuba ACI, Bamako, Mali • Desservant la zone UEMOA</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail size={15} className="text-[#FF6B00] shrink-0" />
-                <span>contact@unisphere.ai</span>
+                <span>chakirunisphereai@gmail.com</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Phone size={15} className="text-[#FF6B00] shrink-0" />
+                <span>+223 94 37 21 23</span>
               </div>
             </div>
           </div>
@@ -73,32 +77,32 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
               <li>
-                <button 
-                  onClick={() => scrollToSection('hero')} 
+                <button
+                  onClick={() => scrollToSection('hero')}
                   className="hover:text-white transition-colors"
                 >
                   Accueil & Présentation
                 </button>
               </li>
               <li>
-                <button 
-                  onClick={() => scrollToSection('features')} 
+                <button
+                  onClick={() => scrollToSection('features')}
                   className="hover:text-white transition-colors"
                 >
                   Fonctionnalités LMD & Sécurité
                 </button>
               </li>
               <li>
-                <button 
-                  onClick={() => scrollToSection('pricing')} 
+                <button
+                  onClick={() => scrollToSection('pricing')}
                   className="hover:text-white transition-colors"
                 >
                   Grille Tarifaire Transparente
                 </button>
               </li>
               <li>
-                <button 
-                  onClick={() => scrollToSection('demo-preview')} 
+                <button
+                  onClick={() => scrollToSection('demo-preview')}
                   className="hover:text-white transition-colors"
                 >
                   Cockpit de Direction
@@ -161,7 +165,7 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-slate-400 font-medium">Zone géographique : Côte d&apos;Ivoire & Afrique de l&apos;Ouest</span>
+            <span className="text-slate-400 font-medium">Zone géographique : Bamako, Mali & zone UEMOA</span>
             <button
               onClick={scrollToTop}
               className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-colors"

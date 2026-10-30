@@ -149,7 +149,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nom@universite.ci"
+                  placeholder="chakirunisphereai@gmail.com"
                   required
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#FF6B00] focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
                 />

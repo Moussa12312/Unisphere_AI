@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { 
-  Check, ArrowRight, Sparkles, ShieldCheck, Zap, 
-  HelpCircle, CreditCard, Smartphone, CheckCircle2 
+import {
+  Check, ArrowRight, Sparkles, ShieldCheck, Zap,
+  HelpCircle, CreditCard, Smartphone, CheckCircle2
 } from 'lucide-react';
 
 interface PricingSectionProps {
@@ -17,7 +17,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
       name: 'Formule Découverte',
       periodBadge: 'Mensuel sans engagement',
       subtitle: 'Idéal pour piloter une filière test ou évaluer l’outil en conditions réelles.',
-      price: '49 000',
+      price: '150 000',
       currency: 'FCFA',
       period: '/ mois',
       equivalent: 'Sans engagement • Annulable à tout moment en 1 clic',
@@ -43,7 +43,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
       name: 'Formule Établissement',
       periodBadge: 'Semestriel recommandé',
       subtitle: 'La formule plébiscitée par les grandes écoles et instituts universitaires.',
-      price: '149 000',
+      price: '225 000',
       currency: 'FCFA',
       period: '/ mois',
       equivalent: 'Facturé par semestre (894 000 FCFA) • Soit ~298 FCFA / étudiant / mois',
@@ -67,7 +67,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
       name: 'Formule Campus Intégral',
       periodBadge: 'Annuel sérénité',
       subtitle: 'Tranquillité totale et personnalisation pour universités multi-campus.',
-      price: '249 000',
+      price: '275 000',
       currency: 'FCFA',
       period: '/ mois',
       equivalent: 'Facturé annuellement (2 mois offerts) • Économie de 498 000 FCFA',
@@ -91,7 +91,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
   return (
     <section id="pricing" className="py-20 bg-slate-50/70 border-b border-slate-200/80 scroll-mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* En-tête centré */}
         <div className="max-w-3xl mx-auto text-center mb-16">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 text-[#FF6B00] border border-orange-200 text-xs font-bold uppercase tracking-wider mb-4">
@@ -113,20 +113,18 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className={`relative rounded-3xl flex flex-col justify-between transition-all duration-300 ${
-                plan.popular
+              className={`relative rounded-3xl flex flex-col justify-between transition-all duration-300 ${plan.popular
                   ? 'bg-white border-2 border-[#FF6B00] shadow-2xl shadow-orange-500/10 lg:-translate-y-2'
                   : 'bg-white border border-slate-200/90 shadow-md hover:shadow-xl'
-              } p-7 sm:p-8`}
+                } p-7 sm:p-8`}
             >
               {/* Badge flottant pour la formule populaire ou meilleure offre */}
               {plan.badgeText && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className={`inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-xs font-extrabold tracking-wide uppercase shadow-md ${
-                    plan.popular
+                  <span className={`inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-xs font-extrabold tracking-wide uppercase shadow-md ${plan.popular
                       ? 'bg-gradient-to-r from-[#FF6B00] to-orange-600 text-white'
                       : 'bg-slate-900 text-white'
-                  }`}>
+                    }`}>
                     {plan.popular && <Sparkles size={12} />}
                     {plan.badgeText}
                   </span>
@@ -207,19 +205,19 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               <span>Moyens de paiement acceptés pour vos règlements & scolarités</span>
             </h4>
             <p className="text-xs text-slate-500 mt-1">
-              Paiement direct sécurisé et réconciliation automatique en Côte d&apos;Ivoire et dans toute la zone UEMOA.
+              Paiement direct sécurisé et réconciliation automatique au Mali et dans toute la zone UEMOA.
             </p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 text-center">
-            
+
             {/* Orange Money */}
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/90 flex flex-col items-center justify-center gap-1.5 hover:bg-orange-50/50 hover:border-orange-300 transition-colors">
               <div className="w-8 h-8 rounded-lg bg-[#FF6B00] text-white flex items-center justify-center font-black text-xs shadow-2xs">
                 OM
               </div>
               <span className="text-xs font-bold text-slate-800">Orange Money</span>
-              <span className="text-[10px] text-slate-500">CI & UEMOA</span>
+              <span className="text-[10px] text-slate-500">Mali & UEMOA</span>
             </div>
 
             {/* Wave */}
@@ -245,8 +243,8 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               <div className="w-8 h-8 rounded-lg bg-[#005CA9] text-white flex items-center justify-center font-black text-xs shadow-2xs">
                 M
               </div>
-              <span className="text-xs font-bold text-slate-800">Moov Money</span>
-              <span className="text-[10px] text-slate-500">Côte d&apos;Ivoire</span>
+              <span className="text-xs font-bold text-slate-800">Moov Africa</span>
+              <span className="text-[10px] text-slate-500">Malitel (Mali)</span>
             </div>
 
             {/* Cartes Bancaires Visa & Mastercard */}
