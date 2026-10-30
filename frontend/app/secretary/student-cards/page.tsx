@@ -38,45 +38,121 @@ interface Student {
   date_of_birth?: string | null;
 }
 
-// Thèmes de personnalisation de cartes
-const CARD_THEMES: Record<string, { id: string; name: string; gradient: string; accentText: string; dotBg: string }> = {
-  gold: {
-    id: 'gold',
-    name: 'Or Institutionnel',
-    gradient: 'linear-gradient(135deg, #0B192C 0%, #1E293B 100%)',
-    accentText: 'text-amber-300',
-    dotBg: 'bg-amber-400'
+// ==========================================
+// 🎨 4 DESIGNS OFFICIELS DE CARTES ÉTUDIANTS
+// ==========================================
+export type CardDesignType = 'radar' | 'vagues' | 'medaillon' | 'rubans';
+
+interface CardDesignInfo {
+  id: CardDesignType;
+  name: string;
+  tagline: string;
+  badge: string;
+  icon: string;
+  description: string;
+}
+
+const CARD_DESIGNS: CardDesignInfo[] = [
+  {
+    id: 'radar',
+    name: 'Tech Radar & Ondes',
+    tagline: 'Ondes numériques & Courbe asymétrique',
+    badge: 'Design 1',
+    icon: '📡',
+    description: 'Cercles concentriques haute précision avec en-tête asymétrique et capsule matricule'
   },
-  emerald: {
-    id: 'emerald',
-    name: 'Émeraude Prestige',
-    gradient: 'linear-gradient(135deg, #064E3B 0%, #0F766E 100%)',
-    accentText: 'text-emerald-300',
-    dotBg: 'bg-emerald-400'
+  {
+    id: 'vagues',
+    name: 'Vagues & Ondulations',
+    tagline: 'Courbe fluide moderne & Trame guillochée',
+    badge: 'Design 2',
+    icon: '🌊',
+    description: 'Ruban d\'en-tête galbé et fond sécurisé ondoyant anti-falsification'
   },
-  royal: {
-    id: 'royal',
-    name: 'Bleu Royal Nacre',
-    gradient: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
-    accentText: 'text-sky-300',
-    dotBg: 'bg-sky-400'
+  {
+    id: 'medaillon',
+    name: 'Prestige & Médaillon Doré',
+    tagline: 'Photo circulaire & Cerclage or royal',
+    badge: 'Design 3',
+    icon: '🏅',
+    description: 'Cadre photo rond avec double bague dorée, rosace centrale et sceau prestige'
   },
-  crimson: {
-    id: 'crimson',
-    name: 'Bordeaux Impérial',
-    gradient: 'linear-gradient(135deg, #4C0519 0%, #881337 100%)',
-    accentText: 'text-rose-200',
-    dotBg: 'bg-rose-400'
+  {
+    id: 'rubans',
+    name: 'Rubans & Facettes',
+    tagline: 'Facettes biseautées & Angles vifs',
+    badge: 'Design 4',
+    icon: '💎',
+    description: 'Liserés géométriques superposés, icônes filière/niveau et typographie ultra-nette'
   }
-};
+];
+
+// ==========================================
+// 🎨 PALETTES DE COULEURS INSTITUTIONNELLES
+// ==========================================
+interface ColorPreset {
+  id: string;
+  name: string;
+  primary: string;
+  secondary: string;
+  accent: string;
+  dotBg: string;
+}
+
+const COLOR_PRESETS: ColorPreset[] = [
+  {
+    id: 'bordeaux',
+    name: 'Bordeaux ECOB',
+    primary: '#6B1426',
+    secondary: '#430814',
+    accent: '#F59E0B',
+    dotBg: 'bg-[#6B1426]'
+  },
+  {
+    id: 'bleu',
+    name: 'Bleu Nuit Institutionnel',
+    primary: '#0B192C',
+    secondary: '#1E293B',
+    accent: '#38BDF8',
+    dotBg: 'bg-[#0B192C]'
+  },
+  {
+    id: 'emeraude',
+    name: 'Émeraude Prestige',
+    primary: '#064E3B',
+    secondary: '#022C22',
+    accent: '#34D399',
+    dotBg: 'bg-[#064E3B]'
+  },
+  {
+    id: 'royal',
+    name: 'Noir & Or Royal',
+    primary: '#18181B',
+    secondary: '#09090B',
+    accent: '#EAB308',
+    dotBg: 'bg-[#18181B]'
+  },
+  {
+    id: 'violet',
+    name: 'Violet Académique',
+    primary: '#4A0E4E',
+    secondary: '#250428',
+    accent: '#C084FC',
+    dotBg: 'bg-[#4A0E4E]'
+  }
+];
 
 export default function SecretaryStudentCardsPrintPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  // Thème & Sélection de badge (Étudiants vs Secrétaire)
-  const [cardTheme, setCardTheme] = useState<string>('gold');
+  // 4 Designs et Choix de Couleurs par la Secrétaire
+  const [selectedDesign, setSelectedDesign] = useState<CardDesignType>('radar');
+  const [selectedColorPreset, setSelectedColorPreset] = useState<string>('bordeaux');
+  const [customColor, setCustomColor] = useState<string>('#6B1426');
+
+  // Sélection de badge (Étudiants vs Secrétaire)
   const [cardScope, setCardScope] = useState<'students' | 'secretary'>('students');
   const [secretaryUser, setSecretaryUser] = useState<any>(null);
 
@@ -91,16 +167,22 @@ export default function SecretaryStudentCardsPrintPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'preview'>('preview');
   const [showPrintModal, setShowPrintModal] = useState(false);
 
-  // Informations de l'université
+  // Informations de l'université (Logo officiel garanti)
   const [universityInfo, setUniversityInfo] = useState<{
     name: string;
-    logo: string | null;
+    logo: string;
     academic_year: string;
   }>({
-    name: 'UNIVERSITÉ UNISPHERE',
-    logo: null,
+    name: 'ECOB',
+    logo: '/uploads/logos/university_1_1791668644.png',
     academic_year: '2026-2027'
   });
+
+  // Calcul des couleurs actives en direct
+  const activePreset = COLOR_PRESETS.find((c) => c.id === selectedColorPreset);
+  const activePrimaryColor = selectedColorPreset === 'custom' ? customColor : (activePreset?.primary || '#6B1426');
+  const activeSecondaryColor = selectedColorPreset === 'custom' ? customColor : (activePreset?.secondary || '#430814');
+  const activeAccentColor = selectedColorPreset === 'custom' ? '#F59E0B' : (activePreset?.accent || '#F59E0B');
 
   useEffect(() => {
     loadData();
@@ -127,8 +209,10 @@ export default function SecretaryStudentCardsPrintPage() {
 
       if (resUniv) {
         setUniversityInfo({
-          name: resUniv.name || 'UNIVERSITÉ UNISPHERE',
-          logo: resUniv.logo ? (resUniv.logo.startsWith('/') ? resUniv.logo : `/uploads/logos/${resUniv.logo}`) : null,
+          name: resUniv.name || 'ECOB',
+          logo: resUniv.logo
+            ? (resUniv.logo.startsWith('/') || resUniv.logo.startsWith('http') ? resUniv.logo : `/uploads/logos/${resUniv.logo}`)
+            : '/uploads/logos/university_1_1791668644.png',
           academic_year: resUniv.academic_year || '2026-2027'
         });
       }
@@ -229,8 +313,13 @@ export default function SecretaryStudentCardsPrintPage() {
     setFilterStatus('');
   };
 
-  // Helper pour photo ou initiales
-  const renderStudentPhoto = (student: Student, isSmall: boolean) => {
+  // Helper pour photo ou initiales (adaptatif au design médaillon ou rectangulaire)
+  const renderStudentPhoto = (
+    student: Student,
+    isSmall: boolean,
+    isMedaillon: boolean = false,
+    borderColor: string = '#6B1426'
+  ) => {
     const initials = `${(student.first_name || '')[0] || ''}${(student.last_name || '')[0] || ''}`.toUpperCase() || 'ET';
     const photoUrl = student.photo
       ? student.photo.startsWith('/') || student.photo.startsWith('http')
@@ -238,12 +327,45 @@ export default function SecretaryStudentCardsPrintPage() {
         : `/uploads/${student.photo}`
       : null;
 
-    // Agrandissement significatif de la photo pour une visibilité officielle optimale
+    // Design 3 : Médaillon circulaire cerclé d'or (Photo 3 bas-gauche)
+    if (isMedaillon) {
+      const circClass = isSmall ? 'w-14 h-14' : 'w-16 h-16';
+      if (photoUrl) {
+        return (
+          <div className={`relative ${circClass} rounded-full overflow-hidden border-[3px] border-amber-400 ring-2 ring-amber-500/50 bg-slate-100 flex-shrink-0 shadow-md`}>
+            <img
+              src={photoUrl}
+              alt={`${student.first_name} ${student.last_name}`}
+              className="w-full h-full object-cover rounded-full"
+              onError={(e: any) => {
+                e.currentTarget.style.display = 'none';
+                if (e.currentTarget.nextSibling) {
+                  e.currentTarget.nextSibling.style.display = 'flex';
+                }
+              }}
+            />
+            <div className="w-full h-full hidden flex-col items-center justify-center bg-gradient-to-br from-[#0F172A] to-[#1E3A8A] text-white font-black text-sm">
+              {initials}
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div className={`${circClass} rounded-full bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#1E3A8A] border-[3px] border-amber-400 ring-2 ring-amber-500/50 flex flex-col items-center justify-center text-white flex-shrink-0 shadow-md`}>
+          <span className="font-black text-sm tracking-wider text-amber-300">{initials}</span>
+        </div>
+      );
+    }
+
+    // Designs 1, 2, 4 : Rectangulaire avec bordure arrondie officielle
     const sizeClass = isSmall ? 'w-14 h-[68px]' : 'w-16 h-20';
 
     if (photoUrl) {
       return (
-        <div className={`relative ${sizeClass} rounded-lg overflow-hidden border border-slate-300 bg-slate-100 flex-shrink-0 shadow-xs`}>
+        <div
+          className={`relative ${sizeClass} rounded-xl overflow-hidden border-2 bg-slate-100 flex-shrink-0 shadow-xs`}
+          style={{ borderColor }}
+        >
           <img
             src={photoUrl}
             alt={`${student.first_name} ${student.last_name}`}
@@ -263,9 +385,318 @@ export default function SecretaryStudentCardsPrintPage() {
     }
 
     return (
-      <div className={`${sizeClass} rounded-lg bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#1E3A8A] border border-slate-300 flex flex-col items-center justify-center text-white flex-shrink-0 shadow-xs`}>
+      <div
+        className={`${sizeClass} rounded-xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#1E3A8A] border-2 flex flex-col items-center justify-center text-white flex-shrink-0 shadow-xs`}
+        style={{ borderColor }}
+      >
         <span className="font-black text-base tracking-wider text-amber-300">{initials}</span>
         <span className="text-[7px] font-bold uppercase tracking-wider text-white/70 mt-0.5">Élève</span>
+      </div>
+    );
+  };
+
+  // ========================================================
+  // 🌟 RENDU UNIVERSEL DE LA CARTE SELON LE DESIGN ET LA COULEUR
+  // ========================================================
+  const renderCardItem = (student: Student, isSmallCard: boolean) => {
+    const isMed = selectedDesign === 'medaillon';
+    const qrCodeUrl = `/api/v1/students/${student.id}/qrcode`;
+    const logoUrl = universityInfo.logo || '/uploads/logos/university_1_1791668644.png';
+
+    // Filigrane de sécurité selon le design
+    let backgroundStyle: React.CSSProperties = {};
+    if (selectedDesign === 'radar') {
+      backgroundStyle = {
+        backgroundImage: `radial-gradient(circle at 62% 48%, transparent 0, transparent 14px, ${activePrimaryColor}15 15px, ${activePrimaryColor}15 16px, transparent 17px),
+                          radial-gradient(circle at 62% 48%, transparent 0, transparent 32px, ${activePrimaryColor}10 33px, ${activePrimaryColor}10 34px, transparent 35px),
+                          radial-gradient(circle at 62% 48%, transparent 0, transparent 52px, ${activePrimaryColor}0D 53px, ${activePrimaryColor}0D 54px, transparent 55px),
+                          radial-gradient(circle at 62% 48%, transparent 0, transparent 74px, ${activePrimaryColor}09 75px, ${activePrimaryColor}09 76px, transparent 77px)`
+      };
+    } else if (selectedDesign === 'vagues') {
+      backgroundStyle = {
+        backgroundImage: `repeating-radial-gradient(ellipse at 100% 0%, ${activePrimaryColor}10 0, ${activePrimaryColor}10 5px, transparent 5px, transparent 11px)`
+      };
+    } else if (selectedDesign === 'medaillon') {
+      backgroundStyle = {
+        backgroundImage: `repeating-radial-gradient(circle at 20% 50%, ${activePrimaryColor}12 0, ${activePrimaryColor}12 4px, transparent 4px, transparent 9px)`
+      };
+    } else {
+      backgroundStyle = {
+        backgroundImage: `linear-gradient(135deg, ${activePrimaryColor}0C 25%, transparent 25%), linear-gradient(-135deg, ${activePrimaryColor}0C 25%, transparent 25%)`
+      };
+    }
+
+    return (
+      <div
+        key={student.id}
+        className={`student-card-printable relative bg-white border border-dashed border-slate-400/80 rounded-xl overflow-hidden flex flex-col justify-between transition-all ${
+          isTen ? 'h-[55.5mm] min-h-[55.5mm] max-h-[56.5mm]' : isCompact ? 'h-[68mm]' : 'h-[88mm]'
+        }`}
+        style={{
+          pageBreakInside: 'avoid',
+          breakInside: 'avoid',
+          fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+        }}
+      >
+        {/* ======================================================== */}
+        {/* EN-TÊTE DE CARTE                                         */}
+        {/* ======================================================== */}
+        {selectedDesign === 'radar' && (
+          <div
+            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative overflow-hidden ${
+              isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
+            }`}
+            style={{
+              background: `linear-gradient(135deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 100%)`
+            }}
+          >
+            <div className="flex items-center gap-1.5 min-w-0 z-10">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 p-[1.5px] shadow-xs flex-shrink-0">
+                <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden p-0.5">
+                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <div className="min-w-0 leading-none">
+                <div className="font-black text-[10.5px] tracking-wide uppercase truncate text-white">
+                  {universityInfo.name}
+                </div>
+                <div className="text-[7.5px] font-bold tracking-wider uppercase text-amber-300 mt-0.5">
+                  CARTE D'ÉTUDIANT
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 z-10">
+              <span className="text-[8px] font-mono font-black text-amber-200 bg-white/10 px-2 py-0.5 rounded border border-white/20">
+                {universityInfo.academic_year}
+              </span>
+            </div>
+
+            <div
+              className="absolute top-0 right-0 h-full w-28 bg-black/20 pointer-events-none"
+              style={{ clipPath: 'polygon(20% 0%, 100% 0%, 100% 100%, 0% 100%)' }}
+            />
+          </div>
+        )}
+
+        {selectedDesign === 'vagues' && (
+          <div
+            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative overflow-hidden ${
+              isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
+            }`}
+            style={{
+              background: `linear-gradient(90deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 70%, ${activePrimaryColor} 100%)`
+            }}
+          >
+            <div className="flex items-center gap-1.5 min-w-0 z-10">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 p-[1.5px] shadow-xs flex-shrink-0">
+                <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden p-0.5">
+                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <div className="min-w-0 leading-none">
+                <div className="font-black text-[10.5px] tracking-wide uppercase truncate text-white">
+                  {universityInfo.name}
+                </div>
+                <div className="text-[7.5px] font-bold tracking-wider uppercase text-sky-200 mt-0.5">
+                  CARTE D'ÉTUDIANT
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 z-10">
+              <span className="text-[8px] font-mono font-black text-white bg-white/20 px-2 py-0.5 rounded-full border border-white/30">
+                {universityInfo.academic_year}
+              </span>
+            </div>
+
+            <svg className="absolute bottom-0 right-0 w-36 h-full opacity-20 pointer-events-none" viewBox="0 0 100 30" preserveAspectRatio="none">
+              <path d="M0,15 C30,30 70,0 100,20 L100,30 L0,30 Z" fill="#ffffff" />
+            </svg>
+          </div>
+        )}
+
+        {selectedDesign === 'medaillon' && (
+          <div
+            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative ${
+              isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
+            }`}
+            style={{
+              background: `linear-gradient(135deg, ${activeSecondaryColor} 0%, ${activePrimaryColor} 100%)`
+            }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 p-[1.5px] shadow-xs flex-shrink-0">
+                <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden p-0.5">
+                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <div className="min-w-0 leading-none">
+                <div className="font-black text-[10.5px] tracking-wide uppercase truncate text-white">
+                  {universityInfo.name}
+                </div>
+                <div className="text-[7.5px] font-bold tracking-wider uppercase text-amber-300 mt-0.5">
+                  CARTE D'ÉTUDIANT • PRESTIGE
+                </div>
+              </div>
+            </div>
+
+            <span className="text-[8px] font-mono font-black text-amber-300 border border-amber-400/50 bg-black/20 px-2 py-0.5 rounded">
+              {universityInfo.academic_year}
+            </span>
+          </div>
+        )}
+
+        {selectedDesign === 'rubans' && (
+          <div
+            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative overflow-hidden ${
+              isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
+            }`}
+            style={{
+              background: `linear-gradient(110deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 65%, ${activePrimaryColor} 100%)`
+            }}
+          >
+            <div className="flex items-center gap-1.5 min-w-0 z-10">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 p-[1.5px] shadow-xs flex-shrink-0">
+                <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden p-0.5">
+                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <div className="min-w-0 leading-none">
+                <div className="font-black text-[10.5px] tracking-wide uppercase truncate text-white">
+                  {universityInfo.name}
+                </div>
+                <div className="text-[7.5px] font-bold tracking-wider uppercase text-rose-200 mt-0.5">
+                  CARTE OFFICIELLE D'ÉTUDIANT
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 z-10">
+              <span className="text-[8px] font-mono font-black text-amber-200 bg-white/10 px-2 py-0.5 rounded border border-white/20">
+                {universityInfo.academic_year}
+              </span>
+            </div>
+
+            <div className="absolute top-0 right-14 h-full w-12 bg-white/10 pointer-events-none transform -skew-x-12" />
+            <div className="absolute top-0 right-6 h-full w-8 bg-amber-400/20 pointer-events-none transform -skew-x-12" />
+          </div>
+        )}
+
+        {/* Liseré de sécurité tricolore/or selon le design */}
+        <div
+          className="h-[2px] w-full flex-shrink-0"
+          style={{
+            background:
+              selectedDesign === 'medaillon'
+                ? 'linear-gradient(90deg, #F59E0B 0%, #FDE047 50%, #D97706 100%)'
+                : selectedDesign === 'vagues'
+                ? 'linear-gradient(90deg, #38BDF8 0%, #818CF8 50%, #C084FC 100%)'
+                : selectedDesign === 'rubans'
+                ? `linear-gradient(90deg, ${activePrimaryColor} 0%, #F59E0B 50%, #38BDF8 100%)`
+                : 'linear-gradient(90deg, #06B6D4 0%, #F59E0B 50%, #EC4899 100%)'
+          }}
+        />
+
+        {/* ======================================================== */}
+        {/* CORPS DE LA CARTE AVEC FILIGRANE ET DONNÉES RÉELLES      */}
+        {/* ======================================================== */}
+        <div
+          className="px-2.5 py-1 flex items-center justify-between gap-2.5 flex-1 min-h-0 bg-white relative"
+          style={backgroundStyle}
+        >
+          {/* Photo de l'étudiant */}
+          <div className="flex flex-col items-center flex-shrink-0 z-10">
+            {renderStudentPhoto(student, isSmallCard, isMed, activePrimaryColor)}
+
+            {/* Puce microchip miniature */}
+            <div
+              className="w-6 h-2 rounded-[2px] border border-amber-600/80 relative overflow-hidden mt-0.5 shadow-2xs"
+              style={{
+                background: 'linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%)'
+              }}
+            >
+              <div className="w-full h-[1px] bg-amber-800/40 absolute top-1/2 -translate-y-1/2" />
+              <div className="h-full w-[1px] bg-amber-800/40 absolute left-1/2 -translate-x-1/2" />
+            </div>
+          </div>
+
+          {/* Informations : Nom, Prénom, Matricule, Filière, Niveau */}
+          <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5 z-10">
+            <div>
+              <span className="text-[7.5px] uppercase font-bold text-slate-400 block tracking-wider leading-none mb-0.5">
+                Nom :
+              </span>
+              <div className="text-[13.5px] font-black text-slate-950 leading-tight uppercase truncate tracking-tight">
+                {student.last_name}
+              </div>
+              <div className="text-[11.5px] font-bold text-slate-700 leading-tight capitalize truncate">
+                {student.first_name}
+              </div>
+            </div>
+
+            {/* Capsule Matricule Orange */}
+            <div className="my-0.5">
+              <span
+                className="inline-block px-2.5 py-0.5 rounded-md text-[10.5px] font-mono font-black text-white shadow-2xs tracking-wider"
+                style={{ backgroundColor: '#EA580C' }}
+              >
+                {student.matricule || `EC - 2026 - ${String(student.id).padStart(4, '0')}`}
+              </span>
+            </div>
+
+            {/* Filière & Niveau */}
+            <div className="text-[8.5px] text-slate-700 leading-tight space-y-0.5">
+              <div className="truncate">
+                <span className="font-bold text-slate-900">{selectedDesign === 'rubans' ? '🌐 ' : ''}Filière : </span>
+                <span className="font-semibold">{student.filiere || 'Logistique et Transport'}</span>
+              </div>
+              <div className="truncate flex items-center gap-1.5">
+                <span className="font-bold text-slate-900">{selectedDesign === 'rubans' ? '🎓 ' : ''}Niveau : </span>
+                <span className="font-extrabold text-blue-900 bg-blue-50 border border-blue-200/80 px-1.5 py-0.2 rounded text-[9px]">
+                  {student.level || 'L3'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* QR Code haute définition avec mention SCAN MOI ID CARD */}
+          <div className="flex flex-col items-center justify-center flex-shrink-0 z-10">
+            <div className="p-1 bg-white rounded-lg border border-slate-300 shadow-2xs">
+              <div className="w-16 h-16 flex items-center justify-center">
+                <img
+                  src={qrCodeUrl}
+                  alt="QR Code"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            </div>
+            <span className="text-[6.8px] font-mono font-black text-slate-800 mt-0.5 tracking-wider uppercase text-center leading-tight">
+              SCAN MOI<br/><span className="text-[6.2px] text-slate-500">ID CARD</span>
+            </span>
+          </div>
+        </div>
+
+        {/* ======================================================== */}
+        {/* PIED DE CARTE SÉCURISÉ                                   */}
+        {/* ======================================================== */}
+        <div
+          className="px-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[7.5px] text-slate-600 font-bold flex-shrink-0 h-4 relative"
+        >
+          <div className="flex items-center gap-1">
+            <div className="w-2.5 h-2.5 rounded-full overflow-hidden flex-shrink-0 border border-slate-300">
+              <img src={logoUrl} alt="Mini Seal" className="w-full h-full object-cover" />
+            </div>
+            <span className="font-bold text-slate-700 tracking-wider">EASOBE SÉCURISÉE & CERTIFIÉE</span>
+          </div>
+          <span className="font-mono text-slate-500 text-[6.8px]">
+            LIGNE ACADÉIF • {universityInfo.academic_year} • *Mentions administratives
+          </span>
+          <div
+            className="absolute bottom-0 left-0 right-0 h-[2px]"
+            style={{ backgroundColor: activePrimaryColor }}
+          />
+        </div>
       </div>
     );
   };
@@ -383,57 +814,184 @@ export default function SecretaryStudentCardsPrintPage() {
         </div>
 
         {/* ======================================================== */}
-        {/* SÉLECTEUR DE TYPE DE BADGE ET PERSONNALISATION */}
+        {/* SÉLECTEUR DE TYPE DE BADGE ET PERSONNALISATION           */}
         {/* ======================================================== */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setCardScope('students')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                cardScope === 'students'
-                  ? 'bg-[#FF6B00] text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <GraduationCap size={16} />
-              <span>Cartes Étudiantes ({students.length})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setCardScope('secretary')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                cardScope === 'secretary'
-                  ? 'bg-[#FF6B00] text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <ShieldCheck size={16} />
-              <span>Ma Carte Secrétariat (Badge Personnel)</span>
-            </button>
-          </div>
-
-          {/* PALETTE DES THÈMES DE COULEURS */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-slate-500 font-semibold flex items-center gap-1">
-              <Sparkles size={13} className="text-[#FF6B00]" />
-              Thème de carte :
-            </span>
-            {Object.values(CARD_THEMES).map((t) => (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
               <button
-                key={t.id}
                 type="button"
-                onClick={() => setCardTheme(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                  cardTheme === t.id
-                    ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
-                    : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                onClick={() => setCardScope('students')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  cardScope === 'students'
+                    ? 'bg-[#FF6B00] text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
-                <span className={`w-2.5 h-2.5 rounded-full ${t.dotBg}`} />
-                <span>{t.name}</span>
+                <GraduationCap size={16} />
+                <span>Cartes Étudiantes ({students.length})</span>
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setCardScope('secretary')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  cardScope === 'secretary'
+                    ? 'bg-[#FF6B00] text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <ShieldCheck size={16} />
+                <span>Ma Carte Secrétariat (Badge Personnel)</span>
+              </button>
+            </div>
+
+            {/* Logo officiel de l'université actif */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 p-[1.5px] shadow-xs">
+                <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden p-0.5">
+                  <img
+                    src={universityInfo.logo}
+                    alt="Logo Université"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+              <div className="text-xs">
+                <span className="font-black text-slate-900">{universityInfo.name}</span>
+                <span className="text-[10px] text-slate-500 block">Logo certifié sur tous les documents</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ======================================================== */}
+          {/* LES 4 MODÈLES OFFICIELS DE CARTES (Photos fournies)       */}
+          {/* ======================================================== */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Sparkles size={14} className="text-[#FF6B00]" />
+                1. Choisir le modèle de carte (4 designs officiels) :
+              </label>
+              <span className="text-[11px] font-bold text-orange-600">
+                Actif : {CARD_DESIGNS.find((d) => d.id === selectedDesign)?.name}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {CARD_DESIGNS.map((d) => {
+                const isSelected = selectedDesign === d.id;
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => setSelectedDesign(d.id)}
+                    className={`text-left p-3.5 rounded-2xl border-2 transition-all relative flex flex-col justify-between group ${
+                      isSelected
+                        ? 'border-[#FF6B00] bg-orange-50/30 shadow-md ring-2 ring-orange-400/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-xl">{d.icon}</span>
+                      <span
+                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          isSelected
+                            ? 'bg-[#FF6B00] text-white shadow-2xs'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {d.badge}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-black text-xs text-slate-900 group-hover:text-[#FF6B00] transition-colors">
+                        {d.name}
+                      </h4>
+                      <p className="text-[10.5px] font-semibold text-slate-600 mt-0.5">
+                        {d.tagline}
+                      </p>
+                      <p className="text-[9.5px] text-slate-400 mt-1 line-clamp-2 leading-tight">
+                        {d.description}
+                      </p>
+                    </div>
+
+                    {/* Aperçu miniature de la bordure et de l'accent */}
+                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[9px] font-bold">
+                      <span className={isSelected ? 'text-orange-600' : 'text-slate-400'}>
+                        {isSelected ? '✓ Sélectionné' : 'Cliquer pour appliquer'}
+                      </span>
+                      <div
+                        className="w-4 h-4 rounded-full border border-slate-300"
+                        style={{ backgroundColor: activePrimaryColor }}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ======================================================== */}
+          {/* PALETTE ET SÉLECTEUR DE COULEUR PERSONNALISÉE            */}
+          {/* ======================================================== */}
+          <div className="pt-3 border-t border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5 mr-1">
+                <SlidersHorizontal size={14} className="text-[#FF6B00]" />
+                2. Couleur institutionnelle :
+              </label>
+
+              {COLOR_PRESETS.map((p) => {
+                const isSelected = selectedColorPreset === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSelectedColorPreset(p.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                      isSelected
+                        ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full border border-white/50 shadow-2xs flex-shrink-0"
+                      style={{ backgroundColor: p.primary }}
+                    />
+                    <span>{p.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sélecteur de couleur personnalisée */}
+            <div className="flex items-center gap-2 p-1.5 bg-slate-50 rounded-xl border border-slate-200 text-xs font-bold">
+              <span className="text-slate-600 pl-1 text-[11px]">Couleur libre :</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={customColor}
+                  onChange={(e) => {
+                    setCustomColor(e.target.value);
+                    setSelectedColorPreset('custom');
+                  }}
+                  className="w-7 h-7 rounded-lg border-0 cursor-pointer p-0 bg-transparent"
+                  title="Choisir une couleur personnalisée"
+                />
+                <input
+                  type="text"
+                  value={selectedColorPreset === 'custom' ? customColor : activePrimaryColor}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomColor(val);
+                    setSelectedColorPreset('custom');
+                  }}
+                  className="w-20 px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-mono uppercase text-slate-800"
+                  placeholder="#6B1426"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -581,7 +1139,7 @@ export default function SecretaryStudentCardsPrintPage() {
                 {/* Header du badge */}
                 <div
                   className="px-3 py-2 flex items-center justify-between text-white"
-                  style={{ background: (CARD_THEMES[cardTheme] || CARD_THEMES.gold).gradient }}
+                  style={{ background: `linear-gradient(135deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 100%)` }}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     {universityInfo.logo ? (
@@ -599,7 +1157,7 @@ export default function SecretaryStudentCardsPrintPage() {
                       <p className="font-black text-[10px] tracking-wide uppercase truncate leading-tight">
                         {universityInfo.name}
                       </p>
-                      <p className={`text-[7px] font-bold uppercase tracking-wider ${(CARD_THEMES[cardTheme] || CARD_THEMES.gold).accentText}`}>
+                      <p className="text-[7px] font-bold uppercase tracking-wider text-amber-300">
                         CARTE DU PERSONNEL • SECRÉTARIAT
                       </p>
                     </div>
@@ -785,156 +1343,7 @@ export default function SecretaryStudentCardsPrintPage() {
                     boxSizing: 'border-box'
                   }}
                 >
-                {pageStudents.map((student) => {
-                  const qrCodeUrl = `/api/v1/students/${student.id}/qrcode`;
-
-                  return (
-                    <div
-                      key={student.id}
-                      className={`student-card-printable relative bg-white border border-dashed border-slate-400/80 rounded-xl overflow-hidden flex flex-col justify-between transition-all ${
-                        isTen ? 'h-[55.5mm] min-h-[55.5mm] max-h-[56.5mm]' : isCompact ? 'h-[68mm]' : 'h-[88mm]'
-                      }`}
-                      style={{
-                        pageBreakInside: 'avoid',
-                        breakInside: 'avoid',
-                        fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
-                      }}
-                    >
-                      {/* En-tête de la carte */}
-                      <div
-                        className={`px-3 flex items-center justify-between text-white flex-shrink-0 ${
-                          isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
-                        }`}
-                        style={{
-                          background: (CARD_THEMES[cardTheme] || CARD_THEMES.gold).gradient
-                        }}
-                      >
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          {universityInfo.logo ? (
-                            <img
-                              src={universityInfo.logo}
-                              alt="Logo"
-                              className="h-6 w-6 object-contain bg-white rounded-full p-0.5 border border-amber-400/50 flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="h-6 w-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 border border-white/30 text-amber-300">
-                              <Building2 size={13} />
-                            </div>
-                          )}
-                          <div className="min-w-0 leading-none">
-                            <div className="font-black text-[10.5px] tracking-wide uppercase truncate text-white">
-                              {universityInfo.name}
-                            </div>
-                            <div className={`text-[7.5px] font-bold tracking-wider uppercase mt-0.5 ${(CARD_THEMES[cardTheme] || CARD_THEMES.gold).accentText}`}>
-                              CARTE OFFICIELLE D'ÉTUDIANT
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-end flex-shrink-0">
-                          <span className="text-[8px] font-mono font-black text-amber-200 bg-white/10 px-2 py-0.5 rounded border border-white/20">
-                            {universityInfo.academic_year}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Liseré sécurité tricolore/or */}
-                      <div className="h-[2px] w-full bg-gradient-to-r from-[#FF6B00] via-amber-400 to-blue-500 flex-shrink-0" />
-
-                      {/* Corps de la carte */}
-                      <div className="px-2.5 py-1 flex items-center justify-between gap-2.5 flex-1 min-h-0 bg-white">
-                        {/* 1. Photo + Puce dorée */}
-                        <div className="flex flex-col items-center flex-shrink-0">
-                          {renderStudentPhoto(student, isTen || isCompact)}
-
-                          {/* Puce microchip miniature */}
-                          <div
-                            className="w-6 h-2 rounded-[2px] border border-amber-600/80 relative overflow-hidden mt-0.5 shadow-2xs"
-                            style={{
-                              background: 'linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%)'
-                            }}
-                          >
-                            <div className="w-full h-[1px] bg-amber-800/40 absolute top-1/2 -translate-y-1/2" />
-                            <div className="h-full w-[1px] bg-amber-800/40 absolute left-1/2 -translate-x-1/2" />
-                          </div>
-                        </div>
-
-                        {/* 2. Informations de l'étudiant (Nom, Prénom, Matricule très lisibles) */}
-                        <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
-                          <div>
-                            <span className="text-[7.5px] uppercase font-bold text-slate-400 block tracking-wider leading-none mb-0.5">
-                              TITULAIRE
-                            </span>
-                            <div className="text-[13.5px] font-black text-slate-950 leading-tight uppercase truncate tracking-tight">
-                              {student.last_name}
-                            </div>
-                            <div className="text-[11.5px] font-bold text-slate-700 leading-tight capitalize truncate">
-                              {student.first_name}
-                            </div>
-                          </div>
-
-                          {/* Matricule en capsule bien visible */}
-                          <div className="my-0.5">
-                            <span
-                              className="inline-block px-2.5 py-0.5 rounded-md text-[10.5px] font-mono font-black text-white shadow-2xs tracking-wider"
-                              style={{ backgroundColor: '#FF6B00' }}
-                            >
-                              {student.matricule || `ID-${student.id}`}
-                            </span>
-                          </div>
-
-                          {/* Filière & Niveau */}
-                          <div className="text-[8.5px] text-slate-700 leading-tight space-y-0.5">
-                            <div className="truncate">
-                              <span className="font-bold text-slate-900">Filière : </span>
-                              <span className="font-semibold">{student.filiere || 'Formation Supérieure'}</span>
-                            </div>
-                            <div className="truncate flex items-center gap-1.5">
-                              <span className="font-bold text-slate-900">Niveau : </span>
-                              <span className="font-extrabold text-blue-900 bg-blue-50 border border-blue-200/80 px-1.5 py-0.2 rounded text-[9px]">
-                                {student.level || 'L1'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 3. QR Code haute définition agrandi */}
-                        <div className="flex flex-col items-center justify-center flex-shrink-0">
-                          <div className="p-1 bg-white rounded-lg border border-slate-300 shadow-2xs">
-                            <div className="w-16 h-16 flex items-center justify-center">
-                              <img
-                                src={qrCodeUrl}
-                                alt="QR Code"
-                                className="w-full h-full object-contain"
-                              />
-                            </div>
-                          </div>
-                          <span className="text-[7px] font-mono font-black text-slate-600 mt-0.5 tracking-wider uppercase">
-                            SCAN ACCÈS
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Pied de carte avec hologramme */}
-                      <div
-                        className="px-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[7.5px] text-slate-600 font-bold flex-shrink-0 h-4"
-                      >
-                        <div className="flex items-center gap-1">
-                          <div
-                            className="w-2.5 h-2.5 rounded-full flex items-center justify-center text-[4px] font-black text-slate-900 shadow-2xs"
-                            style={{
-                              background: 'radial-gradient(circle, #67e8f9 0%, #c084fc 50%, #fde047 100%)'
-                            }}
-                          >
-                            ★
-                          </div>
-                          <span className="font-bold text-slate-700 tracking-wider">BADGE SÉCURISÉ & CERTIFIÉ</span>
-                        </div>
-                        <span className="font-mono text-slate-500 text-[7px]">UNISPHERE • {universityInfo.academic_year}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                {pageStudents.map((student) => renderCardItem(student, isTen || isCompact))}
                 </div>
               </div>
             </div>
@@ -978,23 +1387,9 @@ export default function SecretaryStudentCardsPrintPage() {
                 </span>
               </div>
 
-              {/* Aperçu compact des premières cartes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {selectedStudents.slice(0, 4).map((student) => (
-                  <div key={student.id} className="bg-white rounded-xl border border-slate-300 p-3 shadow-xs flex items-center gap-3">
-                    {renderStudentPhoto(student, true)}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-slate-900 text-xs uppercase truncate">
-                        {student.last_name} {student.first_name}
-                      </p>
-                      <p className="text-[11px] font-mono text-[#FF6B00] font-semibold">{student.matricule}</p>
-                      <p className="text-[10px] text-slate-500 truncate">{student.filiere} • {student.level}</p>
-                      <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-bold rounded-full">
-                        Badge Sécurisé
-                      </span>
-                    </div>
-                  </div>
-                ))}
+              {/* Aperçu fidèle grand format des premières cartes avec le design choisi */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {selectedStudents.slice(0, 4).map((student) => renderCardItem(student, true))}
               </div>
 
               {selectedStudents.length > 4 && (

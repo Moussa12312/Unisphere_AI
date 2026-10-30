@@ -57,7 +57,7 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
             <div className="pt-2 flex flex-col gap-2 text-xs text-slate-400 font-medium">
               <div className="flex items-center gap-2">
                 <MapPin size={15} className="text-[#FF6B00] shrink-0" />
-                <span>Sotuba ACI, Bamako, Mali • Desservant la zone UEMOA</span>
+                <span>Yirimadio Zerny, Bamako, Mali • Desservant la zone UEMOA</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail size={15} className="text-[#FF6B00] shrink-0" />

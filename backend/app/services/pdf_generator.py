@@ -160,16 +160,19 @@ def generate_enrollment_certificate_pdf(
 
     elements = []
 
-    # En-tête national & universitaire
+    # En-tête national & universitaire avec Logo officiel
+    logo_flowable = get_dynamic_university_logo_flowable(university)
     header_data = [
         [
+            logo_flowable,
             Paragraph("<b>RÉPUBLIQUE DU MALI</b><br/><i>Un Peuple - Un But - Une Foi</i><br/>---------<br/><b>MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR<br/>ET DE LA RECHERCHE SCIENTIFIQUE</b>", h_republic),
             Paragraph(f"<b>N° RÉFÉRENCE :</b><br/><font color='#FF6B00'>{cert_num}</font><br/><br/><b>DATE D'ÉMISSION :</b><br/>{datetime.now().strftime('%d/%m/%Y')}", ParagraphStyle('RefStyle', fontName='Helvetica', fontSize=8.5, alignment=TA_RIGHT, leading=11))
         ]
     ]
-    t_header = Table(header_data, colWidths=[10.5 * cm, 6.5 * cm])
+    t_header = Table(header_data, colWidths=[4.2 * cm, 8.0 * cm, 4.8 * cm])
     t_header.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
     ]))
@@ -339,15 +342,22 @@ def generate_success_certificate_pdf(
 
     elements = []
 
-    # En-tête national
+    # En-tête national avec Logo officiel de l'université
+    logo_flowable = get_dynamic_university_logo_flowable(university)
     header_data = [
         [
+            logo_flowable,
             Paragraph("<b>RÉPUBLIQUE DU MALI</b><br/><i>Un Peuple - Un But - Une Foi</i><br/>---------<br/><b>MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR<br/>ET DE LA RECHERCHE SCIENTIFIQUE</b>", h_republic),
             Paragraph(f"<b>N° DIPLÔME :</b><br/><font color='#D97706'>{cert_num}</font><br/><br/><b>DÉLIVRÉ LE :</b><br/>{datetime.now().strftime('%d/%m/%Y')}", ParagraphStyle('RefStyle2', fontName='Helvetica', fontSize=8.5, alignment=TA_RIGHT, leading=11))
         ]
     ]
-    t_header = Table(header_data, colWidths=[10.5 * cm, 6.5 * cm])
-    t_header.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+    t_header = Table(header_data, colWidths=[4.2 * cm, 8.0 * cm, 4.8 * cm])
+    t_header.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+    ]))
     elements.append(t_header)
     elements.append(Spacer(1, 0.4 * cm))
 
@@ -1154,15 +1164,22 @@ def generate_financial_clearance_pdf(
 
     elements = []
 
-    # En-tête
+    # En-tête avec Logo officiel de l'université
+    logo_flowable = get_dynamic_university_logo_flowable(university)
     header_data = [
         [
+            logo_flowable,
             Paragraph(f"<b>{univ_name}</b><br/><font size=8 color='#475569'>Direction Administrative & Financière (DAF)<br/>Service de la Comptabilité et du Recouvrement</font>", ParagraphStyle('FHead1', fontSize=10, leading=13)),
             Paragraph(f"<b>N° RÉFÉRENCE :</b><br/><font color='#0F172A'><b>{ref_num}</b></font><br/><br/><b>DATE :</b> {datetime.now().strftime('%d/%m/%Y')}", ParagraphStyle('FHead2', fontSize=9, alignment=TA_RIGHT, leading=12))
         ]
     ]
-    t_head = Table(header_data, colWidths=[11.0 * cm, 6.0 * cm])
-    t_head.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+    t_head = Table(header_data, colWidths=[3.8 * cm, 7.8 * cm, 5.4 * cm])
+    t_head.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+    ]))
     elements.append(t_head)
     elements.append(Spacer(1, 0.4 * cm))
 
