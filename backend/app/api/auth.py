@@ -43,7 +43,7 @@ def get_auth_context(db: Session = Depends(get_db)):
             "logo": univ.logo if univ else None
         },
         "quick_accounts": [
-            { "role": "super_admin", "label": "Super Admin", "email": "superadmin@unisphere.ai", "name": "Moussa Coulibaly", "department": "Plateforme SaaS" },
+            
             { "role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration" },
             { "role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie" },
             { "role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD" },
@@ -544,7 +544,7 @@ def platform_contact(db: Session = Depends(get_db)):
 def auth_context(db: Session = Depends(get_db)):
     univ = db.query(University).first()
     quick_accounts = [
-        {"role": "super_admin", "label": "Super Admin", "email": "superadmin@unisphere.ai", "name": "Moussa Coulibaly", "department": "Plateforme SaaS"},
+        
         {"role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration"},
         {"role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie"},
         {"role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD"},

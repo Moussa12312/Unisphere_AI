@@ -177,3 +177,4 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
     </footer>
   );
 }
+

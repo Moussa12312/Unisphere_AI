@@ -190,3 +190,4 @@ export default function LandingHeader({ onOpenLogin, onOpenRegister }: LandingHe
     </header>
   );
 }
+

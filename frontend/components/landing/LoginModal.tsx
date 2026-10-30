@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { 
   X, Mail, Lock, Eye, EyeOff, LogIn, ArrowRight, 
-  Crown, Building2, GraduationCap, Users, FileText, 
+  Building2, GraduationCap, Users, FileText, 
   CreditCard, Shield, Award, HelpCircle, CheckCircle2 
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -15,14 +15,16 @@ interface LoginModalProps {
   onSwitchToRegister: () => void;
 }
 
+// Comptes réels liés à l'Université Démo ECOB (Sans Super Admin)
 const QUICK_ACCOUNTS = [
-  { role: 'super_admin', label: 'Super Admin', email: 'superadmin@unisphere.ai', icon: Crown, color: 'text-amber-500' },
-  { role: 'admin', label: 'Direction', email: 'admin@unisphere.ai', icon: Building2, color: 'text-blue-600' },
-  { role: 'teacher', label: 'Professeur', email: 'enseignant@unisphere.ai', icon: GraduationCap, color: 'text-emerald-600' },
-  { role: 'student', label: 'Étudiant', email: 'etudiant@unisphere.ai', icon: Users, color: 'text-cyan-600' },
-  { role: 'secretary', label: 'Secrétaire', email: 'secretaire@unisphere.ai', icon: FileText, color: 'text-indigo-600' },
-  { role: 'accountant', label: 'Comptable', email: 'comptable@unisphere.ai', icon: CreditCard, color: 'text-emerald-600' },
-  { role: 'alumni', label: 'Alumni', email: 'alumni@unisphere.ai', icon: Award, color: 'text-orange-500' },
+  { role: 'admin', label: 'Direction', sub: 'ECOB Admin', email: 'admin@unisphere.ai', icon: Building2, color: 'text-blue-600' },
+  { role: 'teacher', label: 'Professeur', sub: 'Corps Professoral', email: 'enseignant@unisphere.ai', icon: GraduationCap, color: 'text-emerald-600' },
+  { role: 'student', label: 'Étudiant', sub: 'L3 Logistique', email: 'etudiant@unisphere.ai', icon: Users, color: 'text-cyan-600' },
+  { role: 'secretary', label: 'Secrétaire', sub: 'Scolarité Générale', email: 'secretaire@unisphere.ai', icon: FileText, color: 'text-indigo-600' },
+  { role: 'censeur', label: 'Censeur', sub: 'Direction Études', email: 'censeur@unisphere.ai', icon: Shield, color: 'text-purple-600' },
+  { role: 'accountant', label: 'Comptable', sub: 'Finances & Recouvrement', email: 'comptable@unisphere.ai', icon: CreditCard, color: 'text-emerald-600' },
+  { role: 'guard', label: 'Poste Garde', sub: 'Portique & QR Code', email: 'gardien@unisphere.ai', icon: Shield, color: 'text-slate-600' },
+  { role: 'alumni', label: 'Alumni', sub: 'Réseau Diplômés', email: 'alumni@unisphere.ai', icon: Award, color: 'text-orange-500' },
 ];
 
 export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: LoginModalProps) {
@@ -37,9 +39,11 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
   const performLogin = async (loginEmail: string, loginPass: string) => {
     setLoading(true);
     try {
-      const response = await api.post('/api/auth/token', {
+      // Appel direct de l'API de connexion
+      const response = await api.post('/api/v1/auth/login', {
         email: loginEmail.trim().toLowerCase(),
         password: loginPass,
+        remember_me: true,
       });
 
       const data = response.data;
@@ -47,14 +51,14 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
       const token = data.access_token;
 
       if (!token || !userData) {
-        throw new Error('Identifiants ou réponse invalide');
+        throw new Error('Réponse invalide du serveur d’authentification');
       }
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('role', userData.role);
 
-      toast.success(`Bienvenue ${userData.full_name || ''} ! Redirection en cours...`);
+      toast.success(`Connexion réussie : Bienvenue ${userData.full_name || ''} !`);
 
       const routes: Record<string, string> = {
         admin: '/admin/dashboard',
@@ -65,18 +69,16 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
         accountant: '/accountant/dashboard',
         guard: '/guard',
         alumni: '/alumni/dashboard',
-        super_admin: '/superadmin/dashboard',
-        superadmin: '/superadmin/dashboard',
       };
 
-      const targetRoute = routes[userData.role] || '/login';
+      const targetRoute = routes[userData.role] || '/admin/dashboard';
       setTimeout(() => {
         window.location.href = targetRoute;
       }, 400);
 
     } catch (err: any) {
       setLoading(false);
-      let errorMsg = 'Identifiants invalides ou compte inactif.';
+      let errorMsg = 'Identifiants incorrects ou compte inactif.';
       if (err.response?.data?.detail) {
         const detail = err.response.data.detail;
         errorMsg = typeof detail === 'string' ? detail : JSON.stringify(detail);
@@ -95,6 +97,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
   };
 
   const handleQuickLogin = (quickEmail: string) => {
+    if (loading) return;
     setEmail(quickEmail);
     setPassword('unisphere2026');
     performLogin(quickEmail, 'unisphere2026');
@@ -105,18 +108,18 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
       
       {/* Container Modale */}
       <div 
-        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col max-h-[90vh]"
+        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* En-tête Modale */}
         <div className="bg-slate-900 text-white px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#FF6B00] text-white flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-[#FF6B00] text-white flex items-center justify-center shadow-xs">
               <LogIn size={18} />
             </div>
             <div>
-              <h3 className="text-base font-extrabold tracking-tight">Espace Connexion UniSphere</h3>
-              <p className="text-xs text-slate-400">Accédez à votre cockpit universitaire sécurisé</p>
+              <h3 className="text-base font-extrabold tracking-tight">Espace Connexion • Démo ECOB</h3>
+              <p className="text-xs text-slate-400">Connectez-vous avec vos identifiants ou testez en 1 clic</p>
             </div>
           </div>
 
@@ -192,10 +195,10 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
               <div className="p-3.5 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-950 space-y-1 animate-in fade-in duration-150">
                 <p className="font-bold flex items-center gap-1.5">
                   <HelpCircle size={15} className="text-[#FF6B00]" />
-                  Réinitialisation sécurisée par l&apos;Administration
+                  Réinitialisation gérée par l&apos;Administration
                 </p>
                 <p className="text-slate-600">
-                  Pour des raisons de conformité et de protection des données étudiantes, contactez votre Secrétariat ou votre Administrateur système pour réinitialiser vos accès.
+                  Pour des raisons de sécurité académique, contactez le Secrétariat ou votre Administrateur système pour réinitialiser votre accès.
                 </p>
               </div>
             )}
@@ -209,7 +212,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
               {loading ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <span>Vérification des identifiants...</span>
+                  <span>Connexion en cours...</span>
                 </>
               ) : (
                 <>
@@ -220,18 +223,19 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
             </button>
           </form>
 
-          {/* Section Démo Rapide 1-Clic */}
+          {/* Section Démo Rapide 1-Clic sur données réelles ECOB */}
           <div className="pt-5 border-t border-slate-200">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Accès Rapide Démo (1-clic) :
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600" />
+                Comptes Démo Réels (1-clic) :
               </span>
-              <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                Comptes de test pré-configurés
+              <span className="text-[11px] font-semibold text-slate-500 font-mono">
+                Données réelles ECOB
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {QUICK_ACCOUNTS.map((acc) => {
                 const IconComponent = acc.icon;
                 return (
@@ -240,17 +244,17 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
                     type="button"
                     disabled={loading}
                     onClick={() => handleQuickLogin(acc.email)}
-                    className="p-2 rounded-xl bg-slate-50 hover:bg-orange-50/80 border border-slate-200/90 hover:border-orange-300 text-left transition-all flex items-center gap-2 group active:scale-95 disabled:opacity-50"
+                    className="p-2.5 rounded-xl bg-slate-50 hover:bg-orange-50/80 border border-slate-200/90 hover:border-orange-300 text-left transition-all flex items-center gap-2.5 group active:scale-95 disabled:opacity-50"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-white shadow-2xs border border-slate-200 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <IconComponent size={14} className={acc.color} />
+                    <div className="w-8 h-8 rounded-lg bg-white shadow-2xs border border-slate-200 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <IconComponent size={15} className={acc.color} />
                     </div>
                     <div className="overflow-hidden">
                       <p className="text-xs font-bold text-slate-800 truncate group-hover:text-[#FF6B00]">
                         {acc.label}
                       </p>
-                      <p className="text-[10px] text-slate-500 font-mono truncate">
-                        1-clic
+                      <p className="text-[10px] text-slate-500 truncate">
+                        {acc.sub}
                       </p>
                     </div>
                   </button>
@@ -263,7 +267,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
 
         {/* Pied Modale : Bascule vers Inscription */}
         <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 text-center text-xs text-slate-600">
-          <span>Vous n&apos;avez pas encore de compte pour votre université ? </span>
+          <span>Vous souhaitez créer un espace pour votre université ? </span>
           <button
             type="button"
             onClick={() => {
@@ -272,7 +276,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
             }}
             className="font-bold text-[#FF6B00] hover:underline ml-1"
           >
-            Créer un compte / Essai gratuit
+            Démarrer l&apos;essai gratuit
           </button>
         </div>
 

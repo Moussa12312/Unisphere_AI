@@ -292,3 +292,4 @@ export default function HeroSection({ onOpenLogin, onOpenRegister }: HeroSection
     </section>
   );
 }
+

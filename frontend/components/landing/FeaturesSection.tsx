@@ -141,3 +141,4 @@ export default function FeaturesSection({ onOpenRegister }: FeaturesSectionProps
     </section>
   );
 }
+
