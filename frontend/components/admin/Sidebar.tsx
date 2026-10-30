@@ -10,7 +10,7 @@ import {
   ClipboardList, Receipt, AlertCircle, FileCheck, School, Building2, DollarSign, Shield, KeyRound,
   QrCode, Edit3, Clock, AlertTriangle, RotateCcw, FileBarChart,
   BrainCircuit, UserPlus, Folder, Users2, ScrollText, FileSearch, Scale, Lock, HelpCircle,
-  Layers, FileSpreadsheet, Printer, Megaphone
+  Layers, FileSpreadsheet, Printer, Megaphone, LogOut, X
 } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { useRouter } from 'next/navigation';
@@ -592,6 +592,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
   const { logoUrl, universityName, slogan, loading } = useUniversityLogo();
   const { settings } = useSettings();
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -612,9 +613,9 @@ export default function Sidebar({ userRole }: SidebarProps) {
     );
   };
 
-  const handleLogout = () => {
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
     authService.logout();
-    router.push('/login');
   };
 
   const getRoleLabel = () => {
@@ -636,6 +637,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
   const sidebarBg = settings?.sidebarColor || '#0a1628';
 
   return (
+    <>
     <aside style={{ backgroundColor: sidebarBg }} className="h-screen w-58 text-white flex flex-col overflow-hidden transition-colors duration-200">
 
       {/* En-tête de la Sidebar - SaaS Modern Style */}
@@ -725,12 +727,94 @@ export default function Sidebar({ userRole }: SidebarProps) {
         ))}
       </nav>
 
-      {/* USER PROFILE et Slogan */}
-      <div className="border-t border-white/10 bg-[#0a1628] flex-shrink-0 p-1 mb-3">
-        <p className=" ml-3 text-xs text-slate-500">
+      {/* USER PROFILE et Déconnexion */}
+      <div className="border-t border-white/10 bg-[#0a1628] flex-shrink-0 p-3 mb-1 space-y-2">
+        <button
+          type="button"
+          onClick={() => setShowLogoutConfirm(true)}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-600/30 border border-rose-500/20 active:scale-98 transition-all"
+        >
+          <LogOut size={15} />
+          <span>Se déconnecter</span>
+        </button>
+        <p className="text-[11px] text-slate-500 text-center">
           Propulsé par <span className="text-[#FF6B00] font-semibold">UniSphere AI</span>
         </p>
       </div>
     </aside>
+
+    {/* Modal de confirmation de déconnexion responsive depuis la Sidebar */}
+    {showLogoutConfirm && (
+      <div 
+        className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-150"
+        onClick={() => setShowLogoutConfirm(false)}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sidebar-logout-title"
+      >
+        <div 
+          className="relative w-full max-w-sm sm:max-w-md bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/90 p-5 sm:p-6 my-auto overflow-hidden animate-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Bouton fermeture d'angle */}
+          <button
+            type="button"
+            onClick={() => setShowLogoutConfirm(false)}
+            className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            aria-label="Fermer la boîte de dialogue"
+          >
+            <X size={18} />
+          </button>
+
+          {/* En-tête de confirmation */}
+          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 mb-4 pr-6 sm:pr-8">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 bg-red-100 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 text-red-600 shadow-2xs">
+              <LogOut className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
+            </div>
+            <div className="min-w-0">
+              <h3 id="sidebar-logout-title" className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight leading-snug">
+                Confirmation de déconnexion
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-relaxed">
+                Souhaitez-vous fermer votre session sécurisée ?
+              </p>
+            </div>
+          </div>
+
+          {/* Encadré d'information sur la session */}
+          <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 mb-5 space-y-1">
+            <div className="flex items-center justify-between font-semibold text-slate-800">
+              <span className="truncate">Utilisateur : {currentUser?.full_name || 'Utilisateur'}</span>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-orange-100 text-orange-800 shrink-0">
+                {getRoleLabel()}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Vous devrez renseigner à nouveau vos identifiants pour accéder à cet espace.
+            </p>
+          </div>
+
+          {/* Actions Responsive */}
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => setShowLogoutConfirm(false)}
+              className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 active:scale-98 rounded-xl transition-all text-center"
+            >
+              Rester connecté
+            </button>
+            <button
+              type="button"
+              onClick={confirmLogout}
+              className="w-full sm:w-auto px-5 py-2.5 sm:py-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 active:scale-98 rounded-xl transition-all shadow-md shadow-red-600/25 flex items-center justify-center gap-2 text-center"
+            >
+              <LogOut size={16} />
+              <span>Oui, me déconnecter</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
