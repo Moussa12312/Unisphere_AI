@@ -11,6 +11,10 @@ BASE_URL = "http://127.0.0.1:8000/api/v1"
 PASSWORD = "unisphere2026"
 
 ROLES_USERS = {
+    "super_admin": ("superadmin@unisphere.ai", [
+        ("/superadmin/dashboard-stats", "GET"),
+        ("/superadmin/universities", "GET"),
+    ]),
     "student": ("etudiant@unisphere.ai", [
         ("/students/me", "GET"),
         ("/students/me/dashboard", "GET"),
