@@ -65,7 +65,9 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
               </div>
               <div className="flex items-center gap-2">
                 <Phone size={15} className="text-[#FF6B00] shrink-0" />
-                <span>+223 94 37 21 23</span>
+                <a href="tel:+22373343493" className="hover:text-white transition-colors font-medium">
+                  +223 73 34 34 93
+                </a>
               </div>
             </div>
           </div>
