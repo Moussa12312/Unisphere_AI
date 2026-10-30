@@ -18,6 +18,8 @@ export interface Settings {
   
   // Apparence
   theme: string;  // ID du thème (ex: 'light-orange', 'dark-blue')
+  sidebarColor?: string; // Couleur de la barre latérale (ex: '#0a1628')
+  buttonColor?: string; // Couleur des boutons (ex: '#FF6B00')
   customPrimaryColor?: string; // Code HEX personnalisé (ex: '#8B5CF6')
   language: Language;
   density: 'compact' | 'comfortable' | 'spacious';
@@ -35,7 +37,8 @@ export interface SettingsContextType {
   settings: Settings;
   updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
   updateSettings: (newSettings: Partial<Settings>) => void;
-  resetSettings: () => void;
+  resetSettings: () => Promise<void>;
+  saveSettingsToServer: (customSettings?: Settings) => Promise<boolean>;
   isDarkMode: boolean;
   t: Translation;  // Traductions
 }
@@ -49,6 +52,8 @@ export const defaultSettings: Settings = {
   grades_notifications: true,
   payments_notifications: true,
   theme: 'light-orange',  // Thème par défaut
+  sidebarColor: '#0a1628',
+  buttonColor: '#FF6B00',
   customPrimaryColor: '#FF6B00',
   language: 'fr',
   density: 'comfortable',
@@ -70,13 +75,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     loadSettings();
   }, []);
 
-  // Appliquer le thème
+  // Appliquer le thème et les couleurs (sidebar + boutons)
   useEffect(() => {
     if (!isLoaded) return;
     const theme = getThemeById(settings.theme);
-    applyThemeToDOM(theme, settings.customPrimaryColor);
+    const activeBtnColor = settings.buttonColor || settings.customPrimaryColor || '#FF6B00';
+    const activeSidebarColor = settings.sidebarColor || '#0a1628';
+    applyThemeToDOM(theme, activeBtnColor, activeSidebarColor);
     setIsDarkMode(theme.mode === 'dark');
-  }, [settings.theme, settings.customPrimaryColor, isLoaded]);
+  }, [settings.theme, settings.customPrimaryColor, settings.buttonColor, settings.sidebarColor, isLoaded]);
 
   // Appliquer la densité
   useEffect(() => {
@@ -94,15 +101,36 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     try {
       if (typeof window === 'undefined') return;
       const saved = localStorage.getItem('app_settings');
-      let localParsed = {};
+      let localParsed: Partial<Settings> = {};
       if (saved) {
-        localParsed = JSON.parse(saved);
-        setSettings(prev => ({ ...prev, ...localParsed }));
+        try {
+          localParsed = JSON.parse(saved);
+          setSettings(prev => ({ ...prev, ...localParsed }));
+        } catch {
+          localParsed = {};
+        }
       }
 
-      // Tenter de charger le profil université pour synchroniser les couleurs d'établissement
       const token = localStorage.getItem('token');
       if (token) {
+        // 1. Charger les préférences personnelles réelles de l'utilisateur en base de données
+        try {
+          const prefRes = await api.get('/api/v1/users/preferences');
+          if (prefRes.data && Object.keys(prefRes.data).length > 0) {
+            localParsed = { ...localParsed, ...prefRes.data };
+            setSettings(prev => {
+              const merged = { ...prev, ...prefRes.data };
+              try {
+                localStorage.setItem('app_settings', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
+          }
+        } catch {
+          // Hors ligne ou token expiré
+        }
+
+        // 2. Tenter de charger le profil université pour synchroniser les couleurs d'établissement
         try {
           const res = await api.get('/api/v1/settings/university/profile');
           if (res.data) {
@@ -110,11 +138,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
               const updated = {
                 ...prev,
                 ...localParsed,
-                ...(res.data.theme ? { theme: res.data.theme } : {}),
-                ...(res.data.primary_color ? { customPrimaryColor: res.data.primary_color } : {}),
-                ...(res.data.language ? { language: res.data.language } : {}),
+                ...(res.data.theme && !localParsed.theme ? { theme: res.data.theme } : {}),
+                ...(res.data.primary_color && !localParsed.customPrimaryColor ? { customPrimaryColor: res.data.primary_color } : {}),
+                ...(res.data.language && !localParsed.language ? { language: res.data.language } : {}),
               };
-              saveSettings(updated);
+              try {
+                localStorage.setItem('app_settings', JSON.stringify(updated));
+              } catch {}
               return updated;
             });
           }
@@ -129,12 +159,35 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const saveSettings = (newSettings: Settings) => {
+  const saveSettings = async (newSettings: Settings) => {
     try {
       if (typeof window === 'undefined') return;
       localStorage.setItem('app_settings', JSON.stringify(newSettings));
+
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          await api.put('/api/v1/users/preferences', newSettings);
+        } catch (e) {
+          // Silencieux pour sauvegarde en arrière-plan
+        }
+      }
     } catch (error) {
       console.error('Erreur sauvegarde paramètres:', error);
+    }
+  };
+
+  const saveSettingsToServer = async (customSettings?: Settings): Promise<boolean> => {
+    const toSave = customSettings || settings;
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('app_settings', JSON.stringify(toSave));
+      }
+      const res = await api.put('/api/v1/users/preferences', toSave);
+      return res.status === 200;
+    } catch (error) {
+      console.error('Erreur saveSettingsToServer:', error);
+      throw error;
     }
   };
 
@@ -173,9 +226,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const resetSettings = () => {
+  const resetSettings = async () => {
     setSettings(defaultSettings);
-    saveSettings(defaultSettings);
+    await saveSettings(defaultSettings);
   };
 
   const t = getTranslation(settings.language);
@@ -186,6 +239,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       updateSetting, 
       updateSettings, 
       resetSettings,
+      saveSettingsToServer,
       isDarkMode,
       t 
     }}>
@@ -203,7 +257,8 @@ export function useSettings(): SettingsContextType {
       settings: defaultSettings,
       updateSetting: () => {},
       updateSettings: () => {},
-      resetSettings: () => {},
+      resetSettings: async () => {},
+      saveSettingsToServer: async () => false,
       isDarkMode: false,
       t: translations.fr,
     };

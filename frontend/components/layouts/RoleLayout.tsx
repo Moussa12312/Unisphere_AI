@@ -5,12 +5,19 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import Sidebar from '@/components/admin/Sidebar';
 import Header from '@/components/admin/Header';
-import FloatingAIButton from '@/components/FloatingAIButton';  // ✅ AJOUT
+import FloatingAIButton from '@/components/FloatingAIButton';
+import MobileBottomNav from '@/components/layouts/MobileBottomNav';
+
+import api from '@/lib/api';
 
 interface User {
+  id?: number;
   email: string;
   role: string;
   full_name: string;
+  photo?: string;
+  phone?: string;
+  university_id?: number;
 }
 
 interface RoleLayoutProps {
@@ -50,12 +57,32 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
     const token = localStorage.getItem('token');
 
     if (!currentUser || !token || !memoizedAllowedRoles.includes(currentUser.role)) {
-      // ✅ Utiliser window.location pour éviter la boucle Next.js
       window.location.href = '/login';
-    } else {
-      setUser(currentUser);
+      return;
     }
+
+    setUser(currentUser);
     setLoading(false);
+
+    // Rafraîchir les informations de l'utilisateur (dont sa photo) depuis le backend
+    api.get('/api/v1/auth/me').then(res => {
+      if (res.data) {
+        const updated = { ...currentUser, ...res.data };
+        setUser(updated);
+        localStorage.setItem('user', JSON.stringify(updated));
+      }
+    }).catch(() => {});
+
+    // Écouter les mises à jour locales de profil (ex: upload photo dans paramètres)
+    const handleUserUpdate = () => {
+      const refreshed = getUserFromStorage();
+      if (refreshed) {
+        setUser(refreshed);
+      }
+    };
+
+    window.addEventListener('unisphere:user_updated', handleUserUpdate);
+    return () => window.removeEventListener('unisphere:user_updated', handleUserUpdate);
   }, [memoizedAllowedRoles, pathname]);
 
   useEffect(() => {
@@ -93,7 +120,7 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
   const isAIPage = pathname === '/ai-assistant';
 
   return (
-    <div className="h-screen bg-[#f1f5f9] overflow-hidden flex print:h-auto print:overflow-visible print:bg-white print:block">
+    <div className="h-screen bg-[#f1f5f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden flex transition-colors duration-200 print:h-auto print:overflow-visible print:bg-white print:block">
       <Toaster 
         position="top-right"
         toastOptions={{
@@ -119,9 +146,9 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
       </div>
 
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isDesktop ? 'ml-60' : 'ml-0'} print:ml-0 print:w-full print:block`}>
-        {/* ✅ MASQUER LE HEADER SUR LA PAGE AI-ASSISTANT ET À L'IMPRESSION */}
+        {/* ✅ HEADER FIXE EN HAUT - NE DÉFILE PAS AVEC LE CONTENU */}
         {pathname !== '/ai-assistant' && (
-          <div className="print:hidden">
+          <div className="sticky top-0 z-30 flex-shrink-0 w-full bg-[#f1f5f9]/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors print:hidden">
             <Header 
               user={user} 
               isDesktop={isDesktop}
@@ -130,14 +157,17 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
           </div>
         )}
         
-        <main className="flex-1 overflow-y-auto px-2 sm:px-6 lg:px-8 pt-2 pb-6 print:overflow-visible print:p-0 print:m-0 print:h-auto print:block">
-          <div className="max-w-7xl mx-auto print:max-w-none print:w-full print:m-0 print:p-0">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full px-2 sm:px-6 lg:px-8 pt-2 pb-24 md:pb-6 print:overflow-visible print:p-0 print:m-0 print:h-auto print:block">
+          <div className="w-full max-w-7xl mx-auto overflow-x-hidden print:max-w-none print:w-full print:m-0 print:p-0">
             {children}
           </div>
         </main>
       </div>
 
-      {/* ✅ BOUTON FLOTTANT IA - MASQUÉ À L'IMPRESSION */}
+      {/* Navigation Mobile en bas d'écran (Écrans < 768px) */}
+      <MobileBottomNav userRole={user.role} />
+
+      {/* Bouton flottant IA - Masqué à l'impression */}
       {!isAIPage && (
         <div className="print:hidden">
           <FloatingAIButton />

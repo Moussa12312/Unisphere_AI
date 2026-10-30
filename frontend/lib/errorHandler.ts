@@ -1,4 +1,23 @@
-export function getApiErrorMessage(error: any, defaultMessage: string = 'Une erreur est survenue'): string {
+export function getApiErrorMessage(error: any, defaultMessage: string = 'Une anomalie temporaire est survenue'): string {
+  let role = '';
+  if (typeof window !== 'undefined') {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      role = (user.role || localStorage.getItem('role') || '').toLowerCase();
+    } catch {}
+  }
+
+  const status = error?.response?.status;
+  const isServerOrNetwork = !status || status >= 500;
+
+  if (isServerOrNetwork) {
+    if (role === 'admin') {
+      return "Une anomalie technique est survenue. Un rapport d'incident a été automatiquement transmis au Super-Admin (Support UniSphere). Vous pouvez le contacter directement via la messagerie.";
+    } else {
+      return "Une anomalie temporaire est survenue. L'équipe technique a été automatiquement informée. Veuillez contacter l'administrateur principal de votre établissement.";
+    }
+  }
+
   if (!error?.response?.data?.detail) {
     return defaultMessage;
   }
@@ -9,7 +28,6 @@ export function getApiErrorMessage(error: any, defaultMessage: string = 'Une err
   if (Array.isArray(detail)) {
     return detail
       .map((err: any) => {
-        // Extraire le champ concerné
         const field = err.loc?.[err.loc.length - 1] || 'Champ';
         return `${field}: ${err.msg}`;
       })

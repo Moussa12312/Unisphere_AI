@@ -146,7 +146,6 @@ import {
     // PAGES PUBLIQUES
     // ==========================================
     '/login': { title: 'Connexion', subtitle: 'Accédez à votre espace', icon: KeyRound },
-    '/register': { title: 'Inscription', subtitle: 'Créer un compte', icon: UserPlus },
     '/register-alumni': { title: 'Inscription Alumni', subtitle: 'Rejoindre la communauté', icon: Award },
     '/forgot-password': { title: 'Mot de passe oublié', subtitle: 'Réinitialisation', icon: KeyRound },
   };

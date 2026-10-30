@@ -71,8 +71,10 @@ export default function RoomSelect({
     }
   };
 
-  const handleCreateNewRoom = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateNewRoom = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
     if (!newRoomName.trim()) {
       toast.error('Le nom de la salle est obligatoire');
       return;
@@ -195,7 +197,7 @@ export default function RoomSelect({
               </button>
             </div>
 
-            <form onSubmit={handleCreateNewRoom} className="space-y-3 mt-3">
+            <div className="space-y-3 mt-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Nom de la salle <span className="text-red-500">*</span>
@@ -206,6 +208,12 @@ export default function RoomSelect({
                   placeholder="Ex: Salle 104, Amphi B, Labo Info 2"
                   value={newRoomName}
                   onChange={(e) => setNewRoomName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleCreateNewRoom();
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
               </div>
@@ -220,6 +228,12 @@ export default function RoomSelect({
                     placeholder="Ex: Bloc A, Campus"
                     value={newRoomBuilding}
                     onChange={(e) => setNewRoomBuilding(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateNewRoom();
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
@@ -233,6 +247,12 @@ export default function RoomSelect({
                     placeholder="Ex: 50"
                     value={newRoomCapacity}
                     onChange={(e) => setNewRoomCapacity(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateNewRoom();
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
@@ -247,7 +267,8 @@ export default function RoomSelect({
                   Annuler
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleCreateNewRoom}
                   disabled={savingNew}
                   className="px-4 py-1.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-xs font-semibold transition-all shadow-sm flex items-center gap-1.5"
                 >
@@ -255,7 +276,7 @@ export default function RoomSelect({
                   Enregistrer en base
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

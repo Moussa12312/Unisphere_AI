@@ -7,14 +7,15 @@ import {
   LayoutDashboard, Users, BookOpen, GraduationCap, UserCheck, UserCog, User, FileText, Calendar, Calculator, CreditCard,
   Bell, BarChart3, Bot, Settings, ChevronDown, ChevronRight,
   Upload, CheckCircle, Award, TrendingUp, MessageSquare,
-  ClipboardList, Receipt, AlertCircle, FileCheck, School, Building2, DollarSign, Shield,
+  ClipboardList, Receipt, AlertCircle, FileCheck, School, Building2, DollarSign, Shield, KeyRound,
   QrCode, Edit3, Clock, AlertTriangle, RotateCcw, FileBarChart,
   BrainCircuit, UserPlus, Folder, Users2, ScrollText, FileSearch, Scale, Lock, HelpCircle,
-  Layers, FileSpreadsheet, Printer
+  Layers, FileSpreadsheet, Printer, Megaphone
 } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { useRouter } from 'next/navigation';
 import { useUniversityLogo } from '@/hooks/useUniversityLogo';
+import { useSettings } from '@/contexts/SettingsContext';
 import { API_BASE_URL } from '@/lib/api';
 
 interface SidebarProps {
@@ -95,6 +96,7 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Profil Université', href: '/admin/settings', icon: Building2 },
         { label: 'Configuration', href: '/admin/settings/config', icon: GraduationCap },
         { label: 'Sécurité & Audit', href: '/admin/settings/security', icon: Shield },
+        { label: 'Mots de passe oubliés', href: '/admin/settings/password-requests', icon: KeyRound },
         { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     }
@@ -119,6 +121,7 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Inscription en masse', href: '/secretary/students/bulk', icon: FileSpreadsheet },
         { label: 'Dossiers', href: '/secretary/students/files', icon: Folder },
         { label: 'Cartes Étudiants (Impression)', href: '/secretary/student-cards', icon: CreditCard },
+        { label: 'Mots de passe étudiants', href: '/secretary/students/password-requests', icon: KeyRound },
       ]
     },
 
@@ -137,22 +140,22 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'EXAMENS & NOTES',
       items: [
         { label: 'Saisie des notes', href: '/secretary/grades/entry', icon: Edit3 },
-        { label: 'Notes à valider', href: '/censeur/grades/pending', icon: CheckCircle, badge: 'urgent' },
+        { label: 'Notes à valider', href: '/secretary/grades/pending', icon: CheckCircle, badge: 'urgent' },
         { label: 'Sessions d\'examens', href: '/secretary/exam-sessions', icon: FileText },
-        { label: 'Bulletins de notes', href: '/censeur/bulletins', icon: FileCheck },
-        { label: 'Relevés de notes', href: '/censeur/documents/transcripts', icon: ScrollText },
-        { label: 'Rattrapages', href: '/censeur/exams/makeup', icon: RotateCcw },
-        { label: 'Anomalies', href: '/censeur/grades/anomalies', icon: AlertTriangle },
+        { label: 'Bulletins de notes', href: '/secretary/grades/report-cards', icon: FileCheck },
+        { label: 'Relevés de notes', href: '/secretary/documents', icon: ScrollText },
+        { label: 'Rattrapages', href: '/secretary/exams/makeup', icon: RotateCcw },
+        { label: 'Anomalies', href: '/secretary/grades/anomalies', icon: AlertTriangle },
       ]
     },
 
     {
       title: 'SUIVI ACADÉMIQUE',
       items: [
-        { label: 'Unités d\'Enseignement (UEs)', href: '/admin/teaching-units', icon: Layers },
-        { label: 'Performance', href: '/censeur/academic/performance', icon: TrendingUp },
-        { label: 'Statistiques', href: '/censeur/academic/statistics', icon: BarChart3 },
-        { label: 'Rapports académiques', href: '/censeur/academic/reports', icon: FileBarChart },
+        { label: 'Unités d\'Enseignement (UEs)', href: '/secretary/teaching-units', icon: Layers },
+        { label: 'Performance', href: '/secretary/academic/performance', icon: TrendingUp },
+        { label: 'Statistiques', href: '/secretary/academic/statistics', icon: BarChart3 },
+        { label: 'Rapports académiques', href: '/secretary/academic/reports', icon: FileBarChart },
       ]
     },
 
@@ -235,7 +238,8 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'PARAMÈTRES',
       items: [
-        { label: 'Paramètre', href: '/censeur/settings/anomalies', icon: Settings },
+        { label: 'Paramètre', href: '/censeur/settings', icon: Settings },
+        { label: 'Règles d\'anomalies', href: '/censeur/settings/anomalies', icon: AlertTriangle },
         { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     }
@@ -395,10 +399,18 @@ const MENU_CONFIG: Record<string, Array<{
     },
 
     {
+      title: 'COMMUNAUTÉ & RÉSEAU',
+      items: [
+        { label: 'Réseau Alumni', href: '/student/alumni', icon: GraduationCap },
+        { label: 'Annonces', href: '/student/announcements', icon: Megaphone },
+      ]
+    },
+
+    {
       title: 'PARAMÈTRES',
       items: [
-        { label: 'Profil ', href: '/student/profile', icon: Building2 },
-        { label: 'paramètre', href: '/student/settings', icon: Shield },
+        { label: 'Mon profil', href: '/student/profile', icon: User },
+        { label: 'Paramètres', href: '/student/settings', icon: Settings },
         { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
       ]
     }
@@ -475,6 +487,98 @@ const MENU_CONFIG: Record<string, Array<{
     }
   ],
 
+  // ==========================================
+  // 🛡️ SUPER ADMIN (SaaS Platform Owner)
+  // ==========================================
+  superadmin: [
+    {
+      title: 'TABLEAU DE BORD',
+      items: [
+        { label: "Vue d'ensemble", href: '/superadmin/dashboard', icon: LayoutDashboard },
+      ]
+    },
+    {
+      title: 'FLOTTE UNIVERSITÉS',
+      items: [
+        { label: 'Universités', href: '/superadmin/universities', icon: Building2 },
+        { label: 'Créer Université', href: '/superadmin/universities/new', icon: UserPlus },
+      ]
+    },
+    {
+      title: 'FACTURATION & MODÈLE',
+      items: [
+        { label: 'Tarifs & Abonnements', href: '/superadmin/plans', icon: DollarSign },
+        { label: 'Factures Clients', href: '/superadmin/invoices', icon: FileText },
+        { label: 'Encaissements', href: '/superadmin/payments', icon: Receipt },
+      ]
+    },
+    {
+      title: 'SUPERVISION & SAAS',
+      items: [
+        { label: 'Centre Incidents & Pannes', href: '/superadmin/incidents', icon: AlertTriangle },
+        { label: 'Sécurité & Audit Global', href: '/superadmin/audit', icon: Shield },
+      ]
+    },
+    {
+      title: 'COMMUNICATION',
+      items: [
+        { label: 'Support & Messagerie', href: '/superadmin/messages', icon: MessageSquare },
+        { label: 'Notifications', href: '/superadmin/notifications', icon: Bell },
+      ]
+    },
+    {
+      title: 'PARAMÈTRES',
+      items: [
+        { label: 'Mon Profil', href: '/superadmin/profile', icon: User },
+        { label: 'Paramètres SaaS', href: '/superadmin/settings', icon: Settings },
+      ]
+    }
+  ],
+  super_admin: [
+    {
+      title: 'TABLEAU DE BORD',
+      items: [
+        { label: "Vue d'ensemble", href: '/superadmin/dashboard', icon: LayoutDashboard },
+      ]
+    },
+    {
+      title: 'FLOTTE UNIVERSITÉS',
+      items: [
+        { label: 'Universités', href: '/superadmin/universities', icon: Building2 },
+        { label: 'Créer Université', href: '/superadmin/universities/new', icon: UserPlus },
+      ]
+    },
+    {
+      title: 'FACTURATION & MODÈLE',
+      items: [
+        { label: 'Tarifs & Abonnements', href: '/superadmin/plans', icon: DollarSign },
+        { label: 'Factures Clients', href: '/superadmin/invoices', icon: FileText },
+        { label: 'Encaissements', href: '/superadmin/payments', icon: Receipt },
+      ]
+    },
+    {
+      title: 'SUPERVISION & SAAS',
+      items: [
+        { label: 'Centre Incidents & Pannes', href: '/superadmin/incidents', icon: AlertTriangle },
+        { label: 'Sécurité & Audit Global', href: '/superadmin/audit', icon: Shield },
+      ]
+    },
+    {
+      title: 'COMMUNICATION',
+      items: [
+        { label: 'Support & Messagerie', href: '/superadmin/messages', icon: MessageSquare },
+        { label: 'Notifications', href: '/superadmin/notifications', icon: Bell },
+      ]
+    },
+    {
+      title: 'PARAMÈTRES',
+      items: [
+        { label: 'Mon Profil', href: '/superadmin/profile', icon: User },
+        { label: 'Paramètres SaaS', href: '/superadmin/settings', icon: Settings },
+      ]
+    }
+  ],
+
 };
 
 export default function Sidebar({ userRole }: SidebarProps) {
@@ -486,6 +590,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
   );
 
   const { logoUrl, universityName, slogan, loading } = useUniversityLogo();
+  const { settings } = useSettings();
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
@@ -522,17 +627,25 @@ export default function Sidebar({ userRole }: SidebarProps) {
       case 'accountant': return 'Comptable';
       case 'guard': return 'Gardien';
       case 'alumni': return 'Alumni';
+      case 'super_admin':
+      case 'superadmin': return 'Super Admin';
       default: return 'Utilisateur';
     }
   };
 
+  const sidebarBg = settings?.sidebarColor || '#0a1628';
+
   return (
-    <aside className="h-screen w-58 bg-[#0a1628] text-white flex flex-col overflow-hidden">
+    <aside style={{ backgroundColor: sidebarBg }} className="h-screen w-58 text-white flex flex-col overflow-hidden transition-colors duration-200">
 
       {/* En-tête de la Sidebar - SaaS Modern Style */}
       <div className="px-4 py-3.5 border-b border-white/10 bg-white/[0.02]">
         <div className="flex items-center gap-3">
-          {logoUrl ? (
+          {userRole === 'super_admin' || userRole === 'superadmin' ? (
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0a1628] to-[#1e293b] border border-[#FF6B00]/40 flex items-center justify-center flex-shrink-0 shadow-md">
+              <Shield className="text-[#FF6B00]" size={22} />
+            </div>
+          ) : logoUrl ? (
             <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
               <img
                 src={logoUrl}
@@ -552,10 +665,10 @@ export default function Sidebar({ userRole }: SidebarProps) {
           )}
           <div className="flex-1 min-w-0">
             <h1 className="text-sm font-bold text-white truncate leading-snug tracking-wide">
-              {universityName}
+              {userRole === 'super_admin' || userRole === 'superadmin' ? 'UniSphere AI' : universityName}
             </h1>
             <p className="text-[11px] text-slate-400 truncate mt-0.5">
-              {slogan || 'Plateforme Éducative'}
+              {userRole === 'super_admin' || userRole === 'superadmin' ? 'Administration SaaS' : (slogan || 'Plateforme Éducative')}
             </p>
           </div>
         </div>

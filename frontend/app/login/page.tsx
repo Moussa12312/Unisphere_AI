@@ -4,34 +4,68 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import {
+  Eye, EyeOff, Mail, Lock, Smartphone, ShieldCheck,
+  GraduationCap, Sparkles, Building2, User, CheckCircle2, ArrowRight
+} from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
+
+const DEFAULT_AUTH_CONTEXT = {
+  university: {
+    name: "UniSphere AI",
+    slogan: "Excellence & Innovation Académique",
+    address: "Plateforme SaaS Multi-Universités",
+    academic_year: "2026-2027"
+  },
+  quick_accounts: [
+    { role: "super_admin", label: "Super Admin", email: "superadmin@unisphere.ai", name: "Moussa Coulibaly", department: "Plateforme SaaS", icon: "👑" },
+    { role: "admin", label: "Direction", email: "admin@unisphere.ai", name: "Direction Université", department: "Administration", icon: "🏛️" },
+    { role: "teacher", label: "Professeur", email: "enseignant@unisphere.ai", name: "Corps Professoral", department: "Pédagogie", icon: "👨‍🏫" },
+    { role: "student", label: "Étudiant", email: "etudiant@unisphere.ai", name: "Espace Étudiant", matricule: "EC-2026-0001", department: "LMD", icon: "🎓" },
+    { role: "secretary", label: "Secrétaire", email: "secretaire@unisphere.ai", name: "Secrétariat Général", department: "Scolarité", icon: "📋" },
+    { role: "censeur", label: "Censeur", email: "censeur@unisphere.ai", name: "Direction des Études", department: "Études", icon: "⚖️" },
+    { role: "accountant", label: "Comptable", email: "comptable@unisphere.ai", name: "Service Financier", department: "Finances", icon: "💳" },
+    { role: "guard", label: "Poste Garde", email: "gardien@unisphere.ai", name: "Sécurité & Portique", department: "Contrôle", icon: "🛡️" }
+  ],
+  default_password: "unisphere2026"
+};
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [activeQuickEmail, setActiveQuickEmail] = useState<string | null>(null);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [authContext, setAuthContext] = useState<any>(DEFAULT_AUTH_CONTEXT);
 
   useEffect(() => {
     const message = searchParams.get('message');
     if (message) {
       toast(message, { icon: '✉️', duration: 8000 });
     }
+    // Charger le contexte mis à jour depuis le backend Django
+    api.get('/api/v1/auth/context')
+      .then(res => {
+        if (res.data) setAuthContext(res.data);
+      })
+      .catch(() => {
+        // En cas d'erreur, conserve DEFAULT_AUTH_CONTEXT
+      });
   }, [searchParams]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const performLogin = async (loginEmail: string, loginPassword: string) => {
     setLoading(true);
+    setIdentifier(loginEmail);
+    setPassword(loginPassword);
 
     try {
       const response = await api.post('/api/v1/auth/login', {
-        email: email,
-        password: password,
+        email: loginEmail.trim(),
+        password: loginPassword,
         remember_me: rememberMe
       });
 
@@ -45,14 +79,15 @@ function LoginForm() {
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('role', userData.role);
 
       try {
         await api.post('/api/v1/notifications/generate');
-      } catch (notifError) {
+      } catch {
         // Non bloquant
       }
 
-      toast.success('Connexion réussie !');
+      toast.success(`Connexion réussie : Bienvenue ${userData.full_name || ''} !`);
 
       const routes: Record<string, string> = {
         admin: '/admin/dashboard',
@@ -61,316 +96,287 @@ function LoginForm() {
         teacher: '/teacher/dashboard',
         student: '/student/dashboard',
         accountant: '/accountant/dashboard',
-        guard: '/guard/dashboard',
+        guard: '/guard',
         alumni: '/alumni/dashboard',
         super_admin: '/superadmin/dashboard',
         superadmin: '/superadmin/dashboard',
-        parent: '/parent/dashboard',
       };
 
       const targetRoute = routes[userData.role] || '/login';
-      router.push(targetRoute);
+      window.location.href = targetRoute;
 
     } catch (error: any) {
+      setActiveQuickEmail(null);
+      setLoading(false);
       if (error.response?.status === 403 && String(error.response?.data?.detail || '').toLowerCase().includes('suspendu')) {
-        router.push('/suspended');
+        window.location.href = '/suspended';
         return;
       }
       let message = 'Erreur de connexion';
-
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
         if (Array.isArray(detail)) {
           message = detail.map((err: any) => err.msg).join(', ');
         } else if (typeof detail === 'string') {
           message = detail;
-        } else if (detail.msg) {
-          message = detail.msg;
         }
       }
-
       toast.error(message);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const features = [
-    {
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-      ),
-      title: 'Sécurisé',
-      description: 'Vos données sont protégées'
-    },
-    {
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-        </svg>
-      ),
-      title: 'Intelligent',
-      description: "L'IA au service de votre réussite"
-    },
-    {
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      title: 'Accessible',
-      description: 'Disponible partout, à tout moment'
-    },
-    {
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
-      title: 'Collaboratif',
-      description: 'Échangez, collaborez, progressez'
+  const handleQuickLogin = (email: string) => {
+    if (loading) return;
+    const pwd = authContext?.default_password || 'unisphere2026';
+    setActiveQuickEmail(email);
+    performLogin(email, pwd);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!identifier || !password) {
+      toast.error('Veuillez saisir votre identifiant et votre mot de passe');
+      return;
     }
-  ];
+    setActiveQuickEmail(null);
+    performLogin(identifier, password);
+  };
+
+  const quickAccounts = authContext?.quick_accounts || DEFAULT_AUTH_CONTEXT.quick_accounts;
+  const university = authContext?.university;
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden" style={{
-      background: 'linear-gradient(135deg, #0a1628 0%, #1e3a8a 50%, #3b82f6 100%)'
-    }}>
+    <div className="relative min-h-screen w-full flex items-center justify-center p-3 sm:p-6 lg:p-10 overflow-hidden font-sans">
+      {/* Photo de fond conservée avec superposition sombre & dynamique */}
       <div
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 scale-105"
         style={{ backgroundImage: `url('/login.png')` }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628]/90 via-[#0a1628]/70 to-transparent"></div>
-      </div>
+      />
+      <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/95 via-slate-900/80 to-[#1e1b4b]/75 backdrop-blur-[4px]" />
 
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center p-8 relative z-10 mr-30 -mt-9">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex items-center justify-center">
-            <img
-              src="/logo.png"
-              alt="UniSphere AI"
-              width={100}
-              height={50}
-              className="rounded-lg"
-            />
-          </div>
-          <h1 className="text-4xl font-bold text-white">
-            UniSphere <span className="text-[#FF6B00]">AI</span>
-          </h1>
-        </div>
+      {/* Conteneur Hybride Responsif */}
+      <div className="relative z-10 w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
 
-        <h2 className="text-2xl font-bold text-white mb-4 leading-tight">
-          L'intelligence du Savoir,<br />
-          <span className="text-[#FF6B00]">La puissance du Numérique</span>
-        </h2>
+        {/* Volet de Gauche : Identité Institutionnelle ECOB (Visible Desktop) */}
+        <div className="hidden lg:flex lg:col-span-5 flex-col justify-between text-white p-6 space-y-6">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-xs font-semibold text-orange-300">
+              <Sparkles size={14} className="text-[#FF6B00]" />
+              <span>Année Académique {university?.academic_year || '2026-2027'}</span>
+            </div>
 
-        <p className="text-x0.5 text-slate-300 mb-6 max-w-lg">
-          "L'éducation est l'arme la plus puissante qu'on puisse utiliser pour changer le monde."<span className="text-[#FF6B00]"> Nelson Mandela </span>
-        </p>
+            <h1 className="text-4xl xl:text-5xl font-black tracking-tight leading-tight">
+              UniSphere <span className="bg-gradient-to-r from-[#FF6B00] via-orange-400 to-amber-300 bg-clip-text text-transparent">AI</span>
+            </h1>
 
-        <div className="space-y-6">
-          {features.map((feature, idx) => (
-            <div key={idx} className="flex items-start gap-4 -mt-3">
-              <div className="w-12 h-12 bg-[#FF6B00]/20 rounded-xl flex items-center justify-center text-[#FF6B00] flex-shrink-0">
-                {feature.icon}
+            <p className="text-slate-300 text-sm font-medium leading-relaxed">
+              Plateforme Universitaire Intelligente & Système Intégré de Gestion Académique (LMD).
+            </p>
+
+            <div className="space-y-3 pt-3">
+              <div className="flex items-center gap-3 text-xs text-slate-300 bg-white/5 p-3 rounded-xl border border-white/10 backdrop-blur-sm">
+                <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
+                <span>Portail Sécurisé & Certifié • Zéro Donnée Factice</span>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-0">{feature.title}</h3>
-                <p className="text-slate-400 text-sm">{feature.description}</p>
+              <div className="flex items-center gap-3 text-xs text-slate-300 bg-white/5 p-3 rounded-xl border border-white/10 backdrop-blur-sm">
+                <Smartphone size={18} className="text-cyan-400 shrink-0" />
+                <span>Accès Hybride : Web, Mobile PWA & Application APK</span>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="w-90 lg:w-1/3 flex items-center justify-center p-5 relative z-10 mt-5 mr-8">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 lg:p-7">
-          <div className="text-center mb-4 -mt-4">
-            <h2 className="text-3xl font-bold text-slate-900 mb-2">Connexion</h2>
-            <p className="text-slate-500">Accédez à votre espace personnel</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Mail size={20} />
-                  </div>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Email"
-                    required
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
+          <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
+            <span>UniSphere AI • <strong>Version Hybride 2.0</strong></span>
+            <Link href="/download" className="text-[#FF6B00] hover:underline font-semibold flex items-center gap-1">
+              Télécharger l'APK <ArrowRight size={13} />
+            </Link>
+          </div>
+        </div>
 
+        {/* Volet de Droite : Carte de Connexion Verre Dépoli */}
+        <div className="lg:col-span-7 bg-white/95 backdrop-blur-xl rounded-3xl p-5 sm:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-white/40">
+
+          {/* Header Mobile / Tablette */}
+          <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-orange-500 text-white font-black text-xl flex items-center justify-center shadow-lg shadow-orange-500/25">
+                <GraduationCap size={22} />
+              </div>
               <div>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Lock size={20} />
-                  </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Mot de passe"
-                    required
-                    className="w-full pl-12 pr-12 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+                  UniSphere <span className="text-[#FF6B00]">AI</span>
+                </h2>
+                <p className="text-[11px] text-slate-500 font-medium">Espace d'Authentification Centralisé</p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
+            <Link
+              href="/download"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#FF6B00] text-xs font-bold transition-all border border-orange-200"
+            >
+              <Smartphone size={14} />
+              <span className="hidden sm:inline">App APK</span>
+            </Link>
+          </div>
+
+          {/* Formulaire de Connexion */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Identifiant de Connexion
+                </label>
+                <span className="text-[10px] text-slate-400 font-medium">Email ou Matricule</span>
+              </div>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <User size={18} />
+                </div>
+                <input
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="ex: admin@unisphere.ai, enseignant, ou matricule..."
+                  required
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Portail universel : Administrateur, Professeur, Secrétaire, Comptable, Censeur, Vigile & Étudiant
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Mot de passe
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-[#FF6B00] hover:underline font-semibold"
+                >
+                  Oublié ?
+                </Link>
+              </div>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Lock size={18} />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Votre mot de passe"
+                  required
+                  className="w-full pl-11 pr-11 py-3 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-600">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 text-[#FF6B00] border-slate-300 rounded focus:ring-[#FF6B00]"
                 />
-                <span className="text-sm text-slate-600">Se souvenir de moi</span>
+                <span>Mémoriser ma session</span>
               </label>
-
-              <Link
-                href="/forgot-password"
-                className="text-sm text-[#FF6B00] hover:underline font-medium"
-              >
-                Mot de passe oublié ?
-              </Link>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[#FF6B00] to-blue-600 hover:from-[#e55f00] hover:to-blue-700 text-white font-semibold py-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all transform active:scale-[0.99] disabled:opacity-50 text-sm flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Connexion en cours...
-                </span>
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Authentification en cours...</span>
+                </>
               ) : (
-                'Se connecter'
+                <span>Se connecter à UniSphere AI</span>
               )}
             </button>
           </form>
 
-          {/* Connexion Rapide (8 Espaces) */}
+          {/* Connexion Rapide (Les vrais comptes de la base de données) */}
           <div className="mt-5 pt-4 border-t border-slate-100">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center justify-between">
-              <span>⚡ Connexion Rapide (1 Clic)</span>
-              <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold">Live API</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                <span>⚡ Accès Rapide Démo (Connexion Directe 1 Clic)</span>
+              </span>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                Données Réelles
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {quickAccounts.map((acc: any) => {
+                const isSelected = activeQuickEmail === acc.email && loading;
+                return (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => handleQuickLogin(acc.email)}
+                    title={`Cliquer pour vous connecter directement en tant que ${acc.name}`}
+                    className={`relative flex flex-col items-start p-2.5 rounded-xl border text-left transition-all cursor-pointer active:scale-95 select-none disabled:cursor-not-allowed ${isSelected
+                        ? 'bg-orange-100/90 border-[#FF6B00] ring-2 ring-[#FF6B00]/50 shadow-md scale-[1.02]'
+                        : 'bg-slate-50 hover:bg-orange-50/80 border-slate-200/90 hover:border-orange-300 shadow-xs hover:shadow-sm'
+                      }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-base">{acc.icon}</span>
+                      <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${isSelected
+                          ? 'bg-[#FF6B00] text-white animate-pulse'
+                          : 'bg-white/90 text-slate-500 border border-slate-200/60'
+                        }`}>
+                        {isSelected ? 'Connexion...' : acc.label}
+                      </span>
+                    </div>
+                    <span className="text-xs font-bold text-slate-900 truncate w-full mt-1.5">
+                      {acc.name}
+                    </span>
+                    <span className="text-[10px] text-slate-500 truncate w-full flex items-center justify-between mt-0.5">
+                      <span className="truncate">{acc.matricule || acc.filiere || acc.department || acc.role}</span>
+                      {isSelected && (
+                        <div className="w-3 h-3 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin shrink-0 ml-1" />
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2 text-center">
+              Cliquez sur un profil pour ouvrir directement son tableau de bord sans mot de passe
             </p>
-            <div className="grid grid-cols-4 gap-1.5">
-              {[
-                { label: 'Étudiant', email: 'etudiant@unisphere.ai', icon: '🎓' },
-                { label: 'Enseignant', email: 'enseignant@unisphere.ai', icon: '👨‍🏫' },
-                { label: 'Secrétaire', email: 'secretaire@unisphere.ai', icon: '📁' },
-                { label: 'Censeur', email: 'censeur@unisphere.ai', icon: '⚖️' },
-                { label: 'Admin', email: 'admin@unisphere.ai', icon: '👑' },
-                { label: 'Gardien', email: 'gardien@unisphere.ai', icon: '🛡️' },
-                { label: 'Comptable', email: 'comptable@unisphere.ai', icon: '💰' },
-                { label: 'Alumni', email: 'alumni@unisphere.ai', icon: '🤝' },
-              ].map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={async () => {
-                    setEmail(acc.email);
-                    setPassword('unisphere2026');
-                    setLoading(true);
-                    try {
-                      const res = await api.post('/api/v1/auth/login', {
-                        email: acc.email,
-                        password: 'unisphere2026',
-                        remember_me: true
-                      });
-                      const data = res.data;
-                      localStorage.setItem('token', data.access_token);
-                      localStorage.setItem('user', JSON.stringify(data.user));
-                      toast.success(`Connecté en tant que ${acc.label} !`);
-                      const routes: Record<string, string> = {
-                        admin: '/admin/dashboard',
-                        secretary: '/secretary/dashboard',
-                        censeur: '/censeur/dashboard',
-                        teacher: '/teacher/dashboard',
-                        student: '/student/dashboard',
-                        accountant: '/accountant/dashboard',
-                        guard: '/guard/dashboard',
-                        alumni: '/alumni/dashboard',
-                      };
-                      router.push(routes[data.user.role] || '/');
-                    } catch (err: any) {
-                      toast.error('Erreur lors de la connexion rapide');
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50 hover:bg-orange-50 hover:border-orange-300 border border-slate-200 transition-all text-center"
-                >
-                  <span className="text-base">{acc.icon}</span>
-                  <span className="text-[10px] font-bold text-slate-700 mt-0.5 leading-tight">{acc.label}</span>
-                </button>
-              ))}
+          </div>
+
+          {/* Note Institutionnelle & Application Mobile */}
+          <div className="mt-4 pt-3 border-t border-slate-100 text-center space-y-2">
+            <p className="text-xs text-slate-500">
+              Les accès officiels sont délivrés exclusivement par l'administration ou le secrétariat académique.
+            </p>
+            <div className="flex items-center justify-center gap-2 text-xs">
+              <Link
+                href="/download"
+                className="text-[#FF6B00] hover:underline font-semibold inline-flex items-center gap-1.5"
+              >
+                <span>Télécharger l'application mobile (APK Android)</span>
+                <ArrowRight size={13} />
+              </Link>
             </div>
           </div>
 
-          <div className="relative my-3">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-slate-500">ou continuer avec</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => toast('La connexion Google arrive bientôt !', { icon: 'ℹ️' })}
-              className="flex items-center justify-center gap-2 border border-slate-200 rounded-xl py-2.5 hover:bg-slate-50 transition-colors"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-              </svg>
-              <span className="text-sm font-medium text-slate-700">Google</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => toast('La connexion Apple arrive bientôt !', { icon: 'ℹ️' })}
-              className="flex items-center justify-center gap-2 border border-slate-200 rounded-xl py-2.5 hover:bg-slate-50 transition-colors"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-              </svg>
-              <span className="text-sm font-medium text-slate-700">Apple</span>
-            </button>
-          </div>
-
-          <p className="text-center text-sm text-slate-500 mt-6">
-            Pas encore de compte ?{' '}
-            <a href="/register" className="text-[#FF6B00] hover:underline font-medium">
-              Créer un compte
-            </a>
-          </p>
         </div>
       </div>
     </div>
@@ -379,7 +385,14 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-blue-900"><div className="text-white text-lg">Chargement...</div></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin" />
+          <span>Chargement du portail ECOB...</span>
+        </div>
+      </div>
+    }>
       <LoginForm />
     </Suspense>
   );

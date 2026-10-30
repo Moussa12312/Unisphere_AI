@@ -86,13 +86,25 @@ export default function MessagesPage({ roleLabel = 'utilisateur' }: MessagesPage
     initPage();
   }, []);
 
-  // ✅ POLLING MESSAGES (toutes les 3 secondes)
+  // ✅ POLLING MESSAGES (toutes les 3 secondes) + ÉCOUTE ÉVÉNEMENTIELLE INSTANTANÉE
   useEffect(() => {
     if (currentUserId === 0) return;
     const interval = setInterval(() => {
       silentRefresh();
     }, 3000);
-    return () => clearInterval(interval);
+
+    const onEventRefresh = () => {
+      silentRefresh();
+    };
+
+    window.addEventListener('unisphere:refresh_messages', onEventRefresh);
+    window.addEventListener('unisphere:data_changed', onEventRefresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('unisphere:refresh_messages', onEventRefresh);
+      window.removeEventListener('unisphere:data_changed', onEventRefresh);
+    };
   }, [currentUserId, selectedConversation]);
 
   // ✅ HEARTBEAT (toutes les 30 secondes)
@@ -333,6 +345,12 @@ export default function MessagesPage({ roleLabel = 'utilisateur' }: MessagesPage
       } catch (error) {}
     }
 
+    if (unreadMessages.length > 0) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("unisphere:refresh_messages"));
+        window.dispatchEvent(new CustomEvent("unisphere:refresh_notifications"));
+      }
+    }
     setTimeout(() => loadConversations(), 500);
   };
 
@@ -365,6 +383,10 @@ export default function MessagesPage({ roleLabel = 'utilisateur' }: MessagesPage
       });
 
       setNewMessage('');
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("unisphere:refresh_messages"));
+        window.dispatchEvent(new CustomEvent("unisphere:refresh_notifications"));
+      }
 
       setTimeout(async () => {
         const [inboxRes, sentRes] = await Promise.all([
@@ -558,7 +580,7 @@ export default function MessagesPage({ roleLabel = 'utilisateur' }: MessagesPage
 
           <div className="flex-1 overflow-y-auto min-h-0">
             {filteredConversations.length === 0 ? (
-              <div className="p-8 text-center">
+              <div className="p-5 sm:p-8 text-center">
                 <Mail size={48} className="text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-500 text-sm">Aucune conversation</p>
               </div>
@@ -780,7 +802,7 @@ export default function MessagesPage({ roleLabel = 'utilisateur' }: MessagesPage
       {/* MODAL APPEL */}
       {showCallModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center">
+          <div className="max-h-[90vh] overflow-y-auto bg-white rounded-2xl max-w-sm w-full p-4 sm:p-6 text-center">
             <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${showCallModal === 'phone' ? 'bg-green-100' : 'bg-blue-100'}`}>
               {showCallModal === 'phone' ? <Phone size={32} className="text-green-600" /> : <Video size={32} className="text-blue-600" />}
             </div>
@@ -799,7 +821,7 @@ export default function MessagesPage({ roleLabel = 'utilisateur' }: MessagesPage
       {/* MODAL NOUVELLE CONVERSATION */}
       {showCompose && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5">
+          <div className="max-h-[90vh] overflow-y-auto bg-white rounded-2xl max-w-lg w-full p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-slate-900">Nouvelle conversation</h2>
               <button onClick={() => setShowCompose(false)} className="text-slate-400 hover:text-slate-600">

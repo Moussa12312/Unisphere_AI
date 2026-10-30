@@ -141,21 +141,27 @@ export interface Theme {
     return themes.find(t => t.id === id) || themes[0];
   }
   
-  export function applyTheme(theme: Theme, customPrimary?: string) {
+  export function applyTheme(theme: Theme, customPrimary?: string, sidebarColor?: string) {
     if (typeof window === 'undefined') return;
     
     const root = document.documentElement;
     
     // Appliquer le mode clair/sombre
-    root.classList.toggle('dark', theme.mode === 'dark');
+    const isDark = Boolean(theme.mode === 'dark' || (theme.id && theme.id.includes('dark')));
+    root.classList.toggle('dark', isDark);
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.classList.toggle('dark', isDark);
+    }
     
     const primaryColor = customPrimary || theme.colors.primary;
     // Approximation simple pour la couleur hover si customPrimary est défini
     const primaryHover = customPrimary ? customPrimary : theme.colors.primaryHover;
+    const sbColor = sidebarColor || '#0a1628';
     
     // Appliquer les couleurs via variables CSS
     root.style.setProperty('--theme-primary', primaryColor);
     root.style.setProperty('--theme-primary-hover', primaryHover);
+    root.style.setProperty('--sidebar-bg', sbColor);
     root.style.setProperty('--theme-background', theme.colors.background);
     root.style.setProperty('--theme-surface', theme.colors.surface);
     root.style.setProperty('--theme-text', theme.colors.text);

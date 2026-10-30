@@ -59,6 +59,7 @@ export default function MessageDropdown({ user: propUser, onClose }: MessageDrop
         await messageService.markAsRead(msg.id);
         setUnreadCount(prev => Math.max(0, prev - 1));
         setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, is_read: true } : m));
+        window.dispatchEvent(new CustomEvent('unisphere:refresh_messages'));
       } catch (error) {
         console.error(error);
       }
@@ -71,6 +72,7 @@ export default function MessageDropdown({ user: propUser, onClose }: MessageDrop
       await messageService.delete(messageId);
       toast.success('Message supprimé');
       setMessages(prev => prev.filter(m => m.id !== messageId));
+      window.dispatchEvent(new CustomEvent('unisphere:refresh_messages'));
       if (selectedMessage?.id === messageId) {
         setView('inbox');
         setSelectedMessage(null);
@@ -86,6 +88,7 @@ export default function MessageDropdown({ user: propUser, onClose }: MessageDrop
       toast.success('Tous les messages marqués comme lus');
       setUnreadCount(0);
       setMessages(prev => prev.map(m => ({ ...m, is_read: true })));
+      window.dispatchEvent(new CustomEvent('unisphere:refresh_messages'));
     } catch (error) {
       toast.error('Erreur');
     }
@@ -278,9 +281,9 @@ export default function MessageDropdown({ user: propUser, onClose }: MessageDrop
         {/* Footer */}
         <div className="p-3 bg-slate-50 border-t border-slate-200 flex-shrink-0">
           <Link
-            href={`/${user?.role === 'admin' ? 'admin' : user?.role === 'accountant' ? 'accountant' : user?.role === 'secretary' ? 'secretary' : user?.role === 'teacher' ? 'teacher' : user?.role === 'student' ? 'student' : user?.role === 'censeur' ? 'censeur' : 'guard'}/messages`}
+            href={`/${user?.role === 'super_admin' ? 'superadmin' : (user?.role || 'admin')}/messages`}
             onClick={onClose}
-            className="block w-full text-center px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-sm font-medium border border-slate-200 transition-colors"
+            className="block w-full text-center px-4 py-2.5 bg-gradient-to-r from-orange-500 to-[#FF6B00] text-white hover:opacity-95 rounded-xl text-sm font-semibold transition-all shadow-sm"
           >
             Ouvrir la messagerie complète
           </Link>

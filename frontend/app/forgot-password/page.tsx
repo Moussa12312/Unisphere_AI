@@ -2,126 +2,157 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft, KeyRound, Mail, Lock, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, KeyRound, Mail, MessageSquare, Loader2, CheckCircle2, ShieldAlert } from 'lucide-react';
 import api from '@/lib/api';
-import { useToast } from '@/components/ToastProvider';
+import { toast } from 'react-hot-toast';
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
-  const toast = useToast();
-
   const [email, setEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [successInfo, setSuccessInfo] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
       toast.error('Veuillez saisir votre adresse email');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await api.post('/api/v1/auth/forgot-password', {
-        email: email.trim(),
-        new_password: newPassword ? newPassword.trim() : undefined
+      const res = await api.post('/api/v1/password-reset/request', {
+        email: cleanEmail,
+        message: message.trim() || undefined
       });
 
-      toast.success(response.data.message || 'Mot de passe réinitialisé avec succès');
-      setSuccessMsg(response.data.message || 'Votre mot de passe a été réinitialisé.');
-      setTimeout(() => {
-        router.push('/login');
-      }, 2500);
+      setSuccessInfo(
+        res.data.message ||
+        "Votre demande a bien été envoyée à l'administration. Un responsable vérifiera votre identité et réinitialisera votre accès."
+      );
+      setSubmitted(true);
+      toast.success('Demande transmise avec succès !');
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erreur lors de la réinitialisation');
+      const err = error.response?.data?.detail || "Erreur lors de l'envoi de la demande";
+      toast.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden" style={{
-      background: 'linear-gradient(135deg, #0a1628 0%, #1e3a8a 50%, #3b82f6 100%)'
-    }}>
-      <div
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url('/login.png')` }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628]/90 via-[#0a1628]/70 to-transparent"></div>
-      </div>
-
-      <div className="w-full flex items-center justify-center p-5 relative z-10">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8">
-          <div className="w-14 h-14 bg-[#FF6B00]/10 rounded-2xl flex items-center justify-center mb-5">
-            <KeyRound className="text-[#FF6B00]" size={28} />
+    <div
+      className="min-h-screen flex items-center justify-center p-4 sm:p-6"
+      style={{
+        background: 'linear-gradient(135deg, #0a1628 0%, #1e3a8a 50%, #0F172A 100%)'
+      }}
+    >
+      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 sm:p-10 border border-slate-100">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center text-[#FF6B00]">
+            <KeyRound size={26} />
           </div>
-
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Réinitialiser le mot de passe</h2>
-          <p className="text-sm text-slate-500 mb-6">
-            Entrez votre adresse email et définissez votre nouveau mot de passe pour tous les rôles.
-          </p>
-
-          {successMsg ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-800 text-sm space-y-2 mb-6 text-center">
-              <CheckCircle2 size={24} className="text-emerald-600 mx-auto" />
-              <p className="font-semibold">{successMsg}</p>
-              <p className="text-xs text-emerald-600">Redirection vers la page de connexion...</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Votre email *</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="nom@unisphere.ai"
-                    className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Nouveau mot de passe (optionnel)</label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Laissez vide pour mot de passe généré"
-                    className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF6B00] to-blue-600 hover:from-[#e55f00] hover:to-blue-700 text-white font-semibold py-2.5 rounded-xl transition-all shadow-lg disabled:opacity-50"
-              >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
-                {loading ? 'Réinitialisation...' : 'Valider la réinitialisation'}
-              </button>
-            </form>
-          )}
-
-          <div className="mt-6 text-center">
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-[#FF6B00] transition-colors"
-            >
-              <ArrowLeft size={16} />
-              Retour à la connexion
-            </Link>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Mot de passe oublié</h1>
+            <p className="text-xs sm:text-sm text-slate-500">Procédure sécurisée avec l'administration</p>
           </div>
         </div>
+
+        {submitted ? (
+          <div className="space-y-6 text-center py-4">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle2 size={36} />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-lg font-bold text-slate-900">Demande transmise !</h2>
+              <p className="text-sm text-slate-600 leading-relaxed max-w-md mx-auto">
+                {successInfo}
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 text-left space-y-2">
+              <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+                <ShieldAlert size={15} className="text-amber-500" />
+                Comment sera traité votre mot de passe ?
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><b>Étudiants & Anciens élèves (Alumni) :</b> La secrétaire ou l'administration réinitialisera votre mot de passe et vous le communiquera.</li>
+                <li><b>Personnel & Enseignants :</b> La direction / administrateur principal valide directement votre compte.</li>
+              </ul>
+            </div>
+
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center gap-2 w-full py-3 bg-[#FF6B00] hover:bg-[#e55f00] text-white font-semibold rounded-xl text-sm transition-all shadow-md"
+            >
+              <ArrowLeft size={16} />
+              Retour à la page de connexion
+            </Link>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+              <ShieldAlert size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                Pour des raisons strictes de sécurité, la réinitialisation directe par simple email a été désactivée. Votre demande sera traitée par l'administration ou le secrétariat de votre établissement.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Votre adresse email professionnelle / étudiante *
+              </label>
+              <div className="relative">
+                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="ex: prenom.nom@unisphere.ai"
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Message à l'administration (optionnel)
+              </label>
+              <div className="relative">
+                <textarea
+                  rows={3}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Bonjour, j'ai oublié mon mot de passe. Veuillez le réinitialiser s'il vous plaît (Matricule : ...)"
+                  className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] resize-none"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white font-semibold py-3 rounded-xl text-sm transition-all shadow-md disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+              {loading ? 'Envoi en cours...' : "Envoyer la demande à l'administration"}
+            </button>
+
+            <div className="pt-2 text-center">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-[#FF6B00] transition-colors"
+              >
+                <ArrowLeft size={14} />
+                Retour à la connexion
+              </Link>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

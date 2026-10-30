@@ -1,0 +1,22 @@
+{
+  "name": "UniSphere AI - Plateforme Universitaire Intelligente",
+  "short_name": "UniSphere AI",
+  "description": "Application universitaire hybride unifiée pour étudiants, enseignants et administration",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FF6B00",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

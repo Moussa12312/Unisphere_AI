@@ -86,6 +86,8 @@ export default function BroadcastMessageModal({ onClose, onSent }: BroadcastMess
         filiere: filiere || undefined,
       });
       toast.success(response.data.message || 'Message envoyé avec succès');
+      window.dispatchEvent(new CustomEvent('unisphere:refresh_messages'));
+      window.dispatchEvent(new CustomEvent('unisphere:refresh_notifications'));
       onSent?.();
       onClose();
     } catch (error: any) {

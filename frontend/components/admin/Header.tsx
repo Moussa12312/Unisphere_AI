@@ -5,20 +5,60 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { 
   Bell, Mail, LogOut, User, Settings, ChevronDown, 
-  Menu, X, CheckCircle, Trash2, History
+  Menu, X, CheckCircle, Trash2, History, Sun, Moon, Shield
 } from 'lucide-react';
-import api from '@/lib/api';
+import { useSettings } from '@/contexts/SettingsContext';
+import api, { getMediaUrl } from '@/lib/api';
 import { messageService } from '@/services/messageService';
 import MessageDropdown from '@/components/admin/MessageDropdown';
 import { getPageTitle, getBreadcrumb } from '@/lib/pageTitles';
 import GlobalSearch from '@/components/admin/GlobalSearch';
 import { useMinWidth, useMaxWidth } from '@/hooks/useMediaQuery';
 
+import { useToast } from '@/components/ToastProvider';
+import { useUniversityLogo } from '@/hooks/useUniversityLogo';
+
 interface HeaderProps {
   user?: any;
   isDesktop?: boolean;
   onToggleSidebar?: () => void;
 }
+
+// ✅ Helper : son discret d'alerte Web Audio (respecte les préférences sonores de l'utilisateur)
+const playAlertSound = () => {
+  try {
+    if (typeof window === 'undefined') return;
+    const raw = localStorage.getItem('app_settings');
+    let soundEnabled = true;
+    let volume = 70;
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.sound_enabled !== undefined) soundEnabled = Boolean(parsed.sound_enabled);
+        if (parsed.sound_volume !== undefined) volume = Number(parsed.sound_volume);
+      } catch {}
+    }
+    if (!soundEnabled || volume <= 0) return;
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioCtx = new AudioContextClass();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.12); // A5
+    const baseGain = (volume / 100) * 0.22;
+    gain.gain.setValueAtTime(baseGain, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.3);
+  } catch (e) {
+    // Silencieux si bloqué par la politique du navigateur
+  }
+};
 
 // ✅ Helper : vérifier si l'utilisateur est authentifié
 const isAuthenticated = (): boolean => {
@@ -29,9 +69,10 @@ const isAuthenticated = (): boolean => {
 export default function Header({ user: propUser, isDesktop = false, onToggleSidebar }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const toast = useToast();
   const isLargeDesktop = useMinWidth(960); 
   const isMobile = useMaxWidth(600); 
-  const isCompactHeader = useMaxWidth(840);   
+  const { logoUrl, universityName, slogan } = useUniversityLogo();
   
   const [user, setUser] = useState<any>(propUser);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -42,9 +83,25 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
 
+  const { settings, updateSetting, isDarkMode } = useSettings();
+
+  const handleToggleTheme = () => {
+    if (isDarkMode) {
+      const baseTheme = (settings.theme || 'dark-orange').replace('dark-', '');
+      updateSetting('theme', `light-${baseTheme}`);
+    } else {
+      const baseTheme = (settings.theme || 'light-orange').replace('light-', '');
+      updateSetting('theme', `dark-${baseTheme}`);
+    }
+  };
+
   const notifRef = useRef<HTMLDivElement>(null);
   const msgRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const knownNotifIdsRef = useRef<Set<number>>(new Set());
+  const isInitialNotifRef = useRef<boolean>(true);
+  const prevUnreadMsgRef = useRef<number | null>(null);
+  const isInitialMsgRef = useRef<boolean>(true);
   const showSearch = isLargeDesktop || isMobile;
 
   // ==========================================
@@ -64,11 +121,10 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
   }, [propUser]);
 
   // ==========================================
-  // Chargement des notifications + polling
+  // Chargement des notifications + alerte pop-up écran + actualisation sans recharger
   // ==========================================
   useEffect(() => {
     const load = async () => {
-      // ✅ Arrêter si pas connecté
       if (!isAuthenticated()) {
         setNotifications([]);
         return;
@@ -76,24 +132,63 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
       
       try {
         const response = await api.get('/api/v1/notifications/?limit=50');
-        setNotifications(response.data || []);
+        const notifList = response.data || [];
+        setNotifications(notifList);
+
+        if (isInitialNotifRef.current) {
+          knownNotifIdsRef.current = new Set(notifList.map((n: any) => n.id));
+          isInitialNotifRef.current = false;
+        } else {
+          // Détection en direct des nouvelles alertes (ex: notes enseignant, validation censeur)
+          const newUnreads = notifList.filter(
+            (n: any) => !n.is_read && !knownNotifIdsRef.current.has(n.id)
+          );
+
+          if (newUnreads.length > 0) {
+            newUnreads.forEach((n: any) => knownNotifIdsRef.current.add(n.id));
+            playAlertSound();
+
+            newUnreads.slice(0, 3).forEach((n: any) => {
+              const preview = n.message ? (n.message.length > 90 ? n.message.slice(0, 90) + '...' : n.message) : '';
+              if (n.type === 'error') {
+                toast.error(`${n.title} : ${preview}`);
+              } else if (n.type === 'warning') {
+                toast.warning(`${n.title} : ${preview}`);
+              } else {
+                toast.info(`🔔 ${n.title} : ${preview}`);
+              }
+            });
+
+            // Signal de synchronisation pour rafraîchir les pages sans F5
+            window.dispatchEvent(new CustomEvent('unisphere:data_changed', {
+              detail: { type: 'notification', items: newUnreads }
+            }));
+          }
+        }
       } catch (error: any) {
-        // ✅ Silencieux sur erreurs réseau, 401 ou 403
         setNotifications([]);
       }
     };
 
     load();
-    const interval = setInterval(load, 60000);
-    return () => clearInterval(interval);
+    const interval = setInterval(load, 4000);
+    const onFocus = () => load();
+    const onCustomRefresh = () => load();
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('unisphere:refresh_notifications', onCustomRefresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('unisphere:refresh_notifications', onCustomRefresh);
+    };
   }, []);
 
   // ==========================================
-  // Chargement des messages non lus + polling
+  // Chargement des messages non lus + notification pop-up en direct
   // ==========================================
   useEffect(() => {
     const loadUnreadMessages = async () => {
-      // ✅ Arrêter si pas connecté
       if (!isAuthenticated()) {
         setUnreadMessages(0);
         return;
@@ -101,17 +196,43 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
       
       try {
         const data = await messageService.getUnreadCount();
-        setUnreadMessages(data.unread_count || 0);
+        const count = data.unread_count || 0;
+
+        if (isInitialMsgRef.current) {
+          prevUnreadMsgRef.current = count;
+          isInitialMsgRef.current = false;
+        } else if (prevUnreadMsgRef.current !== null && count > prevUnreadMsgRef.current) {
+          const diff = count - prevUnreadMsgRef.current;
+          playAlertSound();
+          toast.info(`📬 ${diff > 1 ? `${diff} nouveaux messages reçus` : 'Nouveau message reçu'} !`);
+          
+          window.dispatchEvent(new CustomEvent('unisphere:data_changed', {
+            detail: { type: 'message', unreadCount: count }
+          }));
+          window.dispatchEvent(new CustomEvent('unisphere:refresh_messages'));
+          prevUnreadMsgRef.current = count;
+        } else {
+          prevUnreadMsgRef.current = count;
+        }
+
+        setUnreadMessages(count);
       } catch (error: any) {
-        // ✅ Silencieux sur erreurs réseau, 401 ou 403
         setUnreadMessages(0);
       }
     };
 
-    
     loadUnreadMessages();
-    const interval = setInterval(loadUnreadMessages, 60000);
-    return () => clearInterval(interval);
+    const interval = setInterval(loadUnreadMessages, 4000);
+    const onFocus = () => loadUnreadMessages();
+    const onCustomRefresh = () => loadUnreadMessages();
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('unisphere:refresh_messages', onCustomRefresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('unisphere:refresh_messages', onCustomRefresh);
+    };
   }, []);
 
   // ==========================================
@@ -142,6 +263,7 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       );
+      window.dispatchEvent(new CustomEvent('unisphere:refresh_notifications'));
     } catch (error) {
       console.error('Erreur marquage lu:', error);
     }
@@ -151,6 +273,7 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
     try {
       await api.put('/api/v1/notifications/mark-all-read');
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      window.dispatchEvent(new CustomEvent('unisphere:refresh_notifications'));
     } catch (error: any) {
       console.error('❌ Erreur mark-all-read:', error.response?.data);
     }
@@ -160,6 +283,7 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
     try {
       await api.delete(`/api/v1/notifications/${notificationId}`);
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      window.dispatchEvent(new CustomEvent('unisphere:refresh_notifications'));
     } catch (error) {
       console.error('Erreur suppression:', error);
     }
@@ -184,6 +308,7 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
   // ==========================================
   const initial = user?.full_name?.charAt(0).toUpperCase() || 'U';
   const displayName = user?.full_name || 'Utilisateur';
+  const rolePath = user?.role === 'super_admin' ? 'superadmin' : (user?.role || 'admin');
   const unreadNotifCount = notifications.filter((n: any) => !n.is_read).length;
   const pageInfo = getPageTitle(pathname);
   const breadcrumb = getBreadcrumb(pathname);
@@ -220,57 +345,67 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
           </button>
         )}
 
-        {/* TITRE DE PAGE + BARRE DE RECHERCHE */}
-        {isDesktop ? (
-          <div className="flex-1 flex items-center gap-4 min-w-0">
-            <div className={`flex items-center gap-3 min-w-0 ${
-              showSearch ? 'pr-4 border-r border-slate-200' : ''
-            }`}>
-              <div className="w-9 h-9 bg-gradient-to-br from-[#FF6B00]/10 to-orange-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                <PageIcon size={18} className="text-[#FF6B00]" />
-              </div>
-              
-              <div className="min-w-0">
-                {breadcrumb.length > 1 && (
-                  <nav className="flex items-center gap-1 text-[10px] text-slate-400 mb-0.5">
-                    {breadcrumb.slice(0, -1).map((item, idx) => (
-                      <span key={idx} className="flex items-center gap-1">
-                        {idx > 0 && <span>/</span>}
-                        <Link 
-                          href={item.href} 
-                          className="hover:text-[#FF6B00] transition-colors"
-                        >
-                          {item.label}
-                        </Link>
-                      </span>
-                    ))}
-                  </nav>
-                )}
-                
-                <h1 className="font-bold text-slate-900 text-base truncate leading-tight">
-                  {pageInfo.title}
-                </h1>
-                {pageInfo.subtitle && (
-                  <p className="text-xs text-slate-500 truncate leading-tight">
-                    {pageInfo.subtitle}
-                  </p>
-                )}
-              </div>
-            </div>
-            
-            {showSearch && <GlobalSearch />}
+        {/* IDENTITÉ SUR MOBILE (LOGO) VS TITRE DE LA PAGE SUR TABLETTE & PC (Audio 2) */}
+        <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0 pr-2">
+          {/* VERSION MOBILE UNIQUEMENT (< md) : On affiche le logo officiel de l'établissement ou UniSphere AI */}
+          <div className="flex items-center gap-2 md:hidden">
+            {user?.role === 'super_admin' || user?.role === 'superadmin' ? (
+              <>
+                <div className="w-8 h-8 bg-[#0a1628] border border-[#FF6B00]/40 rounded-lg flex items-center justify-center text-[#FF6B00] shadow-sm flex-shrink-0">
+                  <Shield size={16} />
+                </div>
+                <span className="font-extrabold text-slate-900 dark:text-white text-xs truncate max-w-[130px]">
+                  UniSphere AI
+                </span>
+              </>
+            ) : logoUrl ? (
+              <>
+                <img 
+                  src={logoUrl} 
+                  alt={universityName} 
+                  className="w-8 h-8 object-contain rounded-lg bg-white p-0.5 border border-slate-200 dark:border-slate-700 shadow-sm flex-shrink-0" 
+                />
+                <span className="font-extrabold text-slate-900 dark:text-white text-xs truncate max-w-[130px]">
+                  {universityName || 'UniSphere AI'}
+                </span>
+              </>
+            ) : (
+              <>
+                <div className="w-8 h-8 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-lg flex items-center justify-center text-white font-extrabold text-xs shadow-sm flex-shrink-0">
+                  {universityName ? universityName.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <span className="font-extrabold text-slate-900 dark:text-white text-xs truncate max-w-[130px]">
+                  {universityName || 'UniSphere AI'}
+                </span>
+              </>
+            )}
           </div>
-        ) : (
-          <div className="flex-1 min-w-0 flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-[#FF6B00]/10 to-orange-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
-              <PageIcon size={16} className="text-[#FF6B00]" />
+
+          {/* VERSION TABLETTE ET PC (>= md) : On affiche le NOM DE LA PAGE actuelle */}
+          <div className="hidden md:flex items-center gap-3 min-w-0">
+            {PageIcon && (
+              <div className="w-9 h-9 rounded-xl bg-orange-50 dark:bg-slate-800 text-[#FF6B00] flex items-center justify-center shadow-xs flex-shrink-0">
+                <PageIcon size={20} />
+              </div>
+            )}
+            <div className="min-w-0">
+              <h1 className="font-extrabold text-slate-900 dark:text-white text-base lg:text-lg leading-tight truncate">
+                {pageInfo?.title || 'UniSphere AI'}
+              </h1>
+              {pageInfo?.subtitle && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight truncate">
+                  {pageInfo.subtitle}
+                </p>
+              )}
             </div>
-            <h1 className="font-bold text-slate-900 text-sm truncate flex-1">
-              {pageInfo.title}
-            </h1>
-            {isMobile && <GlobalSearch compact />}
           </div>
-        )}
+
+          {isDesktop && showSearch && (
+            <div className="ml-auto pr-4 hidden lg:block">
+              <GlobalSearch />
+            </div>
+          )}
+        </div>
 
         {/* ACTIONS (Notifications, Messages, Profil) */}
         <div className="flex items-center gap-1 sm:gap-2">
@@ -298,27 +433,41 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
             {showNotifDropdown && (
               <>
                 <div 
-                  className="fixed inset-0 bg-black/20 z-40 sm:hidden"
+                  className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 sm:hidden"
                   onClick={() => setShowNotifDropdown(false)}
                 />
                 
-                <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-16 sm:top-full mt-0 sm:mt-2 w-auto sm:w-96 max-h-[70vh] bg-white sm:border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
-                  <div className="p-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex items-center justify-between flex-shrink-0">
-                    <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                      <Bell size={16} />
-                      Notifications
+                <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-16 sm:top-full mt-0 sm:mt-2 w-auto sm:w-96 max-h-[82vh] sm:max-h-[72vh] bg-white border border-slate-200/80 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+                  <div className="p-3.5 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-orange-50/30 flex items-center justify-between flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center">
+                        <Bell size={15} className="text-[#FF6B00]" />
+                      </div>
+                      <h3 className="font-semibold text-slate-900 text-sm">Notifications</h3>
                       {unreadNotifCount > 0 && (
-                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                        <span className="text-[11px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
                           {unreadNotifCount}
                         </span>
                       )}
-                    </h3>
-                    <button 
-                      onClick={() => setShowNotifDropdown(false)}
-                      className="sm:hidden p-1 hover:bg-slate-100 rounded"
-                    >
-                      <X size={20} />
-                    </button>
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5">
+                      <Link
+                        href={`/${rolePath}/notifications`}
+                        onClick={() => setShowNotifDropdown(false)}
+                        className="text-xs text-[#FF6B00] hover:text-[#e55f00] font-semibold px-2 py-1 rounded-lg hover:bg-orange-50 transition-colors flex items-center gap-1"
+                      >
+                        <History size={13} />
+                        <span>Historique</span>
+                      </Link>
+                      <button 
+                        onClick={() => setShowNotifDropdown(false)}
+                        className="p-1 hover:bg-slate-100 text-slate-500 rounded-lg transition-colors"
+                        aria-label="Fermer"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="overflow-y-auto flex-1">
@@ -425,14 +574,14 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
                   </div>
                   
                   {notifications.length > 0 && (
-                    <div className="border-t border-slate-200 p-3 bg-slate-50">
+                    <div className="border-t border-slate-200 p-3 bg-slate-50/90">
                       <Link 
-                        href={`/${user?.role}/notifications`}
+                        href={`/${rolePath}/notifications`}
                         onClick={() => setShowNotifDropdown(false)}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-[#FF6B00] text-white hover:opacity-95 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm shadow-orange-500/20"
                       >
                         <History size={14} />
-                        Voir tout l'historique ({notifications.length})
+                        Voir tout l'historique complet ({notifications.length})
                       </Link>
                     </div>
                   )}
@@ -466,6 +615,20 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
             )}
           </div>
 
+          {/* SÉLECTEUR RAPIDE THÈME : CLAIR / SOMBRE */}
+          <button
+            onClick={handleToggleTheme}
+            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-all dark:text-slate-300 dark:hover:bg-slate-800 flex items-center justify-center"
+            title={isDarkMode ? "Passer en Mode Clair (Blanc)" : "Passer en Mode Sombre (Noir & Niveaux profonds)"}
+            aria-label="Basculer Mode Clair / Sombre"
+          >
+            {isDarkMode ? (
+              <Sun size={20} className="text-amber-400 hover:scale-110 transition-transform" />
+            ) : (
+              <Moon size={20} className="text-slate-600 hover:text-slate-900 hover:scale-110 transition-transform" />
+            )}
+          </button>
+
           {/* PROFIL */}
           <div className="relative" ref={profileRef}>
             <button
@@ -477,11 +640,21 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
               }}
               className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-slate-200 hover:bg-slate-50 rounded-lg px-2 py-1.5 transition-colors"
             >
-              <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 shadow-md">
-                {initial}
+              <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 shadow-md overflow-hidden relative">
+                <span className="select-none">{initial}</span>
+                {user?.photo && (
+                  <img
+                    src={getMediaUrl(user.photo)}
+                    alt={displayName}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                )}
               </div>
               
-              {isDesktop && !isCompactHeader && (
+              {isDesktop && (
                 <>
                   <div className="text-sm text-left hidden sm:block">
                     <p className="font-medium text-slate-900">{displayName}</p>

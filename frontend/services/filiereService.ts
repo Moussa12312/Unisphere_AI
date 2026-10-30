@@ -13,6 +13,12 @@ export const filiereService = {
     return response.data.domains; // Retourne directement le tableau
   },
 
+  // Récupérer une filière par ID
+  getById: async (id: number) => {
+    const response = await api.get(`/api/v1/filieres/${id}`);
+    return response.data;
+  },
+
   // Créer une filière
   create: async (data: { domain: string; name: string; levels: string }) => {
     const response = await api.post('/api/v1/filieres/', data);

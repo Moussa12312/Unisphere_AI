@@ -6,11 +6,26 @@ import { SettingsProvider } from '@/contexts/SettingsContext';
 import StartupAnimation from '@/components/StartupAnimation';
 
 export const metadata: Metadata = {
-  title: "UniSphere AI",
-  description: "Smart University Platform",
+  title: "UniSphere AI - Plateforme Universitaire Intelligente",
+  description: "Plateforme universitaire unifiée pour étudiants, enseignants et administration",
+  manifest: "/manifest.json",
   icons: {
     icon: "/logo.png",
+    apple: "/logo.png",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "UniSphere AI",
+  },
+};
+
+export const viewport = {
+  themeColor: "#FF6B00",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -19,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
       <body>
         <StartupAnimation />
         <SettingsProvider>

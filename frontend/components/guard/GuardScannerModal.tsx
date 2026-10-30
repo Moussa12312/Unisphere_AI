@@ -187,11 +187,13 @@ export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: G
       if (isMountedRef.current) setIsScanning(false);
       
       if (err?.toString().includes('NotAllowedError')) {
-        setError('❌ Accès caméra refusé');
+        setError('❌ Accès caméra refusé. Activez les permissions dans les paramètres du navigateur.');
       } else if (err?.toString().includes('NotFoundError')) {
-        setError('❌ Aucune caméra détectée');
+        setError('❌ Aucune caméra physique détectée.');
+      } else if (err?.toString().includes('not supported') || (typeof window !== 'undefined' && !window.isSecureContext)) {
+        setError('⚠️ Flux vidéo direct désactivé par le navigateur sur connexion réseau locale HTTP (non sécurisée). Cliquez sur le bouton bleu "Prendre photo (Mobile)" ci-dessous pour capturer le QR code, ou entrez le matricule.');
       } else {
-        setError('Impossible d\'accéder à la caméra');
+        setError('Impossible d\'accéder au flux vidéo de la caméra.');
       }
     }
   }, []);
@@ -353,29 +355,72 @@ export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: G
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {!isScanning ? (
               <button
                 onClick={startScanner}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#FF6B00] to-orange-500 text-white rounded-lg text-sm font-medium"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl text-sm font-semibold shadow-sm transition"
               >
-                <Camera size={16} />
-                Démarrer
+                <Camera size={18} />
+                Démarrer la Caméra en direct
               </button>
             ) : (
               <button
                 onClick={forceStopScanner}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-semibold shadow-sm transition"
               >
-                <XCircle size={16} />
-                Arrêter
+                <XCircle size={18} />
+                Arrêter le flux vidéo
               </button>
             )}
+
+            {/* Bouton Appareil Photo Téléphone (Compatible HTTP et tous mobiles) */}
+            <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold cursor-pointer shadow-sm transition">
+              <Camera size={18} />
+              <span>Prendre photo (Mobile)</span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setLoading(true);
+                  setError(null);
+                  try {
+                    const tempId = 'qr-photo-reader-' + Math.random().toString(36).substring(2, 7);
+                    const tempDiv = document.createElement('div');
+                    tempDiv.id = tempId;
+                    tempDiv.style.display = 'none';
+                    document.body.appendChild(tempDiv);
+                    
+                    const qr = new Html5Qrcode(tempId);
+                    const decoded = await qr.scanFile(file, true);
+                    
+                    try { document.body.removeChild(tempDiv); } catch (e) {}
+                    
+                    if (decoded) {
+                      handleScan(decoded);
+                    }
+                  } catch (err: any) {
+                    console.error("Erreur scan photo mobile :", err);
+                    setError("Aucun QR code valide détecté sur la photo. Rapprochez bien l'objectif du badge ou saisissez le matricule.");
+                    playBeep(false);
+                  } finally {
+                    setLoading(false);
+                    if (e.target) e.target.value = '';
+                  }
+                }}
+              />
+            </label>
+
             <button
               onClick={() => setShowManualInput(!showManualInput)}
-              className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium"
+              title="Saisie manuelle"
+              className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition"
             >
-              ⌨️
+              ⌨️ Saisie
             </button>
           </div>
 

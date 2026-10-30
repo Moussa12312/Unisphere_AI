@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: #0a1628;
   --color-primary-light: #1e293b;
@@ -15,10 +17,170 @@
   --color-info: #3b82f6;
 }
 
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background-color: #f1f5f9;
   color: #0f172a;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Conteneur défilable autonome pour tableaux et cartes denses (la page reste fixe) */
+.table-box-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+
+/* ======================================================== */
+/* 🌙 MODE SOMBRE (DARK MODE) & MODE CLAIR SYSTEM           */
+/* ======================================================== */
+html.dark, html.dark body {
+  background-color: #0b1120 !important;
+  color: #f8fafc !important;
+}
+
+/* Arrière-plans principaux en Mode Sombre */
+html.dark .bg-\[\#f1f5f9\],
+html.dark .bg-slate-50,
+html.dark .bg-gray-50 {
+  background-color: #0b1120 !important;
+}
+
+/* Cartes, conteneurs et surfaces principales (anciennement blanc pur) */
+html.dark .bg-white {
+  background-color: #1e293b !important;
+}
+
+html.dark .bg-white\/90,
+html.dark .bg-white\/95 {
+  background-color: rgba(30, 41, 59, 0.95) !important;
+}
+
+html.dark .bg-white\/80 {
+  background-color: rgba(30, 41, 59, 0.85) !important;
+}
+
+html.dark .bg-white\/70,
+html.dark .bg-white\/60,
+html.dark .bg-white\/50 {
+  background-color: rgba(30, 41, 59, 0.65) !important;
+}
+
+/* Petites surfaces secondaires et intermédiaires pour préserver le contraste et la hiérarchie */
+html.dark .bg-slate-100,
+html.dark .bg-gray-100 {
+  background-color: #243044 !important;
+}
+
+html.dark .bg-slate-200,
+html.dark .bg-gray-200 {
+  background-color: #2e3e57 !important;
+}
+
+html.dark .bg-slate-100\/50,
+html.dark .bg-slate-50\/80,
+html.dark .bg-slate-50\/90 {
+  background-color: rgba(36, 48, 68, 0.8) !important;
+}
+
+/* Bordures douces et séparateurs sombres en Dark Mode */
+html.dark .border-slate-200,
+html.dark .border-slate-100,
+html.dark .border-gray-200,
+html.dark .border-gray-100,
+html.dark .border-slate-300,
+html.dark .border-gray-300,
+html.dark hr {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Séparateurs de liste */
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-800 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* Textes sombres transformés en textes clairs nets */
+html.dark .text-slate-900,
+html.dark .text-gray-900,
+html.dark .text-slate-800,
+html.dark .text-gray-800,
+html.dark .text-black {
+  color: #f8fafc !important;
+}
+
+/* Textes intermédiaires */
+html.dark .text-slate-700,
+html.dark .text-slate-600,
+html.dark .text-gray-700,
+html.dark .text-gray-600 {
+  color: #cbd5e1 !important;
+}
+
+/* Textes secondaires et estompés */
+html.dark .text-slate-500,
+html.dark .text-slate-400,
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+/* Champs de formulaires en Dark Mode */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+html.dark select,
+html.dark textarea {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Survol et interactions */
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-100:hover,
+html.dark .hover\:bg-gray-50:hover {
+  background-color: #334155 !important;
+}
+
+html.dark thead {
+  background-color: #0f172a !important;
+}
+
+html.dark thead th {
+  color: #cbd5e1 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark tr.hover\:bg-slate-50:hover,
+html.dark tr.hover\:bg-slate-50\/50:hover {
+  background-color: #273548 !important;
+}
+
+/* Ombres douces pour les modals et menus déroulants en mode sombre */
+html.dark .shadow-sm,
+html.dark .shadow,
+html.dark .shadow-md,
+html.dark .shadow-lg,
+html.dark .shadow-xl,
+html.dark .shadow-2xl {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4) !important;
 }
 
 input {
@@ -287,4 +449,15 @@ body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+}
+
+/* Masquer le badge indicateur de développement Next.js (Logo N en bas) */
+nextjs-portal,
+[data-nextjs-dev-indicator],
+[data-nextjs-toast-wrapper],
+div[data-nextjs-route-announcer] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }

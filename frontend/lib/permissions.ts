@@ -84,6 +84,13 @@ export const MENU_BY_ROLE: Record<Role, MenuSection[]> = {
       items: [
         { label: 'Assistant pédagogique', href: '/teacher/ai', icon: 'Bot', permission: 'ai:access' },
       ]
+    },
+    {
+      title: 'COMPTE',
+      color: 'gray',
+      items: [
+        { label: 'Paramètres', href: '/teacher/settings', icon: 'Settings', permission: 'course:read' },
+      ]
     }
   ],
   
@@ -112,6 +119,13 @@ export const MENU_BY_ROLE: Record<Role, MenuSection[]> = {
       color: 'green',
       items: [
         { label: 'Mes paiements', href: '/student/payments', icon: 'CreditCard', permission: 'payment:read' },
+      ]
+    },
+    {
+      title: 'COMPTE',
+      color: 'gray',
+      items: [
+        { label: 'Paramètres', href: '/student/settings', icon: 'Settings', permission: 'document:read' },
       ]
     }
   ],
@@ -166,6 +180,13 @@ export const MENU_BY_ROLE: Record<Role, MenuSection[]> = {
         { label: 'Statistiques Financières', href: '/accountant/statistics', icon: 'TrendingUp', permission: 'financial:read' },
         { label: 'Rapports Financiers', href: '/accountant/reports', icon: 'BarChart3', permission: 'financial:read' },
       ]
+    },
+    {
+      title: 'COMPTE',
+      color: 'gray',
+      items: [
+        { label: 'Paramètres', href: '/accountant/settings', icon: 'Settings', permission: 'financial:read' },
+      ]
     }
   ],
 
@@ -179,6 +200,13 @@ export const MENU_BY_ROLE: Record<Role, MenuSection[]> = {
         { label: 'Historique d\'Accès', href: '/guard/attendance', icon: 'Calendar', permission: 'guard:read' },
         { label: 'Signalement Incidents', href: '/guard/incidents', icon: 'ShieldAlert', permission: 'guard:read' },
         { label: 'Statistiques', href: '/guard/statistics', icon: 'BarChart3', permission: 'guard:read' },
+      ]
+    },
+    {
+      title: 'COMPTE',
+      color: 'gray',
+      items: [
+        { label: 'Paramètres', href: '/guard/settings', icon: 'Settings', permission: 'guard:read' },
       ]
     }
   ]
