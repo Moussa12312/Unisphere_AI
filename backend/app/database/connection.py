@@ -2,8 +2,23 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import DATABASE_URL
 
+import socket
+import os
+
+def _is_pg_reachable(url: str) -> bool:
+    try:
+        # Extraire host et port
+        from urllib.parse import urlparse
+        p = urlparse(url)
+        host = p.hostname or "localhost"
+        port = p.port or 5432
+        with socket.create_connection((host, port), timeout=0.8):
+            return True
+    except Exception:
+        return False
+
 try:
-    if "postgresql" in DATABASE_URL:
+    if "postgresql" in DATABASE_URL and _is_pg_reachable(DATABASE_URL):
         engine = create_engine(
             DATABASE_URL,
             pool_size=30,
@@ -16,16 +31,17 @@ try:
         )
         with engine.connect() as conn:
             pass
-    else:
+    elif "sqlite" in DATABASE_URL:
         engine = create_engine(
             DATABASE_URL,
-            connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+            connect_args={"check_same_thread": False}
         )
-except Exception as e:
-    import os
+    else:
+        raise ConnectionError("PostgreSQL indisponible")
+except Exception:
     backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     sqlite_path = os.path.join(backend_dir, "unisphere.db").replace("\\", "/")
-    print(f"[WARNING] Connexion PostgreSQL non disponible, basculement vers SQLite ({sqlite_path})")
+    print(f"[INFO] Utilisation de la base SQLite locale ({sqlite_path})")
     engine = create_engine(
         f"sqlite:///{sqlite_path}",
         connect_args={"check_same_thread": False}

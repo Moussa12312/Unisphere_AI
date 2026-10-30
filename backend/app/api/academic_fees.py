@@ -623,3 +623,35 @@ def get_deadline_by_type(
         "academic_year": deadline.academic_year,
         "description": deadline.description
     }
+
+# ==========================================
+# FRAIS ACADÉMIQUE PAR ID
+# ==========================================
+@router.get("/{fee_id}")
+def get_academic_fee_by_id(
+    fee_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant", "secretary"))
+):
+    fee = db.query(AcademicFee).filter(
+        AcademicFee.id == fee_id,
+        AcademicFee.university_id == current_user.university_id
+    ).first()
+    if not fee:
+        raise HTTPException(status_code=404, detail="Frais non trouvé")
+    return {
+        "id": fee.id,
+        "level": fee.level,
+        "domain": fee.domain,
+        "payment_type": fee.payment_type,
+        "amount": fee.amount,
+        "currency": fee.currency,
+        "has_monthly_option": getattr(fee, "has_monthly_option", True),
+        "monthly_deposit": getattr(fee, "monthly_deposit", None),
+        "monthly_installment": getattr(fee, "monthly_installment", None),
+        "monthly_months_count": getattr(fee, "monthly_months_count", 5) or 5,
+        "academic_year": fee.academic_year,
+        "is_locked": fee.is_locked,
+        "locked_count": fee.locked_count,
+        "created_at": fee.created_at.strftime("%Y-%m-%d %H:%M") if fee.created_at else ""
+    }

@@ -532,6 +532,7 @@ def admin_alumni_stats(
 def get_alumni_community(
     promotion: Optional[str] = None,
     filiere: Optional[str] = None,
+    domain: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("student", "alumni", "admin", "secretary"))
@@ -546,7 +547,15 @@ def get_alumni_community(
     if promotion:
         query = query.filter(AlumniProfile.promotion == promotion)
     if filiere:
-        query = query.filter(AlumniProfile.filiere == filiere)
+        query = query.filter(AlumniProfile.filiere.ilike(f"%{filiere}%"))
+    if domain:
+        query = query.filter(
+            or_(
+                AlumniProfile.domain.ilike(f"%{domain}%"),
+                AlumniProfile.activity_domain.ilike(f"%{domain}%"),
+                AlumniProfile.filiere.ilike(f"%{domain}%")
+            )
+        )
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -554,7 +563,9 @@ def get_alumni_community(
                 AlumniProfile.first_name.ilike(search_term),
                 AlumniProfile.last_name.ilike(search_term),
                 AlumniProfile.activity_domain.ilike(search_term),
-                AlumniProfile.company.ilike(search_term)
+                AlumniProfile.company.ilike(search_term),
+                AlumniProfile.domain.ilike(search_term),
+                AlumniProfile.filiere.ilike(search_term)
             )
         )
 
@@ -994,6 +1005,7 @@ def get_my_requests(
             result.append({
                 "id": conn.id,
                 "connection_type": conn.connection_type,
+                "status": conn.status or "pending",
                 "message": conn.message,
                 "created_at": conn.created_at.isoformat() if conn.created_at else None,
                 "student": {
@@ -1002,7 +1014,8 @@ def get_my_requests(
                     "last_name": student.last_name,
                     "matricule": student.matricule,
                     "filiere": student.filiere,
-                    "level": student.level
+                    "level": student.level,
+                    "user_id": student.user_id
                 }
             })
 
@@ -1031,12 +1044,11 @@ def get_student_data(
     connection = db.query(AlumniConnection).filter(
         AlumniConnection.alumni_id == alumni.id,
         AlumniConnection.student_id == student_id,
-        AlumniConnection.status == "accepted",
-        AlumniConnection.connection_type.in_(["mentor", "directeur_memoire"])
+        AlumniConnection.status == "accepted"
     ).first()
 
     if not connection:
-        raise HTTPException(status_code=403, detail="Vous n'êtes pas le mentor de cet étudiant")
+        raise HTTPException(status_code=403, detail="Vous n'êtes pas connecté à cet étudiant")
 
     # Récupérer les données de l'étudiant
     student = db.query(Student).filter(Student.id == student_id).first()
@@ -1052,12 +1064,16 @@ def get_student_data(
     grades_data = []
     for grade in grades:
         course = db.query(Course).filter(Course.id == grade.course_id).first()
+        course_name = getattr(course, 'title', None) or getattr(course, 'name', 'Cours inconnu')
+        cc_val = getattr(grade, 'cc_score', None) if getattr(grade, 'cc_score', None) is not None else getattr(grade, 'cc_note', None)
+        exam_val = getattr(grade, 'exam_score', None) if getattr(grade, 'exam_score', None) is not None else getattr(grade, 'exam_note', None)
+        final_val = getattr(grade, 'score', None) if getattr(grade, 'score', None) is not None else getattr(grade, 'final_note', None)
         grades_data.append({
-            "course_name": course.name if course else "Cours inconnu",
-            "cc_note": grade.cc_note,
-            "exam_note": grade.exam_note,
-            "final_note": grade.final_note,
-            "session": grade.session
+            "course_name": course_name,
+            "cc_note": cc_val,
+            "exam_note": exam_val,
+            "final_note": final_val,
+            "session": getattr(grade, "session", None) or "Session normale"
         })
 
     # Présences
@@ -1074,8 +1090,8 @@ def get_student_data(
     }
 
     # Moyenne générale
-    valid_grades = [g for g in grades if g.final_note is not None]
-    average = sum(g.final_note for g in valid_grades) / len(valid_grades) if valid_grades else 0
+    valid_grades = [g['final_note'] for g in grades_data if g['final_note'] is not None]
+    average = sum(valid_grades) / len(valid_grades) if valid_grades else 0
 
     return {
         "student": {
@@ -1086,7 +1102,8 @@ def get_student_data(
             "filiere": student.filiere,
             "level": student.level,
             "domain": student.domain,
-            "email": student.email
+            "email": student.email,
+            "user_id": student.user_id
         },
         "average": round(average, 2),
         "grades": grades_data,

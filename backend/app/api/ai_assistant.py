@@ -351,88 +351,158 @@ def get_guard_context(db: Session, university_id: int) -> dict:
 # ==========================================
 
 def generate_local_ai_response(message: str, context: dict, user_name: str) -> str:
-    """Moteur IA local contextuel intelligent pour UniSphere AI."""
+    """Moteur IA local contextuel intelligent et riche pour UniSphere AI."""
     msg = message.lower().strip()
     role = context.get("role", "admin")
-    
+    role_label = context.get("role_label", "Utilisateur")
+    first_name = user_name.split()[0] if user_name else "cher collègue"
+
     # 1. Salutations & Présentation
     if any(k in msg for k in ["bonjour", "salut", "coucou", "hello", "bonsoir", "qui es-tu", "qui es tu", "tu es qui", "ton rôle", "que peux-tu faire", "aide"]):
-        first_name = user_name.split()[0] if user_name else "cher collègue"
-        role_label = context.get("role_label", "utilisateur")
         return (
-            f"Bonjour {first_name} ! Je suis **UniSphere AI**, votre assistant universitaire intelligent. 🎓\n\n"
-            f"En tant que **{role_label}**, vous pouvez me poser des questions en temps réel sur les effectifs d'étudiants, "
-            f"les enseignants, les cours, les filières, les finances, les présences ou les performances académiques. "
-            f"Que souhaitez-vous savoir ?"
-        )
-    
-    # 2. Questions sur les étudiants / effectifs
-    if any(k in msg for k in ["etudiant", "étudiant", "effectif", "élève", "eleve", "inscrits"]):
-        total_students = context.get("total_students", 0)
-        filieres = context.get("filieres", {})
-        filiere_str = ""
-        if filieres and isinstance(filieres, dict):
-            top_filieres = sorted(filieres.items(), key=lambda x: x[1], reverse=True)[:3]
-            filiere_str = " Les filières principales sont : " + ", ".join([f"**{k}** ({v} étudiants)" for k, v in top_filieres]) + "."
-        return (
-            f"L'université compte actuellement un total de **{total_students} étudiants inscrits**.{filiere_str} 📚"
-        )
-        
-    # 3. Questions sur les enseignants / professeurs
-    if any(k in msg for k in ["enseignant", "professeur", "prof", "profs", "combien d'enseignant", "combien de prof", "corps professoral"]):
-        total_teachers = context.get("total_teachers", 0)
-        return (
-            f"Nous avons actuellement **{total_teachers} enseignants** enregistrés et actifs dans l'écosystème UniSphere AI. 👨‍🏫"
-        )
-        
-    # 4. Questions sur les cours / matières
-    if any(k in msg for k in ["cours", "matiere", "matière", "programme", "classe", "combien de cours"]):
-        total_courses = context.get("total_courses", context.get("courses_count", 0))
-        return (
-            f"Il y a actuellement **{total_courses} cours** configurés et dispensés à l'université. 📖"
+            f"Bonjour {first_name} ! Je suis **UniSphere AI**, l'assistant intelligent de votre établissement universitaire. 🎓\n\n"
+            f"En tant que **{role_label}**, vous pouvez m'interroger sur :\n"
+            f"• 👥 **Effectifs & Inscriptions** (étudiants, filières, promotions)\n"
+            f"• 📚 **Notes, Délibérations & Rattrapages** (jury LMD, seuil de validation, rattrapages)\n"
+            f"• 📅 **Emplois du temps & Salles** (créneaux de cours, disponibilités)\n"
+            f"• ⏱️ **Présences & Suivi enseignant** (taux d'assiduité, ponctualité, scans)\n"
+            f"• 💳 **Finances & Scolarité** (recouvrement des tranches, quittances)\n"
+            f"• 📜 **Attestations & Relevés de notes** (génération et validation)\n"
+            f"• 🤝 **Réseau Alumni & Mentorat**\n\n"
+            f"Quelle information souhaitez-vous consulter aujourd'hui ?"
         )
 
-    # 5. Questions sur les finances / chiffre d'affaires / paiements
-    if any(k in msg for k in ["chiffre d'affaire", "chiffre d'affaires", "argent", "revenu", "caisse", "recouvrement", "paiement", "impayé", "impaye", "solde"]):
+    # 2. Délibérations & Jurys
+    if any(k in msg for k in ["deliberation", "délibération", "jury", "pv", "regle de deliberation", "règle de délibération"]):
+        return (
+            f"⚖️ **Système de Délibération Académique (LMD) :**\n\n"
+            f"Le module de délibération d'UniSphere AI applique les règles officielles de l'enseignement supérieur :\n"
+            f"1. **Validation directe :** Moyenne générale ≥ 10.0/20 et validation des 30 crédits du semestre (ou 60 crédits de l'année).\n"
+            f"2. **Compensation LMD :** Compensation inter-matières au sein d'une même UE si la moyenne de l'UE atteint le seuil requis.\n"
+            f"3. **Orientation vers le rattrapage :** Les étudiants ayant des UE ajournées (< 10/20 non compensables) sont automatiquement versés en session de rattrapage.\n"
+            f"4. **Procès-Verbal (PV) :** Génération automatique du PV de jury officiel avec signatures et mention (Passable, Assez-Bien, Bien, Très-Bien).\n\n"
+            f"💡 Les règles de calcul peuvent être affinées dans la section *Administration > Délibérations > Règles*."
+        )
+
+    # 3. Rattrapages & Sessions de rattrapage
+    if any(k in msg for k in ["rattrapage", "session de rattrapage", "ajourne", "ajourné", "recalé", "note eliminatoire", "note éliminatoire"]):
+        return (
+            f"📝 **Gestion des Sessions de Rattrapage :**\n\n"
+            f"• **Éligibilité :** Tout étudiant ayant obtenu une note inférieure à 10/20 à la session normale sur une matière non validée par compensation est éligible au rattrapage.\n"
+            f"• **Organisation :** Le Censeur et le Secrétaire peuvent consulter la liste des candidats par filière et générer l'état complet en Excel (.xlsx).\n"
+            f"• **Prise en compte de la note :** La note retenue après délibération de rattrapage est calculée selon la règle de la meilleure note (Session 1 vs Session 2).\n"
+            f"• **Export :** Vous pouvez exporter la liste des étudiants en rattrapage depuis *Examens > Rattrapages*."
+        )
+
+    # 4. Emploi du temps & Planning
+    if any(k in msg for k in ["emploi du temps", "planning", "horaire", "cours du jour", "salle", "creneau", "créneau"]):
+        return (
+            f"📅 **Emploi du Temps & Planification :**\n\n"
+            f"L'emploi du temps est synchronisé en temps réel avec les présences et les cartes étudiantes :\n"
+            f"• Les cours sont structurés par jour (Lundi au Samedi) avec horaires de début et de fin, salle attribuée et enseignant titulaire.\n"
+            f"• La présence des élèves est automatiquement vérifiée par rapport aux cours réellement programmés dans leur emploi du temps.\n"
+            f"• Vous pouvez consulter et imprimer le planning hebdomadaire depuis *Planning / Emploi du temps*."
+        )
+
+    # 5. Notes, Saisie & Clôture
+    if any(k in msg for k in ["fermer la saisie", "cloture", "clôture", "saisie des notes", "valider les notes", "bulletin", "releve", "relevé"]):
+        return (
+            f"📊 **Gestion et Clôture des Notes :**\n\n"
+            f"• **Saisie :** Les enseignants et le secrétariat peuvent renseigner les notes de Contrôle Continu (CC) et d'Examen.\n"
+            f"• **Validation Censeur :** Le Censeur vérifie les anomalies statistiques (notes aberrantes, écarts types).\n"
+            f"• **Verrouillage de sécurité :** Un bouton *'Fermer / Rouvrir la saisie des notes'* est disponible sur les interfaces Administration, Censeur et Secrétaire pour geler toute modification dès que les notes sont proclamées."
+        )
+
+    # 6. Attestations, Certificats & Documents
+    if any(k in msg for k in ["attestation", "certificat", "document", "demande d'attestation", "releve officiel"]):
+        return (
+            f"📜 **Attestations & Documents Officiels :**\n\n"
+            f"• Les étudiants peuvent soumettre des demandes en ligne : *Attestation de scolarité*, *Attestation de réussite*, *Relevé de notes officiel LMD*.\n"
+            f"• Dès que le Secrétariat valide ou refuse une demande, l'étudiant reçoit une **notification instantanée** sur son compte avec prévisualisation et bouton d'impression haute fidélité (marges aérées, logo officiel et QR code de vérification)."
+        )
+
+    # 7. Présence & Suivi des Enseignants
+    if any(k in msg for k in ["presence", "présence", "assiduite", "assiduité", "retard", "absent", "taux de presence", "suivi enseignant"]):
+        rate = context.get("attendance_rate", 0)
+        return (
+            f"⏱️ **Présences & Suivi de Ponctualité :**\n\n"
+            f"• **Taux d'assiduité global :** **{rate}%**.\n"
+            f"• **Double présence :** 1) Présence journalière à l'école (scan gardien ou synchronisation automatique dès que l'élève est noté présent en cours), et 2) Présence par module selon l'appel de l'enseignant.\n"
+            f"• **Suivi Enseignants :** Le tableau de bord Admin et Censeur intègre le suivi des heures effectives, des heures perdues et du taux de ponctualité de chaque enseignant."
+        )
+
+    # 8. Finances & Scolarité
+    if any(k in msg for k in ["chiffre d'affaire", "chiffre d'affaires", "argent", "revenu", "caisse", "recouvrement", "paiement", "impayé", "impaye", "solde", "tranche", "quittance"]):
         rev = context.get("total_revenue", 0)
         late = context.get("late", 0)
         rate = context.get("collection_rate", 0)
         rev_str = f"{rev:,.0f} FCFA".replace(",", " ")
         late_str = f"{late:,.0f} FCFA".replace(",", " ")
         return (
-            f"📊 **Situation Financière :**\n"
-            f"• Chiffre d'affaires collecté : **{rev_str}**\n"
-            f"• En attente / retards : **{late_str}**\n"
-            f"• Taux de recouvrement : **{rate}%**"
+            f"💳 **Situation Financière de l'Établissement :**\n\n"
+            f"• **Recouvrement total encaissé :** **{rev_str}**\n"
+            f"• **Reliquats / Tranches en attente :** **{late_str}**\n"
+            f"• **Taux de recouvrement :** **{rate}%**\n\n"
+            f"📄 Les quittances officielles font la distinction automatique entre une *'Attestation de paiement partiel'* (reste à solder) et une *'Quittance financière officielle'* (intégralité soldée 100%)."
         )
 
-    # 6. Questions sur les présences / retards / assiduité
-    if any(k in msg for k in ["presence", "présence", "assiduite", "assiduité", "retard", "absent", "taux de presence"]):
-        rate = context.get("attendance_rate", 0)
+    # 9. Incidents & Gardiennage
+    if any(k in msg for k in ["incident", "securite", "sécurité", "gardien", "badge", "camera", "caméra"]):
         return (
-            f"Le taux de présence global est actuellement de **{rate}%**. Les scans de QR codes à l'entrée permettent un suivi en temps réel des flux. ⏱️"
+            f"🛡️ **Sécurité & Contrôle d'Accès :**\n\n"
+            f"• **Scanner mobile :** Les gardiens peuvent scanner les badges par caméra directe ou en prenant une photo du badge sur mobile (compatible HTTP sans SSL).\n"
+            f"• **Signalement d'incidents :** Le gardien recherche directement l'élève avec sa photo et son nom complet pour enregistrer un incident sans devoir mémoriser son matricule."
         )
-        
-    # 7. Questions sur les filières
-    if any(k in msg for k in ["filiere", "filière", "departement", "département", "specialite", "spécialité"]):
+
+    # 10. Alumni & Insertion
+    if any(k in msg for k in ["alumni", "mentor", "insertion", "diplome", "diplômé", "ancien"]):
+        return (
+            f"🎓 **Réseau Alumni & Mentorat :**\n\n"
+            f"• Les étudiants peuvent explorer les profils des anciens diplômés de **leur domaine d'études** (pas seulement leur filière étroite) pour trouver un mentor, un directeur de mémoire ou une opportunité de stage.\n"
+            f"• Les alumni disposent d'un espace dédié pour échanger par messagerie sécurisée avec les étudiants."
+        )
+
+    # 11. Étudiants / Effectifs
+    if any(k in msg for k in ["etudiant", "étudiant", "effectif", "élève", "eleve", "inscrits"]):
+        total_students = context.get("total_students", 0)
+        filieres = context.get("filieres", {})
+        filiere_str = ""
+        if filieres and isinstance(filieres, dict):
+            top_filieres = sorted(filieres.items(), key=lambda x: x[1], reverse=True)[:3]
+            filiere_str = " Les filières les plus représentées sont : " + ", ".join([f"**{k}** ({v} étudiants)" for k, v in top_filieres]) + "."
+        return (
+            f"👥 L'établissement compte actuellement un effectif de **{total_students} étudiants inscrits**.{filiere_str}"
+        )
+
+    # 12. Enseignants
+    if any(k in msg for k in ["enseignant", "professeur", "prof", "profs"]):
+        total_teachers = context.get("total_teachers", 0)
+        return (
+            f"👨‍🏫 L'établissement compte **{total_teachers} enseignants** affectés aux différents départements académiques."
+        )
+
+    # 13. Filières
+    if any(k in msg for k in ["filiere", "filière", "departement", "département"]):
         filieres = context.get("filieres", {})
         if filieres and isinstance(filieres, dict):
             items = [f"• **{k}** : {v} étudiants" for k, v in filieres.items()]
-            return "Voici la répartition actuelle par filière :\n" + "\n".join(items)
-        return "Toutes les filières académiques sont configurées et actives dans le système. 🏫"
+            return "🏫 **Répartition des effectifs par filière :**\n\n" + "\n".join(items)
+        return "Toutes les filières académiques sont configurées avec leurs domaines et niveaux associés."
 
-    # 8. Réponse contextuelle globale intelligente par défaut
+    # 14. Réponse contextuelle globale personnalisée
     total_students = context.get("total_students", 0)
     total_teachers = context.get("total_teachers", 0)
     total_courses = context.get("total_courses", context.get("courses_count", 0))
     rate = context.get("attendance_rate", 0)
     
-    first_name = user_name.split()[0] if user_name else ""
     return (
-        f"Bonjour {first_name} ! Voici un aperçu en temps réel : "
-        f"l'université compte actuellement **{total_students} étudiants**, **{total_teachers} enseignants** et **{total_courses} cours**. "
-        f"Le taux d'assiduité est de **{rate}%**.\n\n"
-        f"💡 Vous pouvez me poser des questions précises sur les effectifs, les cours, les finances ou les présences."
+        f"Bonjour {first_name} ! Je suis à votre service pour vous assister sur toutes les fonctionnalités d'UniSphere AI.\n\n"
+        f"📊 **Situation en direct :**\n"
+        f"• Étudiants inscrits : **{total_students}**\n"
+        f"• Enseignants : **{total_teachers}**\n"
+        f"• Cours configurés : **{total_courses}**\n"
+        f"• Assiduité : **{rate}%**\n\n"
+        f"💬 Posez-moi une question précise (ex: *'Comment fonctionne la délibération ?'*, *'Qui va au rattrapage ?'*, *'Taux d'assiduité'*, *'Chiffre d'affaires'*...) et je vous répondrai en détail !"
     )
 
 

@@ -50,6 +50,17 @@ def create_rule(data: RuleCreate, db: Session = Depends(get_db), current_user: U
     return rule
 
 
+@router.get("/rules/{rule_id}")
+def get_rule_detail(rule_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+    rule = db.query(DeliberationRule).filter(
+        DeliberationRule.id == rule_id,
+        DeliberationRule.university_id == current_user.university_id
+    ).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Règle non trouvée")
+    return rule
+
+
 @router.put("/rules/{rule_id}")
 def update_rule(rule_id: int, data: RuleCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
     rule = db.query(DeliberationRule).filter(
@@ -230,6 +241,27 @@ class DecisionSave(BaseModel):
     failed_courses_count: int
     decision: str
     comment: Optional[str] = None
+
+
+@router.get("/sessions/{session_id}/decisions")
+def get_session_decisions(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+    session = db.query(DeliberationSession).filter(
+        DeliberationSession.id == session_id,
+        DeliberationSession.university_id == current_user.university_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    
+    decisions = db.query(DeliberationDecision).filter(DeliberationDecision.session_id == session_id).all()
+    return [{
+        "id": d.id,
+        "session_id": d.session_id,
+        "student_id": d.student_id,
+        "average": d.average,
+        "failed_courses_count": d.failed_courses_count,
+        "decision": d.decision,
+        "comment": d.comment
+    } for d in decisions]
 
 
 @router.post("/sessions/{session_id}/decisions")

@@ -81,7 +81,7 @@ def get_announcements(
     search: Optional[str] = None,
     category: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "teacher", "student"))
+    current_user: User = Depends(require_role("admin", "secretary", "teacher", "student", "censeur", "accountant", "guard", "alumni"))
 ):
     """Récupérer toutes les annonces (accessible à tous les rôles)."""
     query = db.query(Announcement).filter(

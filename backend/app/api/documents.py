@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.report_card import ReportCard
 from app.models.exam_session import ExamSession
 from app.models.attendance import Attendance
+from app.models.grade import Grade
 from app.models.payment import Payment
 from app.models.academic_fee import AcademicFee
 from app.models.payment_tranche import PaymentTranche
@@ -442,7 +443,14 @@ def generate_transcript(
     elements.append(Paragraph("RELEVÉ DE NOTES OFFICIEL", ParagraphStyle('TranscriptTitle', fontSize=15, alignment=TA_CENTER, fontName="Helvetica-Bold", textColor=colors.HexColor("#0a1628"), spaceAfter=12)))
 
     # Infos étudiant
-    dob = student.date_of_birth.strftime('%d/%m/%Y') if student.date_of_birth else "N/A"
+    if student.date_of_birth:
+        if hasattr(student.date_of_birth, 'strftime'):
+            dob = student.date_of_birth.strftime('%d/%m/%Y')
+        else:
+            dob = str(student.date_of_birth)
+    else:
+        dob = "N/A"
+
     session_title = session.name if session else "Session Principale"
     student_table_data = [
         ["Nom & Prénom :", f"{student.last_name.upper()} {student.first_name}", "Matricule :", student.matricule or "N/A"],
@@ -543,8 +551,39 @@ def generate_transcript(
 
 
 # ==========================================
-# ✅ REÇU DE PAIEMENT OFFICIEL (PDF)
+# ✅ REÇU DE PAIEMENT OFFICIEL (PDF) HAUTE FIDÉLITÉ
 # ==========================================
+def _amount_in_french_words(n: float) -> str:
+    units = ["zéro","un","deux","trois","quatre","cinq","six","sept","huit","neuf","dix","onze","douze","treize","quatorze","quinze","seize","dix-sept","dix-huit","dix-neuf"]
+    tens = ["","dix","vingt","trente","quarante","cinquante","soixante","soixante","quatre-vingt","quatre-vingt"]
+    def under100(x):
+        if x < 20: return units[x]
+        t = x // 10
+        r = x % 10
+        if t in (7, 9): return tens[t] + "-" + units[10 + r]
+        if r == 0: return tens[t] + ("s" if t == 8 else "")
+        if r == 1 and t != 8: return tens[t] + " et un"
+        return tens[t] + "-" + units[r]
+    def under1000(x):
+        c = x // 100
+        r = x % 100
+        s = ""
+        if c > 0:
+            s = "cent" if c == 1 else units[c] + " cent" + ("s" if r == 0 and c > 1 else "")
+        if r > 0:
+            s = (s + " " + under100(r)) if s else under100(r)
+        return s
+    n = int(round(abs(n)))
+    if n == 0: return "zéro"
+    m = n // 1000000
+    k = (n % 1000000) // 1000
+    r = n % 1000
+    parts = []
+    if m: parts.append("un million" if m == 1 else f"{under1000(m)} millions")
+    if k: parts.append("mille" if k == 1 else f"{under1000(k)} mille")
+    if r: parts.append(under1000(r))
+    return " ".join(parts).capitalize()
+
 @router.get("/generate-receipt/{payment_id}")
 def generate_receipt_pdf(
     payment_id: int,
@@ -561,78 +600,197 @@ def generate_receipt_pdf(
 
     university = db.query(University).filter(University.id == student.university_id).first()
 
+    # Tranches configurées et calcul du reste
+    from app.utils.tuition import get_configured_tranches_for_student
+    configured_tranches = get_configured_tranches_for_student(db, student, student.university_id, 0)
+    total_due = sum(float(t.amount) for t in configured_tranches) if configured_tranches else float(payment.amount)
+
+    all_payments = db.query(Payment).filter(
+        Payment.student_id == student.id,
+        Payment.status == "completed"
+    ).order_by(Payment.payment_date.asc(), Payment.id.asc()).all()
+    total_paid_all = sum(float(p.amount) for p in all_payments if p.amount)
+
+    rem_alloc = float(total_paid_all)
+    tranches_rows = []
+    for t in configured_tranches:
+        t_amt = float(t.amount)
+        if rem_alloc >= t_amt and t_amt > 0:
+            p_amt = t_amt
+            rem_alloc -= t_amt
+            status_txt = "Soldée"
+        elif rem_alloc > 0:
+            p_amt = rem_alloc
+            rem_alloc = 0
+            status_txt = "Partielle"
+        else:
+            p_amt = 0.0
+            status_txt = "En attente"
+        r_amt = max(0.0, t_amt - p_amt)
+        due_str = t.due_date.strftime("%d/%m/%Y") if t.due_date else "—"
+        tranches_rows.append([
+            f"Tranche {t.tranche_number} : {t.tranche_name or ''}",
+            due_str,
+            f"{int(t_amt):,} FCFA".replace(",", " "),
+            f"{int(p_amt):,} FCFA".replace(",", " "),
+            f"{int(r_amt):,} FCFA".replace(",", " "),
+            status_txt
+        ])
+
+    balance_remaining = max(0.0, total_due - total_paid_all)
+
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=1.5*cm, bottomMargin=2*cm)
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1.5*cm,
+        leftMargin=1.5*cm,
+        topMargin=1.2*cm,
+        bottomMargin=1.5*cm
+    )
     elements = []
     styles = getSampleStyleSheet()
 
-    header_style = ParagraphStyle(name="Header", fontSize=12, alignment=TA_CENTER, fontName="Helvetica-Bold", spaceAfter=4)
-    title_style = ParagraphStyle(name="Title", fontSize=16, alignment=TA_CENTER, fontName="Helvetica-Bold", spaceAfter=15, textColor=colors.HexColor('#0a1628'))
-    body_style = ParagraphStyle(name="Body", fontSize=10.5, fontName="Helvetica", leading=14)
+    # En-tête ministériel & institutionnel
+    mali_header = Paragraph(
+        "<b>RÉPUBLIQUE DU MALI</b><br/><font size=7>Un Peuple - Un But - Une Foi</font><br/>"
+        "<b>MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR<br/>ET DE LA RECHERCHE SCIENTIFIQUE</b>",
+        ParagraphStyle('MaliH', fontSize=8, alignment=TA_CENTER, leading=10, textColor=colors.HexColor('#0a1628'))
+    )
 
-    # University header
-    if university:
-        elements.append(Paragraph(university.name.upper(), header_style))
-        if university.address:
-            elements.append(Paragraph(university.address, ParagraphStyle('Addr', fontSize=9, alignment=TA_CENTER, textColor=colors.grey)))
-    elements.append(Spacer(1, 0.5*cm))
-    elements.append(Paragraph("REÇU DE PAIEMENT OFFICIEL", title_style))
-    elements.append(Spacer(1, 0.5*cm))
+    univ_title = university.name if university else "UNIVERSITÉ PRIVÉE"
+    univ_addr = university.address if university and university.address else "Bamako, République du Mali"
+    univ_contact = f"Tél: {university.phone or ''} | Email: {university.email or ''}" if university else ""
 
-    rec_num = getattr(payment, 'receipt_number', None) or f"REC-{payment.id:06d}"
-    pay_date = payment.payment_date.strftime("%d/%m/%Y") if payment.payment_date else datetime.now().strftime("%d/%m/%Y")
-    amount_str = f"{int(payment.amount):,} FCFA".replace(",", " ")
+    univ_header = Paragraph(
+        f"<b><font size=11 color='#FF6B00'>{univ_title.upper()}</font></b><br/>"
+        f"<font size=8 color='#475569'>{univ_addr}<br/>{univ_contact}</font>",
+        ParagraphStyle('UnivH', fontSize=8, alignment=TA_CENTER, leading=11)
+    )
 
-    info_data = [
-        ["Numéro de reçu :", rec_num, "Date :", pay_date],
-        ["Étudiant :", f"{student.first_name} {student.last_name}", "Matricule :", student.matricule or "-"],
-        ["Filière :", student.filiere or "-", "Niveau :", student.level or "-"],
-        ["Mode de règlement :", (payment.payment_method or "Espèces").upper(), "Statut :", (payment.status or "COMPLETED").upper()],
-    ]
-    info_table = Table(info_data, colWidths=[3.5*cm, 5*cm, 3*cm, 4.5*cm])
-    info_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9.5),
-        ('PADDING', (0, 0), (-1, -1), 3),
-    ]))
-    elements.append(info_table)
-    elements.append(Spacer(1, 0.8*cm))
-
-    # Payment details table
-    details_data = [
-        ["Désignation", "Type", "Montant réglé"],
-        [payment.description or "Frais de scolarité", (payment.payment_type or "Scolarité").capitalize(), amount_str],
-        ["TOTAL RÉGLÉ", "", amount_str]
-    ]
-    details_table = Table(details_data, colWidths=[8*cm, 4*cm, 4*cm])
-    details_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0a1628')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9.5),
-        ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#f8fafc')),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('PADDING', (0, 0), (-1, -1), 6),
-    ]))
-    elements.append(details_table)
-    elements.append(Spacer(1, 1*cm))
-
-    # Signatures
-    elements.append(Paragraph(f"Établi le {datetime.now().strftime('%d/%m/%Y à %H:%M')}", ParagraphStyle('DT', fontSize=9, alignment=TA_RIGHT, spaceAfter=20)))
-    sign_table = Table([
-        ["L'Étudiant(e)", "Le Service Comptabilité & Caisse"],
-        ["(Lu et approuvé)", "(Signature et Cachet)"]
-    ], colWidths=[8*cm, 8*cm])
-    sign_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    header_table = Table([[mali_header, "", univ_header]], colWidths=[7.5*cm, 1*cm, 9.5*cm])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
+    elements.append(header_table)
+
+    # Ligne de séparation
+    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Table([[""]], colWidths=[18*cm], style=[
+        ('LINEABOVE', (0, 0), (-1, -1), 1.5, colors.HexColor('#FF6B00')),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0)
+    ]))
+    elements.append(Spacer(1, 0.3*cm))
+
+    # Titre du Reçu
+    rec_num = getattr(payment, 'receipt_number', None) or f"REC-{payment.id:06d}"
+    pay_date = payment.payment_date.strftime("%d/%m/%Y") if payment.payment_date else datetime.now().strftime("%d/%m/%Y")
+
+    title_p = Paragraph(
+        f"<b>REÇU DE PAIEMENT OFFICIEL</b><br/><font size=9 color='#64748b'>N° D'ENREGISTREMENT : <b>{rec_num}</b> &nbsp;|&nbsp; DATE : {pay_date}</font>",
+        ParagraphStyle('RecTitle', fontSize=14, alignment=TA_CENTER, leading=18, textColor=colors.HexColor('#0a1628'))
+    )
+    elements.append(title_p)
+    elements.append(Spacer(1, 0.4*cm))
+
+    # Carte Identité Étudiant & Modalités
+    pay_method = (payment.payment_method or "Espèces").upper().replace("_", " ")
+    student_name = f"{student.first_name} {student.last_name}".upper()
+    academic_year = getattr(student, 'academic_year', None) or getattr(payment, 'academic_year', None) or f"{datetime.now().year}-{datetime.now().year+1}"
+
+    student_data = [
+        ["Étudiant(e) :", Paragraph(f"<b>{student_name}</b>", styles['Normal']), "Matricule :", Paragraph(f"<b>{student.matricule or '-'}</b>", styles['Normal'])],
+        ["Filière :", student.filiere or "-", "Niveau :", student.level or "-"],
+        ["Mode règlement :", pay_method, "Année académique :", academic_year],
+        ["Référence transaction :", getattr(payment, 'reference', '-') or f"PAY-{payment.id}", "Statut :", "ENCAISSÉ / VALIDÉ"],
+    ]
+    student_table = Table(student_data, colWidths=[3.8*cm, 5.5*cm, 3.7*cm, 5*cm])
+    student_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('PADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(student_table)
+    elements.append(Spacer(1, 0.4*cm))
+
+    # Bloc Montant Versé & En toutes lettres
+    amount_num = f"{int(payment.amount):,} FCFA".replace(",", " ")
+    amount_letters = _amount_in_french_words(payment.amount)
+
+    amount_data = [
+        [
+            Paragraph(f"<font size=8 color='#475569'>MONTANT RÉGLÉ CE JOUR :</font><br/><b><font size=14 color='#16a34a'>{amount_num}</font></b>", styles['Normal']),
+            Paragraph(f"<font size=8 color='#475569'>ARRÊTÉ LE PRÉSENT REÇU À LA SOMME DE :</font><br/><i><b>{amount_letters} Francs CFA</b></i>", styles['Normal'])
+        ]
+    ]
+    amount_table = Table(amount_data, colWidths=[6.5*cm, 11.5*cm])
+    amount_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f0fdf4')),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#86efac')),
+        ('PADDING', (0, 0), (-1, -1), 6),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(amount_table)
+    elements.append(Spacer(1, 0.4*cm))
+
+    # Tableau de ventilation des tranches (si existant)
+    if tranches_rows:
+        elements.append(Paragraph("<b>VENTILATION DE LA SCOLARITÉ PAR TRANCHES :</b>", ParagraphStyle('TrTitle', fontSize=8.5, fontName="Helvetica-Bold", spaceAfter=3, textColor=colors.HexColor('#0a1628'))))
+        table_headers = ["Désignation", "Échéance", "Montant prévu", "Réglé à ce jour", "Reste dû", "Statut"]
+        t_data = [table_headers] + tranches_rows
+        # Ligne de total
+        t_data.append([
+            "TOTAL GLOBAL SCOLARITÉ",
+            "",
+            f"{int(total_due):,} FCFA".replace(",", " "),
+            f"{int(total_paid_all):,} FCFA".replace(",", " "),
+            f"{int(balance_remaining):,} FCFA".replace(",", " "),
+            "À JOUR" if balance_remaining <= 0 else "EN COURS"
+        ])
+        t_table = Table(t_data, colWidths=[4.6*cm, 2.2*cm, 2.9*cm, 2.9*cm, 2.9*cm, 2.5*cm])
+        t_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0a1628')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7.5),
+            ('ALIGN', (2, 0), (4, -1), 'RIGHT'),
+            ('ALIGN', (5, 0), (5, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e2e8f0')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('PADDING', (0, 0), (-1, -1), 3.5),
+        ]))
+        elements.append(t_table)
+        elements.append(Spacer(1, 0.4*cm))
+
+    # Signatures et cachet
+    elements.append(Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d/%m/%Y à %H:%M')}", ParagraphStyle('DT', fontSize=8, alignment=TA_RIGHT, spaceAfter=8)))
+    sign_table = Table([
+        ["L'Étudiant(e)<br/><font size=7 color='#64748b'>(Signature obligatoire)</font>",
+         "Le Service Caisse & Comptabilité<br/><font size=7 color='#64748b'>(Signature & Cachet d'encaissement)</font>"]
+    ], colWidths=[9*cm, 9*cm])
+    sign_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('LINEBELOW', (0, 0), (0, 0), 0.5, colors.HexColor('#cbd5e1')),
+        ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.HexColor('#cbd5e1')),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 32),
+    ]))
     elements.append(sign_table)
+
+    # Bas de page sécurisé
+    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Paragraph(
+        f"<font size=6.5 color='#94a3b8'>Document officiel généré par UniSphere AI. Toute altération ou falsification expose à des poursuites. Référence vérifiable N° {rec_num}.</font>",
+        ParagraphStyle('FooterNotice', fontSize=6.5, alignment=TA_CENTER)
+    ))
 
     doc.build(elements)
     buffer.seek(0)

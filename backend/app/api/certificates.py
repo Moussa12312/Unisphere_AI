@@ -5,6 +5,7 @@ from app.models.student import Student
 from app.models.user import User
 from app.models.university import University
 from app.models.certificate_request import CertificateRequest
+from app.models.notification import Notification
 from app.core.dependencies import require_role
 from app.services.pdf_generator import (
     generate_enrollment_certificate_pdf,
@@ -22,6 +23,42 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def _notify_student_about_request(db: Session, req: CertificateRequest, status: str, reason: str = None):
+    """Envoie une notification en temps réel à l'étudiant lorsque sa demande est validée ou rejetée"""
+    try:
+        if not req.student or not req.student.user_id:
+            return
+        
+        doc_label = {
+            "enrollment": "Attestation d'inscription / scolarité",
+            "success": "Attestation de réussite",
+            "transcript": "Relevé de notes officiel"
+        }.get(req.request_type, req.request_type or "Document officiel")
+
+        if status == "approved":
+            title = f"✅ Document validé : {doc_label}"
+            message = f"Votre demande de '{doc_label}' a été validée par le secrétariat. Vous pouvez dès maintenant télécharger et imprimer votre document officiel depuis votre espace étudiant."
+            notif_type = "success"
+        else:
+            title = f"❌ Demande refusée : {doc_label}"
+            reason_txt = f" Motif : {reason}" if reason else ""
+            message = f"Votre demande de '{doc_label}' a été rejetée par l'administration.{reason_txt} Rendez-vous au secrétariat académique si nécessaire."
+            notif_type = "error"
+
+        notif = Notification(
+            title=title,
+            message=message,
+            notification_type="certificate",
+            type=notif_type,
+            recipient_id=req.student.user_id,
+            university_id=req.student.university_id,
+            is_read=False
+        )
+        db.add(notif)
+    except Exception as e:
+        print(f"Erreur notification étudiant certificat : {e}")
 
 
 def build_student_transcript_bytes(db: Session, student: Student, certificate_id: int = 1) -> bytes:
@@ -369,6 +406,7 @@ def auto_generate_certificate(
 
     _generate_pdf_for_request(db, req)
     req.status = "approved"
+    _notify_student_about_request(db, req, "approved")
     db.commit()
 
     return {
@@ -420,14 +458,20 @@ def update_request_status(
     if not req:
         raise HTTPException(status_code=404, detail="Demande non trouvée")
     
-    req.status = status_data.get("status")
-    if status_data.get("status") == "rejected":
-        req.rejection_reason = status_data.get("rejection_reason", "")
-    elif status_data.get("status") == "approved" and (not req.file_path or not os.path.exists(req.file_path)):
-        _generate_pdf_for_request(db, req)
+    new_status = status_data.get("status")
+    rejection_reason = status_data.get("rejection_reason", "")
+    req.status = new_status
+
+    if new_status == "rejected":
+        req.rejection_reason = rejection_reason
+        _notify_student_about_request(db, req, "rejected", rejection_reason)
+    elif new_status == "approved":
+        if not req.file_path or not os.path.exists(req.file_path):
+            _generate_pdf_for_request(db, req)
+        _notify_student_about_request(db, req, "approved")
         
     db.commit()
-    return {"message": "Statut mis à jour"}
+    return {"message": "Statut mis à jour et étudiant notifié"}
 
 @router.post("/secretary/requests/{request_id}/upload")
 async def upload_certificate_file(
@@ -458,9 +502,10 @@ async def upload_certificate_file(
     
     req.file_path = filepath
     req.status = "approved"
+    _notify_student_about_request(db, req, "approved")
     
     db.commit()
-    return {"message": "Fichier uploadé et demande validée", "file_path": filepath}
+    return {"message": "Fichier uploadé et demande validée avec notification envoyée", "file_path": filepath}
 
 @router.get("/student/{student_id}/enrollment-certificate")
 def get_student_enrollment_certificate_direct(

@@ -6,6 +6,7 @@ from app.database.connection import SessionLocal
 from app.models.message import Message
 from app.models.user import User
 from app.models.student import Student
+from app.models.notification import Notification
 from app.core.dependencies import require_role
 import os
 import uuid
@@ -76,6 +77,26 @@ def send_message(
     db.add(new_message)
     db.commit()
     db.refresh(new_message)
+    
+    # ✅ NOTIFICATION INSTANTANÉE AU DESTINATAIRE
+    if recipient_id:
+        try:
+            notif = Notification(
+                title=f"💬 Message de {current_user.full_name}",
+                message=f"{subject}\n{content[:140]}",
+                notification_type="message",
+                type="info",
+                recipient_id=recipient_id,
+                created_by=current_user.id,
+                university_id=current_user.university_id,
+                is_read=False,
+                extra_data={"message_id": new_message.id, "sender_id": current_user.id}
+            )
+            db.add(notif)
+            db.commit()
+        except Exception as e:
+            print(f"⚠️ Erreur création notif message: {e}")
+
     
     return {
         "id": new_message.id,
@@ -477,9 +498,24 @@ def broadcast_message(
             university_id=current_user.university_id
         )
         db.add(new_message)
+        
+        # ✅ Notification pour chaque destinataire de la diffusion
+        notif = Notification(
+            title=f"📢 {subject}",
+            message=f"Message de {current_user.full_name} : {content[:140]}",
+            notification_type="broadcast",
+            type="info",
+            recipient_id=recipient.id,
+            created_by=current_user.id,
+            university_id=current_user.university_id,
+            is_read=False,
+            extra_data={"sender_id": current_user.id}
+        )
+        db.add(notif)
         created_count += 1
     
     db.commit()
+
     
     return {
         "message": f"Message envoyé à {created_count} destinataire(s)",

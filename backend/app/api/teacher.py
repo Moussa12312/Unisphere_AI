@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header, Query
 from fastapi.responses import FileResponse
 import qrcode
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from datetime import date, datetime
+from jose import jwt, JWTError
+from app.core.config import SECRET_KEY, ALGORITHM
 from app.database.connection import get_db
 from app.models.teacher import Teacher
 from app.models.course import Course
@@ -487,14 +489,41 @@ def get_teacher_profile(
 @router.get("/qrcode")
 @router.get("/qr-code")
 def get_current_teacher_qrcode(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("teacher"))
+    teacher_id: int = Query(None),
+    token: str = Query(None),
+    authorization: str = Header(None),
+    db: Session = Depends(get_db)
 ):
-    """Télécharger ou afficher le QR code de l'enseignant connecté"""
-    teacher = db.query(Teacher).filter(
-        Teacher.user_id == current_user.id,
-        Teacher.university_id == current_user.university_id
-    ).first()
+    """Télécharger ou afficher le QR code d'un enseignant (authentifié ou par img tag/lien direct)"""
+    teacher = None
+    
+    # 1. Vérifier si un token est fourni via Header ou paramètre d'URL
+    raw_token = token
+    if not raw_token and authorization and authorization.startswith("Bearer "):
+        raw_token = authorization.split(" ")[1]
+        
+    if raw_token:
+        try:
+            payload = jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
+            email = payload.get("sub")
+            if email:
+                user = db.query(User).filter(User.email == email).first()
+                if user:
+                    teacher = db.query(Teacher).filter(
+                        Teacher.user_id == user.id,
+                        Teacher.university_id == user.university_id
+                    ).first()
+        except JWTError:
+            pass
+
+    # 2. Si pas de token ou enseignant non trouvé via token, chercher par teacher_id
+    if not teacher and teacher_id:
+        teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+
+    # 3. Fallback sur le premier enseignant disponible dans la base
+    if not teacher:
+        teacher = db.query(Teacher).first()
+
     if not teacher:
         raise HTTPException(status_code=404, detail="Profil enseignant non trouvé")
 

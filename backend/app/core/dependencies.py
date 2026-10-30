@@ -1,4 +1,5 @@
-from fastapi import Depends, HTTPException
+from typing import Optional, List, Dict, Any, Set
+from fastapi import Depends, HTTPException, Query, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -8,7 +9,7 @@ from app.models.university import University
 from app.core.config import SECRET_KEY, ALGORITHM
 from app.core.permissions import has_permission, get_role_permissions
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
 def get_db():
@@ -20,12 +21,32 @@ def get_db():
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
+    header_token: Optional[str] = Depends(oauth2_scheme),
+    token_query: Optional[str] = Query(None, alias="token"),
     db: Session = Depends(get_db)
 ):
+    token = (
+        header_token 
+        or token_query 
+        or request.query_params.get("token") 
+        or request.cookies.get("token")
+    )
+    if not token:
+        auth_hdr = request.headers.get("Authorization") or request.headers.get("authorization")
+        if auth_hdr and auth_hdr.lower().startswith("bearer "):
+            token = auth_hdr.split(" ", 1)[1].strip()
+
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail="Non authentifié",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     credentials_exception = HTTPException(
         status_code=401,
-        detail="Invalid token"
+        detail="Token invalide ou expiré",
+        headers={"WWW-Authenticate": "Bearer"},
     )
     
     try:
@@ -54,6 +75,28 @@ def get_current_user(
             )
 
     return user
+
+
+def get_current_user_optional(
+    request: Request,
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    try:
+        token = request.query_params.get("token") or request.cookies.get("token")
+        if not token:
+            auth_hdr = request.headers.get("Authorization") or request.headers.get("authorization")
+            if auth_hdr and auth_hdr.lower().startswith("bearer "):
+                token = auth_hdr.split(" ", 1)[1].strip()
+        if not token:
+            return None
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            return None
+        return db.query(User).filter(User.email == email).first()
+    except Exception:
+        return None
+
 
 
 def require_role(*roles: str):

@@ -28,6 +28,36 @@ def get_db():
 
 
 # ==========================================
+# CONTEXTE D'AUTHENTIFICATION & COMPTES RAPIDES
+# ==========================================
+@router.get("/context")
+def get_auth_context(db: Session = Depends(get_db)):
+    """Retourne le contexte d'authentification de l'université pour la page login"""
+    univ = db.query(University).filter(University.id == 1).first() or db.query(University).first()
+    return {
+        "university": {
+            "name": univ.name if univ else "UniSphere AI",
+            "slogan": getattr(univ, 'slogan', None) or "Excellence & Innovation Académique",
+            "address": getattr(univ, 'address', None) or "Plateforme SaaS Multi-Universités",
+            "academic_year": "2026-2027",
+            "logo": univ.logo if univ else None
+        },
+        "quick_accounts": [
+            { "role": "super_admin", "label": "Super Admin", "email": "superadmin@unisphere.ai", "name": "Moussa Coulibaly", "department": "Plateforme SaaS", "icon": "👑" },
+            { "role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration", "icon": "🏛️" },
+            { "role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie", "icon": "👨‍🏫" },
+            { "role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD", "icon": "🎓" },
+            { "role": "secretary", "label": "Secrétaire", "email": "secretaire@unisphere.ai", "name": "Secrétariat Général", "department": "Scolarité", "icon": "📋" },
+            { "role": "censeur", "label": "Censeur", "email": "censeur@unisphere.ai", "name": "Direction des Études", "department": "Études", "icon": "⚖️" },
+            { "role": "accountant", "label": "Comptable", "email": "comptable@unisphere.ai", "name": "Service Financier", "department": "Finances", "icon": "💳" },
+            { "role": "guard", "label": "Poste Garde", "email": "gardien@unisphere.ai", "name": "Sécurité & Portique", "department": "Contrôle", "icon": "🛡️" },
+            { "role": "alumni", "label": "Alumni", "email": "alumni@unisphere.ai", "name": "Moussa Fofana", "department": "Réseau Diplômés", "icon": "⭐" }
+        ],
+        "default_password": "unisphere2026"
+    }
+
+
+# ==========================================
 # LOGIN avec audit log + statut abonnement
 # ==========================================
 @router.post("/login")
@@ -102,6 +132,25 @@ def login(
         db.rollback()
         print(f"⚠️ Erreur log succès: {e}")
 
+    user_photo = user.photo or ""
+    if not user_photo:
+        if user.role == "student":
+            try:
+                from app.models.student import Student
+                student = db.query(Student).filter(Student.user_id == user.id).first()
+                if student and student.photo:
+                    user_photo = student.photo
+            except Exception:
+                pass
+        elif user.role == "teacher":
+            try:
+                from app.models.teacher import Teacher
+                teacher = db.query(Teacher).filter(Teacher.user_id == user.id).first()
+                if teacher and teacher.photo:
+                    user_photo = teacher.photo
+            except Exception:
+                pass
+
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -110,9 +159,42 @@ def login(
             "full_name": user.full_name,
             "email": user.email,
             "role": user.role,
+            "photo": user_photo,
             "university_id": user.university_id
         },
         "subscription": subscription   # ✅ NOUVEAU
+    }
+
+
+@router.get("/me")
+def get_current_user_info(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user_photo = current_user.photo or ""
+    if not user_photo:
+        if current_user.role == "student":
+            try:
+                from app.models.student import Student
+                student = db.query(Student).filter(Student.user_id == current_user.id).first()
+                if student and student.photo:
+                    user_photo = student.photo
+            except Exception:
+                pass
+        elif current_user.role == "teacher":
+            try:
+                from app.models.teacher import Teacher
+                teacher = db.query(Teacher).filter(Teacher.user_id == current_user.id).first()
+                if teacher and teacher.photo:
+                    user_photo = teacher.photo
+            except Exception:
+                pass
+
+    return {
+        "id": current_user.id,
+        "full_name": current_user.full_name,
+        "email": current_user.email,
+        "role": current_user.role,
+        "phone": current_user.phone or "",
+        "photo": user_photo,
+        "university_id": current_user.university_id
     }
 
 
@@ -133,21 +215,6 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Email confirmé avec succès ! Vous pouvez maintenant vous connecter."}
 
-
-@router.get("/me")
-def get_me(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "full_name": current_user.full_name,
-        "role": current_user.role,
-        "phone": current_user.phone,
-        "photo": current_user.photo,
-        "university_id": current_user.university_id
-    }
 
 
 # ==========================================
@@ -375,6 +442,7 @@ def get_online_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    import json
     threshold = datetime.utcnow() - timedelta(minutes=5)
 
     online_users = db.query(User).filter(
@@ -383,11 +451,19 @@ def get_online_users(
         User.university_id == current_user.university_id
     ).all()
 
+    filtered = []
+    for u in online_users:
+        if u.preferences:
+            try:
+                p = json.loads(u.preferences)
+                if p.get("show_online_status") is False:
+                    continue
+            except Exception:
+                pass
+        filtered.append({"id": u.id, "name": u.full_name, "role": u.role})
+
     return {
-        "online_users": [
-            {"id": u.id, "name": u.full_name, "role": u.role}
-            for u in online_users
-        ]
+        "online_users": filtered
     }
 
 
@@ -460,3 +536,37 @@ def platform_contact(db: Session = Depends(get_db)):
         "contact_email": sa.email if sa else "support@unisphere-ai.com",
         "platform_name": "UniSphere AI",
     }
+
+# ==========================================
+# CONTEXTE AUTH & COMPTES DÉMO UNISPHERE
+# ==========================================
+@router.get("/context")
+def auth_context(db: Session = Depends(get_db)):
+    univ = db.query(University).first()
+    quick_accounts = [
+        {"role": "super_admin", "label": "Super Admin", "email": "superadmin@unisphere.ai", "name": "Moussa Coulibaly", "department": "Plateforme SaaS", "icon": "👑"},
+        {"role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration", "icon": "🏛️"},
+        {"role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie", "icon": "👨‍🏫"},
+        {"role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD", "icon": "🎓"},
+        {"role": "secretary", "label": "Secrétaire", "email": "secretaire@unisphere.ai", "name": "Secrétariat Général", "department": "Scolarité", "icon": "📋"},
+        {"role": "censeur", "label": "Censeur", "email": "censeur@unisphere.ai", "name": "Direction des Études", "department": "Études", "icon": "⚖️"},
+        {"role": "accountant", "label": "Comptable", "email": "comptable@unisphere.ai", "name": "Service Financier", "department": "Finances", "icon": "💳"},
+        {"role": "guard", "label": "Poste Garde", "email": "gardien@unisphere.ai", "name": "Sécurité & Contrôle", "department": "Portique", "icon": "🛡️"},
+        {"role": "alumni", "label": "Alumni", "email": "alumni@unisphere.ai", "name": "Moussa Fofana", "department": "Réseau Diplômés", "icon": "⭐"}
+    ]
+    return {
+        "university": {
+            "id": univ.id if univ else 1,
+            "name": univ.name if univ else "UniSphere AI",
+            "slogan": univ.slogan if univ else "Excellence & Innovation",
+            "address": univ.address if univ else "Bamako, Mali",
+            "phone": univ.phone if univ else "+223 77 66 66 36",
+            "email": univ.email if univ else "contact@unisphere.ai",
+            "website": univ.website if univ else "https://unisphere.ai",
+            "academic_year": univ.academic_year if univ else "2026-2027",
+            "rector_name": univ.rector_name if univ else "Joackim Komi BADJOGOUMEY"
+        },
+        "quick_accounts": quick_accounts,
+        "default_password": "unisphere2026"
+    }
+

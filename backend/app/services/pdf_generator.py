@@ -502,7 +502,7 @@ def get_dynamic_university_logo_flowable(university: Any) -> Any:
     slogan = getattr(university, 'slogan', '') or ""
 
     # Helper pour instancier une image ReportLab proportionnelle
-    def load_proportional_img(file_path: Path, max_w: float = 4.2 * cm, max_h: float = 2.3 * cm):
+    def load_proportional_img(file_path: Path, max_w: float = 5.2 * cm, max_h: float = 3.0 * cm):
         try:
             from PIL import Image as PILImage
             with PILImage.open(file_path) as im:
@@ -533,7 +533,7 @@ def get_dynamic_university_logo_flowable(university: Any) -> Any:
         ]
         for p in candidates:
             if p.exists():
-                return load_proportional_img(p, max_w=3.8 * cm, max_h=2.2 * cm)
+                return load_proportional_img(p, max_w=5.2 * cm, max_h=3.0 * cm)
 
     # 2. Vérifier si un logo statique pour l'université existe
     univ_id = getattr(university, 'id', 1)
@@ -543,7 +543,7 @@ def get_dynamic_university_logo_flowable(university: Any) -> Any:
     ]
     for sc in static_candidates:
         if sc and sc.exists():
-            return load_proportional_img(sc, max_w=3.8 * cm, max_h=2.2 * cm)
+            return load_proportional_img(sc, max_w=5.2 * cm, max_h=3.0 * cm)
 
     # 3. Sinon, génération d'une identité visuelle typographique officielle soignée
     h_style = ParagraphStyle('DynUnivLogo', alignment=TA_CENTER, leading=10)
@@ -658,10 +658,10 @@ def generate_lmd_transcript_pdf(
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        leftMargin=1.60 * cm,
-        rightMargin=1.60 * cm,
-        topMargin=1.30 * cm,
-        bottomMargin=1.10 * cm
+        leftMargin=1.80 * cm,
+        rightMargin=1.80 * cm,
+        topMargin=1.50 * cm,
+        bottomMargin=1.40 * cm
     )
 
     univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ").upper()
@@ -692,15 +692,15 @@ def generate_lmd_transcript_pdf(
         page_counter[0] += 1
         w, h = doc_inst.pagesize
 
-        # 1. Double filet d'encadrement institutionnel aéré et retiré des bords physiques (1.20 cm)
+        # 1. Double filet d'encadrement institutionnel aéré et retiré des bords physiques (1.40 cm)
         canv.saveState()
         canv.setStrokeColor(colors.HexColor("#1E293B"))
         canv.setLineWidth(1.2)
-        canv.rect(1.20 * cm, 0.90 * cm, w - 2.40 * cm, h - 1.80 * cm)
+        canv.rect(1.40 * cm, 1.10 * cm, w - 2.80 * cm, h - 2.20 * cm)
 
         canv.setStrokeColor(colors.HexColor("#475569"))
         canv.setLineWidth(0.5)
-        canv.rect(1.28 * cm, 0.98 * cm, w - 2.56 * cm, h - 1.96 * cm)
+        canv.rect(1.48 * cm, 1.18 * cm, w - 2.96 * cm, h - 2.36 * cm)
 
         # 2. Filigrane de fond central DYNAMIQUE de l'université
         canv.setFillColor(colors.HexColor("#CBD5E1"), alpha=0.18)
@@ -1109,11 +1109,14 @@ def generate_financial_clearance_pdf(
     university: Any,
     payments: List[Any],
     academic_year: str = "2025-2026",
-    receipt_reference: Optional[str] = None
+    receipt_reference: Optional[str] = None,
+    total_amount: Optional[float] = None,
+    total_remaining: Optional[float] = None
 ) -> bytes:
     """
-    Génère un Quitus Financier Officiel & Attestation de Solde de Scolarité
-    attestant que l'étudiant est 100% en règle avec l'administration financière.
+    Génère un Quitus Financier Officiel ou une Attestation de Règlement de Scolarité.
+    Si le solde restant est supérieur à 0, indique clairement un RÈGLEMENT PARTIEL
+    avec le montant restant dû (Audio 1 Moussa Coulibaly).
     """
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -1131,7 +1134,7 @@ def generate_financial_clearance_pdf(
         'FinTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=18,
+        fontSize=17,
         alignment=TA_CENTER,
         textColor=NAVY
     )
@@ -1140,8 +1143,8 @@ def generate_financial_clearance_pdf(
         'FinBody',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=11,
-        leading=18,
+        fontSize=10,
+        leading=16,
         alignment=TA_JUSTIFY,
         textColor=colors.black
     )
@@ -1155,28 +1158,54 @@ def generate_financial_clearance_pdf(
     header_data = [
         [
             Paragraph(f"<b>{univ_name}</b><br/><font size=8 color='#475569'>Direction Administrative & Financière (DAF)<br/>Service de la Comptabilité et du Recouvrement</font>", ParagraphStyle('FHead1', fontSize=10, leading=13)),
-            Paragraph(f"<b>N° QUITUS :</b><br/><font color='#059669'><b>{ref_num}</b></font><br/><br/><b>DATE :</b> {datetime.now().strftime('%d/%m/%Y')}", ParagraphStyle('FHead2', fontSize=9, alignment=TA_RIGHT, leading=12))
+            Paragraph(f"<b>N° RÉFÉRENCE :</b><br/><font color='#0F172A'><b>{ref_num}</b></font><br/><br/><b>DATE :</b> {datetime.now().strftime('%d/%m/%Y')}", ParagraphStyle('FHead2', fontSize=9, alignment=TA_RIGHT, leading=12))
         ]
     ]
     t_head = Table(header_data, colWidths=[11.0 * cm, 6.0 * cm])
     t_head.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
     elements.append(t_head)
-    elements.append(Spacer(1, 0.5 * cm))
+    elements.append(Spacer(1, 0.4 * cm))
 
-    # Titre Quitus
-    title_box = [
-        [Paragraph("<b>QUITUS FINANCIER & CERTIFICAT DE SOLDE</b><br/><font size=9 color='#059669'>ATTESTATION OFFICIELLE DE RÈGLEMENT DE SCOLARITÉ</font>", title_style)]
-    ]
-    t_title = Table(title_box, colWidths=[17.0 * cm])
-    t_title.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#ECFDF5")),
-        ('BOX', (0, 0), (-1, -1), 1.5, EMERALD),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-    ]))
+    # Calcul total payé
+    total_paid = sum(float(getattr(p, 'amount', 0.0) or 0.0) for p in payments)
+    
+    # Calcul du reste à payer
+    if total_remaining is None:
+        if total_amount is not None:
+            total_remaining = max(0.0, total_amount - total_paid)
+        else:
+            total_remaining = 0.0
+
+    is_fully_paid = (total_remaining <= 0)
+
+    # Titre Quitus / Attestation
+    if is_fully_paid:
+        title_box = [
+            [Paragraph("<b>QUITUS FINANCIER & CERTIFICAT DE SOLDE</b><br/><font size=9 color='#059669'>ATTESTATION OFFICIELLE DE RÈGLEMENT INTÉGRAL DE SCOLARITÉ</font>", title_style)]
+        ]
+        t_title = Table(title_box, colWidths=[17.0 * cm])
+        t_title.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#ECFDF5")),
+            ('BOX', (0, 0), (-1, -1), 1.5, EMERALD),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+    else:
+        title_box = [
+            [Paragraph("<b>ATTESTATION DE SITUATION FINANCIÈRE</b><br/><font size=9 color='#D97706'>ÉTAT DE RÈGLEMENT PARTIEL — SOLDE EN COURS DE PAIEMENT</font>", title_style)]
+        ]
+        t_title = Table(title_box, colWidths=[17.0 * cm])
+        t_title.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#FFFBEB")),
+            ('BOX', (0, 0), (-1, -1), 1.5, colors.HexColor("#F59E0B")),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+
     elements.append(t_title)
-    elements.append(Spacer(1, 0.7 * cm))
+    elements.append(Spacer(1, 0.5 * cm))
 
     full_name = f"{student.first_name} {student.last_name.upper()}"
     mat_str = student.matricule or f"UN-{student.id:04d}"
@@ -1184,33 +1213,41 @@ def generate_financial_clearance_pdf(
     level_str = student.level or "L1"
 
     elements.append(Paragraph(
-        "Le Directeur Administratif et Financier de l'Université atteste par la présente que l'étudiant(e) ci-après désigné(e) :",
+        "Le Directeur Administratif et Financier de l'Université certifie par la présente l'état de la situation comptable de l'étudiant(e) ci-après désigné(e) :",
         body_style
     ))
-    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Spacer(1, 0.3 * cm))
 
-    # Cartouche étudiant
+    # Situation comptable text
+    if is_fully_paid:
+        situation_html = "<font color='#059669'><b>INTÉGRALEMENT SOLDÉ (SOLDE = 0 FCFA)</b></font>"
+    else:
+        situation_html = f"<font color='#D97706'><b>RÈGLEMENT PARTIEL — RESTE À SOLDER : {total_remaining:,.0f} FCFA</b></font>".replace(',', ' ')
+
+    tot_due = total_amount if total_amount is not None else (total_paid + total_remaining)
+
     cartouche_data = [
         [Paragraph("<b>Nom & Prénoms :</b>", body_style), Paragraph(f"<b>{full_name}</b>", body_style)],
         [Paragraph("<b>Matricule :</b>", body_style), Paragraph(f"<b>{mat_str}</b>", body_style)],
         [Paragraph("<b>Filière & Niveau :</b>", body_style), Paragraph(f"{filiere_str} — {level_str}", body_style)],
         [Paragraph("<b>Année Académique :</b>", body_style), Paragraph(f"<b>{academic_year}</b>", body_style)],
-        [Paragraph("<b>Situation Comptable :</b>", body_style), Paragraph("<font color='#059669'><b>INTÉGRALEMENT SOLDÉ (SOLDE = 0 FCFA)</b></font>", body_style)],
+        [Paragraph("<b>Montant Total Dû :</b>", body_style), Paragraph(f"<b>{tot_due:,.0f} FCFA</b>".replace(',', ' '), body_style)],
+        [Paragraph("<b>Montant Réglé :</b>", body_style), Paragraph(f"<font color='#059669'><b>{total_paid:,.0f} FCFA</b></font>".replace(',', ' '), body_style)],
+        [Paragraph("<b>Situation Comptable :</b>", body_style), Paragraph(situation_html, body_style)],
     ]
     t_cartouche = Table(cartouche_data, colWidths=[5.5 * cm, 11.5 * cm])
     t_cartouche.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor("#F1F5F9")),
         ('GRID', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
     ]))
     elements.append(t_cartouche)
-    elements.append(Spacer(1, 0.5 * cm))
+    elements.append(Spacer(1, 0.4 * cm))
 
     # Historique récapitulatif des versements
-    total_paid = 0.0
     pay_rows = [
         [
             Paragraph("<b>Référence Reçu</b>", ParagraphStyle('H1', fontName='Helvetica-Bold', fontSize=8, alignment=TA_CENTER, textColor=colors.white)),
@@ -1228,7 +1265,6 @@ def generate_financial_clearance_pdf(
         p_method = (getattr(p, 'method', None) or getattr(p, 'payment_method', None) or "Virement").upper()
         p_type = getattr(p, 'payment_type', None) or "Frais de scolarité"
         amount = float(getattr(p, 'amount', 0.0) or 0.0)
-        total_paid += amount
 
         pay_rows.append([
             Paragraph(p_ref, ParagraphStyle('CR1', fontSize=8, alignment=TA_CENTER)),
@@ -1244,6 +1280,13 @@ def generate_financial_clearance_pdf(
         Paragraph(f"<b>{total_paid:,.0f} FCFA</b>".replace(',', ' '), ParagraphStyle('TotVal', fontName='Helvetica-Bold', fontSize=9, alignment=TA_RIGHT, textColor=EMERALD))
     ])
 
+    if not is_fully_paid:
+        pay_rows.append([
+            "", "", "",
+            Paragraph("<b>RESTE À SOLDER :</b>", ParagraphStyle('RemLbl', fontName='Helvetica-Bold', fontSize=9, alignment=TA_RIGHT, textColor=colors.HexColor("#D97706"))),
+            Paragraph(f"<b>{total_remaining:,.0f} FCFA</b>".replace(',', ' '), ParagraphStyle('RemVal', fontName='Helvetica-Bold', fontSize=9, alignment=TA_RIGHT, textColor=colors.HexColor("#D97706")))
+        ])
+
     t_payments = Table(pay_rows, colWidths=[3.5 * cm, 2.5 * cm, 3.0 * cm, 5.0 * cm, 3.0 * cm])
     t_payments.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), NAVY),
@@ -1253,20 +1296,28 @@ def generate_financial_clearance_pdf(
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ]))
     elements.append(t_payments)
-    elements.append(Spacer(1, 0.5 * cm))
+    elements.append(Spacer(1, 0.4 * cm))
 
-    elements.append(Paragraph(
-        "L'intéressé(e) est en règle de la totalité de ses obligations financières envers l'établissement pour "
-        f"l'année académique <b>{academic_year}</b>. Il/Elle est dûment autorisé(e) à passer l'ensemble de ses examens "
-        "et à solliciter la délivrance de ses attestations et diplômes.<br/><br/>"
-        "<i>En foi de quoi, ce quitus lui est délivré pour servir et valoir ce que de droit.</i>",
-        body_style
-    ))
-    elements.append(Spacer(1, 0.7 * cm))
+    if is_fully_paid:
+        elements.append(Paragraph(
+            "L'intéressé(e) est en règle de la totalité de ses obligations financières envers l'établissement pour "
+            f"l'année académique <b>{academic_year}</b>. Il/Elle est dûment autorisé(e) à passer l'ensemble de ses examens "
+            "et à solliciter la délivrance de ses attestations et diplômes.<br/><br/>"
+            "<i>En foi de quoi, ce quitus lui est délivré pour servir et valoir ce que de droit.</i>",
+            body_style
+        ))
+    else:
+        elements.append(Paragraph(
+            f"L'intéressé(e) est à jour de ses règlements d'étape à hauteur de <b>{total_paid:,.0f} FCFA</b>. "
+            f"Le solde restant dû de <b>{total_remaining:,.0f} FCFA</b> doit être régularisé conformément au calendrier des tranches.<br/><br/>"
+            "<i>La présente attestation provisoire est délivrée pour faire valoir les paiements effectivement enregistrés à ce jour.</i>",
+            body_style
+        ))
+    elements.append(Spacer(1, 0.6 * cm))
 
     # Signatures & QR Code
-    qr_verify = f"UNISPHERE-QUITUS:{mat_str}:{ref_num}:{total_paid:.0f}FCFA"
-    qr_img = make_qr_code_image(qr_verify, size=2.4 * cm)
+    qr_verify = f"UNISPHERE-FIN:{mat_str}:{ref_num}:{total_paid:.0f}FCFA:RESTANT={total_remaining:.0f}FCFA"
+    qr_img = make_qr_code_image(qr_verify, size=2.2 * cm)
 
     sign_data = [
         [
@@ -1278,9 +1329,12 @@ def generate_financial_clearance_pdf(
     t_signatures.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
     elements.append(KeepTogether(t_signatures))
 
+    watermark_label = "QUITUS FINANCIER" if is_fully_paid else "RÈGLEMENT PARTIEL"
+
     def on_page(canv, doc_inst):
-        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="QUITUS FINANCIER")
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark=watermark_label)
 
     doc.build(elements, onFirstPage=on_page)
     buffer.seek(0)
     return buffer.getvalue()
+

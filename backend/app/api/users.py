@@ -96,16 +96,46 @@ def upload_profile_photo(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    file_extension = photo.filename.split(".")[-1].lower()
-    filename = f"user_{current_user.id}.{file_extension}"
+    import time
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+        
+    file_extension = photo.filename.split(".")[-1].lower() if "." in photo.filename else "jpg"
+    filename = f"user_{user.id}_{int(time.time())}.{file_extension}"
+    content = photo.file.read()
+    
+    # Écrire dans uploads/profiles et uploads/
     file_path = UPLOAD_DIR / filename
-    
     with open(file_path, "wb") as buffer:
-        buffer.write(photo.file.read())
+        buffer.write(content)
+        
+    main_upload_path = BASE_DIR / "uploads" / filename
+    with open(main_upload_path, "wb") as buffer:
+        buffer.write(content)
     
-    current_user.photo = filename
+    user.photo = filename
+    
+    # Synchroniser la photo avec la table spécifique du rôle (étudiant, enseignant)
+    try:
+        from app.models.student import Student
+        student = db.query(Student).filter(Student.user_id == user.id).first()
+        if student:
+            student.photo = filename
+    except Exception:
+        pass
+
+    try:
+        from app.models.teacher import Teacher
+        teacher = db.query(Teacher).filter(Teacher.user_id == user.id).first()
+        if teacher:
+            teacher.photo = filename
+    except Exception:
+        pass
+
     db.commit()
-    return {"message": "Photo mise à jour", "photo_url": filename}
+    db.refresh(user)
+    return {"message": "Photo mise à jour", "photo_url": filename, "photo": filename}
 
 @router.put("/password")
 def change_password(
@@ -113,7 +143,6 @@ def change_password(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ✅ RÉCUPÉRER l'utilisateur depuis la session du endpoint
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
@@ -122,11 +151,77 @@ def change_password(
     if not verify_password(data.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
     
+    if len(data.new_password.strip()) < 6:
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit comporter au moins 6 caractères")
+        
     # Mettre à jour le mot de passe
     user.hashed_password = hash_password(data.new_password)
     db.commit()
     
     return {"message": "Mot de passe modifié avec succès"}
+
+@router.get("/preferences")
+def get_user_preferences(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    import json
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    
+    prefs = {}
+    if user.preferences:
+        try:
+            prefs = json.loads(user.preferences)
+        except Exception:
+            prefs = {}
+    return prefs
+
+@router.put("/preferences")
+def update_user_preferences(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    import json
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    
+    current_prefs = {}
+    if user.preferences:
+        try:
+            current_prefs = json.loads(user.preferences)
+        except Exception:
+            current_prefs = {}
+            
+    current_prefs.update(data)
+    user.preferences = json.dumps(current_prefs)
+    db.commit()
+    return {"message": "Préférences enregistrées avec succès", "preferences": current_prefs}
+
+@router.get("/sessions")
+def get_user_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from app.models.audit_log import AuditLog
+    logs = db.query(AuditLog).filter(
+        AuditLog.user_id == current_user.id
+    ).order_by(AuditLog.created_at.desc()).limit(10).all()
+    
+    return [
+        {
+            "id": l.id,
+            "action": l.action,
+            "ip_address": l.ip_address or "127.0.0.1",
+            "user_agent": l.user_agent or "Navigateur Web",
+            "status": l.status or "success",
+            "date": l.created_at.strftime("%d/%m/%Y %H:%M") if l.created_at else ""
+        }
+        for l in logs
+    ]
 
 @router.get("/")
 def get_all_users(

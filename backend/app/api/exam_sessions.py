@@ -215,3 +215,79 @@ def delete_exam_session(
     db.commit()
     
     return {"message": "Session supprimée avec succès"}
+
+
+# ==========================================
+# 🔄 ÉTUDIANTS ÉCHOUÉS & CANDIDATS AU RATTRAPAGE
+# ==========================================
+@router.get("/makeup/candidates")
+def get_makeup_candidates(
+    session_id: int = None,
+    filiere: str = None,
+    level: str = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher"))
+):
+    """
+    Récupère la liste de tous les étudiants ayant échoué à une session normale (note < 10/20)
+    qui sont convoqués à la session de rattrapage pour les modules concernés.
+    """
+    from app.models.grade import Grade
+    from app.models.student import Student
+    from app.models.course import Course
+    from app.models.academic_config import AcademicConfig
+
+    ac_config = db.query(AcademicConfig).filter(
+        AcademicConfig.university_id == current_user.university_id
+    ).first()
+    min_pass = getattr(ac_config, 'min_passing_grade', 10.0) or 10.0
+
+    query = db.query(Grade, Student, Course, ExamSession).join(
+        Student, Grade.student_id == Student.id
+    ).join(
+        Course, Grade.course_id == Course.id
+    ).join(
+        ExamSession, Grade.session_id == ExamSession.id
+    ).filter(
+        Student.university_id == current_user.university_id,
+        ExamSession.session_type != "makeup",
+        Grade.score.isnot(None),
+        Grade.score < min_pass
+    )
+
+    if session_id:
+        query = query.filter(Grade.session_id == session_id)
+    if filiere:
+        query = query.filter(Student.filiere.ilike(f"%{filiere}%"))
+    if level:
+        query = query.filter(Student.level == level)
+
+    failed_records = query.order_by(Student.last_name, Student.first_name, Course.title).all()
+
+    candidates = []
+    for grade, student, course, session in failed_records:
+        candidates.append({
+            "grade_id": grade.id,
+            "student_id": student.id,
+            "student_name": f"{student.first_name} {student.last_name}",
+            "matricule": student.matricule,
+            "level": student.level,
+            "filiere": student.filiere,
+            "course_id": course.id,
+            "course_title": course.title,
+            "course_code": course.code,
+            "credits": course.credits or 3,
+            "session_id": session.id,
+            "session_name": session.name,
+            "score": grade.score,
+            "cc_score": grade.cc_score,
+            "exam_score": grade.exam_score,
+            "points_missing": round(min_pass - (grade.score or 0), 2)
+        })
+
+    return {
+        "min_passing_grade": min_pass,
+        "total_failures": len(candidates),
+        "unique_students": len(set(c["student_id"] for c in candidates)),
+        "candidates": candidates
+    }

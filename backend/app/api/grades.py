@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sql_func
 from typing import List
@@ -88,6 +88,11 @@ def get_grades_by_context(
     default_cc = ac_config.default_cc_coefficient if ac_config else 0.3
     default_exam = ac_config.default_exam_coefficient if ac_config else 0.7
     max_grade = ac_config.max_grade if ac_config else 20.0
+    
+    session_obj = db.query(ExamSession).filter(ExamSession.id == session_id).first()
+    is_session_closed = session_obj.status == "closed" if session_obj else False
+    is_globally_locked = bool(getattr(ac_config, "grades_locked", False)) if ac_config else False
+    is_locked = is_session_closed or is_globally_locked
 
     return {
         "course": {
@@ -96,11 +101,13 @@ def get_grades_by_context(
             "code": course.code,
             "level": course.level,
             "department": course.department,
-            "credits": course.credits  # ✅ AJOUTÉ
+            "credits": course.credits
         },
         "default_cc_coefficient": default_cc,
         "default_exam_coefficient": default_exam,
         "max_grade": max_grade,
+        "is_locked": is_locked,
+        "lock_reason": "Session clôturée" if is_session_closed else ("Verrouillage académique général" if is_globally_locked else None),
         "students": result
     }
 
@@ -340,7 +347,13 @@ def bulk_save_grades(
         raise HTTPException(status_code=404, detail="Session non trouvée")
     
     if session.status == "closed":
-        raise HTTPException(status_code=400, detail="Cette session est fermée")
+        raise HTTPException(status_code=403, detail="Cette session d'examen est clôturée. La saisie des notes est strictement verrouillée.")
+    
+    if ac_config and getattr(ac_config, "grades_locked", False):
+        raise HTTPException(
+            status_code=403, 
+            detail="La saisie et la modification des notes sont actuellement verrouillées par l'administration."
+        )
     
     course = db.query(Course).filter(Course.id == course_id).first()
     
@@ -425,24 +438,31 @@ def bulk_save_grades(
     
     db.commit()
     
-    # ✅ NOTIFICATION : Teacher → Censeur (seulement si draft)
-    if status == "draft" and current_user.role == "teacher" and course:
-        censeurs = db.query(User).filter(
+    # ✅ NOTIFICATION INSTANTANÉE : Enseignant → Secrétaire, Censeur & Administrateur
+    if current_user.role == "teacher" and course and saved_count > 0:
+        from app.models.notification import Notification
+        staff_targets = db.query(User).filter(
             User.university_id == current_user.university_id,
-            User.role == "censeur"
+            User.role.in_(["secretary", "censeur", "admin"]),
+            User.is_active == True
         ).all()
         
-        for censeur in censeurs:
+        stat_label = "enregistré (brouillon)" if status == "draft" else "soumis pour validation"
+        notif_title = f"📝 Notes enregistrées : {course.title}" if status == "draft" else f"🚨 Notes à valider : {course.title}"
+        session_title = session.name if session else "Session"
+
+        for staff in staff_targets:
             notification = Notification(
-                title=f"📝 Notes à valider - {course.title}",
-                message=f"{current_user.full_name} a soumis {saved_count} notes pour la session {session.name}\nCours: {course.title} ({course.code})",
-                notification_type="grade_validation",
-                type="warning",
-                target_roles=["censeur"],
-                recipient_id=censeur.id,
+                title=notif_title,
+                message=f"{current_user.full_name} a {stat_label} {saved_count} note(s) ({session_title})\nCours: {course.title} ({course.code})",
+                notification_type="grade_submission",
+                type="info" if status == "draft" else "warning",
+                target_roles=[staff.role],
+                recipient_id=staff.id,
                 created_by=current_user.id,
                 university_id=current_user.university_id,
-                is_read=False
+                is_read=False,
+                extra_data=f'{{"course_id": {course.id}, "saved_count": {saved_count}, "status": "{status}"}}'
             )
             db.add(notification)
         db.commit()
@@ -495,6 +515,26 @@ def validate_grade(
             )
             db.add(notification)
             db.commit()
+
+            # Notification a l etudiant
+            if student and getattr(student, 'user_id', None):
+                try:
+                    score_val = grade.score if grade.score is not None else 0
+                    student_notif = Notification(
+                        title=f'Note validee - {course.title}',
+                        message=f'Votre note de {course.title} a ete validee : {score_val:.2f} / 20',
+                        notification_type='grade_published',
+                        type='success' if score_val >= 10 else 'warning',
+                        recipient_id=student.user_id,
+                        created_by=current_user.id,
+                        university_id=current_user.university_id,
+                        is_read=False,
+                        extra_data={'grade_id': grade.id, 'course_id': course.id, 'score': score_val}
+                    )
+                    db.add(student_notif)
+                    db.commit()
+                except Exception as _err:
+                    print(f'Erreur notif grade student: {_err}')
     
     return {"message": "Note validée avec succès", "grade_id": grade.id}
 
@@ -503,7 +543,8 @@ def validate_grade(
 @router.put("/{grade_id}/reject")
 def reject_grade(
     grade_id: int,
-    data: dict = None,
+    reason: str = Query(None),
+    data: dict = Body(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "censeur"))
 ):
@@ -514,12 +555,16 @@ def reject_grade(
     if not grade:
         raise HTTPException(status_code=404, detail="Note non trouvée")
     
-    reason = data.get("reason") if data else None
+    resolved_reason = None
+    if data and isinstance(data, dict):
+        resolved_reason = data.get("reason")
+    if not resolved_reason and reason:
+        resolved_reason = reason
     
     grade.status = "rejected"
     grade.rejected_by = current_user.id
     grade.rejected_at = datetime.now()
-    grade.rejection_reason = reason
+    grade.rejection_reason = resolved_reason
     db.commit()
     db.refresh(grade)
     
@@ -532,7 +577,7 @@ def reject_grade(
         if teacher and course and student:
             notification = Notification(
                 title=f"❌ Note rejetée - {course.title}",
-                message=f"La note de {student.first_name} {student.last_name} a été rejetée par {current_user.full_name}\nCours: {course.title}\nRaison: {reason or 'Non spécifiée'}",
+                message=f"La note de {student.first_name} {student.last_name} a été rejetée par {current_user.full_name}\nCours: {course.title}\nRaison: {resolved_reason or 'Non spécifiée'}",
                 notification_type="grade_rejected",
                 type="error",
                 target_roles=["teacher"],
@@ -540,7 +585,7 @@ def reject_grade(
                 created_by=current_user.id,
                 university_id=current_user.university_id,
                 is_read=False,
-                extra_data=f'{{"grade_id": {grade.id}, "course_id": {course.id}, "reason": "{reason or ""}"}}'
+                extra_data=f'{{"grade_id": {grade.id}, "course_id": {course.id}, "reason": "{resolved_reason or ""}"}}'
             )
             db.add(notification)
             db.commit()
@@ -614,7 +659,8 @@ def get_anomalies(
     
     grades = db.query(Grade).filter(
         Grade.score.isnot(None),
-        Grade.university_id == current_user.university_id
+        Grade.university_id == current_user.university_id,
+        Grade.status.notin_(["validated", "rejected"])
     ).all()
     
     anomalies = []
@@ -744,3 +790,98 @@ def update_anomaly_config(
     db.commit()
     
     return {"message": "Configuration des anomalies mise à jour"}
+
+
+# ==========================================
+# 🔒 VERROUILLAGE / CLÔTURE DE LA SAISIE DES NOTES
+# ==========================================
+
+@router.get("/lock-status")
+def get_grades_lock_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher"))
+):
+    """Vérifie si la saisie des notes est actuellement fermée ou ouverte"""
+    from app.models.academic_config import AcademicConfig
+
+    config = db.query(AcademicConfig).filter(
+        AcademicConfig.university_id == current_user.university_id
+    ).first()
+
+    sessions = db.query(ExamSession).filter(
+        ExamSession.university_id == current_user.university_id
+    ).all()
+    
+    closed_count = sum(1 for s in sessions if s.status == "closed")
+    sessions_locked = (closed_count == len(sessions)) if sessions else False
+    config_locked = bool(getattr(config, "grades_locked", False)) if config else False
+
+    is_locked = config_locked or sessions_locked
+
+    return {
+        "is_locked": is_locked,
+        "total_sessions": len(sessions),
+        "closed_sessions": closed_count,
+        "open_sessions": len(sessions) - closed_count
+    }
+
+
+@router.post("/toggle-lock")
+def toggle_grades_lock(
+    data: dict = Body(default={}),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "censeur"))
+):
+    """
+    Ferme ou rouvre la saisie des notes pour toutes les sessions et globalement.
+    Permet à l'administration, au censeur et au secrétariat de verrouiller définitivement
+    la saisie une fois les notes validées.
+    """
+    from app.models.academic_config import AcademicConfig
+    from app.models.notification import Notification
+
+    config = db.query(AcademicConfig).filter(
+        AcademicConfig.university_id == current_user.university_id
+    ).first()
+    if not config:
+        config = AcademicConfig(university_id=current_user.university_id, grades_locked=False)
+        db.add(config)
+        db.flush()
+
+    sessions = db.query(ExamSession).filter(
+        ExamSession.university_id == current_user.university_id
+    ).all()
+    
+    force_lock = data.get("lock")
+    if force_lock is None:
+        # Si config_locked est True ou si toutes les sessions sont fermées, on ouvre, sinon on ferme
+        current_locked = bool(getattr(config, "grades_locked", False))
+        target_locked = not current_locked
+    else:
+        target_locked = bool(force_lock)
+        
+    config.grades_locked = target_locked
+    target_status = "closed" if target_locked else "open"
+
+    for s in sessions:
+        s.status = target_status
+
+    # Créer une notification générale pour le corps enseignant et le personnel
+    action_text = "verrouillée (clôturée)" if target_locked else "rouverte"
+    notif = Notification(
+        title=f"🔒 Saisie des notes {action_text}",
+        message=f"La saisie des notes a été {action_text} par {current_user.full_name} ({current_user.role}).",
+        type="warning" if target_locked else "info",
+        notification_type="grades_locked",
+        created_by=current_user.id,
+        university_id=current_user.university_id,
+        is_read=False
+    )
+    db.add(notif)
+    db.commit()
+
+    return {
+        "is_locked": target_locked,
+        "status": target_status,
+        "message": f"La saisie des notes a été {action_text} avec succès."
+    }

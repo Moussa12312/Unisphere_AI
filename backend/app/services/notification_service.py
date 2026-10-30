@@ -44,16 +44,28 @@ def get_user_notifications(
     """Récupère les notifications pour un utilisateur spécifique"""
     query = db.query(Notification)
     
-    if university_id:
-        query = query.filter(Notification.university_id == university_id)
-    
-    query = query.filter(
-        or_(
-            Notification.target_roles.contains([user_role]),
-            Notification.recipient_id == user_id,
-            Notification.target_roles == None
+    if user_role in ["super_admin", "superadmin"]:
+        query = query.filter(
+            or_(
+                Notification.recipient_id == user_id,
+                Notification.target_roles.contains([user_role]),
+                Notification.target_roles.contains(["super_admin"]),
+                Notification.target_roles.contains(["superadmin"]),
+                Notification.target_roles.contains(["all"]),
+                and_(Notification.university_id == None, Notification.target_roles == None)
+            )
         )
-    )
+    else:
+        if university_id:
+            query = query.filter(Notification.university_id == university_id)
+        
+        query = query.filter(
+            or_(
+                Notification.target_roles.contains([user_role]),
+                Notification.recipient_id == user_id,
+                Notification.target_roles == None
+            )
+        )
     
     if unread_only:
         query = query.filter(Notification.is_read == False)
@@ -91,16 +103,28 @@ def mark_all_as_read(db: Session, user_id: int, user_role: str, university_id: i
 
 def get_unread_count(db: Session, user_id: int, user_role: str, university_id: int = None):
     """Compte les notifications non lues"""
-    query = db.query(Notification).filter(
-        or_(
-            Notification.target_roles.contains([user_role]),
-            Notification.recipient_id == user_id,
-            Notification.target_roles == None
-        ),
-        Notification.is_read == False
-    )
+    query = db.query(Notification).filter(Notification.is_read == False)
     
-    if university_id:
-        query = query.filter(Notification.university_id == university_id)
+    if user_role in ["super_admin", "superadmin"]:
+        query = query.filter(
+            or_(
+                Notification.recipient_id == user_id,
+                Notification.target_roles.contains([user_role]),
+                Notification.target_roles.contains(["super_admin"]),
+                Notification.target_roles.contains(["superadmin"]),
+                Notification.target_roles.contains(["all"]),
+                and_(Notification.university_id == None, Notification.target_roles == None)
+            )
+        )
+    else:
+        query = query.filter(
+            or_(
+                Notification.target_roles.contains([user_role]),
+                Notification.recipient_id == user_id,
+                Notification.target_roles == None
+            )
+        )
+        if university_id:
+            query = query.filter(Notification.university_id == university_id)
     
     return query.count()

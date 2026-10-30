@@ -1,9 +1,10 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database.connection import SessionLocal
 from app.models.university import University
 from app.models.user import User
-from app.core.dependencies import get_current_user, require_role
+from app.core.dependencies import get_current_user, require_role, get_current_user_optional
 import os
 import time
 
@@ -95,24 +96,62 @@ DEFAULT_CARD_CONFIG = {
 @router.get("/profile")
 def get_university_profile(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    university = db.query(University).filter(University.id == current_user.university_id).first()
+    # ✅ Le Super-Admin gère la plateforme globale et ne doit JAMAIS voir les données d'une université cliente
+    if current_user and getattr(current_user, "role", None) in ["super_admin", "superadmin"]:
+        return {
+            "id": 0,
+            "name": "UniSphere AI",
+            "slogan": "Administration Plateforme SaaS",
+            "address": "Siège UniSphere AI",
+            "phone": "+223 70 00 00 00",
+            "email": "contact@unisphere.ai",
+            "website": "https://unisphere.ai",
+            "description": "Plateforme Centrale de Gestion Universitaire",
+            "established_year": "2026",
+            "rector_name": "Administration Générale",
+            "academic_year": "2026-2027",
+            "logo": None,
+            "card_config": DEFAULT_CARD_CONFIG
+        }
+
+    university = None
+    if current_user and getattr(current_user, "university_id", None):
+        university = db.query(University).filter(University.id == current_user.university_id).first()
+    
     if not university:
-        raise HTTPException(status_code=404, detail="Université non trouvée")
+        university = db.query(University).first()
+        
+    if not university:
+        return {
+            "id": 0,
+            "name": "UniSphere AI",
+            "slogan": "Plateforme Intelligente Universitaire",
+            "address": "",
+            "phone": "",
+            "email": "",
+            "website": "",
+            "description": "",
+            "established_year": "",
+            "rector_name": "",
+            "academic_year": "",
+            "logo": None,
+            "card_config": DEFAULT_CARD_CONFIG
+        }
     
     return {
         "id": university.id,
-        "name": university.name,
-        "slogan": university.slogan,
-        "address": university.address,
-        "phone": university.phone,
-        "email": university.email,
-        "website": university.website,
-        "description": university.description,
-        "established_year": university.established_year,
-        "rector_name": university.rector_name,
-        "academic_year": university.academic_year,
+        "name": university.name or "UniSphere AI",
+        "slogan": university.slogan or "",
+        "address": university.address or "",
+        "phone": university.phone or "",
+        "email": university.email or "",
+        "website": university.website or "",
+        "description": university.description or "",
+        "established_year": str(university.established_year or ""),
+        "rector_name": university.rector_name or "",
+        "academic_year": university.academic_year or "",
         "logo": university.logo,
         "card_config": university.card_config or DEFAULT_CARD_CONFIG
     }
@@ -121,9 +160,14 @@ def get_university_profile(
 def update_university_profile(
     profile_data: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary"))
+    current_user: User = Depends(require_role("admin", "secretary", "super_admin"))
 ):
-    university = db.query(University).filter(University.id == current_user.university_id).first()
+    target_id = profile_data.get("university_id") or getattr(current_user, "university_id", None)
+    if not target_id:
+        first_univ = db.query(University).first()
+        target_id = first_univ.id if first_univ else None
+
+    university = db.query(University).filter(University.id == target_id).first()
     if not university:
         raise HTTPException(status_code=404, detail="Université non trouvée")
     
@@ -139,9 +183,14 @@ async def upload_university_logo(
     logo: UploadFile = File(...),
     remove_bg: str = "false",
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary"))
+    current_user: User = Depends(require_role("admin", "secretary", "super_admin"))
 ):
-    university = db.query(University).filter(University.id == current_user.university_id).first()
+    target_id = getattr(current_user, "university_id", None)
+    if not target_id:
+        first_univ = db.query(University).first()
+        target_id = first_univ.id if first_univ else None
+
+    university = db.query(University).filter(University.id == target_id).first()
     if not university:
         raise HTTPException(status_code=404, detail="Université non trouvée")
     
@@ -169,11 +218,16 @@ async def upload_university_logo(
 @router.get("/card-config")
 def get_card_config(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary"))
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    university = db.query(University).filter(University.id == current_user.university_id).first()
+    university = None
+    if current_user and getattr(current_user, "university_id", None):
+        university = db.query(University).filter(University.id == current_user.university_id).first()
     if not university:
-        raise HTTPException(status_code=404, detail="Université non trouvée")
+        university = db.query(University).first()
+
+    if not university:
+        return DEFAULT_CARD_CONFIG
     
     return university.card_config or DEFAULT_CARD_CONFIG
 
@@ -181,13 +235,17 @@ def get_card_config(
 def update_card_config(
     config: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "student"))
+    current_user: User = Depends(require_role("admin", "secretary", "student", "super_admin"))
 ):
-    university = db.query(University).filter(University.id == current_user.university_id).first()
+    target_id = getattr(current_user, "university_id", None)
+    if not target_id:
+        first_univ = db.query(University).first()
+        target_id = first_univ.id if first_univ else None
+
+    university = db.query(University).filter(University.id == target_id).first()
     if not university:
         raise HTTPException(status_code=404, detail="Université non trouvée")
     
-    # Fusionner avec la config par défaut pour éviter les clés manquantes
     merged_config = {**DEFAULT_CARD_CONFIG, **config}
     university.card_config = merged_config
     db.commit()

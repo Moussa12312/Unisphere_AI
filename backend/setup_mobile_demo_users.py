@@ -11,6 +11,7 @@ conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
 accounts = [
+    ('Moussa Coulibaly', 'superadmin@unisphere.ai', 'super_admin', '+223 70 00 00 01', None),
     ('Étudiant UniSphere', 'etudiant@unisphere.ai', 'student', '+223 70 11 22 33', 1),
     ('Prof. Djeneba Coulibaly', 'enseignant@unisphere.ai', 'teacher', '+223 70 22 33 44', 1),
     ('Mme Fatoumata Tangara', 'secretaire@unisphere.ai', 'secretary', '+223 70 33 44 55', 1),

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta, time
 from sqlalchemy import func
@@ -10,6 +11,8 @@ from app.models.attendance import Attendance
 from app.models.student import Student
 from app.models.user import User
 from app.models.course import Course
+from app.models.schedule import Schedule
+from app.models.teacher import Teacher
 from app.core.dependencies import require_role
 
 router = APIRouter(
@@ -20,6 +23,12 @@ router = APIRouter(
 # ==========================================
 # UTILITAIRES
 # ==========================================
+
+# Jours de la semaine en français
+DAYS_FR = {
+    0: "Lundi", 1: "Mardi", 2: "Mercredi",
+    3: "Jeudi", 4: "Vendredi", 5: "Samedi", 6: "Dimanche"
+}
 
 def extract_matricule(qr_data: str) -> str:
     """Extrait le matricule d'un QR code"""
@@ -49,18 +58,195 @@ def extract_matricule(qr_data: str) -> str:
         return qr_data
     return qr_data
 
-def get_late_threshold(db: Session, university_id: int) -> time:
-    """Récupère l'heure limite de présence (défaut: 08:30)"""
+
+def get_current_schedule_for_student(db: Session, student: Student, university_id: int, now: datetime = None):
+    """
+    Trouve le créneau horaire en cours ou le plus proche pour un étudiant
+    en se basant sur son emploi du temps (filière + niveau).
+    Retourne (schedule, is_late, late_minutes) ou (None, False, 0)
+    """
+    if now is None:
+        now = datetime.now()
+    
+    current_day = DAYS_FR.get(now.weekday(), "")
+    current_time_str = now.strftime("%H:%M")
+    
+    # Chercher les créneaux du jour pour cette filière/niveau
+    from app.models.class_room import ClassRoom
+    
+    # Trouver la classe de l'étudiant
+    class_rooms = db.query(ClassRoom).filter(
+        ClassRoom.university_id == university_id
+    ).all()
+    
+    matching_class_ids = []
+    for cr in class_rooms:
+        if cr.level == student.level:
+            # Vérifier la filière
+            if cr.filiere_id and hasattr(student, 'filiere_id') and student.filiere_id:
+                if cr.filiere_id == student.filiere_id:
+                    matching_class_ids.append(cr.id)
+            elif hasattr(cr, 'filiere') and cr.filiere and hasattr(student, 'filiere') and student.filiere:
+                filiere_name = getattr(cr.filiere, 'name', '')
+                if filiere_name and student.filiere and filiere_name.lower() in student.filiere.lower():
+                    matching_class_ids.append(cr.id)
+            else:
+                matching_class_ids.append(cr.id)
+    
+    if not matching_class_ids:
+        # Fallback : chercher tous les schedules du jour pour ce niveau
+        matching_class_ids = [cr.id for cr in class_rooms if cr.level == student.level]
+    
+    # Chercher les créneaux du jour
+    schedules = db.query(Schedule).filter(
+        Schedule.university_id == university_id,
+        Schedule.day_of_week == current_day,
+        Schedule.class_id.in_(matching_class_ids) if matching_class_ids else Schedule.id > 0
+    ).order_by(Schedule.start_time).all()
+    
+    if not schedules:
+        return None, False, 0
+    
+    # Trouver le créneau en cours ou le plus récent
+    best_schedule = None
+    for s in schedules:
+        start = s.start_time  # "08:00"
+        end = s.end_time      # "10:00"
+        
+        # Si on est dans la plage du cours (avec 15 min de tolérance après la fin)
+        if start <= current_time_str <= end or (current_time_str > end and current_time_str <= _add_minutes(end, 15)):
+            best_schedule = s
+            break
+        # Si on est avant le cours mais proche (30 min avant)
+        elif current_time_str < start and current_time_str >= _sub_minutes(start, 30):
+            best_schedule = s
+            break
+    
+    # Si aucun créneau trouvé en cours, prendre le plus proche passé
+    if not best_schedule:
+        for s in reversed(schedules):
+            if current_time_str >= s.start_time:
+                best_schedule = s
+                break
+    
+    # Si toujours rien, prendre le premier de la journée
+    if not best_schedule and schedules:
+        best_schedule = schedules[0]
+    
+    if best_schedule:
+        is_late = current_time_str > best_schedule.start_time
+        late_minutes = 0
+        if is_late:
+            try:
+                start_parts = best_schedule.start_time.split(":")
+                start_h, start_m = int(start_parts[0]), int(start_parts[1])
+                now_h, now_m = now.hour, now.minute
+                late_minutes = (now_h * 60 + now_m) - (start_h * 60 + start_m)
+                if late_minutes < 0:
+                    late_minutes = 0
+            except:
+                late_minutes = 0
+        
+        return best_schedule, is_late, late_minutes
+    
+    return None, False, 0
+
+
+def get_current_schedule_for_teacher(db: Session, teacher_id: int, university_id: int, now: datetime = None):
+    """
+    Trouve le créneau horaire en cours pour un enseignant.
+    Retourne (schedule, is_late, late_minutes)
+    """
+    if now is None:
+        now = datetime.now()
+    
+    current_day = DAYS_FR.get(now.weekday(), "")
+    current_time_str = now.strftime("%H:%M")
+    
+    schedules = db.query(Schedule).filter(
+        Schedule.university_id == university_id,
+        Schedule.day_of_week == current_day,
+        Schedule.teacher_id == teacher_id
+    ).order_by(Schedule.start_time).all()
+    
+    if not schedules:
+        return None, False, 0
+    
+    best_schedule = None
+    for s in schedules:
+        start = s.start_time
+        end = s.end_time
+        
+        if start <= current_time_str <= end or (current_time_str > end and current_time_str <= _add_minutes(end, 15)):
+            best_schedule = s
+            break
+        elif current_time_str < start and current_time_str >= _sub_minutes(start, 30):
+            best_schedule = s
+            break
+    
+    if not best_schedule:
+        for s in reversed(schedules):
+            if current_time_str >= s.start_time:
+                best_schedule = s
+                break
+    
+    if not best_schedule and schedules:
+        best_schedule = schedules[0]
+    
+    if best_schedule:
+        is_late = current_time_str > best_schedule.start_time
+        late_minutes = 0
+        if is_late:
+            try:
+                start_parts = best_schedule.start_time.split(":")
+                start_h, start_m = int(start_parts[0]), int(start_parts[1])
+                now_h, now_m = now.hour, now.minute
+                late_minutes = (now_h * 60 + now_m) - (start_h * 60 + start_m)
+                if late_minutes < 0:
+                    late_minutes = 0
+            except:
+                late_minutes = 0
+        
+        return best_schedule, is_late, late_minutes
+    
+    return None, False, 0
+
+
+def _add_minutes(time_str: str, minutes: int) -> str:
+    """Ajoute des minutes à une heure format HH:MM"""
     try:
-        from app.models.academic_config import AcademicConfig
-        config = db.query(AcademicConfig).filter(
-            AcademicConfig.university_id == university_id
-        ).first()
-        if config and hasattr(config, 'late_threshold_time'):
-            return config.late_threshold_time
-    except Exception:
-        pass
-    return time(8, 30)
+        parts = time_str.split(":")
+        h, m = int(parts[0]), int(parts[1])
+        total = h * 60 + m + minutes
+        return f"{total // 60:02d}:{total % 60:02d}"
+    except:
+        return time_str
+
+
+def _sub_minutes(time_str: str, minutes: int) -> str:
+    """Soustrait des minutes d'une heure format HH:MM"""
+    try:
+        parts = time_str.split(":")
+        h, m = int(parts[0]), int(parts[1])
+        total = max(0, h * 60 + m - minutes)
+        return f"{total // 60:02d}:{total % 60:02d}"
+    except:
+        return time_str
+
+
+def _calc_effective_hours(schedule, late_minutes: int) -> float:
+    """Calcule les heures effectives après soustraction du retard"""
+    try:
+        start_parts = schedule.start_time.split(":")
+        end_parts = schedule.end_time.split(":")
+        start_total = int(start_parts[0]) * 60 + int(start_parts[1])
+        end_total = int(end_parts[0]) * 60 + int(end_parts[1])
+        total_minutes = end_total - start_total
+        effective_minutes = max(0, total_minutes - late_minutes)
+        return round(effective_minutes / 60, 2)
+    except:
+        return 0
+
 
 # ==========================================
 # ROUTES EXISTANTES (GARDIEN / ADMIN)
@@ -91,7 +277,8 @@ def get_attendance_statistics(
                 Student.university_id == current_user.university_id,
                 Student.level == level,
                 Attendance.date >= today - timedelta(days=7),
-                Attendance.status.in_(['present', 'late'])
+                Attendance.status.in_(['present', 'late']),
+                Attendance.attendance_type == 'student'
             ).count()
             rate = (present_count / level_students * 100) if level_students > 0 else 0
             by_level.append({"level": level, "total": level_students, "present": present_count, "rate": min(rate, 100)})
@@ -109,15 +296,22 @@ def get_attendance_statistics(
         "period": period
     }
 
+@router.get("/stats")
 @router.get("/today/stats")
 def get_today_stats(
+    date_param: Optional[str] = Query(None, alias="date"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("guard", "admin", "secretary", "censeur", "teacher"))
 ):
-    today = date.today()
+    target_date = date.today()
+    if date_param:
+        try:
+            target_date = datetime.strptime(date_param, "%Y-%m-%d").date()
+        except Exception:
+            pass
     total_students = db.query(Student).filter(Student.university_id == current_user.university_id, Student.status == 'active').count()
-    present = db.query(Attendance).filter(Attendance.university_id == current_user.university_id, Attendance.date == today, Attendance.status == 'present').count()
-    late = db.query(Attendance).filter(Attendance.university_id == current_user.university_id, Attendance.date == today, Attendance.status == 'late').count()
+    present = db.query(Attendance).filter(Attendance.university_id == current_user.university_id, Attendance.date == target_date, Attendance.status == 'present', Attendance.attendance_type == 'student').count()
+    late = db.query(Attendance).filter(Attendance.university_id == current_user.university_id, Attendance.date == target_date, Attendance.status == 'late', Attendance.attendance_type == 'student').count()
     
     return {
         "total": total_students,
@@ -137,7 +331,7 @@ def get_recent_scans(
     attendances = (
         db.query(Attendance, Student)
         .join(Student, Attendance.student_id == Student.id)
-        .filter(Student.university_id == current_user.university_id, Attendance.date == today)
+        .filter(Student.university_id == current_user.university_id, Attendance.date == today, Attendance.attendance_type == 'student')
         .order_by(Attendance.check_in_time.desc())
         .limit(limit)
         .all()
@@ -152,6 +346,8 @@ def get_recent_scans(
             "level": student.level,
             "class_name": student.filiere,
             "status": attendance.status or "present",
+            "late_minutes": attendance.late_minutes or 0,
+            "expected_start": attendance.expected_start_time,
             "scan_time": datetime.combine(attendance.date, attendance.check_in_time).isoformat() if attendance.date and attendance.check_in_time else None
         })
     return result
@@ -161,12 +357,12 @@ def get_attendance_history(
     start_date: str = Query(None),
     end_date: str = Query(None),
     student_id: int = Query(None),
+    attendance_type: str = Query(None),
     limit: int = Query(100),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("guard", "admin", "secretary", "censeur", "teacher"))
 ):
-    query = db.query(Attendance, Student).join(Student, Attendance.student_id == Student.id).filter(
-        Student.university_id == current_user.university_id,
+    query = db.query(Attendance, Student).join(Student, Attendance.student_id == Student.id, isouter=True).filter(
         Attendance.university_id == current_user.university_id
     )
     if start_date:
@@ -177,6 +373,8 @@ def get_attendance_history(
         except ValueError: pass
     if student_id:
         query = query.filter(Attendance.student_id == student_id)
+    if attendance_type:
+        query = query.filter(Attendance.attendance_type == attendance_type)
     
     attendances = query.order_by(Attendance.date.desc(), Attendance.check_in_time.desc()).limit(limit).all()
     result = []
@@ -186,15 +384,39 @@ def get_attendance_history(
             scanner = db.query(User).filter(User.id == attendance.scanned_by).first()
             if scanner: scanner_name = scanner.full_name
         
+        student_name = ""
+        matricule = ""
+        level = ""
+        filiere = ""
+        
+        if student:
+            student_name = f"{student.first_name} {student.last_name}"
+            matricule = student.matricule
+            level = student.level
+            filiere = student.filiere
+        elif attendance.teacher_id:
+            teacher = db.query(Teacher).filter(Teacher.id == attendance.teacher_id).first()
+            if teacher:
+                student_name = f"{teacher.first_name} {teacher.last_name}"
+                matricule = f"PROF-{teacher.id}"
+                level = "Enseignant"
+                filiere = teacher.department or ""
+        
         result.append({
             "id": attendance.id,
-            "student_id": student.id,
-            "student_name": f"{student.first_name} {student.last_name}",
-            "matricule": student.matricule,
-            "level": student.level,
-            "class_name": student.filiere,
+            "student_id": getattr(student, 'id', None) if student else None,
+            "teacher_id": attendance.teacher_id,
+            "student_name": student_name,
+            "matricule": matricule,
+            "level": level,
+            "class_name": filiere,
             "status": attendance.status or "present",
             "method": attendance.method or "manual",
+            "attendance_type": attendance.attendance_type or "student",
+            "late_minutes": attendance.late_minutes or 0,
+            "expected_start": attendance.expected_start_time,
+            "expected_end": attendance.expected_end_time,
+            "effective_hours": attendance.effective_hours,
             "scan_time": datetime.combine(attendance.date, attendance.check_in_time).isoformat() if attendance.date and attendance.check_in_time else None,
             "date": attendance.date.isoformat() if attendance.date else None,
             "scanned_by": scanner_name
@@ -204,28 +426,54 @@ def get_attendance_history(
 @router.get("/")
 def get_attendances(
     date_filter: str = Query(None),
+    attendance_type: str = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("guard", "admin", "secretary"))
 ):
-    query = db.query(Attendance, Student).join(Student, Attendance.student_id == Student.id).filter(
-        Student.university_id == current_user.university_id
+    query = db.query(Attendance, Student).join(Student, Attendance.student_id == Student.id, isouter=True).filter(
+        Attendance.university_id == current_user.university_id
     )
     if date_filter:
         try: query = query.filter(Attendance.date == date.fromisoformat(date_filter))
         except ValueError: pass
+    if attendance_type:
+        query = query.filter(Attendance.attendance_type == attendance_type)
     
     attendances = query.order_by(Attendance.created_at.desc()).all()
     result = []
     for attendance, student in attendances:
+        student_name = ""
+        matricule = ""
+        level = ""
+        filiere = ""
+        
+        if student:
+            student_name = f"{student.first_name} {student.last_name}"
+            matricule = student.matricule
+            level = student.level
+            filiere = student.filiere
+        elif attendance.teacher_id:
+            teacher = db.query(Teacher).filter(Teacher.id == attendance.teacher_id).first()
+            if teacher:
+                student_name = f"Prof. {teacher.first_name} {teacher.last_name}"
+                matricule = f"PROF-{teacher.id}"
+                level = "Enseignant"
+                filiere = teacher.department or ""
+        
         result.append({
             "id": attendance.id,
-            "student_id": student.id,
-            "student_name": f"{student.first_name} {student.last_name}",
-            "matricule": student.matricule,
-            "level": student.level,
-            "class_name": student.filiere,
+            "student_id": getattr(student, 'id', None) if student else None,
+            "teacher_id": attendance.teacher_id,
+            "student_name": student_name,
+            "matricule": matricule,
+            "level": level,
+            "class_name": filiere,
             "course": getattr(attendance, 'course', 'General Course'),
             "status": attendance.status or "present",
+            "attendance_type": attendance.attendance_type or "student",
+            "late_minutes": attendance.late_minutes or 0,
+            "expected_start": attendance.expected_start_time,
+            "effective_hours": attendance.effective_hours,
             "scan_time": attendance.created_at.isoformat() if attendance.created_at else None,
             "created_at": attendance.created_at.isoformat() if attendance.created_at else None
         })
@@ -251,12 +499,18 @@ def update_attendance_status(
     db.commit()
     return {"message": f"Statut modifié : {old_status} → {new_status}", "attendance_id": attendance.id}
 
+
+# ==========================================
+# ✅ SCAN ÉTUDIANT (basé sur l'emploi du temps)
+# ==========================================
+
 @router.post("/scan")
 def scan_qr_code(
     data: dict,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("guard", "admin", "secretary"))
 ):
+    """Scan QR étudiant - le statut present/late est basé sur l'emploi du temps de l'étudiant"""
     qr_data = data.get("matricule", "").strip()
     if not qr_data:
         raise HTTPException(status_code=400, detail="QR code requis")
@@ -267,18 +521,37 @@ def scan_qr_code(
         raise HTTPException(status_code=404, detail=f"Étudiant non trouvé : {matricule}")
     
     now = datetime.now()
-    late_threshold = get_late_threshold(db, current_user.university_id)
-    status = "present" if now.time() <= late_threshold else "late"
-    
     today = date.today()
-    existing = db.query(Attendance).filter(
+    
+    # Chercher le créneau en cours dans l'emploi du temps de l'étudiant
+    schedule, is_late, late_minutes = get_current_schedule_for_student(db, student, current_user.university_id, now)
+    
+    # Déterminer le statut basé sur l'emploi du temps
+    if schedule:
+        status = "late" if is_late and late_minutes > 0 else "present"
+    else:
+        # Pas de créneau trouvé, on accepte quand même le scan
+        status = "present"
+    
+    # Vérifier doublon (même étudiant, même jour, même créneau si existant)
+    existing_query = db.query(Attendance).filter(
         Attendance.student_id == student.id,
         Attendance.date == today,
-        Attendance.university_id == current_user.university_id
-    ).first()
+        Attendance.university_id == current_user.university_id,
+        Attendance.attendance_type == 'student'
+    )
+    if schedule:
+        existing_query = existing_query.filter(Attendance.schedule_id == schedule.id)
+    
+    existing = existing_query.first()
     
     if existing:
-        raise HTTPException(status_code=400, detail=f"{student.first_name} {student.last_name} a déjà été scanné aujourd'hui")
+        msg = f"{student.first_name} {student.last_name} a déjà été scanné"
+        if schedule:
+            course = db.query(Course).filter(Course.id == schedule.course_id).first()
+            course_name = getattr(course, 'title', 'ce cours') if course else 'ce cours'
+            msg += f" pour {course_name}"
+        raise HTTPException(status_code=400, detail=msg)
     
     attendance = Attendance(
         student_id=student.id,
@@ -286,12 +559,24 @@ def scan_qr_code(
         check_in_time=now.time(),
         status=status,
         method="qr_code",
+        attendance_type="student",
         scanned_by=current_user.id,
-        university_id=current_user.university_id
+        university_id=current_user.university_id,
+        schedule_id=schedule.id if schedule else None,
+        course_id=schedule.course_id if schedule else None,
+        expected_start_time=schedule.start_time if schedule else None,
+        expected_end_time=schedule.end_time if schedule else None,
+        late_minutes=late_minutes if is_late else 0
     )
     db.add(attendance)
     db.commit()
     db.refresh(attendance)
+    
+    # Récupérer le nom du cours
+    course_name = None
+    if schedule and schedule.course_id:
+        course = db.query(Course).filter(Course.id == schedule.course_id).first()
+        course_name = getattr(course, 'title', None) if course else None
     
     return {
         "student_id": student.id,
@@ -300,11 +585,201 @@ def scan_qr_code(
         "class_name": student.filiere,
         "level": student.level,
         "status": status,
+        "late_minutes": late_minutes if is_late else 0,
+        "course_name": course_name,
+        "expected_start": schedule.start_time if schedule else None,
         "scan_time": now.isoformat()
     }
 
+
 # ==========================================
-# ✅ NOUVELLES ROUTES (ÉTUDIANT & ENSEIGNANT)
+# ✅ SCAN ENSEIGNANT (suivi de ponctualité)
+# ==========================================
+
+@router.post("/teacher/scan")
+def scan_teacher(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("guard", "admin", "secretary"))
+):
+    """Scan QR enseignant - enregistre la ponctualité et calcule les heures effectives"""
+    qr_data = data.get("teacher_id", data.get("matricule", "")).strip()
+    if not qr_data:
+        raise HTTPException(status_code=400, detail="Identifiant enseignant requis")
+    
+    # Extraire l'ID enseignant du QR code
+    teacher_id = None
+    if qr_data.startswith("TEACHER-"):
+        try:
+            teacher_id = int(qr_data.replace("TEACHER-", ""))
+        except ValueError:
+            pass
+    elif qr_data.isdigit():
+        teacher_id = int(qr_data)
+    
+    if not teacher_id:
+        raise HTTPException(status_code=400, detail=f"Format QR enseignant invalide : {qr_data}")
+    
+    teacher = db.query(Teacher).filter(
+        Teacher.id == teacher_id,
+        Teacher.university_id == current_user.university_id
+    ).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail=f"Enseignant non trouvé (ID: {teacher_id})")
+    
+    now = datetime.now()
+    today = date.today()
+    
+    # Chercher le créneau en cours pour cet enseignant
+    schedule, is_late, late_minutes = get_current_schedule_for_teacher(db, teacher.id, current_user.university_id, now)
+    
+    if schedule:
+        status = "late" if is_late and late_minutes > 0 else "present"
+        effective_hours = _calc_effective_hours(schedule, late_minutes if is_late else 0)
+    else:
+        status = "present"
+        effective_hours = None
+    
+    # Vérifier doublon
+    existing = db.query(Attendance).filter(
+        Attendance.teacher_id == teacher.id,
+        Attendance.date == today,
+        Attendance.university_id == current_user.university_id,
+        Attendance.attendance_type == 'teacher',
+        Attendance.schedule_id == (schedule.id if schedule else None)
+    ).first()
+    
+    if existing:
+        course = db.query(Course).filter(Course.id == schedule.course_id).first() if schedule else None
+        course_name = getattr(course, 'title', 'ce créneau') if course else 'ce créneau'
+        raise HTTPException(
+            status_code=400,
+            detail=f"Prof. {teacher.first_name} {teacher.last_name} a déjà été scanné pour {course_name}"
+        )
+    
+    attendance = Attendance(
+        teacher_id=teacher.id,
+        date=today,
+        check_in_time=now.time(),
+        status=status,
+        method="qr_code",
+        attendance_type="teacher",
+        scanned_by=current_user.id,
+        university_id=current_user.university_id,
+        schedule_id=schedule.id if schedule else None,
+        course_id=schedule.course_id if schedule else None,
+        expected_start_time=schedule.start_time if schedule else None,
+        expected_end_time=schedule.end_time if schedule else None,
+        late_minutes=late_minutes if is_late else 0,
+        effective_hours=effective_hours
+    )
+    db.add(attendance)
+    db.commit()
+    db.refresh(attendance)
+    
+    course_name = None
+    if schedule and schedule.course_id:
+        course = db.query(Course).filter(Course.id == schedule.course_id).first()
+        course_name = getattr(course, 'title', None) if course else None
+    
+    return {
+        "teacher_id": teacher.id,
+        "teacher_name": f"{teacher.first_name} {teacher.last_name}",
+        "department": teacher.department,
+        "status": status,
+        "late_minutes": late_minutes if is_late else 0,
+        "effective_hours": effective_hours,
+        "expected_start": schedule.start_time if schedule else None,
+        "expected_end": schedule.end_time if schedule else None,
+        "course_name": course_name,
+        "scan_time": now.isoformat()
+    }
+
+
+# ==========================================
+# ✅ STATISTIQUES ENSEIGNANTS
+# ==========================================
+
+@router.get("/teacher/stats")
+def get_teacher_attendance_stats(
+    teacher_id: int = Query(None),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "censeur", "secretary", "guard"))
+):
+    """Statistiques de ponctualité des enseignants"""
+    query = db.query(Attendance).filter(
+        Attendance.university_id == current_user.university_id,
+        Attendance.attendance_type == 'teacher'
+    )
+    
+    if teacher_id:
+        query = query.filter(Attendance.teacher_id == teacher_id)
+    if start_date:
+        try: query = query.filter(Attendance.date >= date.fromisoformat(start_date))
+        except: pass
+    if end_date:
+        try: query = query.filter(Attendance.date <= date.fromisoformat(end_date))
+        except: pass
+    
+    attendances = query.all()
+    
+    # Grouper par enseignant
+    teacher_stats = {}
+    for att in attendances:
+        tid = att.teacher_id
+        if tid not in teacher_stats:
+            teacher = db.query(Teacher).filter(Teacher.id == tid).first()
+            teacher_stats[tid] = {
+                "teacher_id": tid,
+                "teacher_name": f"{teacher.first_name} {teacher.last_name}" if teacher else "Inconnu",
+                "department": teacher.department if teacher else "",
+                "total_scans": 0,
+                "on_time": 0,
+                "late_count": 0,
+                "total_late_minutes": 0,
+                "total_effective_hours": 0,
+                "total_expected_hours": 0
+            }
+        
+        teacher_stats[tid]["total_scans"] += 1
+        if att.status == "present":
+            teacher_stats[tid]["on_time"] += 1
+        elif att.status == "late":
+            teacher_stats[tid]["late_count"] += 1
+        
+        teacher_stats[tid]["total_late_minutes"] += att.late_minutes or 0
+        if att.effective_hours:
+            teacher_stats[tid]["total_effective_hours"] += att.effective_hours
+        
+        # Calculer heures attendues
+        if att.expected_start_time and att.expected_end_time:
+            try:
+                s_parts = att.expected_start_time.split(":")
+                e_parts = att.expected_end_time.split(":")
+                expected_h = (int(e_parts[0]) * 60 + int(e_parts[1]) - int(s_parts[0]) * 60 - int(s_parts[1])) / 60
+                teacher_stats[tid]["total_expected_hours"] += expected_h
+            except:
+                pass
+    
+    # Calculer les taux
+    result = []
+    for stats in teacher_stats.values():
+        stats["punctuality_rate"] = round(
+            (stats["on_time"] / stats["total_scans"] * 100) if stats["total_scans"] > 0 else 100, 1
+        )
+        stats["total_effective_hours"] = round(stats["total_effective_hours"], 2)
+        stats["total_expected_hours"] = round(stats["total_expected_hours"], 2)
+        stats["hours_lost"] = round(stats["total_expected_hours"] - stats["total_effective_hours"], 2)
+        result.append(stats)
+    
+    result.sort(key=lambda x: x["punctuality_rate"], reverse=True)
+    return result
+
+
+# ==========================================
+# ✅ ROUTES COURS ÉTUDIANT & ENSEIGNANT
 # ==========================================
 
 @router.get("/me/courses")
@@ -350,17 +825,12 @@ def get_my_course_attendance(
     return result
 
 
-# ==========================================
-# ✅ NOUVEL ENDPOINT : COURS DE L'ENSEIGNANT CONNECTÉ
-# ==========================================
 @router.get("/teacher/courses")
 def get_teacher_courses(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin", "secretary", "censeur"))
 ):
     """Récupère uniquement les cours assignés à l'enseignant connecté, ou tous les cours pour le staff"""
-    from app.models.teacher import Teacher
-    
     user_role = (current_user.role or "").lower()
     is_staff = user_role in ["admin", "secretary", "secretaire", "censeur", "censor"]
     
@@ -401,7 +871,7 @@ def get_teacher_courses(
 @router.get("/course/{course_id}/roster")
 def get_course_roster(
     course_id: int,
-    date: str,
+    date: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("teacher", "admin", "secretary", "censeur"))
 ):
@@ -425,7 +895,12 @@ def get_course_roster(
 
     students = query.order_by(Student.last_name, Student.first_name).all()
 
-    target_date = datetime.strptime(date, "%Y-%m-%d").date()
+    target_date = date_class.today() if 'date_class' in globals() else datetime.now().date()
+    if date:
+        try:
+            target_date = datetime.strptime(date, "%Y-%m-%d").date()
+        except Exception:
+            pass
     existing_attendance = db.query(Attendance).filter(
         Attendance.course_id == course_id,
         Attendance.date == target_date
@@ -444,7 +919,7 @@ def get_course_roster(
 
     return {
         "course_name": getattr(course, 'title', getattr(course, 'name', 'Cours')),
-        "date": date,
+        "date": str(target_date),
         "students": roster
     }
 
@@ -492,13 +967,43 @@ def mark_bulk_attendance(
                 status=status,
                 comment=comment,
                 method="teacher_appel",
+                attendance_type="student",
                 scanned_by=current_user.id,
                 university_id=current_user.university_id
             )
             db.add(new_att)
 
+        # ✅ SYNCHRONISATION PRÉSENCE JOURNALIÈRE (Audio 3 & 4)
+        # Si l'étudiant est présent ou en retard dans un cours, il est obligatoirement présent à l'école aujourd'hui
+        if status in ["present", "late"]:
+            daily_att = db.query(Attendance).filter(
+                Attendance.student_id == student_id,
+                Attendance.course_id.is_(None),
+                Attendance.date == target_date,
+                Attendance.attendance_type == "student"
+            ).first()
+
+            if not daily_att:
+                daily_att = Attendance(
+                    student_id=student_id,
+                    course_id=None,
+                    date=target_date,
+                    check_in_time=current_time,
+                    status="present",
+                    method="auto_sync_appel",
+                    attendance_type="student",
+                    scanned_by=current_user.id,
+                    university_id=current_user.university_id,
+                    comment="Présence journalière validée automatiquement via l'appel en classe"
+                )
+                db.add(daily_att)
+            elif daily_att.status == "absent":
+                daily_att.status = "present"
+                daily_att.check_in_time = current_time
+                daily_att.comment = "Présence journalière actualisée via l'appel en classe"
+
     db.commit()
-    return {"message": "Appel enregistré avec succès"}
+    return {"message": "Appel enregistré avec succès et présences journalières synchronisées"}
 
 
 # ==========================================
@@ -510,19 +1015,16 @@ def get_attendance_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "censeur", "secretary", "guard"))
 ):
-    """Récupère la configuration de seuil de présence"""
+    """Récupère la configuration de présence"""
     from app.models.academic_config import AcademicConfig
     config = db.query(AcademicConfig).filter(
         AcademicConfig.university_id == current_user.university_id
     ).first()
     
-    threshold_str = "08:30"
-    if config and config.late_threshold_time:
-        threshold_str = config.late_threshold_time.strftime("%H:%M")
-        
     return {
-        "late_threshold": threshold_str,
-        "min_attendance_rate": getattr(config, 'min_attendance_rate', 75.0) if config else 75.0
+        "mode": "schedule",  # Toujours basé sur l'emploi du temps
+        "min_attendance_rate": getattr(config, 'min_attendance_rate', 75.0) if config else 75.0,
+        "description": "Le système de présence est basé sur l'emploi du temps des étudiants. Le retard est calculé automatiquement par rapport à l'heure de début du cours."
     }
 
 @router.put("/config")
@@ -531,7 +1033,7 @@ def update_attendance_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "censeur", "secretary"))
 ):
-    """Met à jour le seuil d'heure de retard et le taux minimum"""
+    """Met à jour le taux minimum de présence"""
     from app.models.academic_config import AcademicConfig
     config = db.query(AcademicConfig).filter(
         AcademicConfig.university_id == current_user.university_id
@@ -542,21 +1044,12 @@ def update_attendance_config(
         db.add(config)
         db.flush()
         
-    late_threshold = data.get("late_threshold")
-    if late_threshold:
-        try:
-            parts = str(late_threshold).strip().split(":")
-            h, m = int(parts[0]), int(parts[1])
-            config.late_threshold_time = time(h, m)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Format d'heure invalide (ex: 08:30)")
-            
     if "min_attendance_rate" in data:
         config.min_attendance_rate = float(data["min_attendance_rate"])
         
     db.commit()
     return {
         "message": "Configuration sauvegardée avec succès",
-        "late_threshold": config.late_threshold_time.strftime("%H:%M") if config.late_threshold_time else "08:30",
+        "mode": "schedule",
         "min_attendance_rate": config.min_attendance_rate
     }

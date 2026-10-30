@@ -125,6 +125,26 @@ def create_payment(
     db.commit()
     db.refresh(new_payment)
 
+    # Notification a l etudiant
+    if student and getattr(student, 'user_id', None):
+        try:
+            from app.models.notification import Notification
+            notif = Notification(
+                title='Paiement valide',
+                message=f'Votre versement de {payment_amount:,.0f} {data.currency} ({data.payment_type}) a ete enregistre. Ref: {reference}',
+                notification_type='payment',
+                type='success',
+                recipient_id=student.user_id,
+                created_by=current_user.id,
+                university_id=current_user.university_id,
+                is_read=False,
+                extra_data={'payment_id': new_payment.id, 'amount': payment_amount}
+            )
+            db.add(notif)
+            db.commit()
+        except Exception as _e:
+            print(f'Erreur notif paiement student: {_e}')
+
     # ✅ AJOUTÉ : génère automatiquement l'écriture comptable correspondante
     # (jamais bloquant : si ça échoue, le paiement reste bien enregistré)
     try:
@@ -185,8 +205,41 @@ def get_payments(
         .limit(page_size) \
         .all()
 
+    student_ids = list({p.student_id for p in payments if p.student_id})
+    students_map = {s.id: s for s in db.query(Student).filter(Student.id.in_(student_ids)).all()} if student_ids else {}
+
+    payments_data = []
+    for p in payments:
+        st = students_map.get(p.student_id)
+        st_name = f"{st.first_name} {st.last_name}" if st else "N/A"
+        payments_data.append({
+            "id": p.id,
+            "reference": p.reference,
+            "receipt_number": p.receipt_number,
+            "amount": p.amount,
+            "currency": p.currency or "FCFA",
+            "payment_type": p.payment_type,
+            "payment_method": p.payment_method,
+            "status": p.status,
+            "payment_date": str(p.payment_date) if p.payment_date else str(p.created_at),
+            "created_at": str(p.created_at),
+            "paid_by": p.paid_by,
+            "tranche_id": p.tranche_id,
+            "student_id": p.student_id,
+            "student_name": st_name,
+            "matricule": st.matricule if st else "",
+            "student": {
+                "id": st.id,
+                "first_name": st.first_name,
+                "last_name": st.last_name,
+                "matricule": st.matricule,
+                "filiere": st.filiere,
+                "level": st.level,
+            } if st else None
+        })
+
     return {
-        "data": payments,
+        "data": payments_data,
         "total": total,
         "page": page,
         "page_size": page_size,

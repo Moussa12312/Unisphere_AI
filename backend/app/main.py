@@ -42,6 +42,7 @@ from app.models import certificate_request
 from app.models.accounting import Supplier, ExpenseCategory, Expense, BankAccount, CashTransaction, Budget, FixedAsset, PayrollEntry
 from app.models.ledger import Account, JournalEntry, JournalEntryLine, FiscalYear, BankReconciliation
 from app.models.client_billing import ClientInvoice, ClientPayment
+from app.models.password_reset_request import PasswordResetRequest
 
 _optional_models = [
     ('app.models.incident', 'Incident'),
@@ -91,6 +92,120 @@ app = FastAPI(
     version="2.0.0",
     redirect_slashes=False,  # ✅ Désactivé (pas de 307)
 )
+
+@app.on_event("startup")
+def ensure_alumni_demo():
+    try:
+        from app.models.university import University
+        from app.models.user import User
+        from app.models.student import Student
+        from app.models.alumni import AlumniProfile, AlumniConnection
+        from app.core.security import hash_password
+        from datetime import datetime, timezone
+
+        db = SessionLocal()
+        try:
+            univ = db.query(University).first()
+            univ_id = univ.id if univ else None
+
+            user = db.query(User).filter(User.email == "alumni@unisphere.ai").first()
+            if not user:
+                user = User(
+                    email="alumni@unisphere.ai",
+                    hashed_password=hash_password("unisphere2026"),
+                    full_name="Moussa Fofana",
+                    role="alumni",
+                    university_id=univ_id,
+                    is_active=True,
+                    is_email_verified=True
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+                print(f"[STARTUP] Compte alumni cree: {user.email}")
+            else:
+                user.hashed_password = hash_password("unisphere2026")
+                user.role = "alumni"
+                user.is_active = True
+                user.is_email_verified = True
+                db.commit()
+
+            profile = db.query(AlumniProfile).filter(AlumniProfile.user_id == user.id).first()
+            if not profile:
+                profile = AlumniProfile(
+                    user_id=user.id,
+                    university_id=univ_id or 1,
+                    first_name="Moussa",
+                    last_name="Fofana",
+                    email=user.email,
+                    phone="+223 70 12 34 56",
+                    filiere="Genie Logiciel",
+                    domain="Informatique & Reseaux",
+                    level="Master",
+                    graduation_year=2022,
+                    promotion="Promotion 2022",
+                    current_position="Lead Architect Cloud & DevOps",
+                    company="Orange Digital Center",
+                    activity_domain="Technologies de l'Information",
+                    location="Bamako, Mali",
+                    linkedin_url="https://linkedin.com/in/moussa-fofana",
+                    career_path="Sorti major de promotion en 2022, j'ai debute comme developpeur Full Stack puis evolue vers l'architecture Cloud et l'ingenierie DevOps.",
+                    difficulties="La gestion du temps entre les projets universitaires et les certifications professionnelles.",
+                    advice="Pratiquez chaque jour, contribuez a des projets open source et n'hesitez jamais a poser des questions a vos aines.",
+                    skills="Python, FastAPI, TypeScript, React, Docker, Kubernetes, CI/CD",
+                    is_open_to_mentoring=True,
+                    is_open_to_internship=True,
+                    accepted_conditions=True
+                )
+                db.add(profile)
+                db.commit()
+                db.refresh(profile)
+                print(f"[STARTUP] Profil alumni cree: #{profile.id}")
+            else:
+                profile.current_position = "Lead Architect Cloud & DevOps"
+                profile.company = "Orange Digital Center"
+                profile.is_open_to_mentoring = True
+                profile.is_open_to_internship = True
+                db.commit()
+
+            students = db.query(Student).limit(4).all()
+            if len(students) >= 2:
+                c1 = db.query(AlumniConnection).filter(
+                    AlumniConnection.alumni_id == profile.id,
+                    AlumniConnection.student_id == students[0].id
+                ).first()
+                if not c1:
+                    c1 = AlumniConnection(
+                        alumni_id=profile.id,
+                        student_id=students[0].id,
+                        connection_type="mentor",
+                        status="accepted",
+                        message="Bonjour M. Fofana, je souhaiterais beneficier de vos conseils pour mon projet de fin d'etudes.",
+                        created_at=datetime.now(timezone.utc),
+                        accepted_at=datetime.now(timezone.utc)
+                    )
+                    db.add(c1)
+
+                c2 = db.query(AlumniConnection).filter(
+                    AlumniConnection.alumni_id == profile.id,
+                    AlumniConnection.student_id == students[1].id
+                ).first()
+                if not c2:
+                    c2 = AlumniConnection(
+                        alumni_id=profile.id,
+                        student_id=students[1].id,
+                        connection_type="mentor",
+                        status="pending",
+                        message="Bonjour, je suis etudiant en L3 et j'aimerais echanger sur les carrieres en ingenierie logicielle.",
+                        created_at=datetime.now(timezone.utc)
+                    )
+                    db.add(c2)
+                db.commit()
+                print("[STARTUP] Connexions Alumni assurees avec succes.")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[STARTUP] Erreur initialisation alumni demo: {e}")
 
 # ============================================
 # CORS
@@ -225,6 +340,7 @@ teaching_units_router = try_import_router("app.api.teaching_units")
 rooms_router = try_import_router("app.api.rooms")
 exam_schedules_router = try_import_router("app.api.exam_schedules")
 subscriptions_router = try_import_router("app.api.subscriptions")
+password_reset_router = try_import_router("app.api.password_reset")
 
 
 # ============================================
@@ -278,6 +394,7 @@ all_routers = {
     "censors": censors_router,
     "teaching_units": teaching_units_router,
     "subscriptions": subscriptions_router,
+    "password_reset": password_reset_router,
 }
 
 registered = []
@@ -314,3 +431,48 @@ def health_check():
 @app.get("/api/v1/health/")
 def health_check_v1():
     return {"status": "healthy"}
+
+from fastapi.responses import FileResponse
+
+@app.get("/download/unisphereai.apk")
+@app.get("/api/v1/download/unisphereai.apk")
+def download_apk():
+    apk_paths = [
+        Path("frontend/public/download/unisphereai.apk"),
+        Path("../frontend/public/download/unisphereai.apk"),
+        Path("c:/UniSphere_AI/frontend/public/download/unisphereai.apk")
+    ]
+    for p in apk_paths:
+        if p.exists():
+            return FileResponse(
+                path=str(p),
+                filename="unisphereai.apk",
+                media_type="application/vnd.android.package-archive"
+            )
+    return {"error": "APK not found"}
+
+import qrcode
+
+@app.get("/api/v1/teacher/qrcode")
+def get_teacher_qrcode(teacher_id: int = None):
+    db = SessionLocal()
+    try:
+        if teacher_id:
+            teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+        else:
+            teacher = db.query(Teacher).filter(Teacher.user_id == 60).first() or db.query(Teacher).first()
+        
+        if not teacher:
+            return {"error": "Teacher not found"}
+            
+        os.makedirs("qr_codes", exist_ok=True)
+        qr_filename = f"TEACHER_{teacher.id}.png"
+        qr_path = os.path.join("qr_codes", qr_filename)
+        
+        if not (os.path.exists(qr_path) and os.path.getsize(qr_path) > 0):
+            qr = qrcode.make(f"TEACHER-{teacher.id}")
+            qr.save(qr_path)
+            
+        return FileResponse(qr_path, media_type="image/png", filename=f"QR_TEACHER_{teacher.id}.png")
+    finally:
+        db.close()

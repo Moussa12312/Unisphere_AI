@@ -37,6 +37,9 @@ class AcademicConfig(Base):
     # ✅ PÉNALITÉS DE RETARD
     penalty_amount = Column(Float, default=5000.0)
     penalty_auto_apply = Column(Boolean, default=True)
+
+    # ✅ VERROUILLAGE GÉNÉRAL DE LA SAISIE DES NOTES
+    grades_locked = Column(Boolean, default=False)
     
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

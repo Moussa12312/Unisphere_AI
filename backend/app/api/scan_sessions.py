@@ -260,8 +260,13 @@ def cancel_session(
 
 @router.get("/{token}")
 def get_session_public(token: str, db: Session = Depends(get_db)):
-    """Récupère les infos publiques d'une session (pour la page mobile)"""
-    session = db.query(ScanSession).filter(ScanSession.token == token).first()
+    """Récupère les infos publiques d'une session (pour la page mobile) par token ou ID"""
+    if token.isdigit():
+        session = db.query(ScanSession).filter(
+            (ScanSession.token == token) | (ScanSession.id == int(token))
+        ).first()
+    else:
+        session = db.query(ScanSession).filter(ScanSession.token == token).first()
     
     if not session:
         raise HTTPException(status_code=404, detail="Session non trouvée")

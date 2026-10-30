@@ -301,7 +301,7 @@ def get_payment_detail(
         "reference": payment.reference,
         "receipt_number": payment.receipt_number,
         "description": payment.description,
-        "academic_year": payment.academic_year,
+        "academic_year": getattr(payment, 'academic_year', None) or "2026-2027",
         "created_at": payment.created_at.strftime("%Y-%m-%d %H:%M") if payment.created_at else ""
     }
 
@@ -1087,11 +1087,19 @@ def get_my_quitus_pdf(
     ).order_by(Payment.created_at.asc()).all()
 
     from app.services.pdf_generator import generate_financial_clearance_pdf
+    from app.utils.tuition import resolve_student_tuition_breakdown
+    breakdown = resolve_student_tuition_breakdown(db, student, student.university_id, "scolarite")
+    net_due = float(breakdown.get("net_amount", 0.0) or 0.0)
+    total_paid = sum(float(p.amount or 0.0) for p in payments)
+    rem = max(0.0, net_due - total_paid)
+
     pdf_bytes = generate_financial_clearance_pdf(
         student=student,
         university=university,
         payments=payments,
-        academic_year=year
+        academic_year=year,
+        total_amount=net_due,
+        total_remaining=rem
     )
 
     filename = f"quitus_financier_{student.matricule or student.id}_{year.replace('/', '-')}.pdf"
@@ -1127,11 +1135,19 @@ def get_student_quitus_pdf(
     ).order_by(Payment.created_at.asc()).all()
 
     from app.services.pdf_generator import generate_financial_clearance_pdf
+    from app.utils.tuition import resolve_student_tuition_breakdown
+    breakdown = resolve_student_tuition_breakdown(db, student, student.university_id, "scolarite")
+    net_due = float(breakdown.get("net_amount", 0.0) or 0.0)
+    total_paid = sum(float(p.amount or 0.0) for p in payments)
+    rem = max(0.0, net_due - total_paid)
+
     pdf_bytes = generate_financial_clearance_pdf(
         student=student,
         university=university,
         payments=payments,
-        academic_year=year
+        academic_year=year,
+        total_amount=net_due,
+        total_remaining=rem
     )
 
     filename = f"quitus_financier_{student.matricule or student.id}_{year.replace('/', '-')}.pdf"
@@ -1264,7 +1280,7 @@ def get_all_receipts(
 
         for pr in payrolls:
             staff_user = pr.user
-            staff_name = f"{staff_user.first_name} {staff_user.last_name}" if staff_user else "Personnel"
+            staff_name = (getattr(staff_user, "full_name", None) or f"{getattr(staff_user, 'first_name', '')} {getattr(staff_user, 'last_name', '')}").strip() or "Personnel"
             role_label = getattr(staff_user, "role", "Personnel") if staff_user else "Personnel"
             pr_date = pr.paid_date or (pr.created_at.date() if pr.created_at else today)
             rec_num = f"BS-{pr.period.replace('-', '')}-{pr.id:04d}"
@@ -1391,7 +1407,7 @@ def get_expense_receipt(
             "logo": university.logo if university else None
         },
         "creator": {
-            "name": f"{creator.first_name} {creator.last_name}" if creator else "Service Comptabilité",
+            "name": getattr(creator, "full_name", None) or "Service Comptabilité",
             "role": getattr(creator, "role", "Comptable") if creator else "Comptable"
         }
     }
@@ -1424,7 +1440,7 @@ def get_payroll_receipt(
         },
         "staff": {
             "id": staff.id if staff else None,
-            "name": f"{staff.first_name} {staff.last_name}" if staff else "Employé",
+            "name": getattr(staff, "full_name", None) or "Employé",
             "email": staff.email if staff else "",
             "role": staff.role if staff else "Personnel"
         },
@@ -1434,4 +1450,97 @@ def get_payroll_receipt(
             "phone": university.phone if university else "",
             "logo": university.logo if university else None
         }
-    }
+    }
+
+
+# ==========================================
+# PAIEMENTS (ALIAS FINANCIALS)
+# ==========================================
+@router.get("/payments")
+def get_financial_payments(
+    student_id: Optional[int] = None,
+    status: Optional[str] = None,
+    payment_type: Optional[str] = None,
+    period: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant", "secretary"))
+):
+    query = db.query(Payment).filter(Payment.university_id == current_user.university_id)
+    if student_id:
+        query = query.filter(Payment.student_id == student_id)
+    if status:
+        query = query.filter(Payment.status == status)
+    if payment_type:
+        query = query.filter(Payment.payment_type == payment_type)
+    
+    total = query.count()
+    payments = query.order_by(Payment.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "items": [
+            {
+                "id": p.id,
+                "student_id": p.student_id,
+                "student_name": f"{p.student.last_name} {p.student.first_name}" if p.student else "Inconnu",
+                "student_matricule": p.student.matricule if p.student else "N/A",
+                "amount": float(p.amount),
+                "payment_type": p.payment_type,
+                "payment_method": p.payment_method,
+                "status": p.status,
+                "reference": p.reference or f"PAY-{p.id}",
+                "receipt_number": p.receipt_number or f"REC-{p.id}",
+                "created_at": p.created_at.isoformat() if p.created_at else None
+            }
+            for p in payments
+        ]
+    }
+
+@router.get("/payments/{payment_id}")
+def get_financial_payment_detail(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant", "secretary", "student"))
+):
+    payment = db.query(Payment).filter(
+        Payment.id == payment_id,
+        Payment.university_id == current_user.university_id
+    ).first()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Paiement non trouvé")
+    
+    student = payment.student
+    univ = db.query(University).filter(University.id == payment.university_id).first()
+    
+    return {
+        "id": payment.id,
+        "student_id": payment.student_id,
+        "student": {
+            "id": student.id if student else None,
+            "first_name": student.first_name if student else "",
+            "last_name": student.last_name if student else "",
+            "matricule": student.matricule if student else "",
+            "filiere": student.filiere if student else "",
+            "level": student.level if student else ""
+        } if student else None,
+        "amount": float(payment.amount),
+        "payment_type": payment.payment_type,
+        "payment_method": payment.payment_method,
+        "status": payment.status,
+        "reference": payment.reference or f"PAY-{payment.id}",
+        "receipt_number": payment.receipt_number or f"REC-{payment.id}",
+        "description": payment.description,
+        "academic_year": payment.academic_year,
+        "university": {
+            "name": univ.name if univ else "UniSphere AI",
+            "address": univ.address if univ else "",
+            "phone": univ.phone if univ else "",
+            "logo": univ.logo if univ else None
+        },
+        "created_at": payment.created_at.isoformat() if payment.created_at else None
+    }
+

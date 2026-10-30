@@ -1527,12 +1527,14 @@ async def update_student_payment_plan(
 def get_students(
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "accountant", "censeur", "teacher", "student"))
+    current_user: User = Depends(require_role("admin", "secretary", "accountant", "censeur", "teacher", "student", "guard", "super_admin"))
 ):
     """Liste des étudiants"""
-    query = db.query(Student).filter(
-        Student.university_id == current_user.university_id
-    )
+    query = db.query(Student)
+    if current_user.role != "super_admin" and current_user.university_id:
+        query = query.filter(Student.university_id == current_user.university_id)
+    elif current_user.university_id:
+        query = query.filter(Student.university_id == current_user.university_id)
     
     if current_user.role == "student":
         query = query.filter(Student.user_id == current_user.id)
@@ -1549,13 +1551,17 @@ def get_students(
     students = query.order_by(Student.last_name, Student.first_name).all()
     
     result = []
+    univ_id = current_user.university_id or (students[0].university_id if students else 1)
     for student in students:
         filiere_obj = None
         if student.filiere:
             filiere_obj = db.query(Filiere).filter(
                 Filiere.name == student.filiere,
-                Filiere.university_id == current_user.university_id
+                Filiere.university_id == (student.university_id or univ_id)
             ).first()
+        
+        # Prioriser le domaine stocké sur l'étudiant, sinon celui de la filière
+        resolved_domain = student.domain or (filiere_obj.domain if filiere_obj else None) or "Non défini"
         
         student_dict = {
             "id": student.id,
@@ -1566,7 +1572,7 @@ def get_students(
             "phone": student.phone,
             "level": student.level,
             "filiere": student.filiere,
-            "domain": filiere_obj.domain if filiere_obj else "Non défini",
+            "domain": resolved_domain,
             "status": student.status,
             "photo": student.photo,
             "date_of_birth": student.date_of_birth.isoformat() if student.date_of_birth else None,
@@ -1757,6 +1763,7 @@ async def upload_my_photo(
         buffer.write(content)
     
     student.photo = photo_filename
+    current_user.photo = photo_filename
     db.commit()
     
     return {
@@ -2542,15 +2549,19 @@ def delete_my_file(
 def get_student(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "accountant", "censeur", "teacher"))
+    current_user: User = Depends(require_role("admin", "secretary", "accountant", "censeur", "teacher", "student", "guard", "super_admin"))
 ):
     """Récupère un étudiant par ID avec enrichissement tarifaire et modalité mensuelle"""
-    student = db.query(Student).filter(
-        Student.id == student_id,
-        Student.university_id == current_user.university_id
-    ).first()
+    query = db.query(Student).filter(Student.id == student_id)
+    if current_user.role != "super_admin" and current_user.university_id:
+        query = query.filter(Student.university_id == current_user.university_id)
+    student = query.first()
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
+    
+    # Si le demandeur est un étudiant, il ne peut voir que sa propre fiche
+    if current_user.role == "student" and student.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
     
     # Enrichir avec la décomposition tarifaire et la modalité mensuelle
     res = {c.name: getattr(student, c.name) for c in student.__table__.columns}
@@ -2667,37 +2678,101 @@ async def update_student(
 def delete_student(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    current_user: User = Depends(require_role("admin", "super_admin", "secretary"))
 ):
-    """Supprime un étudiant"""
-    student = db.query(Student).filter(
-        Student.id == student_id,
-        Student.university_id == current_user.university_id
-    ).first()
+    """Supprime un étudiant et nettoie proprement toutes ses dépendances (notes, paiements, présences, fichiers, etc.)"""
+    query = db.query(Student).filter(Student.id == student_id)
+    if current_user.role != "super_admin" and current_user.university_id:
+        query = query.filter(Student.university_id == current_user.university_id)
+    student = query.first()
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
     
     user_id = student.user_id
     
+    # 1. Supprimer les fichiers physiques du disque
     if student.qr_code:
-        qr_path = os.path.join("qr_codes", student.qr_code)
+        qr_path = os.path.join("qr_codes", os.path.basename(student.qr_code))
         if os.path.exists(qr_path):
-            os.remove(qr_path)
+            try:
+                os.remove(qr_path)
+            except Exception:
+                pass
             
     if student.photo:
-        photo_path = os.path.join("uploads", student.photo)
+        photo_path = os.path.join("uploads", os.path.basename(student.photo))
         if os.path.exists(photo_path):
-            os.remove(photo_path)
-            
+            try:
+                os.remove(photo_path)
+            except Exception:
+                pass
+                
+    # Dossier physique de documents
+    base_dir = Path(__file__).resolve().parent.parent.parent
+    dossier_dir = base_dir / "uploads" / "dossiers" / str(student_id)
+    if dossier_dir.exists():
+        try:
+            shutil.rmtree(str(dossier_dir))
+        except Exception:
+            pass
+
+    # 2. Supprimer les dépendances en base de données
+    try:
+        db.query(Grade).filter(Grade.student_id == student_id).delete(synchronize_session=False)
+    except Exception:
+        pass
+    try:
+        db.query(Attendance).filter(Attendance.student_id == student_id).delete(synchronize_session=False)
+    except Exception:
+        pass
+    try:
+        db.query(Payment).filter(Payment.student_id == student_id).delete(synchronize_session=False)
+    except Exception:
+        pass
+    try:
+        db.query(Document).filter(Document.student_id == student_id).delete(synchronize_session=False)
+    except Exception:
+        pass
+    try:
+        from app.models.payment_installment import PaymentInstallment
+        db.query(PaymentInstallment).filter(PaymentInstallment.student_id == student_id).delete(synchronize_session=False)
+    except Exception:
+        pass
+    try:
+        from app.models.deliberation import DeliberationDecision
+        db.query(DeliberationDecision).filter(DeliberationDecision.student_id == student_id).delete(synchronize_session=False)
+    except Exception:
+        pass
+    try:
+        from app.models.report_card import ReportCard
+        db.query(ReportCard).filter(ReportCard.student_id == student_id).delete(synchronize_session=False)
+    except Exception:
+        pass
+    try:
+        from app.models.incident import Incident
+        db.query(Incident).filter(Incident.student_id == student_id).delete(synchronize_session=False)
+    except Exception:
+        pass
+
     db.delete(student)
     db.commit()
     
-    user = db.query(User).filter(User.id == user_id).first()
-    if user:
-        db.delete(user)
-        db.commit()
+    # 3. Supprimer le compte utilisateur et ses traces si présent
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            try:
+                db.query(Message).filter((Message.sender_id == user_id) | (Message.recipient_id == user_id)).delete(synchronize_session=False)
+            except Exception:
+                pass
+            try:
+                db.query(Notification).filter(Notification.user_id == user_id).delete(synchronize_session=False)
+            except Exception:
+                pass
+            db.delete(user)
+            db.commit()
         
-    return {"message": "Étudiant supprimé"}
+    return {"message": "Étudiant supprimé avec succès", "id": student_id}
 
 
 @router.post("/{student_id}/document/{doc_type}")

@@ -8,6 +8,7 @@ from app.models.course import Course
 from app.models.class_room import ClassRoom
 from app.models.exam_session import ExamSession
 from app.models.user import User
+from app.models.filiere import Filiere
 from app.core.dependencies import require_role
 
 router = APIRouter(prefix="/academic", tags=["Academic"])
@@ -38,28 +39,36 @@ def get_performance(
     performance = []
     
     for classe in classes:
-        # Récupérer les attributs de manière sécurisée
-        filiere_name = getattr(classe, 'filiere_name', None) or getattr(classe, 'name', 'N/A')
+        # Récupérer le nom de la filière réel via la relation ou l'id
+        filiere_name = "N/A"
+        if classe.filiere:
+            filiere_name = classe.filiere.name
+        elif classe.filiere_id:
+            f = db.query(Filiere).filter(Filiere.id == classe.filiere_id).first()
+            if f:
+                filiere_name = f.name
+        
+        if filiere_name == "N/A":
+            filiere_name = getattr(classe, 'name', 'N/A')
+
         level = getattr(classe, 'level', 'N/A')
-        filiere_id = getattr(classe, 'filiere_id', None)
         
-        # Filtrer les étudiants selon la structure disponible
-        students_query = db.query(Student).filter(
-            Student.university_id == current_user.university_id
-        )
+        # 1. Étudiants directement assignés à cette classe (class_room_id)
+        students = db.query(Student).filter(
+            Student.university_id == current_user.university_id,
+            Student.class_room_id == classe.id
+        ).all()
         
-        # Si filiere_name existe, l'utiliser
-        if filiere_name and hasattr(Student, 'filiere'):
-            students_query = students_query.filter(Student.filiere == filiere_name)
-        # Sinon utiliser filiere_id si disponible
-        elif filiere_id and hasattr(Student, 'filiere_id'):
-            students_query = students_query.filter(Student.filiere_id == filiere_id)
-        
-        # Filtrer par niveau si disponible
-        if level != 'N/A' and hasattr(Student, 'level'):
-            students_query = students_query.filter(Student.level == level)
-        
-        students = students_query.all()
+        # 2. Fallback si aucun étudiant n'a class_room_id
+        if not students:
+            sq = db.query(Student).filter(
+                Student.university_id == current_user.university_id
+            )
+            if filiere_name != "N/A":
+                sq = sq.filter(Student.filiere == filiere_name)
+            if level != "N/A":
+                sq = sq.filter(Student.level == level)
+            students = sq.all()
         
         if not students:
             continue
@@ -78,6 +87,22 @@ def get_performance(
         grades = query.all()
         
         if not grades:
+            # S'il y a des étudiants mais pas encore de notes
+            performance.append({
+                "class_id": classe.id,
+                "class_name": getattr(classe, 'name', 'Classe'),
+                "filiere": filiere_name,
+                "level": level,
+                "total_students": len(students),
+                "total_grades": 0,
+                "average": 0.0,
+                "passed": 0,
+                "failed": 0,
+                "excellent": 0,
+                "success_rate": 0.0,
+                "min_score": 0.0,
+                "max_score": 0.0
+            })
             continue
         
         # Calculs

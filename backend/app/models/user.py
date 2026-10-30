@@ -34,6 +34,7 @@ class User(Base):
     email_verification_token = Column(String, nullable=True)
     last_seen = Column(DateTime, nullable=True)
     is_online = Column(Boolean, default=False)
+    preferences = Column(String, nullable=True, default="{}")
     
     university_id = Column(Integer, ForeignKey("universities.id"), nullable=True)
 

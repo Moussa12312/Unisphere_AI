@@ -5,12 +5,13 @@ from datetime import datetime
 from pathlib import Path
 import os
 import io
+from typing import Optional
 
 from app.database.connection import SessionLocal
 from app.models.user import User
 from app.models.student import Student
 from app.models.academic_config import AcademicConfig
-from app.core.dependencies import require_role
+from app.core.dependencies import require_role, get_current_user_optional
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 UPLOAD_DIR = BASE_DIR / "uploads" / "logos"
@@ -57,29 +58,73 @@ def remove_background(image_bytes: bytes) -> bytes:
 @router.get("/university/profile")
 def get_university_profile(
     db: Session = Depends(get_db),
-    # ✅ CORRECTION : Autoriser tous les rôles à lire le profil
-    current_user: User = Depends(require_role("admin", "secretary", "censeur", "accountant", "guard", "teacher", "student"))
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
     from app.models.university import University
-    university = db.query(University).filter(University.id == current_user.university_id).first()
+    
+    # ✅ Le Super-Admin gère la plateforme globale et ne doit JAMAIS voir les données d'une université cliente
+    if current_user and getattr(current_user, "role", None) in ["super_admin", "superadmin"]:
+        return {
+            "id": 0,
+            "name": "UniSphere AI",
+            "logo": None,
+            "slogan": "Administration Plateforme SaaS",
+            "address": "Siège UniSphere AI",
+            "phone": "+223 70 00 00 00",
+            "email": "contact@unisphere.ai",
+            "website": "https://unisphere.ai",
+            "description": "Plateforme Centrale de Gestion Universitaire",
+            "established_year": "2026",
+            "rector_name": "Administration Générale",
+            "academic_year": "2026-2027",
+            "theme": "dark-orange",
+            "primary_color": "#FF6B00",
+            "language": "fr",
+            "card_config": {}
+        }
+
+    university = None
+    if current_user and getattr(current_user, "university_id", None):
+        university = db.query(University).filter(University.id == current_user.university_id).first()
+    
     if not university:
-        raise HTTPException(status_code=404, detail="Université non trouvée")
+        university = db.query(University).first()
+        
+    if not university:
+        return {
+            "id": 0,
+            "name": "UniSphere AI",
+            "logo": None,
+            "slogan": "Plateforme Intelligente Universitaire",
+            "address": "",
+            "phone": "",
+            "email": "",
+            "website": "",
+            "description": "",
+            "established_year": "",
+            "rector_name": "",
+            "academic_year": "",
+            "theme": "light-orange",
+            "primary_color": "#FF6B00",
+            "language": "fr",
+            "card_config": {}
+        }
     
     card_cfg = university.card_config or {}
     
     return {
         "id": university.id,
-        "name": university.name,
+        "name": university.name or "UniSphere AI",
         "logo": university.logo,
-        "slogan": university.slogan,
-        "address": university.address,
-        "phone": university.phone,
-        "email": university.email,
-        "website": university.website,
-        "description": university.description,
-        "established_year": university.established_year,
-        "rector_name": university.rector_name,
-        "academic_year": university.academic_year,
+        "slogan": university.slogan or "",
+        "address": university.address or "",
+        "phone": university.phone or "",
+        "email": university.email or "",
+        "website": university.website or "",
+        "description": university.description or "",
+        "established_year": str(university.established_year or ""),
+        "rector_name": university.rector_name or "",
+        "academic_year": university.academic_year or "",
         "theme": card_cfg.get("theme", "light-orange"),
         "primary_color": card_cfg.get("primary_color", "#FF6B00"),
         "language": card_cfg.get("language", "fr"),
@@ -91,10 +136,15 @@ def get_university_profile(
 def update_university_profile(
     request: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    current_user: User = Depends(require_role("admin", "super_admin"))
 ):
     from app.models.university import University
-    university = db.query(University).filter(University.id == current_user.university_id).first()
+    target_id = request.get("university_id") or getattr(current_user, "university_id", None)
+    if not target_id:
+        first_univ = db.query(University).first()
+        target_id = first_univ.id if first_univ else None
+
+    university = db.query(University).filter(University.id == target_id).first()
     if not university:
         raise HTTPException(status_code=404, detail="Université non trouvée")
     
@@ -167,7 +217,7 @@ def upload_university_logo(
 def get_filieres(
     db: Session = Depends(get_db), 
     # ✅ CORRECTION : Autoriser tous les rôles
-    current_user: User = Depends(require_role("admin", "secretary", "censeur", "accountant", "guard"))
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "accountant", "guard", "teacher", "student", "super_admin"))
 ):
     results = db.query(Student.filiere, func.count(Student.id).label('count')).filter(
         Student.university_id == current_user.university_id, Student.filiere.isnot(None)
@@ -179,7 +229,7 @@ def get_filieres(
 def get_niveaux(
     db: Session = Depends(get_db), 
     # ✅ CORRECTION : Autoriser tous les rôles
-    current_user: User = Depends(require_role("admin", "secretary", "censeur", "accountant", "guard"))
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "accountant", "guard", "teacher", "student", "super_admin"))
 ):
     results = db.query(Student.level, func.count(Student.id).label('count')).filter(
         Student.university_id == current_user.university_id, Student.level.isnot(None)
@@ -205,7 +255,7 @@ def add_niveau(request: dict, current_user: User = Depends(require_role("admin")
 def get_academic_config(
     db: Session = Depends(get_db), 
     # ✅ CORRECTION : Autoriser tous les rôles
-    current_user: User = Depends(require_role("admin", "secretary", "censeur", "accountant", "guard"))
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "accountant", "guard", "teacher", "student", "super_admin"))
 ):
     config = db.query(AcademicConfig).filter(AcademicConfig.university_id == current_user.university_id).first()
     if not config:

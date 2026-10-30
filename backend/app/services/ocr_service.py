@@ -1,11 +1,19 @@
-try:
-    import easyocr as _easyocr
-    _reader = _easyocr.Reader(['fr', 'en'], gpu=False)
-    _OCR_AVAILABLE = True
-except ImportError:
-    print("[WARNING] easyocr not installed. OCR features will be disabled. Install with: pip install easyocr")
-    _reader = None
-    _OCR_AVAILABLE = False
+_reader = None
+_OCR_AVAILABLE = True
+
+def _get_reader():
+    global _reader, _OCR_AVAILABLE
+    if not _OCR_AVAILABLE:
+        return None
+    if _reader is None:
+        try:
+            import easyocr as _easyocr
+            _reader = _easyocr.Reader(['fr', 'en'], gpu=False)
+        except Exception as e:
+            print(f"[WARNING] easyocr initialization failed: {e}")
+            _OCR_AVAILABLE = False
+            return None
+    return _reader
 
 from PIL import Image
 from io import BytesIO
@@ -14,12 +22,13 @@ from datetime import datetime
 
 def extract_text_from_image(image_bytes: bytes) -> str:
     """Extrait le texte d'une image avec EasyOCR"""
-    if not _OCR_AVAILABLE or _reader is None:
+    reader = _get_reader()
+    if not _OCR_AVAILABLE or reader is None:
         print("[WARNING] OCR not available. Install easyocr to enable this feature.")
         return ""
     try:
         image = Image.open(BytesIO(image_bytes))
-        results = _reader.readtext(image, detail=0)
+        results = reader.readtext(image, detail=0)
         return ' '.join(results)
     except Exception as e:
         print(f"Erreur OCR: {e}")

@@ -85,6 +85,47 @@ def filter_notifications_by_role(
     query, 
     user_role: str, 
     user_id: int,
+    university_id: int = None,
+    audit_university_id: int = None
+):
+    if user_role in ["super_admin", "superadmin"]:
+        # Si le Super Admin demande explicitement à auditer une université précise
+        if audit_university_id:
+            return query.filter(Notification.university_id == audit_university_id)
+
+        # Par défaut : le Super Admin voit uniquement les notifications qui le concernent directement :
+        # 1. Ses alertes personnelles (ex: crashs/bugs système générés par superadmin.py, messages directs)
+        # 2. Notifications ciblant explicitement le rôle super_admin
+        # 3. Notifications globales de la plateforme (sans établissement rattaché)
+        role_pattern_1 = '%"super_admin"%'
+        role_pattern_2 = '%"superadmin"%'
+        role_pattern_all = '%"all"%'
+        return query.filter(
+            or_(
+                Notification.recipient_id == user_id,
+                cast(Notification.target_roles, String).like(role_pattern_1),
+                cast(Notification.target_roles, String).like(role_pattern_2),
+                cast(Notification.target_roles, String).like(role_pattern_all),
+                and_(Notification.university_id == None, Notification.target_roles == None)
+            )
+        )
+
+    if user_role == "admin":
+        return query.filter(or_(Notification.university_id == university_id, Notification.university_id == None))
+    
+    role_pattern = f'%"{user_role}"%'
+    univ_filter = or_(Notification.university_id == university_id, Notification.university_id == None)
+    role_or_personal = or_(
+        Notification.recipient_id == user_id,
+        cast(Notification.target_roles, String).like(role_pattern),
+        cast(Notification.target_roles, String).like('%"all"%')
+    )
+    return query.filter(and_(univ_filter, role_or_personal))
+
+def _old_filter_notifications_by_role(
+    query, 
+    user_role: str, 
+    user_id: int,
     university_id: int
 ):
     """
@@ -139,21 +180,45 @@ def filter_notifications_by_role(
 def get_notifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    limit: int = Query(50, ge=1, le=100)
+    limit: int = Query(50, ge=1, le=100),
+    unread_only: bool = Query(False),
+    audit_university_id: Optional[int] = Query(None)
 ):
     """
     Récupère les notifications de l'utilisateur connecté.
     Filtrage strict par rôle appliqué automatiquement.
     """
     query = db.query(Notification)
+    if unread_only:
+        query = query.filter(Notification.is_read == False)
     
     # ✅ Application du filtre de sécurité
     filtered_query = filter_notifications_by_role(
         query,
         current_user.role,
         current_user.id,
-        current_user.university_id
+        current_user.university_id,
+        audit_university_id=audit_university_id
     )
+    
+    # ✅ Filtrer selon les préférences utilisateur (catégories désactivées)
+    if current_user.preferences:
+        try:
+            import json
+            prefs = json.loads(current_user.preferences)
+            ignored_types = []
+            if prefs.get("announcements_notifications") is False:
+                ignored_types.extend(["announcement", "maintenance"])
+            if prefs.get("grades_notifications") is False:
+                ignored_types.extend(["grade_published", "deliberation"])
+            if prefs.get("payments_notifications") is False:
+                ignored_types.extend(["payment_received", "payment_overdue"])
+            if prefs.get("messages_notifications") is False:
+                ignored_types.extend(["message", "chat"])
+            if ignored_types:
+                filtered_query = filtered_query.filter(~Notification.notification_type.in_(ignored_types))
+        except Exception:
+            pass
     
     # Tri : non lues d'abord, puis par date décroissante
     notifications = (
@@ -189,7 +254,8 @@ def get_notifications(
 @router.get("/unread")
 def get_unread_count(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    audit_university_id: Optional[int] = Query(None)
 ):
     """Compte les notifications non lues pour l'utilisateur connecté."""
     query = db.query(Notification).filter(
@@ -200,7 +266,8 @@ def get_unread_count(
         query,
         current_user.role,
         current_user.id,
-        current_user.university_id
+        current_user.university_id,
+        audit_university_id=audit_university_id
     )
     
     count = filtered_query.count()

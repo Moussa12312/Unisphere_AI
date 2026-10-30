@@ -240,6 +240,33 @@ def get_teaching_unit(
     }
 
 
+@router.get("/{id}/courses")
+def get_teaching_unit_courses(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "censeur", "secretary", "teacher", "student"))
+):
+    """Liste des cours appartenant à une Unité d'Enseignement"""
+    unit = db.query(TeachingUnit).filter(
+        TeachingUnit.id == id,
+        TeachingUnit.university_id == current_user.university_id
+    ).first()
+
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unité d'enseignement non trouvée")
+
+    courses = db.query(Course).filter(Course.teaching_unit_id == unit.id).all()
+    return [{
+        "id": c.id,
+        "code": c.code,
+        "title": c.title,
+        "credits": c.credits,
+        "hours": c.hours,
+        "teacher_id": c.teacher_id,
+        "teacher_name": f"{c.teacher.first_name} {c.teacher.last_name}" if c.teacher else None
+    } for c in courses]
+
+
 @router.post("/")
 def create_teaching_unit(
     data: TeachingUnitCreate,
@@ -363,3 +390,55 @@ def delete_teaching_unit(
     db.commit()
 
     return {"message": "Unité d'Enseignement supprimée avec succès"}
+
+@router.get("/{id}/courses")
+def get_teaching_unit_courses(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "censeur", "teacher", "student", "secretary"))
+):
+    unit = db.query(TeachingUnit).filter(
+        TeachingUnit.id == id,
+        TeachingUnit.university_id == current_user.university_id
+    ).first()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unité d'enseignement non trouvée")
+    courses = db.query(Course).filter(Course.teaching_unit_id == unit.id).all()
+    return [
+        {
+            "id": c.id,
+            "code": c.code,
+            "title": c.title,
+            "credits": c.credits or 3,
+            "hours": c.hours or 30,
+            "teacher_id": c.teacher_id,
+            "teacher_name": f"{c.teacher.first_name} {c.teacher.last_name}" if c.teacher else None
+        }
+        for c in courses
+    ]
+
+@router.get("/curriculum/{filiere_id}/{level}")
+def get_curriculum(
+    filiere_id: int,
+    level: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "censeur", "teacher", "student", "secretary"))
+):
+    units = db.query(TeachingUnit).filter(
+        TeachingUnit.filiere_id == filiere_id,
+        TeachingUnit.level == level,
+        TeachingUnit.university_id == current_user.university_id
+    ).all()
+    return [
+        {
+            "id": u.id,
+            "code": u.code,
+            "name": u.name,
+            "credits": u.credits,
+            "category": u.category,
+            "semester": u.semester,
+            "courses_count": len(u.courses) if hasattr(u, 'courses') else 0
+        }
+        for u in units
+    ]
+
