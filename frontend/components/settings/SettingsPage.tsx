@@ -639,25 +639,25 @@ export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Set
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <ToggleCard
-                title="📢 Annonces & Circulaires"
+                title="Annonces & Circulaires"
                 desc="Notes de service officielles de l'université"
                 checked={settings.announcements_notifications}
                 onChange={v => updateSetting('announcements_notifications', v)}
               />
               <ToggleCard
-                title="💬 Messagerie & Tchat"
+                title="Messagerie & Tchat"
                 desc="Nouveaux messages privés et questions"
                 checked={settings.messages_notifications}
                 onChange={v => updateSetting('messages_notifications', v)}
               />
               <ToggleCard
-                title="📝 Pédagogie & Notes"
+                title="Pédagogie & Notes"
                 desc="Saisie de notes, devoirs et délibérations"
                 checked={settings.grades_notifications}
                 onChange={v => updateSetting('grades_notifications', v)}
               />
               <ToggleCard
-                title="💰 Frais & Finances"
+                title="Frais & Finances"
                 desc="Rappels de paiement, reçus et comptabilité"
                 checked={settings.payments_notifications}
                 onChange={v => updateSetting('payments_notifications', v)}
@@ -824,7 +824,7 @@ export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Set
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      ☀️ Mode Clair
+                      <Sun size={18} className="text-amber-500" /> Mode Clair
                     </span>
                     {!settings.theme.includes('dark') && <CheckCircle size={16} className="text-[#FF6B00]" />}
                   </div>
@@ -844,7 +844,7 @@ export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Set
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      🌙 Mode Sombre
+                      <Moon size={18} className="text-indigo-400" /> Mode Sombre
                     </span>
                     {settings.theme.includes('dark') && <CheckCircle size={16} className="text-[#FF6B00]" />}
                   </div>

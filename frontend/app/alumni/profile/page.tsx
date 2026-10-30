@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  Award, Briefcase, GraduationCap, Building2, MapPin, Linkedin,
+  Award, Briefcase, GraduationCap, Building2, MapPin, Share2,
   Globe, Lightbulb, CheckCircle2, Save, Loader2, Star, Sparkles,
   ArrowRight, ShieldCheck, HeartHandshake, Settings
 } from 'lucide-react';

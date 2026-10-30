@@ -74,7 +74,7 @@ export default function AIAssistantPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Bonjour ! 👋 Je suis **UniSphere AI**, votre assistant intelligent.\n\nJe peux vous aider à analyser vos données, répondre à vos questions, et vous proposer des recommandations personnalisées.\n\nQue souhaitez-vous savoir ?",
+      text: "Bonjour ! Je suis **UniSphere AI**, votre assistant intelligent.\n\nJe peux vous aider à analyser vos données, répondre à vos questions, et vous proposer des recommandations personnalisées.\n\nQue souhaitez-vous savoir ?",
       sender: 'ai',
       timestamp: new Date(),
       source: 'system'
@@ -267,7 +267,7 @@ export default function AIAssistantPage() {
   const clearConversation = () => {
     setMessages([{
       id: '1',
-      text: "Bonjour ! 👋 Je suis **UniSphere AI**, votre assistant intelligent.\n\nJe peux vous aider à analyser vos données, répondre à vos questions, et vous proposer des recommandations personnalisées.\n\nQue souhaitez-vous savoir ?",
+      text: "Bonjour ! Je suis **UniSphere AI**, votre assistant intelligent.\n\nJe peux vous aider à analyser vos données, répondre à vos questions, et vous proposer des recommandations personnalisées.\n\nQue souhaitez-vous savoir ?",
       sender: 'ai',
       timestamp: new Date(),
       source: 'system'
@@ -490,8 +490,9 @@ export default function AIAssistantPage() {
             <span className="hidden sm:inline">Envoyer</span>
           </button>
         </div>
-        <p className="text-xs text-slate-400 mt-2 text-center">
-          💡 Entrée pour envoyer • Shift+Entrée pour retour à la ligne
+        <p className="text-xs text-slate-400 mt-2 text-center flex items-center justify-center gap-1">
+          <Lightbulb size={13} className="text-amber-500" />
+          <span>Entrée pour envoyer • Shift+Entrée pour retour à la ligne</span>
         </p>
       </form>
     </div>

@@ -147,7 +147,7 @@ export default function DownloadPage() {
           {/* Guide spécifique iPhone & iPad (iOS) */}
           <div className="text-left bg-gradient-to-r from-slate-900 to-slate-950 p-5 rounded-2xl border border-white/10 space-y-3">
             <div className="flex items-center gap-2">
-              <span className="text-base">🍎</span>
+              <Smartphone size={16} className="text-cyan-300 shrink-0" />
               <p className="text-xs font-bold uppercase tracking-wider text-cyan-300">Utilisateurs iPhone & iPad (iOS) :</p>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">

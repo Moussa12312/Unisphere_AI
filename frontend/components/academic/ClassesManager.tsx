@@ -323,7 +323,7 @@ export default function ClassesManager({ userRole = 'admin' }: ClassesManagerPro
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="🔍 Rechercher par nom, filière, salle..."
+              placeholder="Rechercher par nom, filière, salle..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"

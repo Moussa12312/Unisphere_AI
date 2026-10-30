@@ -13,16 +13,16 @@ interface BroadcastMessageModalProps {
 }
 
 const TARGET_OPTIONS = [
-  { value: 'all_students', label: '🎓 Tous les étudiants', needsLevel: true },
-  { value: 'all_teachers', label: '👨‍🏫 Tous les enseignants', needsLevel: false },
-  { value: 'all_secretaries', label: '📋 Toutes les secrétaires', needsLevel: false },
-  { value: 'all_accountants', label: '💰 Tous les comptables', needsLevel: false },
-  { value: 'all_censeurs', label: '⚖️ Tous les censeurs', needsLevel: false },
-  { value: 'all_alumni', label: '🎓 Tous les alumni', needsLevel: false },
-  { value: 'all_guards', label: '🛡️ Tous les gardiens', needsLevel: false },
-  { value: 'all_admins', label: '👑 Tous les admins', needsLevel: false },
-  { value: 'all_staff', label: '🏢 Tout le personnel (Admin, Secrétaire, Comptable, Censeur, Alumni, Gardien)', needsLevel: false },
-  { value: 'individual', label: '👤 Une personne en particulier', needsLevel: false },
+  { value: 'all_students', label: 'Tous les étudiants', needsLevel: true },
+  { value: 'all_teachers', label: 'Tous les enseignants', needsLevel: false },
+  { value: 'all_secretaries', label: 'Toutes les secrétaires', needsLevel: false },
+  { value: 'all_accountants', label: 'Tous les comptables', needsLevel: false },
+  { value: 'all_censeurs', label: 'Tous les censeurs', needsLevel: false },
+  { value: 'all_alumni', label: 'Tous les alumni', needsLevel: false },
+  { value: 'all_guards', label: 'Tous les gardiens', needsLevel: false },
+  { value: 'all_admins', label: 'Tous les administrateurs', needsLevel: false },
+  { value: 'all_staff', label: 'Tout le personnel (Admin, Secrétaire, Comptable, Censeur, Alumni, Gardien)', needsLevel: false },
+  { value: 'individual', label: 'Un destinataire spécifique', needsLevel: false },
 ];
 
 const LEVELS = ['L1', 'L2', 'L3', 'M1', 'M2'];

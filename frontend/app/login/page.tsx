@@ -6,10 +6,37 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Eye, EyeOff, Mail, Lock, Smartphone, ShieldCheck,
-  GraduationCap, Sparkles, Building2, User, CheckCircle2, ArrowRight
+  GraduationCap, Sparkles, Building2, User, CheckCircle2, ArrowRight,
+  Crown, Users, FileText, Scale, CreditCard, Shield, Award, Zap
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
+
+const getQuickAccountIcon = (role: string) => {
+  switch (role) {
+    case 'super_admin':
+    case 'superadmin':
+      return <Crown size={16} className="text-amber-500" />;
+    case 'admin':
+      return <Building2 size={16} className="text-blue-600" />;
+    case 'teacher':
+      return <GraduationCap size={16} className="text-emerald-600" />;
+    case 'student':
+      return <Users size={16} className="text-cyan-600" />;
+    case 'secretary':
+      return <FileText size={16} className="text-indigo-600" />;
+    case 'censeur':
+      return <Scale size={16} className="text-purple-600" />;
+    case 'accountant':
+      return <CreditCard size={16} className="text-emerald-600" />;
+    case 'guard':
+      return <Shield size={16} className="text-slate-600" />;
+    case 'alumni':
+      return <Award size={16} className="text-orange-500" />;
+    default:
+      return <User size={16} className="text-slate-500" />;
+  }
+};
 
 const DEFAULT_AUTH_CONTEXT = {
   university: {
@@ -19,14 +46,15 @@ const DEFAULT_AUTH_CONTEXT = {
     academic_year: "2026-2027"
   },
   quick_accounts: [
-    { role: "super_admin", label: "Super Admin", email: "superadmin@unisphere.ai", name: "Moussa Coulibaly", department: "Plateforme SaaS", icon: "👑" },
-    { role: "admin", label: "Direction", email: "admin@unisphere.ai", name: "Direction Université", department: "Administration", icon: "🏛️" },
-    { role: "teacher", label: "Professeur", email: "enseignant@unisphere.ai", name: "Corps Professoral", department: "Pédagogie", icon: "👨‍🏫" },
-    { role: "student", label: "Étudiant", email: "etudiant@unisphere.ai", name: "Espace Étudiant", matricule: "EC-2026-0001", department: "LMD", icon: "🎓" },
-    { role: "secretary", label: "Secrétaire", email: "secretaire@unisphere.ai", name: "Secrétariat Général", department: "Scolarité", icon: "📋" },
-    { role: "censeur", label: "Censeur", email: "censeur@unisphere.ai", name: "Direction des Études", department: "Études", icon: "⚖️" },
-    { role: "accountant", label: "Comptable", email: "comptable@unisphere.ai", name: "Service Financier", department: "Finances", icon: "💳" },
-    { role: "guard", label: "Poste Garde", email: "gardien@unisphere.ai", name: "Sécurité & Portique", department: "Contrôle", icon: "🛡️" }
+    { role: "super_admin", label: "Super Admin", email: "superadmin@unisphere.ai", name: "Moussa Coulibaly", department: "Plateforme SaaS" },
+    { role: "admin", label: "Direction", email: "admin@unisphere.ai", name: "Direction Université", department: "Administration" },
+    { role: "teacher", label: "Professeur", email: "enseignant@unisphere.ai", name: "Corps Professoral", department: "Pédagogie" },
+    { role: "student", label: "Étudiant", email: "etudiant@unisphere.ai", name: "Espace Étudiant", matricule: "EC-2026-0001", department: "LMD" },
+    { role: "secretary", label: "Secrétaire", email: "secretaire@unisphere.ai", name: "Secrétariat Général", department: "Scolarité" },
+    { role: "censeur", label: "Censeur", email: "censeur@unisphere.ai", name: "Direction des Études", department: "Études" },
+    { role: "accountant", label: "Comptable", email: "comptable@unisphere.ai", name: "Service Financier", department: "Finances" },
+    { role: "guard", label: "Poste Garde", email: "gardien@unisphere.ai", name: "Sécurité & Portique", department: "Contrôle" },
+    { role: "alumni", label: "Alumni", email: "alumni@unisphere.ai", name: "Moussa Fofana", department: "Réseau Diplômés" }
   ],
   default_password: "unisphere2026"
 };
@@ -312,7 +340,8 @@ function LoginForm() {
           <div className="mt-5 pt-4 border-t border-slate-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                <span>⚡ Accès Rapide Démo (Connexion Directe 1 Clic)</span>
+                <Zap size={14} className="text-amber-500 shrink-0" />
+                <span>Accès Rapide Démo (Connexion Directe 1 Clic)</span>
               </span>
               <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
                 Données Réelles
@@ -335,7 +364,9 @@ function LoginForm() {
                       }`}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span className="text-base">{acc.icon}</span>
+                      <div className="w-7 h-7 rounded-lg bg-white shadow-xs border border-slate-200/80 flex items-center justify-center shrink-0">
+                        {getQuickAccountIcon(acc.role)}
+                      </div>
                       <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${isSelected
                           ? 'bg-[#FF6B00] text-white animate-pulse'
                           : 'bg-white/90 text-slate-500 border border-slate-200/60'

@@ -5,7 +5,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { 
   Bell, Mail, LogOut, User, Settings, ChevronDown, 
-  Menu, X, CheckCircle, Trash2, History, Sun, Moon, Shield
+  Menu, X, CheckCircle, Trash2, History, Sun, Moon, Shield,
+  GraduationCap, BookOpen, AlertTriangle, CheckCircle2, XCircle, FileText, Sparkles, CreditCard
 } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
 import api, { getMediaUrl } from '@/lib/api';
@@ -317,17 +318,31 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
   // ==========================================
   // Fonction utilitaire pour l'icône de notification
   // ==========================================
-  const getNotifIcon = (notif: any) => {
-    if (notif.title?.includes('🎓')) return '🎓';
-    if (notif.title?.includes('📚')) return '📚';
-    if (notif.title?.includes('⚠️')) return '⚠️';
-    if (notif.title?.includes('✅')) return '✅';
-    if (notif.title?.includes('❌')) return '❌';
-    if (notif.title?.includes('📄')) return '📄';
-    if (notif.title?.includes('🎉')) return '🎉';
-    if (notif.title?.includes('📝')) return '📝';
-    if (notif.title?.includes('💰')) return '💰';
-    return '🔔';
+  const renderNotifGraphicIcon = (notif: any) => {
+    const title = notif.title || '';
+    const type = notif.notification_type || notif.type || '';
+    if (type === 'payment' || title.includes('Paiement') || title.includes('Frais') || title.includes('💰')) {
+      return <CreditCard size={15} className="text-emerald-600" />;
+    }
+    if (type === 'grade' || title.includes('Note') || title.includes('Bulletin') || title.includes('🎓') || title.includes('📚')) {
+      return <GraduationCap size={15} className="text-blue-600" />;
+    }
+    if (type === 'incident' || title.includes('Alerte') || title.includes('Incident') || title.includes('⚠️')) {
+      return <AlertTriangle size={15} className="text-amber-600" />;
+    }
+    if (title.includes('Rejet') || title.includes('❌') || type === 'error') {
+      return <XCircle size={15} className="text-red-500" />;
+    }
+    if (title.includes('Validé') || title.includes('Accepté') || title.includes('✅') || type === 'success') {
+      return <CheckCircle size={15} className="text-emerald-500" />;
+    }
+    if (type === 'document' || type === 'certificate' || title.includes('Document') || title.includes('📄') || title.includes('📝')) {
+      return <FileText size={15} className="text-purple-600" />;
+    }
+    if (type === 'message' || title.includes('Message') || title.includes('💬')) {
+      return <Mail size={15} className="text-[#FF6B00]" />;
+    }
+    return <Bell size={15} className="text-slate-500" />;
   };
 
   return (
@@ -510,10 +525,10 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
                               }`}
                             >
                               <div className="flex items-start gap-3">
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${
-                                  !notif.is_read ? 'bg-orange-100' : 'bg-slate-100'
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                  !notif.is_read ? 'bg-orange-100/80 border border-orange-200' : 'bg-slate-100 border border-slate-200'
                                 }`}>
-                                  {getNotifIcon(notif)}
+                                  {renderNotifGraphicIcon(notif)}
                                 </div>
                                 
                                 <div className="flex-1 min-w-0">

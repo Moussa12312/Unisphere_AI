@@ -512,8 +512,9 @@ export default function BulkStudentRegistration({ basePath }: BulkStudentRegistr
               {/* Tableau des étudiants créés */}
               {fileImportResult.created.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    ✅ Étudiants enregistrés ({fileImportResult.created.length})
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 size={15} className="text-emerald-600" />
+                    <span>Étudiants enregistrés ({fileImportResult.created.length})</span>
                   </h4>
                   <div className="overflow-x-auto border border-slate-200 rounded-xl">
                     <table className="w-full text-left text-xs">
@@ -549,8 +550,9 @@ export default function BulkStudentRegistration({ basePath }: BulkStudentRegistr
               {/* Tableau des erreurs */}
               {fileImportResult.errors.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-red-700 uppercase tracking-wider">
-                    ❌ Lignes en erreur ({fileImportResult.errors.length})
+                  <h4 className="text-xs font-bold text-red-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <XCircle size={15} className="text-red-600" />
+                    <span>Lignes en erreur ({fileImportResult.errors.length})</span>
                   </h4>
                   <div className="overflow-x-auto border border-red-200 rounded-xl">
                     <table className="w-full text-left text-xs">
@@ -834,7 +836,7 @@ export default function BulkStudentRegistration({ basePath }: BulkStudentRegistr
             {/* Pied de tableau avec bouton d'enregistrement */}
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="text-xs text-slate-500">
-                💡 Astuce : Les matricules uniques et QR codes sont générés automatiquement pour chaque étudiant.
+                Astuce : Les matricules uniques et QR codes sont générés automatiquement pour chaque étudiant.
               </div>
 
               <button

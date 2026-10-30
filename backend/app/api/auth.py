@@ -43,15 +43,15 @@ def get_auth_context(db: Session = Depends(get_db)):
             "logo": univ.logo if univ else None
         },
         "quick_accounts": [
-            { "role": "super_admin", "label": "Super Admin", "email": "superadmin@unisphere.ai", "name": "Moussa Coulibaly", "department": "Plateforme SaaS", "icon": "👑" },
-            { "role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration", "icon": "🏛️" },
-            { "role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie", "icon": "👨‍🏫" },
-            { "role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD", "icon": "🎓" },
-            { "role": "secretary", "label": "Secrétaire", "email": "secretaire@unisphere.ai", "name": "Secrétariat Général", "department": "Scolarité", "icon": "📋" },
-            { "role": "censeur", "label": "Censeur", "email": "censeur@unisphere.ai", "name": "Direction des Études", "department": "Études", "icon": "⚖️" },
-            { "role": "accountant", "label": "Comptable", "email": "comptable@unisphere.ai", "name": "Service Financier", "department": "Finances", "icon": "💳" },
-            { "role": "guard", "label": "Poste Garde", "email": "gardien@unisphere.ai", "name": "Sécurité & Portique", "department": "Contrôle", "icon": "🛡️" },
-            { "role": "alumni", "label": "Alumni", "email": "alumni@unisphere.ai", "name": "Moussa Fofana", "department": "Réseau Diplômés", "icon": "⭐" }
+            { "role": "super_admin", "label": "Super Admin", "email": "superadmin@unisphere.ai", "name": "Moussa Coulibaly", "department": "Plateforme SaaS" },
+            { "role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration" },
+            { "role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie" },
+            { "role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD" },
+            { "role": "secretary", "label": "Secrétaire", "email": "secretaire@unisphere.ai", "name": "Secrétariat Général", "department": "Scolarité" },
+            { "role": "censeur", "label": "Censeur", "email": "censeur@unisphere.ai", "name": "Direction des Études", "department": "Études" },
+            { "role": "accountant", "label": "Comptable", "email": "comptable@unisphere.ai", "name": "Service Financier", "department": "Finances" },
+            { "role": "guard", "label": "Poste Garde", "email": "gardien@unisphere.ai", "name": "Sécurité & Portique", "department": "Contrôle" },
+            { "role": "alumni", "label": "Alumni", "email": "alumni@unisphere.ai", "name": "Moussa Fofana", "department": "Réseau Diplômés" }
         ],
         "default_password": "unisphere2026"
     }
@@ -544,15 +544,15 @@ def platform_contact(db: Session = Depends(get_db)):
 def auth_context(db: Session = Depends(get_db)):
     univ = db.query(University).first()
     quick_accounts = [
-        {"role": "super_admin", "label": "Super Admin", "email": "superadmin@unisphere.ai", "name": "Moussa Coulibaly", "department": "Plateforme SaaS", "icon": "👑"},
-        {"role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration", "icon": "🏛️"},
-        {"role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie", "icon": "👨‍🏫"},
-        {"role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD", "icon": "🎓"},
-        {"role": "secretary", "label": "Secrétaire", "email": "secretaire@unisphere.ai", "name": "Secrétariat Général", "department": "Scolarité", "icon": "📋"},
-        {"role": "censeur", "label": "Censeur", "email": "censeur@unisphere.ai", "name": "Direction des Études", "department": "Études", "icon": "⚖️"},
-        {"role": "accountant", "label": "Comptable", "email": "comptable@unisphere.ai", "name": "Service Financier", "department": "Finances", "icon": "💳"},
-        {"role": "guard", "label": "Poste Garde", "email": "gardien@unisphere.ai", "name": "Sécurité & Contrôle", "department": "Portique", "icon": "🛡️"},
-        {"role": "alumni", "label": "Alumni", "email": "alumni@unisphere.ai", "name": "Moussa Fofana", "department": "Réseau Diplômés", "icon": "⭐"}
+        {"role": "super_admin", "label": "Super Admin", "email": "superadmin@unisphere.ai", "name": "Moussa Coulibaly", "department": "Plateforme SaaS"},
+        {"role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration"},
+        {"role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie"},
+        {"role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD"},
+        {"role": "secretary", "label": "Secrétaire", "email": "secretaire@unisphere.ai", "name": "Secrétariat Général", "department": "Scolarité"},
+        {"role": "censeur", "label": "Censeur", "email": "censeur@unisphere.ai", "name": "Direction des Études", "department": "Études"},
+        {"role": "accountant", "label": "Comptable", "email": "comptable@unisphere.ai", "name": "Service Financier", "department": "Finances"},
+        {"role": "guard", "label": "Poste Garde", "email": "gardien@unisphere.ai", "name": "Sécurité & Contrôle", "department": "Portique"},
+        {"role": "alumni", "label": "Alumni", "email": "alumni@unisphere.ai", "name": "Moussa Fofana", "department": "Réseau Diplômés"}
     ]
     return {
         "university": {
