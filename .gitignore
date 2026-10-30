@@ -33,6 +33,13 @@ yarn-error.log*
 !*.env.example
 !.env.example
 
+# ===== Bases de données locales SQLite =====
+*.db
+*.sqlite
+*.sqlite3
+backend/unisphere.db
+unisphere.db
+
 # ===== Uploads & Médias générés =====
 uploads/
 qr_codes/
