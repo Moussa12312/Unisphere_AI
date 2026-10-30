@@ -14,6 +14,7 @@ import { messageService } from '@/services/messageService';
 import MessageDropdown from '@/components/admin/MessageDropdown';
 import { getPageTitle, getBreadcrumb } from '@/lib/pageTitles';
 import GlobalSearch from '@/components/admin/GlobalSearch';
+import LogoutConfirmModal from '@/components/LogoutConfirmModal';
 import { useMinWidth, useMaxWidth } from '@/hooks/useMediaQuery';
 
 import { useToast } from '@/components/ToastProvider';
@@ -747,86 +748,14 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
         </div>
       </div>
       
-      {/* Modal de confirmation de déconnexion responsive pour tous les rôles */}
-      {showLogoutConfirm && (
-        <div 
-          className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-150"
-          onClick={() => setShowLogoutConfirm(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="logout-title"
-        >
-          <div 
-            className="relative w-full max-w-sm sm:max-w-md bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/90 p-5 sm:p-6 my-auto overflow-hidden animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Bouton de fermeture d'angle pour mobile & desktop */}
-            <button
-              type="button"
-              onClick={() => setShowLogoutConfirm(false)}
-              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-              aria-label="Fermer la boîte de dialogue"
-            >
-              <X size={18} />
-            </button>
-
-            {/* Corps du message */}
-            <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 mb-4 pr-6 sm:pr-8">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 bg-red-100 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 text-red-600 shadow-2xs">
-                <LogOut className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
-              </div>
-              <div className="min-w-0">
-                <h3 id="logout-title" className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight leading-snug">
-                  Confirmation de déconnexion
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-relaxed">
-                  Souhaitez-vous fermer votre session sécurisée ?
-                </p>
-              </div>
-            </div>
-
-            {/* Encadré d'information sur la session */}
-            <div className="p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 mb-5 space-y-1">
-              <div className="flex items-center justify-between font-semibold text-slate-800">
-                <span className="truncate">Utilisateur : {displayName}</span>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-orange-100 text-orange-800 shrink-0">
-                  {user?.role === 'super_admin' || user?.role === 'superadmin' ? 'Super Admin' :
-                   user?.role === 'admin' ? 'Direction' :
-                   user?.role === 'secretary' ? 'Secrétaire' :
-                   user?.role === 'censeur' ? 'Censeur' :
-                   user?.role === 'accountant' ? 'Comptable' :
-                   user?.role === 'guard' ? 'Gardien' :
-                   user?.role === 'teacher' ? 'Enseignant' :
-                   user?.role === 'student' ? 'Étudiant' : 
-                   user?.role === 'alumni' ? 'Alumni' : 'Utilisateur'}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                Vous devrez renseigner à nouveau vos identifiants pour accéder à cet espace.
-              </p>
-            </div>
-
-            {/* Actions Responsive (empilées en mobile, côte-à-côte en tablette/desktop) */}
-            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3">
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(false)}
-                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 active:scale-98 rounded-xl transition-all text-center"
-              >
-                Rester connecté
-              </button>
-              <button
-                type="button"
-                onClick={confirmLogout}
-                className="w-full sm:w-auto px-5 py-2.5 sm:py-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 active:scale-98 rounded-xl transition-all shadow-md shadow-red-600/25 flex items-center justify-center gap-2 text-center"
-              >
-                <LogOut size={16} />
-                <span>Oui, me déconnecter</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal de confirmation de déconnexion avec Portal (100% viewport) */}
+      <LogoutConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}
+        userName={displayName}
+        userRole={user?.role}
+      />
     </header>
   );
 }
