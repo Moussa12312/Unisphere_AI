@@ -116,7 +116,7 @@ export default function CourseStudentsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/30">
               <Users size={24} className="text-white" />
             </div>
@@ -207,7 +207,7 @@ export default function CourseStudentsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="min-w-[640px] w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Étudiant</th>

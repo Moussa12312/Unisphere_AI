@@ -169,22 +169,22 @@ export default function StudentFilesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-900 rounded-2xl p-8 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-900 rounded-2xl p-4 sm:p-8 text-white shadow-lg">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <Folder size={24} />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+              <Folder size={22} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold">Mon dossier administratif</h1>
-                <span className="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-semibold">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold">Mon dossier administratif</h1>
+                <span className="text-[11px] sm:text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-semibold">
                   {isReturning ? '🔄 Ancien Étudiant (Réinscription)' : '🎓 Nouvel Étudiant'}
                 </span>
               </div>
-              <p className="text-emerald-100 text-sm mt-0.5">
+              <p className="text-emerald-100 text-xs sm:text-sm mt-0.5">
                 {isReturning 
                   ? 'Transmettez vos pièces requises pour valider votre réinscription'
                   : 'Transmettez l\'ensemble des pièces nécessaires à la validation définitive de votre inscription'}
@@ -192,18 +192,18 @@ export default function StudentFilesPage() {
             </div>
           </div>
           {studentInfo?.matricule && (
-            <div className="text-right">
-              <span className="text-xs text-emerald-200">Matricule</span>
-              <p className="font-mono font-bold text-white text-lg">{studentInfo.matricule}</p>
+            <div className="text-left md:text-right pl-13 md:pl-0">
+              <span className="text-[11px] text-emerald-200">Matricule</span>
+              <p className="font-mono font-bold text-white text-base sm:text-lg">{studentInfo.matricule}</p>
             </div>
           )}
         </div>
 
         {/* Progress bar */}
-        <div className="bg-white/10 rounded-xl p-4 backdrop-blur mt-4 border border-white/10">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Complétion du dossier ({providedRequiredCount} / {requiredCount} pièces obligatoires)</span>
-            <span className="text-lg font-bold">{completionRate}%</span>
+        <div className="bg-white/10 rounded-xl p-3 sm:p-4 backdrop-blur mt-4 border border-white/10">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span className="text-xs sm:text-sm font-medium">Complétion ({providedRequiredCount} / {requiredCount} pièces obligatoires)</span>
+            <span className="text-base sm:text-lg font-bold">{completionRate}%</span>
           </div>
           <div className="w-full bg-white/20 rounded-full h-2.5">
             <div
@@ -370,7 +370,7 @@ export default function StudentFilesPage() {
           </div>
           
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="min-w-[640px] w-full">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
                 <tr>
                   <th className="px-4 py-3 text-left">Document</th>

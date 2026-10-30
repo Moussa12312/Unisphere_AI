@@ -30,6 +30,8 @@ export default function SecretaryGradesEntryPage() {
   const [ccCoeff, setCcCoeff] = useState(0.3);
   const [examCoeff, setExamCoeff] = useState(0.7);
   const [maxGrade, setMaxGrade] = useState(20.0);
+  const [isLocked, setIsLocked] = useState(false);
+  const [togglingLock, setTogglingLock] = useState(false);
 
   useEffect(() => {
     loadInitialData();
@@ -38,15 +40,17 @@ export default function SecretaryGradesEntryPage() {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [sessionsData, classesData, coursesData, configRes] = await Promise.all([
+      const [sessionsData, classesData, coursesData, configRes, lockRes] = await Promise.all([
         examSessionService.getAll(),
         classService.getAll(),
         courseService.getAll(),
-        api.get('/api/v1/settings/academic/config').catch(() => ({ data: {} }))
+        api.get('/api/v1/settings/academic/config').catch(() => ({ data: {} })),
+        api.get('/api/v1/grades/lock-status').catch(() => ({ data: { is_locked: false } }))
       ]);
       setSessions(sessionsData.filter((s: ExamSession) => s.status !== 'closed'));
       setClasses(classesData);
       setCourses(coursesData);
+      setIsLocked(!!lockRes?.data?.is_locked);
       if (configRes?.data) {
         if (configRes.data.default_cc_coefficient !== undefined) setCcCoeff(configRes.data.default_cc_coefficient);
         if (configRes.data.default_exam_coefficient !== undefined) setExamCoeff(configRes.data.default_exam_coefficient);
@@ -56,6 +60,19 @@ export default function SecretaryGradesEntryPage() {
       toast.error('Erreur lors du chargement');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleLock = async () => {
+    setTogglingLock(true);
+    try {
+      const res = await api.post('/api/v1/grades/toggle-lock');
+      setIsLocked(res.data.is_locked);
+      toast.success(res.data.message);
+    } catch (err: any) {
+      toast.error('Erreur lors de la modification du verrouillage des notes');
+    } finally {
+      setTogglingLock(false);
     }
   };
 
@@ -226,7 +243,7 @@ export default function SecretaryGradesEntryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/30">
@@ -236,7 +253,40 @@ export default function SecretaryGradesEntryPage() {
           </h1>
           <p className="text-slate-500 mt-1">Saisissez les notes CC et Examen par cours</p>
         </div>
+
+        <div>
+          <button
+            onClick={handleToggleLock}
+            disabled={togglingLock}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm ${
+              isLocked
+                ? 'bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            }`}
+          >
+            {isLocked ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
+                🔒 Saisie clôturée (Rouvrir la saisie)
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-200"></span>
+                🔓 Saisie ouverte (Fermer la saisie)
+              </>
+            )}
+          </button>
+        </div>
       </div>
+
+      {isLocked && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 text-sm text-amber-800">
+          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <p>
+            <strong>Attention :</strong> La saisie et modification des notes est actuellement clôturée par l'administration. Les modifications sont temporairement verrouillées.
+          </p>
+        </div>
+      )}
 
       {/* Sélecteurs */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">

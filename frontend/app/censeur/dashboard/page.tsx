@@ -30,6 +30,15 @@ export default function CenseurDashboardPage() {
 
   useEffect(() => {
     loadDashboardData();
+    const handleDataChanged = () => loadDashboardData();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('unisphere:data_changed', handleDataChanged);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('unisphere:data_changed', handleDataChanged);
+      }
+    };
   }, []);
 
   const loadDashboardData = async () => {
@@ -40,7 +49,6 @@ export default function CenseurDashboardPage() {
         data: { enable_anomalies: true } 
       }));
       
-      // ✅ UTILISER UNE VARIABLE LOCALE (pas le state)
       const enabled = configRes.data.enable_anomalies !== false;
       setAnomaliesEnabled(enabled);
   
@@ -48,12 +56,14 @@ export default function CenseurDashboardPage() {
         sessionsRes,
         coursesRes,
         studentsRes,
-        gradesRes
+        gradesRes,
+        anomaliesRes
       ] = await Promise.all([
         api.get('/api/v1/exam-sessions/').catch(() => ({ data: [] })),
         api.get('/api/v1/courses/').catch(() => ({ data: [] })),
         api.get('/api/v1/students/').catch(() => ({ data: [] })),
-        api.get('/api/v1/grades/').catch(() => ({ data: [] }))
+        api.get('/api/v1/grades/').catch(() => ({ data: [] })),
+        api.get('/api/v1/grades/anomalies').catch(() => ({ data: { total: 0 } }))
       ]);
   
       const sessions = Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
@@ -68,10 +78,12 @@ export default function CenseurDashboardPage() {
         return new Date(g.validated_at).toDateString() === today;
       });
       
-      // ✅ UTILISER LA VARIABLE LOCALE `enabled` (pas le state)
-      const anomalies = enabled ? grades.filter((g: any) => 
-        g.score !== null && (g.score > 18 || g.score < 5)
-      ) : [];
+      // ✅ UTILISER LA VÉRITABLE RÉPONSE DU BACKEND OU FILTRER EXPLICITEMENT LES NOTES NON VALIDÉES
+      const anomaliesCount = enabled 
+        ? (typeof anomaliesRes?.data?.total === 'number' 
+            ? anomaliesRes.data.total 
+            : grades.filter((g: any) => g.score !== null && (g.score > 18 || g.score < 5) && g.status !== 'validated' && g.status !== 'rejected').length)
+        : 0;
   
       const now = new Date();
       const upcoming = sessions.filter((s: any) => {
@@ -111,7 +123,7 @@ export default function CenseurDashboardPage() {
       setStats({
         pending_validations: pending.length,
         validated_today: validatedToday.length,
-        anomalies: anomalies.length,
+        anomalies: anomaliesCount,
         upcoming_exams: upcoming.length,
         total_students: students.length,
         total_courses: courses.length,

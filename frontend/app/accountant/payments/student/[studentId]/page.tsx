@@ -153,27 +153,27 @@ export default function StudentPaymentDetailPage() {
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-xl shrink-0">
             {student.first_name.charAt(0)}{student.last_name.charAt(0)}
           </div>
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-slate-900">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
                 {student.first_name} {student.last_name}
               </h1>
               {summary?.is_monthly || summary?.payment_plan === 'mensuel' ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                   📅 Modalité Mensuelle
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
                   🏛️ Par Tranches
                 </span>
               )}
             </div>
-            <p className="text-slate-500 mt-1">
+            <p className="text-slate-500 text-xs sm:text-sm mt-1">
               🎓 {student.matricule} • {student.filiere} {student.level}
               {summary?.monthly_plan?.formatted_summary && (
                 <span className="ml-2 text-emerald-700 font-medium">({summary.monthly_plan.formatted_summary})</span>
@@ -183,7 +183,7 @@ export default function StudentPaymentDetailPage() {
         </div>
         <Link
           href={`/accountant/payments/create?student=${student.id}`}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-[#e55f00] hover:to-orange-600 text-white rounded-xl text-sm font-medium transition-all shadow-md"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-[#e55f00] hover:to-orange-600 text-white rounded-xl text-xs sm:text-sm font-medium transition-all shadow-md self-start sm:self-auto"
         >
           <DollarSign size={16} />
           Enregistrer un paiement
@@ -191,35 +191,35 @@ export default function StudentPaymentDetailPage() {
       </div>
 
       {/* Tableau de bord financier */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
           <TrendingUp size={20} className="text-[#FF6B00]" />
           Tableau de bord financier
         </h2>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-5 text-white shadow-lg">
-            <DollarSign size={20} className="opacity-80 mb-2" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-4 sm:p-5 text-white shadow-lg">
+            <DollarSign size={20} className="opacity-80 mb-1 sm:mb-2" />
             <p className="text-xs opacity-80">Montant dû</p>
-            <p className="text-xl font-bold">{formatFCFA(summary?.total_amount || 0)}</p>
+            <p className="text-lg sm:text-xl font-bold truncate">{formatFCFA(summary?.total_amount || 0)}</p>
           </div>
-          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-5 text-white shadow-lg">
-            <CheckCircle size={20} className="opacity-80 mb-2" />
+          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-4 sm:p-5 text-white shadow-lg">
+            <CheckCircle size={20} className="opacity-80 mb-1 sm:mb-2" />
             <p className="text-xs opacity-80">Montant payé</p>
-            <p className="text-xl font-bold">{formatFCFA(summary?.total_paid || 0)}</p>
+            <p className="text-lg sm:text-xl font-bold truncate">{formatFCFA(summary?.total_paid || 0)}</p>
             <p className="text-xs opacity-80 mt-1">
-              ████████░░░ {summary?.paid_percentage || 0}%
+              Progression : {summary?.paid_percentage || 0}%
             </p>
           </div>
-          <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-xl p-5 text-white shadow-lg">
-            <AlertCircle size={20} className="opacity-80 mb-2" />
+          <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-xl p-4 sm:p-5 text-white shadow-lg">
+            <AlertCircle size={20} className="opacity-80 mb-1 sm:mb-2" />
             <p className="text-xs opacity-80">Reste à payer</p>
-            <p className="text-xl font-bold">{formatFCFA(summary?.total_remaining || 0)}</p>
+            <p className="text-lg sm:text-xl font-bold truncate">{formatFCFA(summary?.total_remaining || 0)}</p>
           </div>
-          <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-5 text-white shadow-lg">
-            <Users size={20} className="opacity-80 mb-2" />
+          <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-4 sm:p-5 text-white shadow-lg">
+            <Users size={20} className="opacity-80 mb-1 sm:mb-2" />
             <p className="text-xs opacity-80">Statut</p>
-            <p className="text-lg font-bold">
+            <p className="text-base sm:text-lg font-bold truncate">
               {summary?.status === 'paid' ? 'SOLDÉ ✅' :
                summary?.status === 'partial' ? 'RELIQUAT' :
                '1ère TRANCHE'}
@@ -300,37 +300,38 @@ export default function StudentPaymentDetailPage() {
 
           {/* Tranches disponibles */}
           {availableTranches.map((tranche: any, idx: number) => (
-            <div key={idx} className="bg-blue-50 border-2 border-blue-200 rounded-xl p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white">
-                    <Clock size={24} />
+            <div key={idx} className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white shrink-0">
+                    <Clock size={20} className="sm:hidden" />
+                    <Clock size={24} className="hidden sm:block" />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-bold text-slate-900">{tranche.name}</h3>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h3 className="font-bold text-slate-900 text-sm sm:text-base">{tranche.name}</h3>
                       {getTrancheStatusBadge(tranche.status)}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 text-xs sm:text-sm">
                       <div>
-                        <p className="text-xs text-slate-500">Montant de la tranche</p>
+                        <p className="text-[11px] text-slate-500">Montant de la tranche</p>
                         <p className="font-semibold text-slate-900">{formatFCFA(tranche.amount)}</p>
                       </div>
                       {tranche.paid_amount > 0 && (
                         <div>
-                          <p className="text-xs text-slate-500">Déjà versé (acompte)</p>
+                          <p className="text-[11px] text-slate-500">Déjà versé (acompte)</p>
                           <p className="font-semibold text-emerald-600">✓ {formatFCFA(tranche.paid_amount)}</p>
                         </div>
                       )}
                       <div>
-                        <p className="text-xs text-slate-500">{tranche.paid_amount > 0 ? "Solde restant dû" : "Statut"}</p>
+                        <p className="text-[11px] text-slate-500">{tranche.paid_amount > 0 ? "Solde restant dû" : "Statut"}</p>
                         <p className={`font-bold ${tranche.paid_amount > 0 ? "text-orange-600" : "text-blue-700"}`}>
                           {tranche.paid_amount > 0 ? formatFCFA(tranche.remaining) : "EN ATTENTE 🔵"}
                         </p>
                       </div>
                       {tranche.due_date && (
                         <div>
-                          <p className="text-xs text-slate-500">Échéance</p>
+                          <p className="text-[11px] text-slate-500">Échéance</p>
                           <p className="font-semibold text-slate-900">{new Date(tranche.due_date).toLocaleDateString('fr-FR')}</p>
                         </div>
                       )}
@@ -339,9 +340,9 @@ export default function StudentPaymentDetailPage() {
                 </div>
                 <Link
                   href={`/accountant/payments/create?student=${student.id}&tranche=${tranche.id}`}
-                  className="px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-colors whitespace-nowrap shadow-sm"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all shadow-md shadow-orange-500/20 shrink-0 active:scale-[0.98]"
                 >
-                  <DollarSign size={14} />
+                  <DollarSign size={15} />
                   {tranche.paid_amount > 0 ? `Régler le reliquat (${formatFCFA(tranche.remaining)})` : 'Payer cette tranche'}
                 </Link>
               </div>
@@ -350,29 +351,30 @@ export default function StudentPaymentDetailPage() {
 
           {/* Tranches verrouillées */}
           {lockedTranches.map((tranche: any, idx: number) => (
-            <div key={idx} className="bg-slate-50 border-2 border-slate-200 rounded-xl p-5 opacity-70">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="w-12 h-12 bg-slate-400 rounded-xl flex items-center justify-center text-white">
-                    <Lock size={24} />
+            <div key={idx} className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4 sm:p-5 opacity-70">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-400 rounded-xl flex items-center justify-center text-white shrink-0">
+                    <Lock size={20} className="sm:hidden" />
+                    <Lock size={24} className="hidden sm:block" />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-bold text-slate-700">{tranche.name}</h3>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h3 className="font-bold text-slate-700 text-sm sm:text-base">{tranche.name}</h3>
                       {getTrancheStatusBadge(tranche.status)}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3 text-xs sm:text-sm">
                       <div>
-                        <p className="text-xs text-slate-500">Montant</p>
+                        <p className="text-[11px] text-slate-500">Montant</p>
                         <p className="font-semibold text-slate-600">{formatFCFA(tranche.amount)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Statut</p>
+                        <p className="text-[11px] text-slate-500">Statut</p>
                         <p className="font-semibold text-slate-600">VERROUILLÉE 🔒</p>
                       </div>
                       {tranche.due_date && (
                         <div>
-                          <p className="text-xs text-slate-500">Échéance</p>
+                          <p className="text-[11px] text-slate-500">Échéance</p>
                           <p className="font-semibold text-slate-600">{new Date(tranche.due_date).toLocaleDateString('fr-FR')}</p>
                         </div>
                       )}

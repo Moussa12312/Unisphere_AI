@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { 
   TrendingUp, TrendingDown, DollarSign, AlertCircle,
   Download, ArrowUpRight, ArrowDownRight, Clock, CheckCircle,
-  Wallet
+  Wallet, FileSpreadsheet
 } from 'lucide-react';
 import { 
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import financialService from '@/services/financialService';
 import { useToast } from '@/components/ToastProvider';
+import { exportToExcel } from '@/lib/exportExcel';
 
 export default function FinancialReportsPage() {
   const [period, setPeriod] = useState('year');
@@ -106,7 +107,71 @@ export default function FinancialReportsPage() {
     },
   ];
 
-  const handleExport = () => toast.success('Export en cours...');
+  const handleExport = () => {
+    const periodLabel = period === 'month' ? 'Ce_Mois' : period === 'quarter' ? 'Ce_Trimestre' : 'Cette_Annee';
+    
+    const rows = (transactions || []).map((t: any, index: number) => ({
+      index: index + 1,
+      reference: t.reference || `TX-${t.id || index + 1}`,
+      student_name: t.student_name || (t.student ? `${t.student.first_name} ${t.student.last_name}` : 'N/A'),
+      matricule: t.matricule || t.student?.matricule || 'N/A',
+      type: getPaymentTypeLabel(t.payment_type || t.type || 'scolarite'),
+      method: (t.payment_method || t.method || 'cash').toUpperCase(),
+      amount: t.amount || 0,
+      status: t.status === 'completed' ? 'Validé' : (t.status || 'En attente'),
+      date: t.created_at || t.payment_date || new Date().toISOString().slice(0, 10)
+    }));
+
+    const exportData = rows.length > 0 ? rows : [
+      {
+        indicateur: 'Revenus totaux',
+        valeur: overview?.total_revenue || 0,
+        unite: 'FCFA',
+        periode: periodLabel
+      },
+      {
+        indicateur: 'Reliquats en attente',
+        valeur: installmentsStats?.total_balance || 0,
+        unite: 'FCFA',
+        periode: periodLabel
+      },
+      {
+        indicateur: 'Impayés',
+        valeur: overview?.unpaid || 0,
+        unite: 'FCFA',
+        periode: periodLabel
+      },
+      {
+        indicateur: 'Taux de recouvrement',
+        valeur: `${overview?.collection_rate || 0}%`,
+        unite: '%',
+        periode: periodLabel
+      }
+    ];
+
+    exportToExcel(exportData as Record<string, any>[], {
+      filename: `rapport_financier_${periodLabel}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Rapport Financier',
+      headerMapping: rows.length > 0 ? {
+        index: 'N°',
+        reference: 'Référence',
+        student_name: 'Étudiant',
+        matricule: 'Matricule',
+        type: 'Type de Frais',
+        method: 'Mode de Règlement',
+        amount: 'Montant (FCFA)',
+        status: 'Statut',
+        date: 'Date'
+      } : {
+        indicateur: 'Indicateur Financier',
+        valeur: 'Valeur',
+        unite: 'Unité',
+        periode: 'Période'
+      }
+    });
+
+    toast.success('Rapport financier exporté en Excel (.xlsx) avec succès !');
+  };
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
@@ -152,15 +217,17 @@ export default function FinancialReportsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Rapports Financiers</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Analyses comptables, recettes et suivi des recouvrements</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 sm:gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm overflow-x-auto max-w-full">
             {['month', 'quarter', 'year'].map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
                   period === p ? 'bg-[#FF6B00] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
                 }`}
               >
@@ -169,8 +236,8 @@ export default function FinancialReportsPage() {
             ))}
           </div>
           
-          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-[#FF6B00] text-white rounded-xl text-sm font-medium hover:bg-[#e55f00] transition-all shadow-md hover:shadow-lg">
-            <Download size={16} />
+          <button onClick={handleExport} className="flex items-center gap-2 px-3.5 sm:px-4 py-2 bg-[#FF6B00] text-white rounded-xl text-xs sm:text-sm font-semibold hover:bg-[#e55f00] transition-all shadow-md hover:shadow-lg">
+            <FileSpreadsheet size={16} /> Exporter (Excel)
           </button>
         </div>
       </div>

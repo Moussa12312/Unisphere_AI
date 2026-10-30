@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
   TrendingUp, CheckCircle, AlertCircle, Calendar, 
-  BookOpen, Clock, MapPin, FileText, Award, ArrowUpRight, ArrowDownRight, Loader2 
+  BookOpen, Clock, MapPin, FileText, Award, ArrowUpRight, ArrowDownRight, Loader2,
+  Megaphone, ChevronRight
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -32,6 +34,7 @@ interface DashboardData {
 
 export default function StudentDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,8 +43,13 @@ export default function StudentDashboardPage() {
 
   const loadDashboard = async () => {
     try {
-      const response = await api.get('/api/v1/students/me/dashboard');
-      setData(response.data);
+      const [resDash, resAnn] = await Promise.all([
+        api.get('/api/v1/students/me/dashboard'),
+        api.get('/api/v1/announcements/').catch(() => ({ data: [] }))
+      ]);
+      setData(resDash.data);
+      const annList = Array.isArray(resAnn.data) ? resAnn.data : (Array.isArray(resAnn.data?.data) ? resAnn.data.data : []);
+      setAnnouncements(annList.slice(0, 3));
     } catch (error) {
       console.error('Erreur chargement dashboard:', error);
       toast.error('Impossible de charger vos données');
@@ -60,7 +68,7 @@ export default function StudentDashboardPage() {
 
   if (!data) {
     return (
-      <div className="p-6 text-center text-slate-500">
+      <div className="p-4 sm:p-6 text-center text-slate-500">
         <AlertCircle size={48} className="mx-auto mb-4 text-slate-300" />
         <p>Aucune donnée disponible pour votre profil.</p>
       </div>
@@ -102,6 +110,50 @@ export default function StudentDashboardPage() {
           </a>
         </div>
       </div>
+
+      {/* SECTION ANNONCES OFFICIELLES (Audio Moussa) */}
+      {announcements.length > 0 && (
+        <div className="bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 border border-orange-200 rounded-2xl p-4 sm:p-5 shadow-xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-[#FF6B00] text-white">
+                <Megaphone size={16} />
+              </span>
+              <h2 className="font-bold text-slate-900 text-sm sm:text-base">Annonces Générales & Examens</h2>
+            </div>
+            <Link
+              href="/student/announcements"
+              className="text-xs font-bold text-[#FF6B00] hover:text-[#e55f00] flex items-center gap-1 transition-colors"
+            >
+              Voir tout <ChevronRight size={14} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {announcements.map((a: any) => (
+              <Link
+                key={a.id}
+                href="/student/announcements"
+                className="bg-white/90 backdrop-blur-sm p-3.5 rounded-xl border border-orange-100 hover:border-orange-300 transition-all hover:shadow-xs group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                    <span className="font-bold text-orange-600 uppercase tracking-wider text-[10px]">
+                      {a.category || 'Annonce'}
+                    </span>
+                    <span>{a.published_at ? new Date(a.published_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}</span>
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-xs sm:text-sm line-clamp-1 group-hover:text-[#FF6B00] transition-colors">
+                    {a.title}
+                  </h3>
+                  <p className="text-slate-600 text-xs line-clamp-2 mt-1">
+                    {a.content}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPIs Principaux */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -202,7 +254,7 @@ export default function StudentDashboardPage() {
                 </div>
               ))
             ) : (
-              <div className="p-8 text-center text-slate-500">
+              <div className="p-5 sm:p-8 text-center text-slate-500">
                 <FileText size={32} className="mx-auto mb-2 text-slate-300" />
                 <p>Aucune note enregistrée pour le moment.</p>
               </div>

@@ -52,7 +52,7 @@ export default function TeacherSchedulePage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
             <Calendar size={24} className="text-white" />
           </div>
@@ -93,7 +93,7 @@ export default function TeacherSchedulePage() {
             </div>
             
             {slots.length === 0 ? (
-              <div className="p-6 text-center text-sm text-slate-400">
+              <div className="p-4 sm:p-6 text-center text-sm text-slate-400">
                 Aucun cours
               </div>
             ) : (

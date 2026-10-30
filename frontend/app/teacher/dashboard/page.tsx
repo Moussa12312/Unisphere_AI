@@ -51,7 +51,7 @@ export default function TeacherDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header avec horloge */}
-      <div className="bg-gradient-to-br from-[#0a1628] to-[#1e293b] rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-br from-[#0a1628] to-[#1e293b] rounded-2xl p-4 sm:p-6 text-white">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
@@ -122,7 +122,7 @@ export default function TeacherDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
           href="/teacher/courses"
-          className="group bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white hover:shadow-xl transition-all hover:scale-[1.02]"
+          className="group bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 sm:p-6 text-white hover:shadow-xl transition-all hover:scale-[1.02]"
         >
           <BookOpen size={32} className="mb-3" />
           <h3 className="text-xl font-bold mb-1">Mes cours</h3>
@@ -131,7 +131,7 @@ export default function TeacherDashboardPage() {
 
         <Link
           href="/teacher/grades"
-          className="group bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-2xl p-6 text-white hover:shadow-xl transition-all hover:scale-[1.02]"
+          className="group bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-2xl p-4 sm:p-6 text-white hover:shadow-xl transition-all hover:scale-[1.02]"
         >
           <Edit3 size={32} className="mb-3" />
           <h3 className="text-xl font-bold mb-1">Saisir des notes</h3>
@@ -140,7 +140,7 @@ export default function TeacherDashboardPage() {
 
         <Link
           href="/teacher/attendance"
-          className="group bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white hover:shadow-xl transition-all hover:scale-[1.02]"
+          className="group bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 sm:p-6 text-white hover:shadow-xl transition-all hover:scale-[1.02]"
         >
           <Users size={32} className="mb-3" />
           <h3 className="text-xl font-bold mb-1">Présences</h3>
@@ -263,7 +263,7 @@ export default function TeacherDashboardPage() {
       {/* Stats de performance avec moyenne pondérée */}
       {stats?.average_grade && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white">
+          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 sm:p-6 text-white">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp size={20} />
               <h3 className="font-semibold">Moyenne pondérée</h3>
@@ -271,7 +271,7 @@ export default function TeacherDashboardPage() {
             <p className="text-4xl font-bold">{stats.average_grade.toFixed(2)}/20</p>
             <p className="text-sm opacity-80 mt-2">Calculée avec les crédits</p>
           </div>
-          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white">
+          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 sm:p-6 text-white">
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle size={20} />
               <h3 className="font-semibold">Taux de réussite</h3>
@@ -279,7 +279,7 @@ export default function TeacherDashboardPage() {
             <p className="text-4xl font-bold">{stats.success_rate?.toFixed(1) || 0}%</p>
             <p className="text-sm opacity-80 mt-2">Étudiants avec moyenne ≥ 10</p>
           </div>
-          <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-6 text-white">
+          <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-4 sm:p-6 text-white">
             <div className="flex items-center gap-2 mb-3">
               <Award size={20} />
               <h3 className="font-semibold">Total notes</h3>

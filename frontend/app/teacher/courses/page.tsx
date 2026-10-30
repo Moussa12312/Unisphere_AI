@@ -184,7 +184,7 @@ export default function TeacherCoursesPage() {
             return (
               <div
                 key={course.id}
-                className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg hover:border-[#FF6B00]/30 transition-all"
+                className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 hover:shadow-lg hover:border-[#FF6B00]/30 transition-all"
               >
                 {/* En-tête du cours */}
                 <div className="flex items-start justify-between mb-4">

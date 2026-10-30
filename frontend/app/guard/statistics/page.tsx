@@ -87,7 +87,7 @@ Généré le: ${new Date().toLocaleString('fr-FR')}
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
               <BarChart3 size={24} className="text-white" />
             </div>
@@ -118,13 +118,13 @@ Généré le: ${new Date().toLocaleString('fr-FR')}
 
       {/* Stats principales */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-6 text-white">
+        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-4 sm:p-6 text-white">
           <TrendingUp size={24} className="mb-3 opacity-80" />
           <p className="text-sm opacity-80 mb-1">Taux de présence</p>
           <p className="text-3xl font-bold">{stats.attendance_rate?.toFixed(1) || 0}%</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
               <Users size={20} className="text-blue-600" />
@@ -134,7 +134,7 @@ Généré le: ${new Date().toLocaleString('fr-FR')}
           <p className="text-2xl font-bold text-slate-900">{stats.total_students || 0}</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-green-200 p-6">
+        <div className="bg-white rounded-xl border border-green-200 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
               <CheckCircle size={20} className="text-green-600" />
@@ -144,7 +144,7 @@ Généré le: ${new Date().toLocaleString('fr-FR')}
           <p className="text-2xl font-bold text-green-600">{stats.total_present || 0}</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-red-200 p-6">
+        <div className="bg-white rounded-xl border border-red-200 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
               <XCircle size={20} className="text-red-600" />
@@ -156,7 +156,7 @@ Généré le: ${new Date().toLocaleString('fr-FR')}
       </div>
 
       {/* Statistiques par niveau */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
         <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
           <BarChart3 size={20} className="text-[#FF6B00]" />
           Présence par niveau
@@ -200,7 +200,7 @@ Généré le: ${new Date().toLocaleString('fr-FR')}
 
       {/* Tendances */}
       {stats.trends && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <TrendingUp size={20} className="text-[#FF6B00]" />
             Tendances
@@ -227,7 +227,7 @@ Généré le: ${new Date().toLocaleString('fr-FR')}
       )}
 
       {/* Actions rapides */}
-      <div className="bg-gradient-to-r from-[#0a1628] to-[#1e293b] rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-r from-[#0a1628] to-[#1e293b] rounded-2xl p-4 sm:p-6 text-white">
         <h2 className="text-lg font-bold mb-4">Actions rapides</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <Link

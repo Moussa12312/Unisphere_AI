@@ -62,7 +62,7 @@ export default function StudentSchedulePage() {
   if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-[#FF6B00]" size={32} /></div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Mon Emploi du Temps</h1>
         <p className="text-slate-500 mt-1">Planning hebdomadaire de vos cours.</p>
@@ -79,7 +79,7 @@ export default function StudentSchedulePage() {
             if (!groupedSchedule[day]) return null;
             return (
               <div key={day} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="bg-slate-50 px-6 py-3 border-b border-slate-200 flex items-center gap-2">
+                <div className="bg-slate-50 px-4 sm:px-6 py-3 border-b border-slate-200 flex items-center gap-2">
                   <Calendar size={18} className="text-[#FF6B00]" />
                   <h2 className="font-bold text-slate-900">{day}</h2>
                   <span className="text-xs text-slate-500 ml-auto">

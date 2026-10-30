@@ -5,7 +5,7 @@ import {
   TrendingUp, Users, Award, 
   DollarSign, Activity, Target,
   Download, ArrowUpRight, ArrowDownRight,
-  AlertCircle, RefreshCw, Wifi, WifiOff
+  AlertCircle, RefreshCw, Wifi, WifiOff, FileSpreadsheet
 } from 'lucide-react';
 import { 
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import api, { API_BASE_URL } from '@/lib/api';
 import { toast } from 'react-hot-toast';
+import { exportToExcel } from '@/lib/exportExcel';
 
 export default function StatisticsPage() {
   const [period, setPeriod] = useState('year');
@@ -172,6 +173,32 @@ export default function StatisticsPage() {
   const maxInscription = Math.max(...inscriptions.map(i => i.inscriptions || 0), 1);
   const maxRevenue = Math.max(...revenus.map(r => r.revenus || 0), 1);
 
+  const handleExportExcel = () => {
+    const periodLabel = period === 'month' ? 'Ce_Mois' : period === 'quarter' ? 'Ce_Trimestre' : 'Cette_Annee';
+    const exportData = [
+      { Indicateur: 'Taux de réussite', Valeur: `${overview?.success_rate || 0}%`, Période: periodLabel },
+      { Indicateur: 'Étudiants actifs', Valeur: overview?.total_students || 0, Période: periodLabel },
+      { Indicateur: 'Revenus totaux', Valeur: `${overview?.total_revenue || 0} FCFA`, Période: periodLabel },
+      { Indicateur: 'Taux d\'assiduité', Valeur: `${overview?.attendance_rate || 0}%`, Période: periodLabel },
+      ...filieres.map(f => ({
+        Indicateur: `Filière : ${f.name}`,
+        Valeur: `${f.value} étudiants`,
+        Période: periodLabel
+      })),
+      ...performance.map(p => ({
+        Indicateur: `Niveau : ${p.name}`,
+        Valeur: `Moyenne : ${p.taux}/20 (${p.total} notes)`,
+        Période: periodLabel
+      }))
+    ];
+
+    exportToExcel(exportData, {
+      filename: `statistiques_universite_${periodLabel}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Statistiques Globales'
+    });
+    toast.success('Statistiques exportées en Excel (.xlsx) avec succès !');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -200,9 +227,18 @@ export default function StatisticsPage() {
           
           <button 
             onClick={loadAllStats}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium"
+            title="Rafraîchir"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-all"
           >
             <RefreshCw size={16} />
+          </button>
+
+          <button 
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium shadow-sm transition-all"
+          >
+            <FileSpreadsheet size={16} />
+            Exporter (Excel)
           </button>
         </div>
       </div>
@@ -435,7 +471,7 @@ export default function StatisticsPage() {
                 }}
                 formatter={(value: any, name: any) => [
                   `${value}%`,
-                  name === 'presents' ? 'Présents' : 'Absents'
+                  name === 'presents' || name === 'Présents' ? 'Présents' : 'Absents'
                 ]}
               />
               <Line 

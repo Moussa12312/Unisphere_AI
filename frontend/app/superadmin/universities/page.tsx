@@ -176,7 +176,7 @@ export default function SuperAdminUniversitiesPage() {
                     </div>
 
                     {/* Financial metrics bar */}
-                    <div className="flex items-center gap-4 text-xs mt-3 pt-2 border-t border-slate-100">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs mt-3 pt-2 border-t border-slate-100">
                       <div>
                         <span className="text-slate-400">Total Facturé : </span>
                         <span className="font-semibold text-slate-800">{formatFCFA(item.total_invoiced)}</span>

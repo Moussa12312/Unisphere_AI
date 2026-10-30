@@ -99,7 +99,7 @@ export default function StudentCertificatesPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
       {/* En-tête */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Attestations & Certificats</h1>
@@ -107,7 +107,7 @@ export default function StudentCertificatesPage() {
       </div>
 
       {/* Attestations disponibles à la demande */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Demander une attestation</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {availableTypes.map((item) => (
@@ -136,7 +136,7 @@ export default function StudentCertificatesPage() {
 
       {/* Historique des attestations */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="p-6 border-b border-slate-200">
+        <div className="p-4 sm:p-6 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Mes attestations</h2>
           <p className="text-sm text-slate-500 mt-1">Historique de vos demandes</p>
         </div>

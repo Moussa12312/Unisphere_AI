@@ -25,9 +25,25 @@ export default function GuardIncidentsPage() {
   });
   const [saving, setSaving] = useState(false);
 
+  const [students, setStudents] = useState<any[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+
   useEffect(() => {
     loadIncidents();
+    loadStudents();
   }, []);
+
+  const loadStudents = async () => {
+    try {
+      const res = await api.get('/api/v1/students/');
+      const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      setStudents(list);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const loadIncidents = async () => {
     setLoading(true);
@@ -131,7 +147,7 @@ export default function GuardIncidentsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30">
               <AlertTriangle size={24} className="text-white" />
             </div>
@@ -288,15 +304,101 @@ export default function GuardIncidentsPage() {
               </button>
             </div>
             <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Matricule étudiant *</label>
-                <input
-                  type="text"
-                  value={formData.student_matricule}
-                  onChange={(e) => setFormData({ ...formData, student_matricule: e.target.value })}
-                  placeholder="Ex: EC-2026-0001"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                />
+              {/* Sélecteur d'étudiant avec photo et nom */}
+              <div className="relative">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Étudiant concerné *</label>
+                {selectedStudent ? (
+                  <div className="flex items-center justify-between p-2.5 bg-orange-50 border border-orange-200 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      {selectedStudent.photo ? (
+                        <img
+                          src={selectedStudent.photo}
+                          alt=""
+                          className="w-10 h-10 rounded-full object-cover border border-orange-200"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#FF6B00] text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                          {selectedStudent.first_name?.[0]}{selectedStudent.last_name?.[0]}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-bold text-sm text-slate-900 leading-tight">
+                          {selectedStudent.first_name} {selectedStudent.last_name}
+                        </p>
+                        <p className="text-[11px] font-mono text-slate-500">{selectedStudent.matricule}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedStudent(null);
+                        setFormData({ ...formData, student_matricule: '' });
+                      }}
+                      className="p-1 text-slate-400 hover:text-red-500 rounded-lg hover:bg-white transition-colors"
+                      title="Changer d'étudiant"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="🔍 Cliquez ou tapez le nom de l'élève..."
+                      value={studentSearch}
+                      onFocus={() => setShowDropdown(true)}
+                      onChange={(e) => {
+                        setStudentSearch(e.target.value);
+                        setShowDropdown(true);
+                      }}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                    {showDropdown && (
+                      <div className="absolute left-0 right-0 z-30 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-100">
+                        {students
+                          .filter(s =>
+                            `${s.first_name} ${s.last_name} ${s.matricule}`
+                              .toLowerCase()
+                              .includes(studentSearch.toLowerCase())
+                          )
+                          .slice(0, 30)
+                          .map((st) => (
+                            <button
+                              key={st.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedStudent(st);
+                                setFormData({ ...formData, student_matricule: st.matricule });
+                                setShowDropdown(false);
+                                setStudentSearch('');
+                              }}
+                              className="w-full p-2.5 flex items-center gap-3 hover:bg-orange-50/60 transition-colors text-left"
+                            >
+                              {st.photo ? (
+                                <img
+                                  src={st.photo}
+                                  alt=""
+                                  className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                                />
+                              ) : (
+                                <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                                  {st.first_name?.[0]}{st.last_name?.[0]}
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-xs sm:text-sm text-slate-900 truncate">
+                                  {st.first_name} {st.last_name}
+                                </p>
+                              </div>
+                            </button>
+                          ))}
+                        {students.length === 0 && (
+                          <div className="p-3 text-center text-xs text-slate-400">Aucun étudiant trouvé</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Type *</label>

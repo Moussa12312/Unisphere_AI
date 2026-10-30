@@ -17,9 +17,11 @@ import {
   CheckCircle2,
   MapPin,
   Sparkles,
-  Building2
+  Building2,
+  Eye,
+  X
 } from 'lucide-react';
-import api from '@/lib/api';
+import api, { getMediaUrl } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 
 export default function StudentCardPage() {
@@ -28,6 +30,7 @@ export default function StudentCardPage() {
   const [activeSide, setActiveSide] = useState<'recto' | 'verso' | 'both'>('recto');
   const [imageError, setImageError] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   useEffect(() => {
     loadCard();
@@ -47,11 +50,16 @@ export default function StudentCardPage() {
   };
 
   const handlePrint = () => {
-    // S'assurer que les deux faces sont visibles pour l'impression
+    // Premier clic : ouvrir l'aperçu officiel avant impression
+    setShowPreviewModal(true);
+  };
+
+  const handleConfirmPrint = () => {
+    setShowPreviewModal(false);
     setActiveSide('both');
     setTimeout(() => {
       window.print();
-    }, 200);
+    }, 250);
   };
 
   const handleDownloadQr = () => {
@@ -80,7 +88,7 @@ export default function StudentCardPage() {
 
   if (!data || !data.student) {
     return (
-      <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto my-8 p-8">
+      <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto my-8 p-5 sm:p-8">
         <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
           <GraduationCap size={32} />
         </div>
@@ -179,10 +187,10 @@ export default function StudentCardPage() {
       </div>
 
       {/* ZONE D'AFFICHAGE DES CARTES */}
-      <div className="flex flex-col lg:flex-row items-center justify-center gap-8 py-4">
+      <div className="w-full overflow-x-auto flex flex-col lg:flex-row items-center justify-center gap-8 py-4 px-2">
         {/* RECTO */}
         {(activeSide === 'recto' || activeSide === 'both') && (
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center flex-shrink-0">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 print:hidden">
               Face Avant (Recto)
             </div>
@@ -272,7 +280,7 @@ export default function StudentCardPage() {
                   >
                     {student.photo && !imageError ? (
                       <img
-                        src={student.photo}
+                        src={getMediaUrl(student.photo)}
                         alt={`${student.first_name} ${student.last_name}`}
                         onError={() => setImageError(true)}
                         className="w-full h-full object-cover"
@@ -400,7 +408,7 @@ export default function StudentCardPage() {
 
         {/* VERSO */}
         {(activeSide === 'verso' || activeSide === 'both') && (
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center flex-shrink-0">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 print:hidden">
               Face Arrière (Verso)
             </div>
@@ -493,13 +501,13 @@ export default function StudentCardPage() {
       </div>
 
       {/* INFORMATIONS COMPLÉMENTAIRES ÉTUDIANT */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm print:hidden">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
           <div>
             <h2 className="text-base font-bold text-slate-900">Dossier d'identification biométrique</h2>
             <p className="text-xs text-slate-500">Données enregistrées dans le registre académique central</p>
           </div>
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="self-start sm:self-auto inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
             <Sparkles size={13} />
             Carte active
           </span>
@@ -574,15 +582,91 @@ export default function StudentCardPage() {
         </div>
       </div>
 
+      {/* ======================================================== */}
+      {/* MODAL APERÇU AVANT IMPRESSION                            */}
+      {/* ======================================================== */}
+      {showPreviewModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 print:hidden">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200 bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 text-[#FF6B00] flex items-center justify-center">
+                  <Eye size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Aperçu de votre carte</h3>
+                  <p className="text-xs text-slate-500">Prêt pour l'impression physique ou l'exportation PDF</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 bg-slate-100 flex-1 text-center">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 text-left">
+                Carte officielle de l'étudiant(e) <b>{student.first_name} {student.last_name}</b> ({student.matricule}). Les deux faces (recto/verso) seront imprimées selon les normes du format standard.
+              </div>
+
+              <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm inline-block">
+                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Aperçu Recto</p>
+                <div className="w-64 h-36 mx-auto rounded-lg bg-gradient-to-br from-slate-900 to-blue-950 text-white p-3 flex flex-col justify-between text-left shadow-md">
+                  <div className="flex justify-between items-center text-[9px]">
+                    <span className="font-bold tracking-wider">{university?.name || 'Université'}</span>
+                    <span className="font-mono text-orange-400 font-bold">{student.matricule}</span>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <div className="w-10 h-12 rounded bg-slate-700 flex items-center justify-center text-xs font-black">
+                      {student.first_name[0]}{student.last_name[0]}
+                    </div>
+                    <div>
+                      <p className="font-bold text-xs leading-tight">{student.first_name} {student.last_name}</p>
+                      <p className="text-[9px] text-slate-300">{student.filiere} • {student.level}</p>
+                    </div>
+                  </div>
+                  <div className="text-[7px] text-slate-400">CARTE OFFICIELLE SÉCURISÉE • {university?.academic_year || '2026-2027'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-slate-200 bg-white">
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-all"
+              >
+                Fermer
+              </button>
+              <button
+                onClick={handleConfirmPrint}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+              >
+                <Printer size={15} />
+                Lancer l'impression
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* STYLES SPÉCIFIQUES POUR L'IMPRESSION HAUTE DÉFINITION (FORMAT CR80 ISO) */}
       <style jsx global>{`
         @media print {
-          body * {
-            visibility: hidden;
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
           }
-          .student-card-badge,
-          .student-card-badge * {
-            visibility: visible;
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          header, nav, aside, footer, .print-hidden, [role="navigation"] {
+            display: none !important;
           }
           .student-card-badge {
             display: block !important;
@@ -592,13 +676,6 @@ export default function StudentCardPage() {
             print-color-adjust: exact !important;
             margin: 10mm auto !important;
             page-break-inside: avoid !important;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          @page {
-            size: A4 portrait;
-            margin: 15mm;
           }
         }
       `}</style>

@@ -63,7 +63,8 @@ export default function CenseurAttendancePage() {
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
         ) : (
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left text-sm min-w-[650px]">
             <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="p-4">Étudiant</th>
@@ -112,6 +113,7 @@ export default function CenseurAttendancePage() {
               )}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

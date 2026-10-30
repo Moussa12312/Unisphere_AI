@@ -106,7 +106,7 @@ export default function TeacherStudentsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
             <Users size={24} className="text-white" />
           </div>

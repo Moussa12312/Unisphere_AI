@@ -126,40 +126,48 @@ export default function CenseurBulletinsPage() {
     }
   };
 
-  const handlePreview = async (studentId: number) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string>('');
+  const [previewStudentId, setPreviewStudentId] = useState<number | null>(null);
+
+  const handlePreview = async (studentId: number, studentName?: string) => {
     if (!selectedSessionId) return;
     try {
+      setGenerating(studentId);
       const pdfBlob = await reportCardService.generatePDF(studentId, selectedSessionId);
       const url = window.URL.createObjectURL(pdfBlob);
-      window.open(url, '_blank');
+      setPreviewUrl(url);
+      setPreviewTitle(studentName ? `Bulletin Officiel - ${studentName}` : 'Aperçu du Bulletin Officiel');
+      setPreviewStudentId(studentId);
     } catch (error) {
       toast.error("Erreur lors de l'aperçu du bulletin");
+    } finally {
+      setGenerating(null);
     }
   };
 
-  const handlePrint = async (studentId: number) => {
-    if (!selectedSessionId) return;
-    try {
-      const pdfBlob = await reportCardService.generatePDF(studentId, selectedSessionId);
-      const url = window.URL.createObjectURL(pdfBlob);
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      iframe.src = url;
-      document.body.appendChild(iframe);
-      iframe.onload = () => {
-        setTimeout(() => {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        }, 200);
-      };
-    } catch (error) {
-      toast.error("Erreur lors de l'impression du bulletin");
-    }
+  const handlePrint = async (studentId: number, studentName?: string) => {
+    // 1er clic : ouvre toujours l'aperçu interactif
+    await handlePreview(studentId, studentName);
+  };
+
+  const executePrintFromModal = () => {
+    if (!previewUrl) return;
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.src = previewUrl;
+    document.body.appendChild(iframe);
+    iframe.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      }, 300);
+    };
   };
 
   const handleViewDetail = async (studentId: number) => {
@@ -370,16 +378,16 @@ export default function CenseurBulletinsPage() {
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         <button
-                          onClick={() => handleViewDetail(card.student.id)}
+                          onClick={() => handlePreview(card.student.id, `${card.student.first_name} ${card.student.last_name}`)}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Détails"
+                          title="Aperçu avant impression"
                         >
                           <Eye size={15} />
                         </button>
                         <button
-                          onClick={() => handlePrint(card.student.id)}
+                          onClick={() => handlePrint(card.student.id, `${card.student.first_name} ${card.student.last_name}`)}
                           className="p-1.5 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                          title="Imprimer (1 page)"
+                          title="Imprimer le bulletin (Aperçu d'abord)"
                         >
                           <Printer size={15} />
                         </button>
@@ -514,6 +522,55 @@ export default function CenseurBulletinsPage() {
                   Télécharger PDF
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ MODAL APERÇU OFFICIEL AVANT IMPRESSION */}
+      {previewUrl && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-base">{previewTitle}</h3>
+                <p className="text-xs text-slate-400">Prévisualisation haute fidélité du bulletin officiel</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={executePrintFromModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+                >
+                  <Printer size={16} />
+                  Imprimer maintenant
+                </button>
+                {previewStudentId && (
+                  <button
+                    onClick={() => handleGeneratePDF(previewStudentId)}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+                  >
+                    <Download size={16} />
+                    Télécharger
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (previewUrl) window.URL.revokeObjectURL(previewUrl);
+                    setPreviewUrl(null);
+                  }}
+                  className="p-2 hover:bg-white/10 rounded-xl text-slate-300 hover:text-white transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 bg-slate-100 p-2">
+              <iframe
+                src={previewUrl}
+                className="w-full h-full rounded-xl border border-slate-300 bg-white"
+                title="Aperçu Bulletin"
+              />
             </div>
           </div>
         </div>

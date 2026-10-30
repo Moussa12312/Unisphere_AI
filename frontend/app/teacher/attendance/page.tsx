@@ -96,7 +96,7 @@ export default function TeacherAttendancePage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Faire l'Appel</h1>
@@ -105,7 +105,7 @@ export default function TeacherAttendancePage() {
         <button
           onClick={saveAttendance}
           disabled={saving || roster.length === 0}
-          className="flex items-center gap-2 px-6 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
+          className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg font-medium disabled:opacity-50 transition-colors"
         >
           {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
           Enregistrer l'appel
@@ -141,33 +141,33 @@ export default function TeacherAttendancePage() {
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="min-w-[640px] w-full text-left">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Étudiant</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-center">Présent</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-center">Retard</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-center">Absent</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-center">Excusé</th>
+                  <th className="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Étudiant</th>
+                  <th className="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-center">Présent</th>
+                  <th className="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-center">Retard</th>
+                  <th className="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-center">Absent</th>
+                  <th className="px-4 sm:px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-center">Excusé</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {roster.map((student) => (
                   <tr key={student.student_id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-4">
                       <p className="font-semibold text-slate-900">{student.student_name}</p>
                       <p className="text-xs text-slate-500 font-mono">{student.matricule}</p>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 sm:px-6 py-4 text-center">
                       {getStatusBtn(student.student_id, 'present', 'bg-green-100 text-green-700', CheckCircle)}
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 sm:px-6 py-4 text-center">
                       {getStatusBtn(student.student_id, 'late', 'bg-orange-100 text-orange-700', Clock)}
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 sm:px-6 py-4 text-center">
                       {getStatusBtn(student.student_id, 'absent', 'bg-red-100 text-red-700', XCircle)}
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 sm:px-6 py-4 text-center">
                       {getStatusBtn(student.student_id, 'excused', 'bg-blue-100 text-blue-700', AlertCircle)}
                     </td>
                   </tr>

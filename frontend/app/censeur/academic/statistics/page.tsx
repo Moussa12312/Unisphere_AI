@@ -162,57 +162,63 @@ export default function CenseurStatisticsPage() {
       </div>
 
       {/* Graphiques */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
         {/* Distribution des notes */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 min-w-0 overflow-hidden">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <BarChart3 size={20} className="text-[#FF6B00]" />
             Distribution des notes
           </h2>
           {distributionData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={distributionData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} />
-                <YAxis stroke="#94a3b8" fontSize={12} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#FF6B00" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-[280px] sm:h-[320px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={distributionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
+                  <YAxis stroke="#94a3b8" fontSize={11} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#FF6B00" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="flex items-center justify-center h-[300px] text-slate-400">
+            <div className="flex items-center justify-center h-[280px] text-slate-400 text-sm">
               Aucune donnée
             </div>
           )}
         </div>
 
         {/* Répartition par mention */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 min-w-0 overflow-hidden">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <PieChart size={20} className="text-[#FF6B00]" />
             Répartition par mention
           </h2>
           {mentionsData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <RPieChart>
-              <Pie
-                data={mentionsData}
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                dataKey="value"
-                label={(entry: any) => `${((entry.percent || 0) * 100).toFixed(0)}%`}
-              >
-                  {mentionsData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </RPieChart>
-            </ResponsiveContainer>
+            <div className="h-[280px] sm:h-[320px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <RPieChart>
+                  <Pie
+                    data={mentionsData}
+                    cx="50%"
+                    cy="45%"
+                    outerRadius={75}
+                    innerRadius={35}
+                    dataKey="value"
+                    label={({ percent }: any) => `${((percent || 0) * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {mentionsData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                </RPieChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="flex items-center justify-center h-[300px] text-slate-400">
+            <div className="flex items-center justify-center h-[280px] text-slate-400 text-sm">
               Aucune donnée
             </div>
           )}

@@ -65,12 +65,12 @@ export default function FilieresPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Gestion des Filières</h1>
           <p className="text-slate-500 mt-1">Définissez les domaines et filières de votre université.</p>
         </div>
-        <Link href="/admin/filieres/create" className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+        <Link href="/admin/filieres/create" className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 self-start sm:self-auto">
           <Plus size={16} /> Ajouter une filière
         </Link>
       </div>
@@ -89,35 +89,45 @@ export default function FilieresPage() {
                 📂 {domain}
               </h3>
             </div>
-            <table className="min-w-full divide-y divide-slate-200">
-              <tbody className="bg-white divide-y divide-slate-200">
-                {items.map((f: any) => (
-                  <tr key={f.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 text-sm font-medium text-slate-900">{f.name}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      {f.levels.split(',').map((l: string) => (
-                        <span key={l} className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full mr-1 mb-1">
-                          {l.trim()}
-                        </span>
-                      ))}
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/admin/filieres/${f.id}/edit`} className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg">
-                          <Pencil size={16} />
-                        </Link>
-                        <button 
-                          onClick={() => handleDelete(f.id, f.name)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200">
+                <tbody className="bg-white divide-y divide-slate-200">
+                  {items.map((f: any) => (
+                    <tr key={f.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-3.5">
+                        <div className="font-semibold text-slate-900 text-sm">{f.name}</div>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                          {f.levels ? f.levels.split(',').map((l: string) => {
+                            const trimmed = l.trim();
+                            if (!trimmed) return null;
+                            return (
+                              <span key={trimmed} className="inline-flex items-center px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-semibold rounded-md">
+                                {trimmed}
+                              </span>
+                            );
+                          }) : (
+                            <span className="text-[11px] text-slate-400 italic">Aucun niveau</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-3.5 text-right text-sm font-medium whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link href={`/admin/filieres/${f.id}/edit`} className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg">
+                            <Pencil size={16} />
+                          </Link>
+                          <button 
+                            onClick={() => handleDelete(f.id, f.name)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ))}
       </div>

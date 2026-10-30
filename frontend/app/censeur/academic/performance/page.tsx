@@ -132,7 +132,7 @@ export default function CenseurPerformancePage() {
             <p className="text-slate-500">Aucune donnée de performance</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-w-[700px]">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>

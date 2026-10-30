@@ -68,7 +68,7 @@ export default function GuardDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header avec horloge */}
-      <div className="bg-gradient-to-br from-[#0a1628] to-[#1e293b] rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-br from-[#0a1628] to-[#1e293b] rounded-2xl p-4 sm:p-6 text-white">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-lg">
@@ -91,7 +91,7 @@ export default function GuardDashboardPage() {
         {/* ✅ BOUTON SCANNER - Ouvre la modal */}
         <button
           onClick={() => setShowScanner(true)}
-          className="group bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-2xl p-6 text-white hover:shadow-xl transition-all hover:scale-[1.02] text-left"
+          className="group bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-2xl p-4 sm:p-6 text-white hover:shadow-xl transition-all hover:scale-[1.02] text-left"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -105,7 +105,7 @@ export default function GuardDashboardPage() {
 
         <Link
           href="/guard/attendance"
-          className="group bg-white rounded-2xl p-6 border border-slate-200 hover:shadow-xl transition-all hover:scale-[1.02]"
+          className="group bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 hover:shadow-xl transition-all hover:scale-[1.02]"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
@@ -119,7 +119,7 @@ export default function GuardDashboardPage() {
 
         <Link
           href="/guard/incidents"
-          className="group bg-white rounded-2xl p-6 border border-slate-200 hover:shadow-xl transition-all hover:scale-[1.02]"
+          className="group bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 hover:shadow-xl transition-all hover:scale-[1.02]"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center">

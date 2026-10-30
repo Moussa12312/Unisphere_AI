@@ -14,10 +14,12 @@ import { toast } from 'react-hot-toast';
 import { useSettings } from '@/contexts/SettingsContext';
 import { themes } from '@/lib/themes';
 import { Palette } from 'lucide-react';
+import SettingsPage from '@/components/settings/SettingsPage';
 
 export default function UniversitySettingsPage() {
   const router = useRouter();
   const { settings, updateSetting, updateSettings } = useSettings();
+  const [settingsTab, setSettingsTab] = useState<'university' | 'personal'>('university');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -26,10 +28,7 @@ export default function UniversitySettingsPage() {
     name: '', slogan: '', address: '', phone: '',
     email: '', website: '', description: '',
     established_year: '', rector_name: '',
-    academic_year: '', logo: '',
-    theme: 'light-orange',
-    primary_color: '#FF6B00',
-    language: 'fr'
+    academic_year: '', logo: ''
   });
 
   const [subscription, setSubscription] = useState<any>(null);
@@ -44,9 +43,6 @@ export default function UniversitySettingsPage() {
     setLoading(true);
     try {
       const response = await api.get('/api/v1/settings/university/profile');
-      const loadedTheme = response.data.theme || settings.theme || 'light-orange';
-      const loadedColor = response.data.primary_color || settings.customPrimaryColor || '#FF6B00';
-      const loadedLang = response.data.language || settings.language || 'fr';
 
       setFormData({
         name: response.data.name || '',
@@ -59,16 +55,7 @@ export default function UniversitySettingsPage() {
         established_year: response.data.established_year?.toString() || '',
         rector_name: response.data.rector_name || '',
         academic_year: response.data.academic_year || '',
-        logo: response.data.logo || '',
-        theme: loadedTheme,
-        primary_color: loadedColor,
-        language: loadedLang
-      });
-
-      updateSettings({
-        theme: loadedTheme,
-        customPrimaryColor: loadedColor,
-        language: loadedLang
+        logo: response.data.logo || ''
       });
     } catch (error) {
       toast.error('Erreur lors du chargement du profil');
@@ -90,13 +77,6 @@ export default function UniversitySettingsPage() {
     setSaving(true);
     try {
       await api.put('/api/v1/settings/university/profile', formData);
-
-      // Mettre à jour immédiatement le contexte d'apparence
-      updateSettings({
-        theme: formData.theme,
-        customPrimaryColor: formData.primary_color,
-        language: formData.language as any
-      });
 
       if (newLogoFile) {
         const fd = new FormData();
@@ -159,13 +139,43 @@ export default function UniversitySettingsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Paramètres</h1>
-          <p className="text-slate-500 mt-1">Gérez votre université et votre abonnement</p>
-        </div>
+      {/* Switcher Onglets : Université vs Paramètres Personnels */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 flex-wrap">
+        <button
+          onClick={() => setSettingsTab('university')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+            settingsTab === 'university'
+              ? 'bg-[#FF6B00] text-white shadow-md shadow-orange-500/20'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+          }`}
+        >
+          <Building2 size={16} />
+          Configuration de l'Université
+        </button>
+        <button
+          onClick={() => setSettingsTab('personal')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+            settingsTab === 'personal'
+              ? 'bg-[#FF6B00] text-white shadow-md shadow-orange-500/20'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+          }`}
+        >
+          <User size={16} />
+          Mes Paramètres Personnels
+        </button>
       </div>
+
+      {settingsTab === 'personal' ? (
+        <SettingsPage role="admin" roleLabel="Administrateur" roleIcon={Building2} />
+      ) : (
+        <>
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">Paramètres de l'Université</h1>
+              <p className="text-slate-500 mt-1">Gérez votre université et votre abonnement</p>
+            </div>
+          </div>
 
       {/* Section Logo */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
@@ -307,141 +317,14 @@ export default function UniversitySettingsPage() {
       </div>
 
       {/* ✅ Apparence & Couleurs de l'Université */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <Palette size={20} className="text-[#FF6B00]" />
-          Apparence & Couleurs de l'Établissement
-        </h2>
-
-        {/* Thème */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-700 mb-3">
-            Thème de l'interface
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {themes.map((theme) => {
-              const isActive = formData.theme === theme.id;
-              return (
-                <button
-                  type="button"
-                  key={theme.id}
-                  onClick={() => {
-                    handleChange('theme', theme.id);
-                    updateSetting('theme', theme.id);
-                  }}
-                  className={`relative p-3 rounded-xl border-2 transition-all ${
-                    isActive
-                      ? 'border-[#FF6B00] bg-orange-50'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <div 
-                    className="h-10 rounded-lg mb-2 border border-slate-200 overflow-hidden flex"
-                    style={{ backgroundColor: theme.colors.background }}
-                  >
-                    <div className="w-1/3 h-full" style={{ backgroundColor: theme.colors.surface }} />
-                    <div className="w-1/3 h-full" style={{ backgroundColor: theme.colors.primary }} />
-                    <div className="w-1/3 h-full" style={{ backgroundColor: theme.colors.text }} />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span>{theme.emoji}</span>
-                    <span className="text-xs font-medium text-slate-700 truncate">{theme.name}</span>
-                  </div>
-                  {isActive && <CheckCircle size={14} className="absolute top-2 right-2 text-[#FF6B00]" />}
-                </button>
-              );
-            })}
-          </div>
+        {/* Bouton sauvegarder */}
+        <div className="flex justify-end sticky bottom-6 z-20">
+          <button onClick={handleSave} disabled={saving || !hasChanges} className="flex items-center gap-2 px-8 py-4 bg-[#FF6B00] text-white rounded-xl text-sm font-semibold hover:bg-[#e55f00] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+            <Save size={18} /> {saving ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
+          </button>
         </div>
-
-        {/* Couleur Principale d'Établissement */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Couleur Principale d'Établissement (Brand Color)
-          </label>
-          <div className="flex flex-wrap items-center gap-3">
-            {[
-              { label: 'Orange UniSphere', color: '#FF6B00' },
-              { label: 'Bleu Royal', color: '#2563EB' },
-              { label: 'Vert Émeraude', color: '#059669' },
-              { label: 'Violet Majestueux', color: '#7C3AED' },
-              { label: 'Rouge Cramoisi', color: '#DC2626' },
-              { label: 'Sombre Élégant', color: '#1E293B' },
-            ].map((preset) => (
-              <button
-                type="button"
-                key={preset.color}
-                onClick={() => {
-                  handleChange('primary_color', preset.color);
-                  updateSetting('customPrimaryColor', preset.color);
-                }}
-                className={`w-9 h-9 rounded-full border-2 transition-all flex items-center justify-center ${
-                  formData.primary_color === preset.color
-                    ? 'border-black scale-110 shadow-md'
-                    : 'border-transparent hover:scale-105'
-                }`}
-                style={{ backgroundColor: preset.color }}
-                title={preset.label}
-              >
-                {formData.primary_color === preset.color && <CheckCircle size={14} className="text-white drop-shadow" />}
-              </button>
-            ))}
-
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-xs text-slate-500">Sélecteur HEX :</span>
-              <input
-                type="color"
-                value={formData.primary_color}
-                onChange={(e) => {
-                  handleChange('primary_color', e.target.value);
-                  updateSetting('customPrimaryColor', e.target.value);
-                }}
-                className="w-9 h-9 p-0.5 rounded-lg border border-slate-300 cursor-pointer"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Langue de l'université */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Langue par défaut de l'interface
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {[
-              { id: 'fr', flag: '🇫🇷', name: 'Français' },
-              { id: 'en', flag: '🇬🇧', name: 'English' },
-              { id: 'ar', flag: '🇸🇦', name: 'العربية' },
-              { id: 'bm', flag: '🇲🇱', name: 'Bamanankan' },
-            ].map((lang) => (
-              <button
-                type="button"
-                key={lang.id}
-                onClick={() => {
-                  handleChange('language', lang.id);
-                  updateSetting('language', lang.id as any);
-                }}
-                className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all ${
-                  formData.language === lang.id
-                    ? 'border-[#FF6B00] bg-orange-50'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <span className="text-2xl">{lang.flag}</span>
-                <span className="text-sm font-medium">{lang.name}</span>
-                {formData.language === lang.id && <CheckCircle size={14} className="text-[#FF6B00] ml-auto" />}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Bouton sauvegarder */}
-      <div className="flex justify-end sticky bottom-6 z-20">
-        <button onClick={handleSave} disabled={saving || !hasChanges} className="flex items-center gap-2 px-8 py-4 bg-[#FF6B00] text-white rounded-xl text-sm font-semibold hover:bg-[#e55f00] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-          <Save size={18} /> {saving ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
-        </button>
-      </div>
+        </>
+      )}
     </div>
   );
 }

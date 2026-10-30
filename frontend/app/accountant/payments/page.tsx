@@ -155,19 +155,19 @@ export default function PaymentsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-              <DollarSign size={24} className="text-white" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30 shrink-0">
+              <DollarSign size={22} className="text-white" />
             </div>
             Gestion des Paiements
           </h1>
-          <p className="text-slate-500 mt-1">Suivez les paiements des étudiants par tranches</p>
+          <p className="text-slate-500 text-xs sm:text-sm mt-1">Suivez les paiements des étudiants par tranches</p>
         </div>
         <Link
           href="/accountant/payments/create"
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-[#e55f00] hover:to-orange-600 text-white rounded-xl text-sm font-medium transition-all shadow-md"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-[#e55f00] hover:to-orange-600 text-white rounded-xl text-sm font-medium transition-all shadow-md self-start sm:self-auto"
         >
           <Plus size={16} />
           Nouveau paiement
@@ -175,47 +175,47 @@ export default function PaymentsPage() {
       </div>
 
       {/* Stats globales */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between mb-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-              <DollarSign size={24} className="text-blue-600" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between mb-2 sm:mb-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+              <DollarSign size={22} className="text-blue-600" />
             </div>
           </div>
           <p className="text-xs text-slate-500 mb-1">Total dû</p>
-          <p className="text-xl font-bold text-slate-900">{formatFCFA(stats.total_due)}</p>
+          <p className="text-lg sm:text-xl font-bold text-slate-900 truncate" title={formatFCFA(stats.total_due)}>{formatFCFA(stats.total_due)}</p>
           <p className="text-xs text-slate-400 mt-1">{stats.students_count} étudiants</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-green-200 p-5 hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between mb-3">
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-              <CheckCircle size={24} className="text-green-600" />
+        <div className="bg-white rounded-xl border border-green-200 p-4 sm:p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between mb-2 sm:mb-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center">
+              <CheckCircle size={22} className="text-green-600" />
             </div>
             <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
               {stats.total_due > 0 ? Math.round((stats.total_paid / stats.total_due) * 100) : 0}%
             </span>
           </div>
           <p className="text-xs text-slate-500 mb-1">Total payé</p>
-          <p className="text-xl font-bold text-green-700">{formatFCFA(stats.total_paid)}</p>
+          <p className="text-lg sm:text-xl font-bold text-green-700 truncate" title={formatFCFA(stats.total_paid)}>{formatFCFA(stats.total_paid)}</p>
           <p className="text-xs text-slate-400 mt-1">{stats.paid_students} payés</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-orange-200 p-5 hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between mb-3">
-            <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-              <TrendingUp size={24} className="text-orange-600" />
+        <div className="bg-white rounded-xl border border-orange-200 p-4 sm:p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between mb-2 sm:mb-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+              <TrendingUp size={22} className="text-orange-600" />
             </div>
           </div>
           <p className="text-xs text-slate-500 mb-1">Reste à payer</p>
-          <p className="text-xl font-bold text-orange-700">{formatFCFA(stats.total_remaining)}</p>
+          <p className="text-lg sm:text-xl font-bold text-orange-700 truncate" title={formatFCFA(stats.total_remaining)}>{formatFCFA(stats.total_remaining)}</p>
           <p className="text-xs text-slate-400 mt-1">À recouvrer</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-red-200 p-5 hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between mb-3">
-            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-              <AlertCircle size={24} className="text-red-600" />
+        <div className="bg-white rounded-xl border border-red-200 p-4 sm:p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between mb-2 sm:mb-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-xl flex items-center justify-center">
+              <AlertCircle size={22} className="text-red-600" />
             </div>
             {stats.late_students > 0 && (
               <span className="text-xs font-semibold text-red-700 bg-red-100 px-2 py-0.5 rounded-full animate-pulse">
@@ -299,15 +299,15 @@ export default function PaymentsPage() {
             const lockedTranches = uniqueTranches.filter((t: any) => t.status === 'locked');
 
             return (
-              <div key={student.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-4 flex-1">
-                    <div className="w-14 h-14 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+              <div key={student.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow">
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start gap-4 flex-1 w-full">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0">
                       {(student.first_name?.[0] || '') + (student.last_name?.[0] || '')}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-bold text-slate-900">
+                    <div className="flex-1 w-full">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900">
                           {student.first_name} {student.last_name}
                         </h3>
                         {getStatusBadge(summary.status, summary.paid_percentage)}
@@ -317,11 +317,11 @@ export default function PaymentsPage() {
                       </p>
 
                       {/* Récapitulatif */}
-                      <div className="bg-slate-50 rounded-xl p-4 mb-3">
+                      <div className="bg-slate-50 rounded-xl p-3 sm:p-4 mb-3">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-semibold text-slate-700">📊 RÉCAPITULATIF</span>
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                           <div>
                             <p className="text-xs text-slate-500">Montant total dû</p>
                             <p className="text-base font-bold text-slate-900">{formatFCFA(summary.total_amount)}</p>
@@ -396,17 +396,17 @@ export default function PaymentsPage() {
                     </div>
                   </div>
                   
-                  <div className="flex flex-col gap-2 flex-shrink-0">
+                  <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                     <Link
                       href={`/accountant/payments/student/${student.id}`}
-                      className="px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-colors"
+                      className="flex-1 sm:flex-initial px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors"
                     >
                       <DollarSign size={14} />
                       Payer
                     </Link>
                     <Link
                       href={`/accountant/payments/student/${student.id}`}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors"
+                      className="flex-1 sm:flex-initial px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors"
                     >
                       <Eye size={14} />
                       Voir

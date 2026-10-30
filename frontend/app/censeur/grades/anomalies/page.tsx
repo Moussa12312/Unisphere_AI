@@ -41,12 +41,27 @@ export default function CenseurAnomaliesPage() {
   };
 
   const handleValidate = async (gradeId: number) => {
+    // Mise à jour optimiste immédiate
+    const target = anomalies.find(a => a.id === gradeId);
+    setAnomalies(prev => prev.filter(a => a.id !== gradeId));
+    if (target) {
+      setStats((prev: any) => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1),
+        [target.severity]: Math.max(0, (prev[target.severity] || 1) - 1)
+      }));
+    }
+
     try {
       await api.put(`/api/v1/grades/${gradeId}/validate`);
-      toast.success('Note validée malgré l\'anomalie');
-      loadAnomalies();
+      toast.success('Note validée avec succès');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('unisphere:data_changed'));
+      }
+      await loadAnomalies();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erreur');
+      toast.error(error.response?.data?.detail || 'Erreur lors de la validation');
+      loadAnomalies();
     }
   };
 
@@ -54,14 +69,29 @@ export default function CenseurAnomaliesPage() {
     const reason = prompt('Raison du rejet :');
     if (reason === null) return;
     
+    // Mise à jour optimiste immédiate
+    const target = anomalies.find(a => a.id === gradeId);
+    setAnomalies(prev => prev.filter(a => a.id !== gradeId));
+    if (target) {
+      setStats((prev: any) => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1),
+        [target.severity]: Math.max(0, (prev[target.severity] || 1) - 1)
+      }));
+    }
+
     try {
-      await api.put(`/api/v1/grades/${gradeId}/reject`, null, {
+      await api.put(`/api/v1/grades/${gradeId}/reject`, { reason }, {
         params: { reason }
       });
       toast.success('Note rejetée');
-      loadAnomalies();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('unisphere:data_changed'));
+      }
+      await loadAnomalies();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erreur');
+      toast.error(error.response?.data?.detail || 'Erreur lors du rejet');
+      loadAnomalies();
     }
   };
 

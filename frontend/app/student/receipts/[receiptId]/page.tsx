@@ -60,7 +60,7 @@ export default function StudentReceiptDetailPage() {
   }
 
   return (
-    <div className="p-6 print:p-0 print:m-0">
+    <div className="p-4 sm:p-6 print:p-0 print:m-0">
       <ReceiptTemplate 
         receipt={receiptData} 
         showBackButton={true} 

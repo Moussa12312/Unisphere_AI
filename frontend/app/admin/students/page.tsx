@@ -71,7 +71,7 @@ export default function StudentsPage() {
   const handleDelete = async (id: number, name: string) => {
     const ok = await confirm({
       title: 'Supprimer cet étudiant ?',
-      message: `Voulez-vous vraiment supprimer ${name} ?`,
+      message: `Voulez-vous vraiment supprimer ${name} ? Cette action supprimera définitivement le dossier et toutes les données associées.`,
       confirmText: 'Supprimer',
       cancelText: 'Annuler',
       variant: 'danger',
@@ -81,10 +81,11 @@ export default function StudentsPage() {
     if (ok) {
       try {
         await studentService.delete(id);
-        toast.success('Étudiant supprimé');
-        loadStudents();
-      } catch (error) {
-        toast.error('Erreur lors de la suppression');
+        toast.success('Étudiant supprimé avec succès');
+        setStudents(prev => prev.filter(s => s.id !== id));
+      } catch (error: any) {
+        console.error('Erreur suppression étudiant:', error);
+        toast.error(error?.response?.data?.detail || 'Erreur lors de la suppression');
       }
     }
   };
@@ -147,33 +148,33 @@ export default function StudentsPage() {
   return (
     <div className="space-y-6">
 
-      {/* Search */}
-      <div  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+      {/* Search & Actions Responsives */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+        <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
             type="text"
             placeholder="Rechercher par nom, matricule, filière ou domaine..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-auto pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white shadow-sm"
           />
         </div>
       
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
           <Link
             href="/admin/students/bulk"
-            className="bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors"
+            className="bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
           >
             <UploadCloud size={16} />
-            Inscription en masse
+            <span>Inscription en masse</span>
           </Link>
           <Link
             href="/admin/students/create"
-            className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+            className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all"
           >
             <Plus size={16} />
-            Ajouter un étudiant
+            <span>Ajouter un étudiant</span>
           </Link>
         </div>
       </div>
@@ -192,22 +193,22 @@ export default function StudentsPage() {
             );
             
             return (
-              <div key={domain} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div key={domain} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                 {/* ✅ DOMAINE (ex: "Gestion & Communication") */}
                 <button 
                   onClick={() => toggleDomain(domain)}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 flex items-center justify-between border-b border-slate-200"
+                  className="w-full px-4 sm:px-6 py-3.5 sm:py-4 bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 flex items-center justify-between border-b border-slate-200 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <span className="text-purple-600 font-bold text-sm">{getAbbreviation(domain)}</span>
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-purple-600 font-bold text-xs sm:text-sm">{getAbbreviation(domain)}</span>
                     </div>
-                    <div className="text-left">
-                      <h3 className="font-semibold text-slate-900">{domain}</h3>
-                      <p className="text-xs text-slate-500">{domainStudents.length} étudiant{domainStudents.length > 1 ? 's' : ''}</p>
+                    <div className="text-left min-w-0">
+                      <h3 className="font-semibold text-slate-900 text-xs sm:text-base truncate">{domain}</h3>
+                      <p className="text-[11px] sm:text-xs text-slate-500">{domainStudents.length} étudiant{domainStudents.length > 1 ? 's' : ''}</p>
                     </div>
                   </div>
-                  {isDomainExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                  {isDomainExpanded ? <ChevronDown size={18} className="flex-shrink-0 text-slate-500" /> : <ChevronRight size={18} className="flex-shrink-0 text-slate-500" />}
                 </button>
 
                 {/* ✅ FILIÈRES (ex: "Marketing Communication") */}
@@ -222,16 +223,16 @@ export default function StudentsPage() {
                         <div key={filiereKey}>
                           <button 
                             onClick={() => toggleFiliere(filiereKey)}
-                            className="w-full px-6 py-3 pl-20 bg-blue-50/50 hover:bg-blue-50 flex items-center justify-between"
+                            className="w-full px-4 sm:px-6 py-2.5 sm:py-3 pl-8 sm:pl-20 bg-blue-50/50 hover:bg-blue-50 flex items-center justify-between transition-colors"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <span className="text-blue-600 font-bold text-xs">{getAbbreviation(filiere)}</span>
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <span className="text-blue-600 font-bold text-[10px] sm:text-xs">{getAbbreviation(filiere)}</span>
                               </div>
-                              <span className="font-medium text-slate-900">{filiere}</span>
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{filiereStudents.length}</span>
+                              <span className="font-medium text-slate-900 text-xs sm:text-sm truncate">{filiere}</span>
+                              <span className="text-[10px] sm:text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex-shrink-0">{filiereStudents.length}</span>
                             </div>
-                            {isFiliereExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            {isFiliereExpanded ? <ChevronDown size={16} className="flex-shrink-0 text-slate-400" /> : <ChevronRight size={16} className="flex-shrink-0 text-slate-400" />}
                           </button>
 
                           {/* ✅ NIVEAUX (ex: "L2") */}
@@ -248,23 +249,23 @@ export default function StudentsPage() {
                                   <div key={levelKey}>
                                     <button 
                                       onClick={() => toggleLevel(levelKey)}
-                                      className="w-full px-6 py-2 pl-28 bg-orange-50/30 hover:bg-orange-50 flex items-center justify-between"
+                                      className="w-full px-4 sm:px-6 py-2 pl-12 sm:pl-28 bg-orange-50/30 hover:bg-orange-50 flex items-center justify-between transition-colors"
                                     >
                                       <div className="flex items-center gap-2">
-                                        <span className="font-medium text-slate-700 text-sm">{level}</span>
-                                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{levelStudents.length}</span>
+                                        <span className="font-medium text-slate-700 text-xs sm:text-sm">{level}</span>
+                                        <span className="text-[10px] sm:text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{levelStudents.length}</span>
                                       </div>
-                                      {isLevelExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                      {isLevelExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
                                     </button>
 
                                     {/* ✅ ÉTUDIANTS */}
                                     {isLevelExpanded && (
-                                      <div className="bg-white">
+                                      <div className="bg-white overflow-x-auto">
                                         <table className="min-w-full">
                                           <tbody className="divide-y divide-slate-100">
                                             {levelStudents.map((student: Student) => (
-                                              <tr key={student.id} className="hover:bg-slate-50">
-                                                <td className="px-6 py-3 pl-36">
+                                              <tr key={student.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-3 sm:px-6 py-2.5 sm:py-3 pl-6 sm:pl-36">
                                                   <div className="flex items-center gap-3">
                                                     <img
                                                       src={getMediaUrl(student.photo, `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=64`)}
@@ -282,15 +283,20 @@ export default function StudentsPage() {
                                                 </td>
                                                 <td className="px-6 py-3 text-right">
                                                   <div className="flex items-center justify-end gap-1">
-                                                    <Link href={`/admin/students/${student.id}`} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                                                    <Link href={`/admin/students/${student.id}`} title="Voir la fiche détaillée" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                                                       <Eye size={14} />
                                                     </Link>
-                                                    <Link href={`/admin/students/${student.id}/edit`} className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg">
+                                                    <Link href={`/admin/students/${student.id}/edit`} title="Modifier l'étudiant" className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
                                                       <Pencil size={14} />
                                                     </Link>
                                                     <button 
-                                                      onClick={() => handleDelete(student.id, `${student.first_name} ${student.last_name}`)}
-                                                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                                      type="button"
+                                                      title="Supprimer l'étudiant"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDelete(student.id, `${student.first_name} ${student.last_name}`);
+                                                      }}
+                                                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                     >
                                                       <Trash2 size={14} />
                                                     </button>

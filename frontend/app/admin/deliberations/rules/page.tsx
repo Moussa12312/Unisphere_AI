@@ -204,18 +204,32 @@ export default function DeliberationRulesPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Moyenne minimale (admission directe)</label>
-                <input type="number" step="0.5" value={formData.min_average} onChange={(e) => setFormData({ ...formData, min_average: parseFloat(e.target.value) })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]" />
+                <input 
+                  type="number" 
+                  step="0.5" 
+                  value={Number.isNaN(formData.min_average) ? '' : formData.min_average ?? ''} 
+                  onChange={(e) => setFormData({ ...formData, min_average: e.target.value === '' ? ('' as any) : parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]" 
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Moyenne minimale (rattrapage)</label>
-                <input type="number" step="0.5" value={formData.catchup_min_average} onChange={(e) => setFormData({ ...formData, catchup_min_average: parseFloat(e.target.value) })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]" />
+                <input 
+                  type="number" 
+                  step="0.5" 
+                  value={Number.isNaN(formData.catchup_min_average) ? '' : formData.catchup_min_average ?? ''} 
+                  onChange={(e) => setFormData({ ...formData, catchup_min_average: e.target.value === '' ? ('' as any) : parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]" 
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Nombre max. de modules en échec (rattrapage)</label>
-                <input type="number" value={formData.max_failed_courses} onChange={(e) => setFormData({ ...formData, max_failed_courses: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]" />
+                <input 
+                  type="number" 
+                  value={Number.isNaN(formData.max_failed_courses) ? '' : formData.max_failed_courses ?? ''} 
+                  onChange={(e) => setFormData({ ...formData, max_failed_courses: e.target.value === '' ? ('' as any) : parseInt(e.target.value, 10) || 0 })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]" 
+                />
               </div>
             </div>
             <div className="flex gap-3 mt-5">

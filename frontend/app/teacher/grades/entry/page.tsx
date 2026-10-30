@@ -264,7 +264,7 @@ export default function TeacherGradesEntryPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
             <Edit3 size={24} className="text-white" />
           </div>
@@ -420,7 +420,7 @@ export default function TeacherGradesEntryPage() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="min-w-[640px] w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">N°</th>

@@ -182,7 +182,7 @@ export default function StudentPaymentsPage() {
           }
         }
         return (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -196,7 +196,7 @@ export default function StudentPaymentsPage() {
           </div>
 
           <div className="overflow-x-auto border border-slate-200 rounded-xl">
-            <table className="w-full text-left text-sm">
+            <table className="min-w-[640px] w-full text-left text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase tracking-wider">
                 <tr>
                   <th className="px-5 py-3.5">Échéance</th>
@@ -310,31 +310,31 @@ export default function StudentPaymentsPage() {
             {/* Vue Tablette & Desktop (Tableau élégant) */}
             <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="min-w-[640px] w-full text-left text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-xs uppercase tracking-wider">
                     <tr>
-                      <th className="px-6 py-4">Date</th>
-                      <th className="px-6 py-4">Désignation</th>
-                      <th className="px-6 py-4">Montant</th>
-                      <th className="px-6 py-4">Mode de règlement</th>
-                      <th className="px-6 py-4">Statut</th>
+                      <th className="px-4 sm:px-6 py-4">Date</th>
+                      <th className="px-4 sm:px-6 py-4">Désignation</th>
+                      <th className="px-4 sm:px-6 py-4">Montant</th>
+                      <th className="px-4 sm:px-6 py-4">Mode de règlement</th>
+                      <th className="px-4 sm:px-6 py-4">Statut</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {payments.map((payment) => (
                       <tr key={payment.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-6 py-4 text-slate-900 font-medium whitespace-nowrap">{payment.payment_date}</td>
-                        <td className="px-6 py-4 text-slate-800">{payment.description}</td>
-                        <td className="px-6 py-4 font-bold text-emerald-700 whitespace-nowrap">
+                        <td className="px-4 sm:px-6 py-4 text-slate-900 font-medium whitespace-nowrap">{payment.payment_date}</td>
+                        <td className="px-4 sm:px-6 py-4 text-slate-800">{payment.description}</td>
+                        <td className="px-4 sm:px-6 py-4 font-bold text-emerald-700 whitespace-nowrap">
                           {payment.amount.toLocaleString('fr-FR')} FCFA
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium">
                             <CreditCard size={13} />
                             {payment.payment_method}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-semibold border border-emerald-200">
                             <DollarSign size={12} />
                             Validé

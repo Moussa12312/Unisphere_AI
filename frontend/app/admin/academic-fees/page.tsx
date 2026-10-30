@@ -246,7 +246,7 @@ export default function AdminAcademicFeesPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 bg-white rounded-xl p-1 shadow-sm gap-1">
+      <div className="flex flex-col sm:flex-row border-b border-slate-200 bg-white rounded-xl p-1 shadow-sm gap-1">
         <button
           onClick={() => setActiveTab('fees')}
           className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
@@ -404,48 +404,50 @@ export default function AdminAcademicFeesPage() {
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600">
-                      <tr>
-                        <th className="py-3 px-4">Niveau</th>
-                        <th className="py-3 px-4">N° Tranche</th>
-                        <th className="py-3 px-4">Libellé Officiel</th>
-                        <th className="py-3 px-4">Quote-Part (%)</th>
-                        <th className="py-3 px-4">Montant Exigible</th>
-                        <th className="py-3 px-4">Date Limite de Paiement</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {tranches.map((tr) => (
-                        <tr key={tr.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-3 px-4 font-bold text-slate-900">{tr.level}</td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 font-semibold rounded-full text-[10px]">
-                              Tranche {tr.tranche_number}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 font-medium text-slate-800">{tr.tranche_name}</td>
-                          <td className="py-3 px-4 font-mono font-bold text-[#FF6B00]">{tr.percentage}%</td>
-                          <td className="py-3 px-4 font-mono text-slate-700">
-                            {tr.amount ? `${Number(tr.amount).toLocaleString('fr-FR')} FCFA` : '-'}
-                          </td>
-                          <td className="py-3 px-4 text-slate-600">
-                            {tr.due_date ? new Date(tr.due_date).toLocaleDateString('fr-FR') : 'Non définie'}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <button
-                              onClick={() => handleDeleteTranche(tr.id)}
-                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Supprimer"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600 whitespace-nowrap">
+                        <tr>
+                          <th className="py-3 px-4">Niveau</th>
+                          <th className="py-3 px-4">N° Tranche</th>
+                          <th className="py-3 px-4">Libellé Officiel</th>
+                          <th className="py-3 px-4">Quote-Part (%)</th>
+                          <th className="py-3 px-4">Montant Exigible</th>
+                          <th className="py-3 px-4">Date Limite de Paiement</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 whitespace-nowrap">
+                        {tranches.map((tr) => (
+                          <tr key={tr.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-3 px-4 font-bold text-slate-900">{tr.level}</td>
+                            <td className="py-3 px-4">
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 font-semibold rounded-full text-[10px]">
+                                Tranche {tr.tranche_number}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 font-medium text-slate-800">{tr.tranche_name}</td>
+                            <td className="py-3 px-4 font-mono font-bold text-[#FF6B00]">{tr.percentage}%</td>
+                            <td className="py-3 px-4 font-mono text-slate-700">
+                              {tr.amount ? `${Number(tr.amount).toLocaleString('fr-FR')} FCFA` : '-'}
+                            </td>
+                            <td className="py-3 px-4 text-slate-600">
+                              {tr.due_date ? new Date(tr.due_date).toLocaleDateString('fr-FR') : 'Non définie'}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <button
+                                onClick={() => handleDeleteTranche(tr.id)}
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>

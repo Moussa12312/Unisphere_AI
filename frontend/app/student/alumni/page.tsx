@@ -41,21 +41,40 @@ export default function StudentAlumniPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedPromotion, setSelectedPromotion] = useState<string>('');
+  const [studentProfile, setStudentProfile] = useState<any>(null);
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'domain' | 'filiere'>('domain');
   const [requestingId, setRequestingId] = useState<number | null>(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedAlumni, setSelectedAlumni] = useState<Alumni | null>(null);
   const [requestType, setRequestType] = useState('mentor');
   const [requestMessage, setRequestMessage] = useState('');
 
+  // Charger profil étudiant
+  useEffect(() => {
+    api.get('/api/v1/students/me').then((res) => {
+      setStudentProfile(res.data);
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     loadData();
-  }, [selectedPromotion]);
+  }, [selectedPromotion, scopeFilter, studentProfile]);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      const params = new URLSearchParams();
+      if (selectedPromotion) params.append('promotion', selectedPromotion);
+
+      if (scopeFilter === 'domain' && studentProfile) {
+        const dom = studentProfile.domain || (studentProfile.filiere ? studentProfile.filiere.split(' ')[0] : '');
+        if (dom) params.append('domain', dom);
+      } else if (scopeFilter === 'filiere' && studentProfile?.filiere) {
+        params.append('filiere', studentProfile.filiere);
+      }
+
       const [alumniRes, promoRes] = await Promise.all([
-        api.get(`/api/v1/alumni/community${selectedPromotion ? `?promotion=${selectedPromotion}` : ''}`),
+        api.get(`/api/v1/alumni/community?${params.toString()}`),
         api.get('/api/v1/alumni/promotions')
       ]);
       setAlumniList(alumniRes.data || []);
@@ -73,6 +92,13 @@ export default function StudentAlumniPage() {
       const params = new URLSearchParams();
       if (selectedPromotion) params.append('promotion', selectedPromotion);
       if (search) params.append('search', search);
+
+      if (scopeFilter === 'domain' && studentProfile) {
+        const dom = studentProfile.domain || (studentProfile.filiere ? studentProfile.filiere.split(' ')[0] : '');
+        if (dom) params.append('domain', dom);
+      } else if (scopeFilter === 'filiere' && studentProfile?.filiere) {
+        params.append('filiere', studentProfile.filiere);
+      }
       
       const res = await api.get(`/api/v1/alumni/community?${params.toString()}`);
       setAlumniList(res.data || []);
@@ -119,9 +145,9 @@ export default function StudentAlumniPage() {
   }, {});
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl p-8 text-white">
+      <div className="bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl p-5 sm:p-8 text-white">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
             <Award size={24} />
@@ -161,8 +187,43 @@ export default function StudentAlumniPage() {
         </div>
       </div>
 
-      {/* Filtres */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4">
+      {/* Filtres & Portée */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
+        {/* Onglets de portée (Tous, Domaine, Filière) */}
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-3 flex-wrap">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-2">Périmètre :</span>
+          <button
+            onClick={() => setScopeFilter('domain')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+              scopeFilter === 'domain'
+                ? 'bg-orange-500 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            🎓 Mon Domaine d'études {studentProfile?.domain ? `(${studentProfile.domain})` : ''}
+          </button>
+          <button
+            onClick={() => setScopeFilter('all')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+              scopeFilter === 'all'
+                ? 'bg-orange-500 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            🌐 Tous les Alumni
+          </button>
+          <button
+            onClick={() => setScopeFilter('filiere')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+              scopeFilter === 'filiere'
+                ? 'bg-orange-500 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            🎯 Ma Filière uniquement
+          </button>
+        </div>
+
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -189,7 +250,7 @@ export default function StudentAlumniPage() {
           </select>
           <button
             onClick={handleSearch}
-            className="px-6 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-medium"
+            className="px-4 sm:px-6 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-medium"
           >
             Rechercher
           </button>
@@ -214,7 +275,7 @@ export default function StudentAlumniPage() {
       {/* Listes groupées par promotion */}
       {!loading && Object.entries(groupedByPromotion).map(([promotion, alumni]) => (
         <div key={promotion} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-4 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-4 sm:px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-[#FF6B00] rounded-lg flex items-center justify-center">
                 <GraduationCap size={20} className="text-white" />
@@ -344,7 +405,7 @@ export default function StudentAlumniPage() {
       {/* Modal demande mentorat */}
       {showRequestModal && selectedAlumni && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+          <div className="max-h-[90vh] overflow-y-auto bg-white rounded-2xl max-w-md w-full p-4 sm:p-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4">
               Demander {selectedAlumni.first_name} comme...
             </h2>

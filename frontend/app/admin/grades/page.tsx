@@ -11,6 +11,8 @@ import { courseService, Course } from '@/services/courseService';
 import { classService, ClassRoom } from '@/services/classService';
 import { gradeService, GradeEntry, GradeStats } from '@/services/gradeService';
 import { useToast } from '@/components/ToastProvider';
+import api from '@/lib/api';
+import { exportToExcel } from '@/lib/exportExcel';
 
 export default function AdminGradesPage() {
   const toast = useToast();
@@ -20,6 +22,8 @@ export default function AdminGradesPage() {
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
+  const [togglingLock, setTogglingLock] = useState(false);
   
   // Sélections
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
@@ -43,15 +47,17 @@ export default function AdminGradesPage() {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [sessionsData, classesData, coursesData] = await Promise.all([
+      const [sessionsData, classesData, coursesData, lockRes] = await Promise.all([
         examSessionService.getAll(),
         classService.getAll(),
-        courseService.getAll()
+        courseService.getAll(),
+        api.get('/api/v1/grades/lock-status').catch(() => ({ data: { is_locked: false } }))
       ]);
       
       setSessions(sessionsData);
       setClasses(classesData);
       setCourses(coursesData);
+      setIsLocked(!!lockRes?.data?.is_locked);
       
       // Auto-sélectionner la session la plus récente
       if (sessionsData.length > 0) {
@@ -148,35 +154,40 @@ export default function AdminGradesPage() {
     return { label: 'Très Bien', color: 'text-green-600' };
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
-    if (!selectedSessionId || !selectedCourseId || grades.length === 0) return;
+  const handleToggleLock = async () => {
+    setTogglingLock(true);
+    try {
+      const res = await api.post('/api/v1/grades/toggle-lock');
+      setIsLocked(res.data.is_locked);
+      toast.success(res.data.message);
+    } catch (err: any) {
+      toast.error('Erreur lors de la modification du verrouillage');
+    } finally {
+      setTogglingLock(false);
+    }
+  };
+
+  // Export Excel (.xlsx)
+  const handleExportExcel = () => {
+    if (!selectedSessionId || !selectedCourseId || grades.length === 0) {
+      toast.error('Aucune note à exporter');
+      return;
+    }
     
-    const headers = ['Matricule', 'Nom', 'Note /20', 'Mention', 'Statut', 'Commentaire'];
     const rows = filteredGrades.map(g => {
       const mention = getMention(g.score);
-      return [
-        g.matricule,
-        g.student_name,
-        g.score !== null ? g.score : '',
-        mention.label,
-        g.status,
-        g.comment || ''
-      ];
+      return {
+        "Matricule": g.matricule,
+        "Nom": g.student_name,
+        "Note /20": g.score !== null ? g.score : 'N/A',
+        "Mention": mention.label,
+        "Statut": g.status === 'validated' ? 'Validé' : g.status === 'draft' ? 'Brouillon' : 'Rejeté',
+        "Commentaire": g.comment || ''
+      };
     });
     
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `notes_${selectedSession?.name || 'export'}_${selectedCourse?.title || 'cours'}.csv`;
-    link.click();
-    
-    toast.success('Export CSV généré');
+    exportToExcel(rows, `Notes_${selectedSession?.name || 'export'}_${selectedCourse?.title || 'cours'}`);
+    toast.success('Export Excel (.xlsx) généré avec succès');
   };
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
@@ -194,7 +205,7 @@ export default function AdminGradesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
@@ -202,18 +213,42 @@ export default function AdminGradesPage() {
             </div>
             Consultation des notes
           </h1>
-          <p className="text-slate-500 mt-1">Visualisez les notes des étudiants par session</p>
+          <p className="text-slate-500 mt-1">Visualisez les notes des étudiants par session et gérez la clôture</p>
         </div>
         
-        {selectedSessionId && selectedCourseId && (
+        <div className="flex items-center gap-3 flex-wrap">
           <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium transition-all shadow-md"
+            onClick={handleToggleLock}
+            disabled={togglingLock}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm ${
+              isLocked
+                ? 'bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            }`}
           >
-            <Download size={16} />
-            Exporter CSV
+            {isLocked ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
+                🔒 Saisie clôturée (Rouvrir la saisie)
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-200"></span>
+                🔓 Saisie ouverte (Fermer la saisie)
+              </>
+            )}
           </button>
-        )}
+
+          {selectedSessionId && selectedCourseId && (
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-sm font-semibold transition-all shadow-sm"
+            >
+              <Download size={16} />
+              Exporter Excel (.xlsx)
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Sélecteurs */}

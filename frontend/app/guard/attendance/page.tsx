@@ -145,7 +145,7 @@ export default function GuardAttendancePage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/30">
               <Users size={24} className="text-white" />
             </div>
@@ -217,28 +217,28 @@ export default function GuardAttendancePage() {
       )}
 
       {/* Filtres */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <div className="md:col-span-2 relative">
+      <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="sm:col-span-2 relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="🔍 Rechercher par nom ou matricule..."
+              placeholder="Rechercher par nom ou matricule..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
             />
           </div>
           <input
             type="date"
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
-            className="px-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+            className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
           />
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+            className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
           >
             <option value="">Tous les statuts</option>
             <option value="present">✅ Présents</option>
@@ -248,92 +248,138 @@ export default function GuardAttendancePage() {
           </select>
           <button
             onClick={exportToCSV}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-medium shadow-sm"
           >
             <Download size={16} />
             Export CSV
           </button>
         </div>
         {filteredAttendance.length !== attendance.length && (
-          <p className="text-xs text-slate-500 mt-3">
+          <p className="text-xs text-slate-500 mt-2.5">
             {filteredAttendance.length} résultat{filteredAttendance.length > 1 ? 's' : ''} sur {attendance.length}
           </p>
         )}
       </div>
 
-      {/* Tableau */}
+      {/* Tableau et vue mobile */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         {filteredAttendance.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="text-center py-16 px-4">
             <Users size={48} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">Aucune présence trouvée</p>
+            <p className="text-slate-500 font-medium">Aucune présence trouvée</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Étudiant</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Matricule</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Niveau</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Statut</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Heure</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Salle</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredAttendance.map((record, idx) => {
-                  const statusConfig = getStatusConfig(record.status);
-                  const StatusIcon = statusConfig.icon;
-                  return (
-                    <tr key={record.id || idx} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-[#FF6B00]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-[#FF6B00] font-bold text-sm">
-                              {record.student_name?.charAt(0) || '?'}
-                            </span>
-                          </div>
-                          <p className="font-semibold text-slate-900 text-sm">
+          <>
+            {/* Vue Mobile (Cards) */}
+            <div className="block sm:hidden divide-y divide-slate-100">
+              {filteredAttendance.map((record, idx) => {
+                const statusConfig = getStatusConfig(record.status);
+                const StatusIcon = statusConfig.icon;
+                return (
+                  <div key={record.id || idx} className="p-3.5 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 bg-[#FF6B00]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <span className="text-[#FF6B00] font-bold text-sm">
+                            {record.student_name?.charAt(0) || '?'}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 text-sm truncate">
                             {record.student_name}
                           </p>
+                          <span className="font-mono text-[11px] text-slate-500">{record.matricule}</span>
                         </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-mono text-xs text-slate-600">{record.matricule}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded">
-                          {record.level}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${statusConfig.color}`}>
-                          <StatusIcon size={12} className={statusConfig.iconColor} />
-                          {statusConfig.label}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="text-sm text-slate-600 font-medium">
-                          {formatTime(record.scan_time)}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        {record.room ? (
-                          <div className="flex items-center gap-1 text-sm text-slate-600">
-                            <MapPin size={12} className="text-green-600" />
+                      </div>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full border ${statusConfig.color}`}>
+                        <StatusIcon size={11} className={statusConfig.iconColor} />
+                        {statusConfig.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-slate-500 pt-1.5 border-t border-slate-50">
+                      <div className="flex items-center gap-2">
+                        {record.level && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 font-medium rounded">{record.level}</span>}
+                        {record.room && (
+                          <span className="flex items-center gap-1 text-slate-600">
+                            <MapPin size={11} className="text-green-600" />
                             {record.room}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">-</span>
+                          </span>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <span className="font-mono font-medium text-slate-700">{formatTime(record.scan_time)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Vue Desktop (Tableau) */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="min-w-[640px] w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Étudiant</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Matricule</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Niveau</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Statut</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Heure</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">Salle</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredAttendance.map((record, idx) => {
+                    const statusConfig = getStatusConfig(record.status);
+                    const StatusIcon = statusConfig.icon;
+                    return (
+                      <tr key={record.id || idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-[#FF6B00]/10 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-[#FF6B00] font-bold text-sm">
+                                {record.student_name?.charAt(0) || '?'}
+                              </span>
+                            </div>
+                            <p className="font-semibold text-slate-900 text-sm">
+                              {record.student_name}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-mono text-xs text-slate-600">{record.matricule}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded">
+                            {record.level}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${statusConfig.color}`}>
+                            <StatusIcon size={12} className={statusConfig.iconColor} />
+                            {statusConfig.label}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-sm text-slate-600 font-medium">
+                            {formatTime(record.scan_time)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          {record.room ? (
+                            <div className="flex items-center gap-1 text-sm text-slate-600">
+                              <MapPin size={12} className="text-green-600" />
+                              {record.room}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

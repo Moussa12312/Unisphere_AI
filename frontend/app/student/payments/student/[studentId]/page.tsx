@@ -166,7 +166,7 @@ export default function StudentPaymentDetailPage() {
       </div>
 
       {/* Tableau de bord financier */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
         <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
           <TrendingUp size={20} className="text-[#FF6B00]" />
           Tableau de bord financier
@@ -219,14 +219,14 @@ export default function StudentPaymentDetailPage() {
 
       {/* Historique des tranches */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200">
+        <div className="p-4 sm:p-6 border-b border-slate-200">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Calendar size={20} className="text-[#FF6B00]" />
             Historique des tranches
           </h2>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4">
           {/* Tranches payées */}
           {paidTranches.map((tranche: any, idx: number) => (
             <div key={idx} className="bg-green-50 border-2 border-green-200 rounded-xl p-5">
@@ -363,7 +363,7 @@ export default function StudentPaymentDetailPage() {
       </div>
 
       {/* Documents */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
         <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
           <FileText size={20} className="text-[#FF6B00]" />
           Documents

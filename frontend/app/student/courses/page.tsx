@@ -97,7 +97,7 @@ export default function StudentCoursesPage() {
   if (loading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin text-[#FF6B00]" size={32} /></div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Mes Cours & Supports</h1>
         <p className="text-slate-500 mt-1">Retrouvez tous les supports de cours et PDF de votre filière.</p>

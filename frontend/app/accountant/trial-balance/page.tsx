@@ -126,63 +126,67 @@ export default function TrialBalancePage() {
               <p className="text-slate-500">Aucun mouvement comptable enregistré</p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="text-left px-4 py-3 font-medium text-slate-600">Compte</th>
-                    <th className="text-left px-4 py-3 font-medium text-slate-600">Classe</th>
-                    <th className="text-right px-4 py-3 font-medium text-slate-600">Débit</th>
-                    <th className="text-right px-4 py-3 font-medium text-slate-600">Crédit</th>
-                    <th className="text-right px-4 py-3 font-medium text-slate-600">Solde</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {balance.accounts.map((row: any) => (
-                    <tr key={row.account.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-slate-900">{row.account.code}</p>
-                        <p className="text-xs text-slate-400">{row.account.name}</p>
-                      </td>
-                      <td className="px-4 py-3 text-slate-500">{CLASS_LABELS[row.account.class] || row.account.class}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{formatFCFA(row.total_debit)}</td>
-                      <td className="px-4 py-3 text-right text-slate-700">{formatFCFA(row.total_credit)}</td>
-                      <td className={`px-4 py-3 text-right font-semibold ${row.balance >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
-                        {formatFCFA(row.balance)}
-                      </td>
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full min-w-[550px] text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-slate-600">Compte</th>
+                      <th className="text-left px-4 py-3 font-medium text-slate-600">Classe</th>
+                      <th className="text-right px-4 py-3 font-medium text-slate-600">Débit</th>
+                      <th className="text-right px-4 py-3 font-medium text-slate-600">Crédit</th>
+                      <th className="text-right px-4 py-3 font-medium text-slate-600">Solde</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {balance.accounts.map((row: any) => (
+                      <tr key={row.account.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-slate-900">{row.account.code}</p>
+                          <p className="text-xs text-slate-400">{row.account.name}</p>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">{CLASS_LABELS[row.account.class] || row.account.class}</td>
+                        <td className="px-4 py-3 text-right text-slate-700 font-mono">{formatFCFA(row.total_debit)}</td>
+                        <td className="px-4 py-3 text-right text-slate-700 font-mono">{formatFCFA(row.total_credit)}</td>
+                        <td className={`px-4 py-3 text-right font-semibold font-mono ${row.balance >= 0 ? 'text-slate-900' : 'text-red-600'}`}>
+                          {formatFCFA(row.balance)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>
       )}
 
       {tab === 'accounts' && (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Code</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Nom du compte</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Classe</th>
-                <th className="text-center px-4 py-3 font-medium text-slate-600"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {accounts.map(acc => (
-                <tr key={acc.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono text-slate-700">{acc.code}</td>
-                  <td className="px-4 py-3 text-slate-900">{acc.name}</td>
-                  <td className="px-4 py-3 text-slate-500">{CLASS_LABELS[acc.account_class] || acc.account_class}</td>
-                  <td className="px-4 py-3 text-center">
-                    <button onClick={() => handleDeleteAccount(acc)} className="text-slate-300 hover:text-red-500"><Trash2 size={15} /></button>
-                  </td>
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Code</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Nom du compte</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Classe</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {accounts.map(acc => (
+                  <tr key={acc.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-mono font-medium text-slate-800">{acc.code}</td>
+                    <td className="px-4 py-3 text-slate-900">{acc.name}</td>
+                    <td className="px-4 py-3 text-slate-500">{CLASS_LABELS[acc.account_class] || acc.account_class}</td>
+                    <td className="px-4 py-3 text-center">
+                      <button onClick={() => handleDeleteAccount(acc)} className="text-slate-300 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-colors" title="Supprimer"><Trash2 size={15} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

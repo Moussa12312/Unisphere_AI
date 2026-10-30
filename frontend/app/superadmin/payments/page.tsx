@@ -54,50 +54,88 @@ export default function SuperAdminPaymentsPage() {
           <p className="text-slate-500">Aucun encaissement enregistré pour le moment</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-4 py-3.5 font-medium text-slate-600">N° Facture</th>
-                <th className="text-left px-4 py-3.5 font-medium text-slate-600">Université Client</th>
-                <th className="text-left px-4 py-3.5 font-medium text-slate-600">Mode de Règlement</th>
-                <th className="text-left px-4 py-3.5 font-medium text-slate-600">Référence</th>
-                <th className="text-center px-4 py-3.5 font-medium text-slate-600">Date</th>
-                <th className="text-right px-4 py-3.5 font-medium text-slate-600">Montant Encaissé</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {payments.map(p => (
-                <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3.5 font-bold text-slate-900">
-                    <div className="flex items-center gap-1.5">
-                      <FileText size={15} className="text-[#FF6B00]" />
-                      {p.invoice_number}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 font-medium text-slate-800">
-                    <div className="flex items-center gap-1.5">
-                      <Building2 size={15} className="text-slate-400" />
-                      {p.university_name}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 text-slate-600 capitalize font-medium">
-                    {p.payment_method?.replace('_', ' ')}
-                  </td>
-                  <td className="px-4 py-3.5 text-slate-500 font-mono text-xs">
-                    {p.reference || '—'}
-                  </td>
-                  <td className="px-4 py-3.5 text-center text-slate-500">
-                    {new Date(p.payment_date).toLocaleDateString('fr-FR')}
-                  </td>
-                  <td className="px-4 py-3.5 text-right font-bold text-green-600">
+        <>
+          {/* Vue Mobile Cards (< 768px) */}
+          <div className="block md:hidden space-y-3">
+            {payments.map(p => (
+              <div key={p.id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-900 text-sm">
+                    <FileText size={16} className="text-[#FF6B00]" />
+                    <span>{p.invoice_number}</span>
+                  </div>
+                  <span className="font-bold text-green-700 bg-green-50 border border-green-200 px-2.5 py-0.5 rounded-full text-xs">
                     {formatFCFA(p.amount)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </span>
+                </div>
+
+                <div className="text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                    <Building2 size={14} className="text-slate-400" />
+                    <span>{p.university_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-500 text-[11px] pt-1 border-t border-slate-100">
+                    <span className="capitalize">{p.payment_method?.replace('_', ' ')}</span>
+                    <span>{new Date(p.payment_date).toLocaleDateString('fr-FR')}</span>
+                  </div>
+                  {p.reference && (
+                    <div className="text-[11px] font-mono text-slate-400">
+                      Réf: {p.reference}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vue Table Bureau (>= 768px) */}
+          <div className="hidden md:block bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-4 py-3.5 font-medium text-slate-600">N° Facture</th>
+                    <th className="text-left px-4 py-3.5 font-medium text-slate-600">Université Client</th>
+                    <th className="text-left px-4 py-3.5 font-medium text-slate-600">Mode de Règlement</th>
+                    <th className="text-left px-4 py-3.5 font-medium text-slate-600">Référence</th>
+                    <th className="text-center px-4 py-3.5 font-medium text-slate-600">Date</th>
+                    <th className="text-right px-4 py-3.5 font-medium text-slate-600">Montant Encaissé</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {payments.map(p => (
+                    <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3.5 font-bold text-slate-900">
+                        <div className="flex items-center gap-1.5">
+                          <FileText size={15} className="text-[#FF6B00]" />
+                          {p.invoice_number}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 font-medium text-slate-800">
+                        <div className="flex items-center gap-1.5">
+                          <Building2 size={15} className="text-slate-400" />
+                          {p.university_name}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-600 capitalize font-medium">
+                        {p.payment_method?.replace('_', ' ')}
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-500 font-mono text-xs">
+                        {p.reference || '—'}
+                      </td>
+                      <td className="px-4 py-3.5 text-center text-slate-500">
+                        {new Date(p.payment_date).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-bold text-green-600">
+                        {formatFCFA(p.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

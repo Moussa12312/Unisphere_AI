@@ -5,7 +5,7 @@ import { BarChart3, Award, Calendar, CheckCircle2, TrendingUp, BookOpen } from '
 
 export default function StudentStatisticsPage() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <BarChart3 className="w-7 h-7 text-indigo-600" /> Mes Statistiques Académiques

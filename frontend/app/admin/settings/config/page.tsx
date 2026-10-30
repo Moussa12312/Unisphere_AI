@@ -104,10 +104,6 @@ export default function AcademicConfigPage() {
   const [autoSyncGroup, setAutoSyncGroup] = useState<boolean>(true);
   const [syncingDomains, setSyncingDomains] = useState<boolean>(false);
   
-  // ✅ États pour les présences
-  const [lateThreshold, setLateThreshold] = useState('08:30');
-  const [savingPresences, setSavingPresences] = useState(false);
-
   // ✅ Pénalités
   const [penalties, setPenalties] = useState({
     amount: 5000,
@@ -131,7 +127,6 @@ export default function AcademicConfigPage() {
   // ✅✅✅ HOOKS AU NIVEAU SUPÉRIEUR (CRITIQUE !)
   useEffect(() => {
     loadAll();
-    loadAttendanceConfig();
   }, []);
 
   // ✅ Synchronisation automatique des 3 tranches quand le niveau, le domaine ou les tranches changent
@@ -175,31 +170,6 @@ export default function AcademicConfigPage() {
       ]);
     }
   }, [selectedTrancheLevel, selectedDomain, tranches]);
-
-  // ✅ Charger la config des présences
-  const loadAttendanceConfig = async () => {
-    try {
-      const response = await api.get('/api/v1/attendance/config');
-      setLateThreshold(response.data.late_threshold || '08:30');
-    } catch (error) {
-      console.log('Config présences non chargée (valeur par défaut utilisée)');
-    }
-  };
-
-  // ✅ Sauvegarder la config des présences
-  const handleSavePresences = async () => {
-    setSavingPresences(true);
-    try {
-      await api.put('/api/v1/attendance/config', {
-        late_threshold: lateThreshold
-      });
-      toast.success('✅ Configuration des présences sauvegardée !');
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erreur');
-    } finally {
-      setSavingPresences(false);
-    }
-  };
 
   const loadAll = async () => {
     setLoading(true);
@@ -692,7 +662,6 @@ export default function AcademicConfigPage() {
     { id: 'calendrier', label: 'Calendrier', icon: Calendar },
     { id: 'notation', label: 'Notation', icon: Calculator },
     { id: 'assiduite', label: 'Assiduité', icon: Clock },
-    { id: 'presences', label: 'Présences', icon: CheckCircle },
     { id: 'deliberation', label: 'Délibération', icon: Award }
   ];
 
@@ -1806,93 +1775,6 @@ export default function AcademicConfigPage() {
                       <span className="text-3xl font-bold text-slate-900">{config.min_attendance_rate}%</span>
                       <span className="text-xs text-slate-500 mt-1">minimum requis</span>
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ✅ TAB: PRÉSENCES (NOUVEAU) */}
-          {activeTab === 'presences' && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <CheckCircle className="text-white" size={24} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">Configuration des présences</h2>
-                  <p className="text-sm text-slate-500">Définissez les règles de pointage</p>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4">Heure limite de présence</h3>
-                <p className="text-sm text-slate-600 mb-4">
-                  Les étudiants arrivant après cette heure seront marqués comme <strong className="text-orange-600">"En retard"</strong>
-                </p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Heure limite
-                    </label>
-                    <input
-                      type="time"
-                      value={lateThreshold}
-                      onChange={(e) => setLateThreshold(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    />
-                  </div>
-                  
-                  <div className="flex items-end">
-                    <button
-                      onClick={handleSavePresences}
-                      disabled={savingPresences}
-                      className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] text-white rounded-xl text-sm font-medium hover:bg-[#e55f00] transition-all shadow-md disabled:opacity-50"
-                    >
-                      <Save size={16} />
-                      {savingPresences ? 'Sauvegarde...' : 'Sauvegarder'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                  <div className="flex items-start gap-3">
-                    <Info className="text-blue-500 flex-shrink-0 mt-0.5" size={20} />
-                    <div>
-                      <p className="text-sm font-semibold text-blue-900">Comment ça fonctionne ?</p>
-                      <ul className="text-xs text-blue-700 mt-2 space-y-1">
-                        <li>• Si un étudiant scanne <strong>avant {lateThreshold}</strong> → Statut : <span className="font-bold text-green-700">Présent</span></li>
-                        <li>• Si un étudiant scanne <strong>après {lateThreshold}</strong> → Statut : <span className="font-bold text-orange-700">En retard</span></li>
-                        <li>• Le gardien ne peut pas modifier cette heure (réservé admin/secrétaire/censeur)</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4">Statuts de présence</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-center">
-                    <CheckCircle size={32} className="text-green-600 mx-auto mb-2" />
-                    <p className="font-bold text-green-900">Présent</p>
-                    <p className="text-xs text-green-700 mt-1">Arrivée à l'heure</p>
-                  </div>
-                  <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl text-center">
-                    <Clock size={32} className="text-orange-600 mx-auto mb-2" />
-                    <p className="font-bold text-orange-900">En retard</p>
-                    <p className="text-xs text-orange-700 mt-1">Après {lateThreshold}</p>
-                  </div>
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-center">
-                    <XCircle size={32} className="text-red-600 mx-auto mb-2" />
-                    <p className="font-bold text-red-900">Absent</p>
-                    <p className="text-xs text-red-700 mt-1">Non scanné</p>
-                  </div>
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-center">
-                    <AlertTriangle size={32} className="text-blue-600 mx-auto mb-2" />
-                    <p className="font-bold text-blue-900">Excusé</p>
-                    <p className="text-xs text-blue-700 mt-1">Absence justifiée</p>
                   </div>
                 </div>
               </div>

@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Edit3, Save, CheckCircle, Clock, AlertTriangle,
-  Search, Loader2, Users, BookOpen, Award
+  Search, Loader2, Users, BookOpen, Award, Lock
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
@@ -23,6 +23,8 @@ export default function TeacherGradesPage() {
   const [grades, setGrades] = useState<Record<number, { cc: string; exam: string }>>({});
   const [search, setSearch] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockReason, setLockReason] = useState<string | null>(null);
 
   useEffect(() => {
     loadInitialData();
@@ -72,6 +74,8 @@ export default function TeacherGradesPage() {
       const data = response.data;
       const studentsList = data.students || [];
       setStudents(studentsList);
+      setIsLocked(Boolean(data.is_locked));
+      setLockReason(data.lock_reason || null);
 
       const gradesMap: Record<number, { cc: string; exam: string }> = {};
       studentsList.forEach((s: any) => {
@@ -88,6 +92,10 @@ export default function TeacherGradesPage() {
   };
 
   const handleGradeChange = (studentId: number, field: 'cc' | 'exam', value: string) => {
+    if (isLocked) {
+      toast.error('La saisie des notes est clôturée et verrouillée');
+      return;
+    }
     setGrades(prev => ({
       ...prev,
       [studentId]: { ...prev[studentId], [field]: value }
@@ -116,6 +124,10 @@ export default function TeacherGradesPage() {
 
   // ✅ CORRECTION CRITIQUE : Envoyer session_id et course_id
   const handleSave = async (status: 'draft' | 'validated') => {
+    if (isLocked) {
+      toast.error("La saisie et la modification des notes sont actuellement verrouillées par l'administration.");
+      return;
+    }
     if (!selectedCourse || !selectedSession) {
       toast.error('Veuillez sélectionner un cours et une session');
       return;
@@ -185,7 +197,7 @@ export default function TeacherGradesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
             <Edit3 size={24} className="text-white" />
           </div>
@@ -269,6 +281,19 @@ export default function TeacherGradesPage() {
         </div>
       )}
 
+      {/* Message de verrouillage */}
+      {selectedCourse && selectedSession && isLocked && (
+        <div className="bg-amber-50 border-2 border-amber-300 text-amber-900 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 text-amber-600">
+            <Lock size={22} />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold text-sm text-amber-900">Saisie des notes verrouillée</p>
+            <p className="text-xs text-amber-700 mt-0.5">{lockReason || "L'administration ou le censeur a clôturé la saisie des notes pour cette session ou ce semestre. Toute modification est bloquée."}</p>
+          </div>
+        </div>
+      )}
+
       {/* Tableau */}
       {selectedCourse && selectedSession && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -280,7 +305,7 @@ export default function TeacherGradesPage() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="min-w-[640px] w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase">N°</th>
@@ -301,28 +326,30 @@ export default function TeacherGradesPage() {
                             <p className="font-semibold text-slate-900 text-sm">{student.student_name}</p>
                           </td>
                           <td className="py-3 px-4 font-mono text-xs text-slate-600">{student.matricule}</td>
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-4 text-center">
                             <input
                               type="number"
                               min="0"
                               max="20"
                               step="0.25"
+                              disabled={isLocked}
                               value={grades[student.student_id]?.cc || ''}
                               onChange={(e) => handleGradeChange(student.student_id, 'cc', e.target.value)}
                               placeholder="0-20"
-                              className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                              className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-[#FF6B00] disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                             />
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-4 text-center">
                             <input
                               type="number"
                               min="0"
                               max="20"
                               step="0.25"
+                              disabled={isLocked}
                               value={grades[student.student_id]?.exam || ''}
                               onChange={(e) => handleGradeChange(student.student_id, 'exam', e.target.value)}
                               placeholder="0-20"
-                              className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                              className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-[#FF6B00] disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                             />
                           </td>
                           <td className="py-3 px-4 text-center">
@@ -342,28 +369,33 @@ export default function TeacherGradesPage() {
               </div>
 
               {/* Boutons */}
-              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm text-slate-600">
-                  {hasChanges && (
+                  {isLocked ? (
+                    <span className="flex items-center gap-1.5 text-amber-700 font-medium">
+                      <Lock size={14} />
+                      Saisie verrouillée
+                    </span>
+                  ) : hasChanges ? (
                     <span className="flex items-center gap-1 text-orange-600">
                       <AlertTriangle size={14} />
                       Modifications non sauvegardées
                     </span>
-                  )}
+                  ) : null}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full sm:w-auto justify-end">
                   <button
                     onClick={() => handleSave('draft')}
-                    disabled={saving || !hasChanges}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium disabled:opacity-50"
+                    disabled={saving || !hasChanges || isLocked}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Clock size={16} />
                     {saving ? 'Sauvegarde...' : 'Brouillon'}
                   </button>
                   <button
                     onClick={() => handleSave('validated')}
-                    disabled={saving || !hasChanges}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                    disabled={saving || !hasChanges || isLocked}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                   >
                     <CheckCircle size={16} />
                     {saving ? 'Envoi...' : 'Valider et envoyer'}

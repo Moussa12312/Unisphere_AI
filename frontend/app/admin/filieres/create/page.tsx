@@ -39,8 +39,32 @@ export default function CreateFilierePage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await filiereService.create(formData);
-      toast.success('Filière créée avec succès !');
+      const filiereNames = formData.name
+        .split(',')
+        .map(n => n.trim())
+        .filter(Boolean);
+
+      if (filiereNames.length === 0) {
+        toast.error('Veuillez saisir au moins un nom de filière');
+        setLoading(false);
+        return;
+      }
+
+      let createdCount = 0;
+      for (const name of filiereNames) {
+        await filiereService.create({
+          domain: formData.domain.trim(),
+          name: name,
+          levels: formData.levels.trim()
+        });
+        createdCount++;
+      }
+
+      toast.success(
+        createdCount > 1
+          ? `${createdCount} filières créées avec succès dans le domaine ${formData.domain} !`
+          : 'Filière créée avec succès !'
+      );
       router.push('/admin/filieres');
     } catch (error: any) {
       toast.error(getApiErrorMessage(error, 'Erreur lors de la création'));
@@ -75,16 +99,19 @@ export default function CreateFilierePage() {
           {/* Nom de la filière */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Nom de la filière *
+              Nom de la filière (ou plusieurs séparées par des virgules) *
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Ex: Génie Logiciel, Géologie Appliquée, Marketing Digital"
+              placeholder="Ex: Génie Logiciel, Réseaux & Télécoms, Cybersécurité"
               required
               className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
             />
+            <p className="text-xs text-slate-500 mt-1">
+              💡 Vous pouvez saisir plusieurs filières en même temps en les séparant par des virgules <span className="font-mono bg-slate-100 px-1 rounded">,</span>.
+            </p>
           </div>
 
           {/* Niveaux */}

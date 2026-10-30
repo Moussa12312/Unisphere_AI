@@ -10,9 +10,11 @@ import { Html5Qrcode } from 'html5-qrcode';
 import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 
+import { useRouter } from 'next/navigation';
+
 interface ScannerModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 interface ScanResult {
@@ -25,7 +27,8 @@ interface ScanResult {
   scan_time: string;
 }
 
-export default function GuardScannerPage({ isOpen, onClose }: ScannerModalProps) {
+export default function GuardScannerPage({ isOpen = true, onClose }: ScannerModalProps) {
+  const router = useRouter();
   const toast = useToast();
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -129,7 +132,11 @@ export default function GuardScannerPage({ isOpen, onClose }: ScannerModalProps)
       setIsScanning(true);
     } catch (err: any) {
       console.error('Erreur caméra:', err);
-      setError('Impossible d\'accéder à la caméra. Vérifiez les permissions.');
+      if (err?.toString().includes('not supported') || (typeof window !== 'undefined' && !window.isSecureContext)) {
+        setError('⚠️ Flux vidéo direct désactivé par le navigateur sur connexion réseau locale HTTP (non sécurisée). Utilisez le bouton bleu "Photo badge (Mobile)" ci-dessous pour capturer le QR code, ou entrez le matricule manuellement.');
+      } else {
+        setError('Impossible d\'accéder à la caméra. Vérifiez les permissions du navigateur.');
+      }
       scannerRef.current = null;
     }
   };
@@ -237,7 +244,11 @@ export default function GuardScannerPage({ isOpen, onClose }: ScannerModalProps)
               {soundEnabled ? <Volume2 size={16} className="text-white" /> : <VolumeX size={16} className="text-white" />}
             </button>
             <button
-              onClick={() => { stopScannerSafely(); onClose(); }}
+              onClick={() => {
+                stopScannerSafely();
+                if (onClose) onClose();
+                else router.push('/guard/dashboard');
+              }}
               className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
             >
               <X size={16} className="text-white" />
@@ -273,7 +284,7 @@ export default function GuardScannerPage({ isOpen, onClose }: ScannerModalProps)
               } flex items-center justify-center`}
             >
               {!isScanning && (
-                <div className="text-center p-6">
+                <div className="text-center p-4 sm:p-6">
                   <Camera size={48} className="text-slate-300 mx-auto mb-3" />
                   <p className="text-sm text-slate-500">Cliquez sur "Démarrer" pour activer la caméra</p>
                 </div>
@@ -287,30 +298,72 @@ export default function GuardScannerPage({ isOpen, onClose }: ScannerModalProps)
               </div>
             )}
 
-            <div className="flex gap-2 mt-3">
+            <div className="flex flex-col sm:flex-row gap-2 mt-3">
               {!isScanning ? (
                 <button
                   onClick={startScanner}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-[#e55f00] hover:to-orange-600 text-white rounded-lg text-sm font-medium"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-[#e55f00] hover:to-orange-600 text-white rounded-lg text-sm font-semibold transition shadow-sm"
                 >
                   <Camera size={16} />
-                  Démarrer
+                  Démarrer la Caméra en direct
                 </button>
               ) : (
                 <button
                   onClick={stopScanner}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-semibold transition shadow-sm"
                 >
                   <XCircle size={16} />
                   Arrêter
                 </button>
               )}
+
+              {/* Bouton photo mobile natif (autorisé sur téléphone portable sans HTTPS) */}
+              <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold cursor-pointer transition shadow-sm">
+                <Camera size={16} />
+                <span>Photo badge (Mobile)</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setLoading(true);
+                    setError(null);
+                    try {
+                      const tempId = 'qr-photo-page-' + Math.random().toString(36).substring(2, 7);
+                      const tempDiv = document.createElement('div');
+                      tempDiv.id = tempId;
+                      tempDiv.style.display = 'none';
+                      document.body.appendChild(tempDiv);
+                      
+                      const qr = new Html5Qrcode(tempId);
+                      const decoded = await qr.scanFile(file, true);
+                      
+                      try { document.body.removeChild(tempDiv); } catch (e) {}
+                      
+                      if (decoded) {
+                        handleScan(decoded);
+                      }
+                    } catch (err: any) {
+                      console.error("Erreur scan photo page :", err);
+                      setError("Aucun QR code lisible sur la photo. Rapprochez l'appareil du badge ou utilisez la saisie manuelle.");
+                      playBeep(false);
+                    } finally {
+                      setLoading(false);
+                      if (e.target) e.target.value = '';
+                    }
+                  }}
+                />
+              </label>
+
               <button
                 onClick={() => setShowManualInput(!showManualInput)}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium"
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition"
                 title="Saisie manuelle"
               >
-                ⌨️
+                ⌨️ Saisie
               </button>
             </div>
 

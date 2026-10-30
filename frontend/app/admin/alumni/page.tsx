@@ -331,26 +331,22 @@ export default function AdminAlumniPage() {
                         title="Cliquez pour sélectionner et copier"
                         />
                         
-                        {/* Bouton copier principal */}
+                        {/* Bouton copier compact (icône seule pour mobile) */}
                         <button
-                        onClick={() => copyLink(inv.token, inv.id)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                          onClick={() => copyLink(inv.token, inv.id)}
+                          className={`p-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center flex-shrink-0 ${
                             copiedToken === inv.id
-                            ? 'bg-green-600 text-white'
-                            : 'bg-[#FF6B00] hover:bg-[#e55f00] text-white'
-                        }`}
+                              ? 'bg-green-600 text-white'
+                              : 'bg-[#FF6B00] hover:bg-[#e55f00] text-white'
+                          }`}
+                          title={copiedToken === inv.id ? "Lien copié !" : "Copier le lien"}
+                          aria-label="Copier le lien"
                         >
-                        {copiedToken === inv.id ? (
-                            <>
-                            <CheckCircle size={16} />
-                            Copié !
-                            </>
-                        ) : (
-                            <>
-                            <Copy size={16} />
-                            Copier
-                            </>
-                        )}
+                          {copiedToken === inv.id ? (
+                            <CheckCircle size={18} />
+                          ) : (
+                            <Copy size={18} />
+                          )}
                         </button>
                     </div>
                     

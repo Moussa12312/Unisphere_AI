@@ -12,6 +12,7 @@ import { API_BASE_URL } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
 import StudentDossierSection from '@/components/students/StudentDossierSection';
+import { copyToClipboard } from '@/lib/clipboard';
 
 export default function AdminStudentDetailPage() {
   const params = useParams();
@@ -151,10 +152,14 @@ export default function AdminStudentDetailPage() {
     }
   };
 
-  const copyPassword = () => {
+  const copyPassword = async () => {
     if (newPassword) {
-      navigator.clipboard.writeText(newPassword);
-      toast.success('Mot de passe copié !');
+      const ok = await copyToClipboard(newPassword);
+      if (ok) {
+        toast.success('Mot de passe copié !');
+      } else {
+        toast.error('Impossible de copier automatiquement');
+      }
     }
   };
 
@@ -442,10 +447,19 @@ export default function AdminStudentDetailPage() {
             <h3 className="text-base font-semibold text-slate-900 mb-5 flex items-center gap-2">
               <Mail size={18} className="text-[#FF6B00]" /> Contact
             </h3>
-            <div className="grid grid-cols-2 gap-5">
-              <div><p className="text-xs text-slate-500 mb-1">Email</p><p className="text-sm font-medium text-slate-900">{student.email}</p></div>
-              <div><p className="text-xs text-slate-500 mb-1">Téléphone</p><p className="text-sm font-medium text-slate-900">{student.phone || 'Non renseigné'}</p></div>
-              <div className="col-span-2"><p className="text-xs text-slate-500 mb-1">Adresse</p><p className="text-sm font-medium text-slate-900">{student.address || 'Non renseigné'}</p></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+              <div className="min-w-0">
+                <p className="text-xs text-slate-500 mb-1">Email</p>
+                <p className="text-sm font-medium text-slate-900 break-all">{student.email}</p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-slate-500 mb-1">Téléphone</p>
+                <p className="text-sm font-medium text-slate-900">{student.phone || 'Non renseigné'}</p>
+              </div>
+              <div className="col-span-1 sm:col-span-2 min-w-0">
+                <p className="text-xs text-slate-500 mb-1">Adresse</p>
+                <p className="text-sm font-medium text-slate-900">{student.address || 'Non renseigné'}</p>
+              </div>
             </div>
           </div>
 
@@ -692,8 +706,8 @@ export default function AdminStudentDetailPage() {
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                   Échéancier détaillé des versements :
                 </h4>
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <table className="w-full text-xs">
+                <div className="border border-slate-200 rounded-lg overflow-x-auto">
+                  <table className="w-full min-w-[560px] text-xs">
                     <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
                       <tr>
                         <th className="py-2 px-3 text-left">Échéance</th>

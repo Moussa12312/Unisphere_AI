@@ -73,7 +73,7 @@ export default function AlumniProfilePage() {
   if (!alumni) return null;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       {/* Breadcrumb */}
       <div className="flex items-center text-sm text-slate-500">
         <Link href="/student/alumni" className="hover:text-[#FF6B00]">Communauté Alumni</Link>
@@ -88,7 +88,7 @@ export default function AlumniProfilePage() {
         {/* Banner */}
         <div className="h-32 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500" />
 
-        <div className="p-6 -mt-16">
+        <div className="p-4 sm:p-6 -mt-16">
           {/* Avatar + Nom */}
           <div className="flex flex-col md:flex-row md:items-end gap-4">
             <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center text-white font-bold text-3xl border-4 border-white shadow-lg">
@@ -177,7 +177,7 @@ export default function AlumniProfilePage() {
       </div>
 
       {/* Parcours académique */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
             <GraduationCap size={16} className="text-orange-600" />
@@ -206,7 +206,7 @@ export default function AlumniProfilePage() {
 
       {/* Compétences */}
       {alumni.skills.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
               <Star size={16} className="text-purple-600" />
@@ -228,7 +228,7 @@ export default function AlumniProfilePage() {
 
       {/* Parcours professionnel */}
       {alumni.career_path && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
               <Briefcase size={16} className="text-blue-600" />
@@ -243,7 +243,7 @@ export default function AlumniProfilePage() {
 
       {/* Difficultés rencontrées */}
       {alumni.difficulties && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
               <AlertTriangle size={16} className="text-red-600" />
@@ -258,7 +258,7 @@ export default function AlumniProfilePage() {
 
       {/* Conseils */}
       {alumni.advice && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200 p-6">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200 p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
               <Lightbulb size={16} className="text-green-600" />
@@ -274,7 +274,7 @@ export default function AlumniProfilePage() {
       )}
 
       {/* CTA Chat */}
-      <div className="bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl p-6 text-center">
+      <div className="bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl p-4 sm:p-6 text-center">
         <Sparkles size={24} className="mx-auto text-white mb-2" />
         <h3 className="text-lg font-semibold text-white mb-1">
           Une question pour {alumni.first_name} ?
@@ -284,7 +284,7 @@ export default function AlumniProfilePage() {
         </p>
         <Link
           href={`/student/messages?to=${alumni.user_id}`}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-white text-orange-600 rounded-xl text-sm font-semibold hover:bg-orange-50 transition-colors"
+          className="inline-flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-white text-orange-600 rounded-xl text-sm font-semibold hover:bg-orange-50 transition-colors"
         >
           <MessageSquare size={16} />
           Envoyer un message

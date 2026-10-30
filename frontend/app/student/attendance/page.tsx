@@ -294,7 +294,7 @@ export default function StudentAttendancePage() {
       {/* VUE 2 : JOURNAL DÉTAILLÉ */}
       {activeTab === 'history' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-slate-900">Historique chronologique des séances d'appel</h2>
               <p className="text-xs text-slate-500">Enregistré par les enseignants en salle de cours</p>
@@ -310,31 +310,31 @@ export default function StudentAttendancePage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-600">
+              <table className="min-w-[640px] w-full text-left text-sm text-slate-600">
                 <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-3">Date</th>
-                    <th className="px-6 py-3">Module / Cours</th>
-                    <th className="px-6 py-3">Statut</th>
-                    <th className="px-6 py-3">Observation / Commentaire</th>
+                    <th className="px-4 sm:px-6 py-3">Date</th>
+                    <th className="px-4 sm:px-6 py-3">Module / Cours</th>
+                    <th className="px-4 sm:px-6 py-3">Statut</th>
+                    <th className="px-4 sm:px-6 py-3">Observation / Commentaire</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {history.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-6 py-3.5 font-medium text-slate-900 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-3.5 font-medium text-slate-900 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <Calendar size={14} className="text-slate-400" />
                           {item.date}
                         </div>
                       </td>
-                      <td className="px-6 py-3.5 font-semibold text-slate-900">
+                      <td className="px-4 sm:px-6 py-3.5 font-semibold text-slate-900">
                         {item.course}
                       </td>
-                      <td className="px-6 py-3.5 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-3.5 whitespace-nowrap">
                         {getStatusBadge(item.status)}
                       </td>
-                      <td className="px-6 py-3.5 text-xs text-slate-500">
+                      <td className="px-4 sm:px-6 py-3.5 text-xs text-slate-500">
                         {item.comment ? (
                           <span className="italic">« {item.comment} »</span>
                         ) : (

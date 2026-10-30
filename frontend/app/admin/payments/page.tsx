@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Search, Download, CheckCircle2, Clock, Loader2, ArrowUpRight, Banknote } from 'lucide-react';
+import { CreditCard, Search, Download, CheckCircle2, Clock, Loader2, ArrowUpRight, Banknote, FileSpreadsheet } from 'lucide-react';
 import api from '@/lib/api';
 import paymentService from '@/services/paymentService';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import { exportToExcel } from '@/lib/exportExcel';
 
 export default function AdminPaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,24 +31,43 @@ export default function AdminPaymentsPage() {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     if (payments.length === 0) {
       toast.error('Aucune donnée à exporter');
       return;
     }
-    const headers = ['ID,Reference,Etudiant,Montant,Devise,Type,Methode,Statut,Date\n'];
-    const rows = payments.map(p => {
-      const studentName = p.student_name || `${p.student?.first_name || ''} ${p.student?.last_name || ''}`.trim() || 'N/A';
-      return `"${p.id}","${p.reference || p.receipt_number || ''}","${studentName}","${p.amount}","${p.currency || 'FCFA'}","${p.payment_type || ''}","${p.payment_method || ''}","${p.status || ''}","${p.payment_date || p.created_at || ''}"`;
+    const dataToExport = payments.map(p => ({
+      id: p.id,
+      reference: p.reference || p.receipt_number || `PAY-${p.id}`,
+      student_name: p.student_name || `${p.student?.first_name || ''} ${p.student?.last_name || ''}`.trim() || 'N/A',
+      matricule: p.matricule || p.student?.matricule || 'N/A',
+      filiere: p.student?.filiere || 'N/A',
+      amount: p.amount,
+      currency: p.currency || 'FCFA',
+      payment_type: p.payment_type || 'Scolarité',
+      payment_method: p.payment_method || 'Virement',
+      status: p.status === 'completed' ? 'Validé' : (p.status || 'En attente'),
+      date: p.payment_date || p.created_at || ''
+    }));
+
+    exportToExcel(dataToExport, {
+      filename: `gestion_paiements_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: 'Paiements',
+      headerMapping: {
+        id: 'ID',
+        reference: 'Référence Reçu',
+        student_name: 'Nom de l\'Étudiant',
+        matricule: 'Matricule',
+        filiere: 'Filière',
+        amount: 'Montant (FCFA)',
+        currency: 'Devise',
+        payment_type: 'Type de Frais',
+        payment_method: 'Mode de Paiement',
+        status: 'Statut',
+        date: 'Date'
+      }
     });
-    const blob = new Blob([headers.join('') + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `rapport_paiements_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Rapport exporté avec succès !');
+    toast.success('Fichier Excel (.xlsx) téléchargé avec succès !');
   };
 
   const filteredPayments = payments.filter(p => {
@@ -79,10 +99,10 @@ export default function AdminPaymentsPage() {
             <Banknote className="w-4 h-4" /> Configurer Frais & Tranches
           </Link>
           <button 
-            onClick={handleExportCSV}
+            onClick={handleExportExcel}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium shadow transition-colors text-sm"
           >
-            <Download className="w-4 h-4" /> Exporter (CSV)
+            <FileSpreadsheet className="w-4 h-4" /> Exporter (Excel)
           </button>
         </div>
       </div>

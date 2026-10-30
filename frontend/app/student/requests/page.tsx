@@ -141,43 +141,43 @@ export default function StudentRequestsPage() {
   const approvedCount = requests.filter(r => r.status === 'approved').length;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-8 text-white">
+      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-4 sm:p-8 text-white">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-            <FileSearch size={24} />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+            <FileSearch size={22} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Mes demandes de documents</h1>
-            <p className="text-blue-100">
+            <h1 className="text-xl sm:text-2xl font-bold">Mes demandes de documents</h1>
+            <p className="text-blue-100 text-xs sm:text-sm">
               Demandez vos attestations et suivez leur statut
             </p>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mt-6">
-          <div className="bg-white/10 rounded-xl p-4 backdrop-blur">
-            <div className="flex items-center gap-2">
-              <FileText size={20} />
-              <span className="text-2xl font-bold">{requests.length}</span>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4 sm:mt-6">
+          <div className="bg-white/10 rounded-xl p-3 sm:p-4 backdrop-blur">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <FileText size={18} className="shrink-0" />
+              <span className="text-lg sm:text-2xl font-bold">{requests.length}</span>
             </div>
-            <p className="text-sm text-blue-100 mt-1">Total demandes</p>
+            <p className="text-[11px] sm:text-sm text-blue-100 mt-1 truncate">Total</p>
           </div>
-          <div className="bg-white/10 rounded-xl p-4 backdrop-blur">
-            <div className="flex items-center gap-2">
-              <Clock size={20} />
-              <span className="text-2xl font-bold">{pendingCount}</span>
+          <div className="bg-white/10 rounded-xl p-3 sm:p-4 backdrop-blur">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Clock size={18} className="shrink-0" />
+              <span className="text-lg sm:text-2xl font-bold">{pendingCount}</span>
             </div>
-            <p className="text-sm text-blue-100 mt-1">En traitement</p>
+            <p className="text-[11px] sm:text-sm text-blue-100 mt-1 truncate">En cours</p>
           </div>
-          <div className="bg-white/10 rounded-xl p-4 backdrop-blur">
-            <div className="flex items-center gap-2">
-              <CheckCircle size={20} />
-              <span className="text-2xl font-bold">{approvedCount}</span>
+          <div className="bg-white/10 rounded-xl p-3 sm:p-4 backdrop-blur">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <CheckCircle size={18} className="shrink-0" />
+              <span className="text-lg sm:text-2xl font-bold">{approvedCount}</span>
             </div>
-            <p className="text-sm text-blue-100 mt-1">Disponibles</p>
+            <p className="text-[11px] sm:text-sm text-blue-100 mt-1 truncate">Disponibles</p>
           </div>
         </div>
       </div>
@@ -186,7 +186,7 @@ export default function StudentRequestsPage() {
       <div className="flex justify-end">
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl font-medium transition-colors shadow-lg"
+          className="flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-medium transition-colors shadow-lg"
         >
           <Plus size={18} />
           Nouvelle demande
@@ -202,12 +202,12 @@ export default function StudentRequestsPage() {
 
       {/* Empty state */}
       {!loading && requests.length === 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center">
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-16 text-center">
           <FileSearch size={48} className="mx-auto text-slate-300 mb-4" />
-          <p className="text-slate-500 mb-4">Vous n'avez encore fait aucune demande</p>
+          <p className="text-slate-500 mb-4 text-sm">Vous n'avez encore fait aucune demande</p>
           <button
             onClick={() => setShowModal(true)}
-            className="px-6 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl font-medium"
+            className="px-5 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-medium"
           >
             Faire ma première demande
           </button>
@@ -216,37 +216,39 @@ export default function StudentRequestsPage() {
 
       {/* Liste des demandes */}
       {!loading && requests.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
           <div className="divide-y divide-slate-100">
             {requests.map((req) => {
               const typeInfo = REQUEST_TYPES.find(t => t.id === req.request_type) || REQUEST_TYPES[0];
               const Icon = typeInfo.icon;
               
               return (
-                <div key={req.id} className="p-4 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${typeInfo.bg}`}>
-                      <Icon size={20} className={typeInfo.text} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900">{typeInfo.label}</h3>
-                      <p className="text-sm text-slate-500">
-                        Demandé le {new Date(req.created_at).toLocaleDateString('fr-FR')}
-                      </p>
-                      {req.rejection_reason && (
-                        <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                          <AlertCircle size={12} />
-                          {req.rejection_reason}
+                <div key={req.id} className="p-3 sm:p-4 hover:bg-slate-50 transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 ${typeInfo.bg}`}>
+                        <Icon size={20} className={typeInfo.text} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-slate-900 text-sm sm:text-base truncate">{typeInfo.label}</h3>
+                        <p className="text-xs sm:text-sm text-slate-500">
+                          Demandé le {new Date(req.created_at).toLocaleDateString('fr-FR')}
                         </p>
-                      )}
+                        {req.rejection_reason && (
+                          <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                            <AlertCircle size={12} />
+                            {req.rejection_reason}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto pl-13 sm:pl-0">
                       {getStatusBadge(req.status)}
                       {req.status === 'approved' && req.file_path && (
                         <button
                           onClick={() => handleDownload(req)}
                           disabled={downloading === req.id}
-                          className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg disabled:opacity-50"
+                          className="flex items-center gap-1 px-3 py-1.5 sm:py-2 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg disabled:opacity-50"
                         >
                           {downloading === req.id ? (
                             <Loader2 size={14} className="animate-spin" />
@@ -268,7 +270,7 @@ export default function StudentRequestsPage() {
       {/* Modal nouvelle demande */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                 <Plus className="text-[#FF6B00]" size={24} />

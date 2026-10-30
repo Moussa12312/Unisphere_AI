@@ -35,21 +35,21 @@ export default function DailyReportPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Rapport Journalier</h1>
-          <p className="text-slate-500 mt-1">Résumé des opérations financières du jour</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Rapport Journalier</h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 sm:mt-1">Résumé des opérations financières du jour</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-4 py-2 border border-slate-200 rounded-lg"
+            className="flex-1 sm:flex-none px-3 py-2 border border-slate-200 rounded-lg text-xs sm:text-sm bg-white"
           />
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-[#FF6B00] text-white rounded-lg hover:bg-[#e55f00] transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#FF6B00] text-white rounded-lg hover:bg-[#e55f00] text-xs sm:text-sm font-medium transition-colors shadow-sm"
           >
             <Printer size={16} />
             Imprimer

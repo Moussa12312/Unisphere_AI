@@ -391,40 +391,26 @@ export default function AllReceiptsPage() {
             <p className="text-xs text-slate-400 mt-1">Modifiez vos filtres ou effectuez une autre recherche.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
-                  <th className="py-3.5 px-4">N° Reçu / Pièce</th>
-                  <th className="py-3.5 px-4">Type</th>
-                  <th className="py-3.5 px-4">Bénéficiaire / Tiers</th>
-                  <th className="py-3.5 px-4">Date</th>
-                  <th className="py-3.5 px-4">Mode</th>
-                  <th className="py-3.5 px-4 text-right">Montant</th>
-                  <th className="py-3.5 px-4 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredReceipts.map((item) => {
-                  const isCredit = item.direction === 'credit';
-                  return (
-                    <tr 
-                      key={item.id} 
-                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                      onClick={() => handleOpenReceipt(item)}
-                    >
-                      {/* N° Reçu */}
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 group-hover:bg-orange-50 group-hover:text-[#FF6B00] transition-colors">
-                          <Receipt size={13} className="text-[#FF6B00]" />
+          <div className="space-y-4">
+            {/* VUE MOBILE : Cartes soignées comme le bulletin de notes */}
+            <div className="grid grid-cols-1 gap-3.5 md:hidden p-4">
+              {filteredReceipts.map((item) => {
+                const isCredit = item.direction === 'credit';
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handleOpenReceipt(item)}
+                    className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:border-[#FF6B00] transition-all cursor-pointer space-y-3"
+                  >
+                    {/* Ligne 1 : N° Pièce + Type + Date */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 flex items-center gap-1">
+                          <Receipt size={12} className="text-[#FF6B00]" />
                           {item.receipt_number}
                         </span>
-                      </td>
-
-                      {/* Type de pièce */}
-                      <td className="py-3.5 px-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                          item.type === 'tuition' 
+                          item.type === 'tuition'
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             : item.type === 'expense'
                             ? 'bg-rose-50 text-rose-700 border border-rose-200'
@@ -434,53 +420,139 @@ export default function AllReceiptsPage() {
                         }`}>
                           {item.type_label}
                         </span>
-                      </td>
-
-                      {/* Bénéficiaire / Tiers */}
-                      <td className="py-3.5 px-4">
-                        <div>
-                          <p className="font-bold text-slate-900 text-[13px]">{item.party_name}</p>
-                          <p className="text-[11px] text-slate-500">{item.party_detail}</p>
-                        </div>
-                      </td>
-
-                      {/* Date */}
-                      <td className="py-3.5 px-4 text-slate-600 font-medium">
+                      </div>
+                      <span className="text-[11px] text-slate-400 shrink-0 font-medium">
                         {formatDateFr(item.date)}
-                      </td>
+                      </span>
+                    </div>
 
-                      {/* Mode de paiement */}
-                      <td className="py-3.5 px-4">
-                        <span className="capitalize px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[11px]">
-                          {item.payment_method.replace('_', ' ')}
-                        </span>
-                      </td>
+                    {/* Ligne 2 : Tiers / Bénéficiaire */}
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">{item.party_name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{item.party_detail}</p>
+                    </div>
 
-                      {/* Montant */}
-                      <td className="py-3.5 px-4 text-right">
-                        <span className={`font-mono font-bold text-sm ${
-                          isCredit ? 'text-emerald-600' : 'text-slate-900'
-                        }`}>
-                          {isCredit ? '+' : '-'}{formatFCFA(item.amount)}
-                        </span>
-                      </td>
+                    {/* Ligne 3 : Mode & Montant */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                      <span className="capitalize px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold text-[11px] flex items-center gap-1">
+                        <CreditCard size={12} />
+                        {item.payment_method.replace('_', ' ')}
+                      </span>
+                      <span className={`font-mono font-black text-base ${
+                        isCredit ? 'text-emerald-600' : 'text-slate-900'
+                      }`}>
+                        {isCredit ? '+' : '-'}{formatFCFA(item.amount)}
+                      </span>
+                    </div>
 
-                      {/* Action Imprimer */}
-                      <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleOpenReceipt(item)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white border border-orange-200 font-bold text-xs transition-all shadow-sm"
-                          title="Imprimer ce reçu"
-                        >
-                          <Printer size={13} />
-                          Imprimer
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    {/* Bouton d'action */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenReceipt(item);
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl bg-orange-50 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white border border-orange-200 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm active:scale-[0.98]"
+                    >
+                      <Printer size={14} />
+                      Visualiser / Imprimer ce reçu
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* VUE TABLETTE & DESKTOP */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-3.5 px-4">N° Reçu / Pièce</th>
+                    <th className="py-3.5 px-4">Type</th>
+                    <th className="py-3.5 px-4">Bénéficiaire / Tiers</th>
+                    <th className="py-3.5 px-4">Date</th>
+                    <th className="py-3.5 px-4">Mode</th>
+                    <th className="py-3.5 px-4 text-right">Montant</th>
+                    <th className="py-3.5 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredReceipts.map((item) => {
+                    const isCredit = item.direction === 'credit';
+                    return (
+                      <tr 
+                        key={item.id} 
+                        className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                        onClick={() => handleOpenReceipt(item)}
+                      >
+                        {/* N° Reçu */}
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 group-hover:bg-orange-50 group-hover:text-[#FF6B00] transition-colors">
+                            <Receipt size={13} className="text-[#FF6B00]" />
+                            {item.receipt_number}
+                          </span>
+                        </td>
+
+                        {/* Type de pièce */}
+                        <td className="py-3.5 px-4">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
+                            item.type === 'tuition' 
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : item.type === 'expense'
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : item.type === 'payroll'
+                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}>
+                            {item.type_label}
+                          </span>
+                        </td>
+
+                        {/* Bénéficiaire / Tiers */}
+                        <td className="py-3.5 px-4">
+                          <div>
+                            <p className="font-bold text-slate-900 text-[13px]">{item.party_name}</p>
+                            <p className="text-[11px] text-slate-500">{item.party_detail}</p>
+                          </div>
+                        </td>
+
+                        {/* Date */}
+                        <td className="py-3.5 px-4 text-slate-600 font-medium">
+                          {formatDateFr(item.date)}
+                        </td>
+
+                        {/* Mode de paiement */}
+                        <td className="py-3.5 px-4">
+                          <span className="capitalize px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[11px]">
+                            {item.payment_method.replace('_', ' ')}
+                          </span>
+                        </td>
+
+                        {/* Montant */}
+                        <td className="py-3.5 px-4 text-right">
+                          <span className={`font-mono font-bold text-sm ${
+                            isCredit ? 'text-emerald-600' : 'text-slate-900'
+                          }`}>
+                            {isCredit ? '+' : '-'}{formatFCFA(item.amount)}
+                          </span>
+                        </td>
+
+                        {/* Action Imprimer */}
+                        <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => handleOpenReceipt(item)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white border border-orange-200 font-bold text-xs transition-all shadow-sm"
+                            title="Imprimer ce reçu"
+                          >
+                            <Printer size={13} />
+                            Imprimer
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -512,13 +584,13 @@ export default function AllReceiptsPage() {
       {activeModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static print:overflow-visible print:inset-auto print:z-auto print:w-full print:h-auto print:block">
           
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto border border-slate-200 shadow-2xl p-6 print:border-none print:shadow-none print:max-w-none print:w-full print:p-0 print:overflow-visible print:max-h-none print:m-0 relative voucher-sheet">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto border border-slate-200 shadow-2xl p-3 sm:p-6 print:border-none print:shadow-none print:max-w-none print:w-full print:p-0 print:overflow-visible print:max-h-none print:m-0 relative voucher-sheet">
             
             {/* Barre d'action supérieure (masquée à l'impression) */}
-            <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100 print:hidden">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 mb-4 sm:mb-6 border-b border-slate-100 print:hidden">
               <div className="flex items-center gap-2">
-                <Printer className="text-[#FF6B00]" size={20} />
-                <h3 className="font-bold text-slate-900 text-base">
+                <Printer className="text-[#FF6B00]" size={18} />
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base">
                   {activeModal.type === 'tuition' && 'Reçu Officiel de Scolarité'}
                   {activeModal.type === 'expense' && 'Bon de Décaissement Officiel'}
                   {activeModal.type === 'payroll' && 'Bulletin de Paie & Salaire'}
@@ -529,14 +601,14 @@ export default function AllReceiptsPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="flex items-center gap-2 px-5 py-2 bg-[#FF6B00] text-white rounded-xl text-sm font-bold hover:bg-[#e55f00] shadow-md shadow-orange-500/20 transition-all"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 bg-[#FF6B00] text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-[#e55f00] shadow-md shadow-orange-500/20 transition-all"
                 >
-                  <Printer size={16} />
-                  Imprimer
+                  <Printer size={15} />
+                  <span>Imprimer</span>
                 </button>
                 <button
                   onClick={() => setActiveModal(null)}
-                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+                  className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -553,35 +625,35 @@ export default function AllReceiptsPage() {
 
             {/* ===== CAS 2 : BON DE DÉCAISSEMENT (DÉPENSE) ===== */}
             {activeModal.type === 'expense' && (
-              <div className="bg-white p-8 border border-slate-300 rounded-xl print:border-none print:p-0 text-slate-900 text-xs">
+              <div className="bg-white p-4 sm:p-8 border border-slate-300 rounded-xl print:border-none print:p-0 text-slate-900 text-xs">
                 
                 {/* En-tête de l'université */}
-                <div className="flex items-start justify-between pb-5 mb-6 border-b-2 border-rose-500">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 sm:pb-5 mb-4 sm:mb-6 border-b-2 border-rose-500 gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4">
                     {activeModal.data.university?.logo && (
                       <img 
                         src={`${API_BASE_URL}/uploads/logos/${activeModal.data.university.logo}`} 
                         alt="Logo" 
-                        className="w-16 h-16 object-contain" 
+                        className="w-12 h-12 sm:w-16 sm:h-16 object-contain" 
                       />
                     )}
                     <div>
-                      <p className="font-black text-base uppercase text-slate-900">{activeModal.data.university?.name || 'UNIVERSITÉ'}</p>
-                      {activeModal.data.university?.address && <p className="text-[11px] text-slate-500">{activeModal.data.university.address}</p>}
-                      {activeModal.data.university?.phone && <p className="text-[11px] text-slate-500">Tél : {activeModal.data.university.phone}</p>}
+                      <p className="font-black text-sm sm:text-base uppercase text-slate-900">{activeModal.data.university?.name || 'UNIVERSITÉ'}</p>
+                      {activeModal.data.university?.address && <p className="text-[10px] sm:text-[11px] text-slate-500">{activeModal.data.university.address}</p>}
+                      {activeModal.data.university?.phone && <p className="text-[10px] sm:text-[11px] text-slate-500">Tél : {activeModal.data.university.phone}</p>}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-black text-lg text-rose-600 uppercase">BON DE DÉCAISSEMENT</p>
-                    <p className="font-mono font-bold text-xs mt-1">N° {activeModal.data.voucher?.voucher_number}</p>
+                  <div className="text-left sm:text-right">
+                    <p className="font-black text-base sm:text-lg text-rose-600 uppercase">BON DE DÉCAISSEMENT</p>
+                    <p className="font-mono font-bold text-xs mt-0.5">N° {activeModal.data.voucher?.voucher_number}</p>
                     <p className="text-[11px] text-slate-500">Date : {formatDateFr(activeModal.data.voucher?.date)}</p>
                   </div>
                 </div>
 
                 {/* Détails du décaissement */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                    <p className="font-bold text-[11px] text-slate-400 uppercase mb-2">Bénéficiaire / Prestataire</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="border border-slate-200 rounded-xl p-3 sm:p-4 bg-slate-50/50">
+                    <p className="font-bold text-[11px] text-slate-400 uppercase mb-1 sm:mb-2">Bénéficiaire / Prestataire</p>
                     <p className="font-bold text-sm text-slate-900">{activeModal.data.voucher?.supplier_name}</p>
                     {activeModal.data.voucher?.supplier_phone && (
                       <p className="text-slate-600 mt-1">Tél : {activeModal.data.voucher.supplier_phone}</p>
@@ -591,8 +663,8 @@ export default function AllReceiptsPage() {
                     )}
                   </div>
 
-                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                    <p className="font-bold text-[11px] text-slate-400 uppercase mb-2">Motif de la Dépense</p>
+                  <div className="border border-slate-200 rounded-xl p-3 sm:p-4 bg-slate-50/50">
+                    <p className="font-bold text-[11px] text-slate-400 uppercase mb-1 sm:mb-2">Motif de la Dépense</p>
                     <p className="font-bold text-sm text-slate-900">{activeModal.data.voucher?.title}</p>
                     <p className="text-slate-600 mt-1">Catégorie : <span className="font-semibold">{activeModal.data.voucher?.category_name}</span></p>
                     <p className="text-slate-600">Mode : <span className="font-semibold capitalize">{activeModal.data.voucher?.payment_method}</span></p>
@@ -600,36 +672,36 @@ export default function AllReceiptsPage() {
                 </div>
 
                 {/* Montant */}
-                <div className="border-2 border-slate-800 rounded-xl p-5 mb-8 bg-slate-50 flex items-center justify-between">
+                <div className="border-2 border-slate-800 rounded-xl p-4 sm:p-5 mb-6 sm:mb-8 bg-slate-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase font-bold text-slate-500">Montant décaissé</p>
-                    <p className="text-2xl font-black font-mono text-slate-900 mt-1">
+                    <p className="text-xl sm:text-2xl font-black font-mono text-slate-900 mt-1">
                       {formatFCFA(activeModal.data.voucher?.amount)}
                     </p>
                     <p className="text-xs text-slate-600 italic mt-1 capitalize">
                       Soit : « {enLettres(activeModal.data.voucher?.amount)} francs CFA »
                     </p>
                   </div>
-                  <div className="text-right">
-                    <span className="px-3 py-1 bg-rose-100 text-rose-800 font-bold rounded-lg uppercase text-xs">
+                  <div className="text-left sm:text-right">
+                    <span className="px-3 py-1 bg-rose-100 text-rose-800 font-bold rounded-lg uppercase text-[11px] sm:text-xs">
                       Sortie de caisse / banque
                     </span>
                   </div>
                 </div>
 
                 {/* Signatures officielles */}
-                <div className="grid grid-cols-3 gap-6 pt-6 border-t border-slate-200 text-center">
-                  <div className="border border-dashed border-slate-300 rounded-xl p-4 min-h-[110px] flex flex-col justify-between">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 pt-4 sm:pt-6 border-t border-slate-200 text-center">
+                  <div className="border border-dashed border-slate-300 rounded-xl p-3 sm:p-4 min-h-[90px] sm:min-h-[110px] flex flex-col justify-between">
                     <p className="font-bold text-xs text-slate-700">Le Comptable (Émetteur)</p>
                     <p className="text-[10px] text-slate-400 italic">Signature & Cachet</p>
                   </div>
 
-                  <div className="border border-dashed border-slate-300 rounded-xl p-4 min-h-[110px] flex flex-col justify-between">
+                  <div className="border border-dashed border-slate-300 rounded-xl p-3 sm:p-4 min-h-[90px] sm:min-h-[110px] flex flex-col justify-between">
                     <p className="font-bold text-xs text-slate-700">L'Ordonnateur / Recteur</p>
                     <p className="text-[10px] text-slate-400 italic">Pour Accord (Visa)</p>
                   </div>
 
-                  <div className="border border-dashed border-slate-300 rounded-xl p-4 min-h-[110px] flex flex-col justify-between">
+                  <div className="border border-dashed border-slate-300 rounded-xl p-3 sm:p-4 min-h-[90px] sm:min-h-[110px] flex flex-col justify-between">
                     <p className="font-bold text-xs text-slate-700">Le Bénéficiaire</p>
                     <p className="text-[10px] text-slate-400 italic">Pour Acquit (Reçu)</p>
                   </div>
@@ -640,76 +712,76 @@ export default function AllReceiptsPage() {
 
             {/* ===== CAS 3 : BULLETIN / REÇU DE SALAIRE ===== */}
             {activeModal.type === 'payroll' && (
-              <div className="bg-white p-8 border border-slate-300 rounded-xl print:border-none print:p-0 text-slate-900 text-xs">
+              <div className="bg-white p-4 sm:p-8 border border-slate-300 rounded-xl print:border-none print:p-0 text-slate-900 text-xs">
                 
                 {/* En-tête */}
-                <div className="flex items-start justify-between pb-5 mb-6 border-b-2 border-purple-500">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 sm:pb-5 mb-4 sm:mb-6 border-b-2 border-purple-500 gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4">
                     {activeModal.data.university?.logo && (
                       <img 
                         src={`${API_BASE_URL}/uploads/logos/${activeModal.data.university.logo}`} 
                         alt="Logo" 
-                        className="w-16 h-16 object-contain" 
+                        className="w-12 h-12 sm:w-16 sm:h-16 object-contain" 
                       />
                     )}
                     <div>
-                      <p className="font-black text-base uppercase text-slate-900">{activeModal.data.university?.name || 'UNIVERSITÉ'}</p>
-                      {activeModal.data.university?.address && <p className="text-[11px] text-slate-500">{activeModal.data.university.address}</p>}
+                      <p className="font-black text-sm sm:text-base uppercase text-slate-900">{activeModal.data.university?.name || 'UNIVERSITÉ'}</p>
+                      {activeModal.data.university?.address && <p className="text-[10px] sm:text-[11px] text-slate-500">{activeModal.data.university.address}</p>}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-black text-lg text-purple-700 uppercase">BULLETIN & REÇU DE SALAIRE</p>
-                    <p className="font-mono font-bold text-xs mt-1">N° {activeModal.data.payslip?.slip_number}</p>
+                  <div className="text-left sm:text-right">
+                    <p className="font-black text-base sm:text-lg text-purple-700 uppercase">BULLETIN & REÇU DE SALAIRE</p>
+                    <p className="font-mono font-bold text-xs mt-0.5">N° {activeModal.data.payslip?.slip_number}</p>
                     <p className="text-[11px] text-slate-500">Période : {activeModal.data.payslip?.period}</p>
                   </div>
                 </div>
 
                 {/* Infos salarié */}
-                <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 mb-6">
-                  <p className="font-bold text-[11px] text-slate-400 uppercase mb-2">Bénéficiaire (Salarié)</p>
+                <div className="border border-slate-200 rounded-xl p-3 sm:p-4 bg-slate-50/50 mb-4 sm:mb-6">
+                  <p className="font-bold text-[11px] text-slate-400 uppercase mb-1 sm:mb-2">Bénéficiaire (Salarié)</p>
                   <p className="font-bold text-sm text-slate-900">{activeModal.data.staff?.name}</p>
                   <p className="text-slate-600 mt-1">Fonction : <span className="font-semibold">{activeModal.data.staff?.role}</span></p>
                   {activeModal.data.staff?.email && <p className="text-slate-600">Email : {activeModal.data.staff.email}</p>}
                 </div>
 
                 {/* Tableau de rémunération */}
-                <div className="border border-slate-200 rounded-xl overflow-hidden mb-6">
+                <div className="border border-slate-200 rounded-xl overflow-hidden mb-4 sm:mb-6">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-100 font-bold text-slate-700">
                       <tr>
-                        <th className="py-2.5 px-4">Rubrique</th>
-                        <th className="py-2.5 px-4 text-right">Montant (FCFA)</th>
+                        <th className="py-2.5 px-3 sm:px-4">Rubrique</th>
+                        <th className="py-2.5 px-3 sm:px-4 text-right">Montant (FCFA)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       <tr>
-                        <td className="py-2.5 px-4 font-semibold">Salaire Brut</td>
-                        <td className="py-2.5 px-4 text-right font-mono font-bold">{formatFCFA(activeModal.data.payslip?.gross_salary)}</td>
+                        <td className="py-2.5 px-3 sm:px-4 font-semibold">Salaire Brut</td>
+                        <td className="py-2.5 px-3 sm:px-4 text-right font-mono font-bold">{formatFCFA(activeModal.data.payslip?.gross_salary)}</td>
                       </tr>
                       <tr>
-                        <td className="py-2.5 px-4 text-slate-500">Retenues & Déductions</td>
-                        <td className="py-2.5 px-4 text-right font-mono text-rose-600">-{formatFCFA(activeModal.data.payslip?.deductions)}</td>
+                        <td className="py-2.5 px-3 sm:px-4 text-slate-500">Retenues & Déductions</td>
+                        <td className="py-2.5 px-3 sm:px-4 text-right font-mono text-rose-600">-{formatFCFA(activeModal.data.payslip?.deductions)}</td>
                       </tr>
-                      <tr className="bg-purple-50 font-black text-purple-900 text-sm">
-                        <td className="py-3 px-4">NET PAYÉ</td>
-                        <td className="py-3 px-4 text-right font-mono text-purple-800">{formatFCFA(activeModal.data.payslip?.net_salary)}</td>
+                      <tr className="bg-purple-50 font-black text-purple-900 text-xs sm:text-sm">
+                        <td className="py-3 px-3 sm:px-4">NET PAYÉ</td>
+                        <td className="py-3 px-3 sm:px-4 text-right font-mono text-purple-800">{formatFCFA(activeModal.data.payslip?.net_salary)}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                <p className="text-xs text-slate-700 italic mb-8 capitalize">
+                <p className="text-xs text-slate-700 italic mb-6 sm:mb-8 capitalize">
                   Montant en lettres : « {enLettres(activeModal.data.payslip?.net_salary)} francs CFA »
                 </p>
 
                 {/* Signatures */}
-                <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-200 text-center">
-                  <div className="border border-dashed border-slate-300 rounded-xl p-4 min-h-[110px] flex flex-col justify-between">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 pt-4 sm:pt-6 border-t border-slate-200 text-center">
+                  <div className="border border-dashed border-slate-300 rounded-xl p-3 sm:p-4 min-h-[90px] sm:min-h-[110px] flex flex-col justify-between">
                     <p className="font-bold text-xs text-slate-700">Le Service Financier</p>
                     <p className="text-[10px] text-slate-400 italic">Visa & Cachet</p>
                   </div>
 
-                  <div className="border border-dashed border-slate-300 rounded-xl p-4 min-h-[110px] flex flex-col justify-between">
+                  <div className="border border-dashed border-slate-300 rounded-xl p-3 sm:p-4 min-h-[90px] sm:min-h-[110px] flex flex-col justify-between">
                     <p className="font-bold text-xs text-slate-700">L'Employé(e)</p>
                     <p className="text-[10px] text-slate-400 italic">Signature pour Réception</p>
                   </div>
@@ -720,24 +792,24 @@ export default function AllReceiptsPage() {
 
             {/* ===== CAS 4 : BON DE CAISSE ===== */}
             {activeModal.type === 'cash' && (
-              <div className="bg-white p-8 border border-slate-300 rounded-xl print:border-none print:p-0 text-slate-900 text-xs">
-                <div className="pb-4 mb-4 border-b-2 border-blue-500 flex justify-between items-center">
-                  <h3 className="font-black text-lg uppercase text-blue-700">BON D'OPÉRATION DE TRÉSORERIE</h3>
+              <div className="bg-white p-4 sm:p-8 border border-slate-300 rounded-xl print:border-none print:p-0 text-slate-900 text-xs">
+                <div className="pb-3 sm:pb-4 mb-4 border-b-2 border-blue-500 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <h3 className="font-black text-base sm:text-lg uppercase text-blue-700">BON D'OPÉRATION DE TRÉSORERIE</h3>
                   <p className="font-mono font-bold text-xs">N° {activeModal.data.voucher?.voucher_number}</p>
                 </div>
-                <div className="space-y-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="space-y-3 mb-4 sm:mb-6 bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200">
                   <p><span className="font-bold text-slate-500">Compte / Caisse :</span> <span className="font-bold">{activeModal.data.voucher?.party_name}</span></p>
                   <p><span className="font-bold text-slate-500">Description :</span> {activeModal.data.voucher?.description}</p>
                   <p><span className="font-bold text-slate-500">Date :</span> {formatDateFr(activeModal.data.voucher?.date)}</p>
-                  <p className="text-lg font-black text-slate-900 font-mono mt-2">
+                  <p className="text-base sm:text-lg font-black text-slate-900 font-mono mt-2">
                     Montant : {formatFCFA(activeModal.data.voucher?.amount)}
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-6 pt-6 border-t border-slate-200 text-center">
-                  <div className="border border-dashed border-slate-300 rounded-xl p-4 min-h-[90px] flex flex-col justify-between">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-4 sm:pt-6 border-t border-slate-200 text-center">
+                  <div className="border border-dashed border-slate-300 rounded-xl p-3 sm:p-4 min-h-[80px] sm:min-h-[90px] flex flex-col justify-between">
                     <p className="font-bold text-xs text-slate-700">Le Caissier</p>
                   </div>
-                  <div className="border border-dashed border-slate-300 rounded-xl p-4 min-h-[90px] flex flex-col justify-between">
+                  <div className="border border-dashed border-slate-300 rounded-xl p-3 sm:p-4 min-h-[80px] sm:min-h-[90px] flex flex-col justify-between">
                     <p className="font-bold text-xs text-slate-700">Le Responsable Financier</p>
                   </div>
                 </div>

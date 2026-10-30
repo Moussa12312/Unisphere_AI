@@ -187,32 +187,32 @@ export default function SecretaryGenerateDocumentsPage() {
       {/* Liste des étudiants */}
       <div className="space-y-3">
         {filteredStudents.map((student) => (
-          <div key={student.id} className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3 flex-1">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-full flex items-center justify-center text-white font-bold">
+          <div key={student.id} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 hover:shadow-md transition-shadow">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
                   {student.first_name?.charAt(0)}{student.last_name?.charAt(0)}
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-slate-900 text-lg">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-slate-900 text-base sm:text-lg truncate">
                     {student.first_name} {student.last_name}
                   </h3>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-xs sm:text-sm text-slate-500 truncate">
                     {student.matricule} • {student.filiere} • {student.level}
                   </p>
                 </div>
               </div>
               
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => handleGenerateEnrollmentCertificate(student.id)}
                   disabled={generating === student.id}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs sm:text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {generating === student.id ? (
-                    <Loader2 size={16} className="animate-spin" />
+                    <Loader2 size={15} className="animate-spin" />
                   ) : (
-                    <GraduationCap size={16} />
+                    <GraduationCap size={15} />
                   )}
                   Attestation
                 </button>
@@ -220,31 +220,31 @@ export default function SecretaryGenerateDocumentsPage() {
                 <button
                   onClick={() => handleGenerateTranscript(student.id)}
                   disabled={generating === student.id || !selectedSessionId}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs sm:text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {generating === student.id ? (
-                    <Loader2 size={16} className="animate-spin" />
+                    <Loader2 size={15} className="animate-spin" />
                   ) : (
-                    <Award size={16} />
+                    <Award size={15} />
                   )}
-                  Relevé de notes
+                  Relevé
                 </button>
 
                 <button
                   onClick={() => handleGenerateAchievement(student.id)}
                   disabled={generating === student.id || !selectedSessionId}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs sm:text-sm font-medium transition-colors disabled:opacity-50"
                 >
-                  {generating === student.id ? <Loader2 size={16} className="animate-spin" /> : <Award size={16} />}
+                  {generating === student.id ? <Loader2 size={15} className="animate-spin" /> : <Award size={15} />}
                   Réussite
                 </button>
 
                 <button
                   onClick={() => handleGenerateAttendance(student.id)}
                   disabled={generating === student.id}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs sm:text-sm font-medium transition-colors disabled:opacity-50"
                 >
-                  {generating === student.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  {generating === student.id ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
                   Présence
                 </button>
               </div>

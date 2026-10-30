@@ -86,20 +86,20 @@ export default function CenseurReportsPage() {
           </div>
         ) : (
           reports.map((report) => (
-            <div key={report.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white">
-                    <FileBarChart size={24} />
+            <div key={report.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0 w-full">
+                  <div className="w-10 h-10 sm:w-14 sm:h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white shrink-0">
+                    <FileBarChart size={20} className="sm:w-6 sm:h-6" />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-lg font-bold text-slate-900">{report.session_name}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusColor(report.status)}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 truncate">{report.session_name}</h3>
+                      <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-semibold ${getStatusColor(report.status)}`}>
                         {getStatusLabel(report.status)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-slate-500 mb-3">
+                    <div className="flex items-center gap-3 text-xs text-slate-500 mb-3">
                       <span className="flex items-center gap-1">
                         <Calendar size={12} />
                         {formatDate(report.start_date)} → {formatDate(report.end_date)}
@@ -107,43 +107,43 @@ export default function CenseurReportsPage() {
                     </div>
                     
                     {/* Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="bg-blue-50 rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <Users size={14} className="text-blue-600" />
-                          <span className="text-xs text-slate-600">Étudiants</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                      <div className="bg-blue-50 rounded-lg p-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <Users size={13} className="text-blue-600" />
+                          <span className="text-[11px] text-slate-600 font-medium">Étudiants</span>
                         </div>
-                        <p className="text-xl font-bold text-blue-700 mt-1">{report.students_count}</p>
+                        <p className="text-base sm:text-xl font-bold text-blue-700 mt-0.5">{report.students_count}</p>
                       </div>
-                      <div className="bg-purple-50 rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <BookOpen size={14} className="text-purple-600" />
-                          <span className="text-xs text-slate-600">Cours</span>
+                      <div className="bg-purple-50 rounded-lg p-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <BookOpen size={13} className="text-purple-600" />
+                          <span className="text-[11px] text-slate-600 font-medium">Cours</span>
                         </div>
-                        <p className="text-xl font-bold text-purple-700 mt-1">{report.courses_count}</p>
+                        <p className="text-base sm:text-xl font-bold text-purple-700 mt-0.5">{report.courses_count}</p>
                       </div>
-                      <div className="bg-orange-50 rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp size={14} className="text-orange-600" />
-                          <span className="text-xs text-slate-600">Moyenne</span>
+                      <div className="bg-orange-50 rounded-lg p-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <TrendingUp size={13} className="text-orange-600" />
+                          <span className="text-[11px] text-slate-600 font-medium">Moyenne</span>
                         </div>
-                        <p className="text-xl font-bold text-orange-700 mt-1">{report.average}/20</p>
+                        <p className="text-base sm:text-xl font-bold text-orange-700 mt-0.5">{report.average}/20</p>
                       </div>
-                      <div className="bg-green-50 rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle size={14} className="text-green-600" />
-                          <span className="text-xs text-slate-600">Réussite</span>
+                      <div className="bg-green-50 rounded-lg p-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle size={13} className="text-green-600" />
+                          <span className="text-[11px] text-slate-600 font-medium">Réussite</span>
                         </div>
-                        <p className="text-xl font-bold text-green-700 mt-1">{report.success_rate}%</p>
+                        <p className="text-base sm:text-xl font-bold text-green-700 mt-0.5">{report.success_rate}%</p>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex flex-col gap-2">
+                <div className="flex w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                   <Link
                     href={`/censeur/exams/sessions/${report.id}`}
-                    className="px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-colors"
+                    className="w-full sm:w-auto justify-center px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
                   >
                     <FileBarChart size={14} />
                     Voir détails

@@ -67,7 +67,8 @@ export default function AnnouncementsPage() {
     try {
       setLoading(true);
       const res = await api.get('/api/v1/announcements/');
-      setAnnouncements(Array.isArray(res.data) ? res.data : []);
+      const list = Array.isArray(res.data) ? res.data : (Array.isArray(res.data?.data) ? res.data.data : []);
+      setAnnouncements(list);
     } catch (error) {
       console.error('Erreur:', error);
       toast.error('Erreur de chargement des annonces');

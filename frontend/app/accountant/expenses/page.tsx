@@ -164,18 +164,19 @@ export default function AccountantExpensesPage() {
           <p className="text-slate-500">Aucune dépense enregistrée</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Titre</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Catégorie</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600">Fournisseur</th>
-                <th className="text-center px-4 py-3 font-medium text-slate-600">Date</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600">Montant</th>
-                <th className="text-center px-4 py-3 font-medium text-slate-600"></th>
-              </tr>
-            </thead>
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[600px] text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Titre</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Catégorie</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Fournisseur</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600">Date</th>
+                  <th className="text-right px-4 py-3 font-medium text-slate-600">Montant</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600"></th>
+                </tr>
+              </thead>
             <tbody className="divide-y divide-slate-100">
               {expenses.map((e) => (
                 <tr key={e.id} className="hover:bg-slate-50">
@@ -198,6 +199,7 @@ export default function AccountantExpensesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
