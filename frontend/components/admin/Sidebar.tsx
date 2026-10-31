@@ -107,6 +107,7 @@ const MENU_CONFIG: Record<string, Array<{
       items: [
         { label: 'Profil Université', href: '/admin/settings', icon: Building2 },
         { label: 'Configuration', href: '/admin/settings/config', icon: GraduationCap },
+        { label: 'Bascule Année Académique', href: '/admin/academic-year-transition', icon: Calendar },
         { label: 'Sécurité & Audit', href: '/admin/settings/security', icon: Shield },
         { label: 'Mots de passe oubliés', href: '/admin/settings/password-requests', icon: KeyRound },
         { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },

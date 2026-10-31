@@ -332,6 +332,7 @@ settings_router = try_import_router("app.api.settings")
 alumni_router = try_import_router("app.api.alumni")
 scan_sessions_router = try_import_router("app.api.scan_sessions")
 deliberations_router = try_import_router("app.api.deliberations")
+academic_year_transition_router = try_import_router("app.api.academic_year_transition")
 
 
 censors_router = try_import_router("app.api.censors")
@@ -395,6 +396,7 @@ all_routers = {
     "teaching_units": teaching_units_router,
     "subscriptions": subscriptions_router,
     "password_reset": password_reset_router,
+    "academic_year_transition": academic_year_transition_router,
 }
 
 registered = []
