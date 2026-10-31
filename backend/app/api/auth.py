@@ -36,14 +36,14 @@ def get_auth_context(db: Session = Depends(get_db)):
     univ = db.query(University).filter(University.id == 1).first() or db.query(University).first()
     return {
         "university": {
-            "name": univ.name if univ else "UniSphere AI",
+            "name": univ.name if univ else "ECOB",
             "slogan": getattr(univ, 'slogan', None) or "Excellence & Innovation Académique",
-            "address": getattr(univ, 'address', None) or "Plateforme SaaS Multi-Universités",
+            "address": getattr(univ, 'address', None) or "Hamdallaye ACI 2000, Bamako, Mali",
             "academic_year": "2026-2027",
             "logo": univ.logo if univ else None
         },
         "quick_accounts": [
-            
+            { "role": "super_admin", "label": "Super Admin", "email": "chakirunisphereai@gmail.com", "name": "Moussa Coulibaly", "department": "SaaS Platform" },
             { "role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration" },
             { "role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie" },
             { "role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD" },
