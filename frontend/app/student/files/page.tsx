@@ -1,13 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Folder, Upload, FileText, Image as ImageIcon, Trash2,
-  Loader2, CheckCircle, AlertCircle, Eye, Download,
-  IdCard, User, FileCheck, XCircle, GraduationCap, RefreshCw
+  Folder, FileText, Loader2, CheckCircle, AlertCircle, Eye, Download,
+  IdCard, User, FileCheck, ShieldCheck, Building2, ExternalLink
 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
-import { useConfirm } from '@/hooks/useConfirm';
 import api, { API_BASE_URL } from '@/lib/api';
 
 interface StudentFile {
@@ -26,7 +23,7 @@ const NEW_STUDENT_DOCS = [
   { id: 'bac_transcript', label: "Relevé de notes du Bac", description: "Relevé de notes officiel de l'examen", icon: FileText, required: true },
   { id: 'id_document', label: "Pièce d'identité (CNI / Passeport)", description: "Carte nationale d'identité ou passeport", icon: IdCard, required: true },
   { id: 'medical_certificate', label: "Certificat médical d'aptitude", description: "Certificat d'aptitude physique délivré par un médecin", icon: FileText, required: false },
-  { id: 'photo', label: "Photo d'identité", description: "Photo d'identité récente", icon: User, required: false },
+  { id: 'photo', label: "Photo d'identité", description: "Photo d'identité officielle", icon: User, required: false },
 ];
 
 const RETURNING_STUDENT_DOCS = [
@@ -35,16 +32,13 @@ const RETURNING_STUDENT_DOCS = [
   { id: 'financial_clearance', label: "Quitus financier / Solde scolarité", description: "Attestation prouvant le solde de la scolarité N-1", icon: FileText, required: true },
   { id: 'id_document', label: "Ancienne carte d'étudiant / CNI", description: "Carte d'étudiant ou pièce d'identité", icon: IdCard, required: false },
   { id: 'reenrollment_form', label: "Fiche de réinscription signée", description: "Formulaire officiel de réinscription", icon: FileText, required: false },
-  { id: 'photo', label: "Photo d'identité", description: "Photo d'identité à jour", icon: User, required: false },
+  { id: 'photo', label: "Photo d'identité", description: "Photo d'identité officielle", icon: User, required: false },
 ];
 
 export default function StudentFilesPage() {
   const [files, setFiles] = useState<StudentFile[]>([]);
   const [studentInfo, setStudentInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -53,16 +47,15 @@ export default function StudentFilesPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      
-      // Charger les infos de l'étudiant
+      // Charger le profil de l'étudiant
       const profileRes = await api.get('/api/v1/students/me');
       setStudentInfo(profileRes.data);
-      
-      // Charger les fichiers du dossier
+
+      // Charger les fichiers archivés du dossier
       const filesRes = await api.get('/api/v1/students/me/files');
       setFiles(filesRes.data || []);
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('Erreur de chargement du dossier étudiant:', error);
     } finally {
       setLoading(false);
     }
@@ -71,93 +64,30 @@ export default function StudentFilesPage() {
   const isReturning = studentInfo?.student_type === 'returning';
   const documentTypes = isReturning ? RETURNING_STUDENT_DOCS : NEW_STUDENT_DOCS;
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedType) return;
-    
-    // Vérifier la taille (max 10 Mo)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Le fichier est trop volumineux (max 10 Mo)');
-      return;
-    }
-    
-    // Vérifier le type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Format non supporté. Utilisez JPG, PNG ou PDF.');
-      return;
-    }
-    
-    setUploading(selectedType);
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('document_type', selectedType);
-    
-    try {
-      await api.post('/api/v1/students/me/files', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      const docLabel = documentTypes.find(d => d.id === selectedType)?.label || selectedType;
-      toast.success(`✅ ${docLabel} ajouté !`);
-      await loadData();
-      setSelectedType(null);
-      
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erreur d\'upload');
-    } finally {
-      setUploading(null);
-    }
-  };
-
-  const confirmModal = useConfirm();
-
-  const handleDelete = async (fileId: string) => {
-    const ok = await confirmModal({
-      title: 'Supprimer ce document ?',
-      message: 'Voulez-vous vraiment supprimer ce document de votre dossier ?',
-      confirmText: 'Supprimer',
-      variant: 'danger',
-      icon: 'trash'
-    });
-    if (!ok) return;
-
-    try {
-      await api.delete(`/api/v1/students/me/files/${fileId}`);
-      toast.success('Document supprimé avec succès');
-      await loadData();
-    } catch (error) {
-      toast.error('Erreur de suppression');
-    }
-  };
-
   const getStatusBadge = (status: string) => {
     const configs: Record<string, { bg: string; text: string; label: string }> = {
-      pending: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'En attente de validation' },
-      complete: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Dossier complet' },
-      validated: { bg: 'bg-green-100', text: 'text-green-700', label: 'Validé par l\'administration' },
-      rejected: { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejeté' }
+      pending: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Enregistré (en vérification)' },
+      complete: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Dossier complet' },
+      validated: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Validé & Certifié conforme' },
+      rejected: { bg: 'bg-red-100', text: 'text-red-800', label: 'Rejeté par la scolarité' }
     };
     const config = configs[status] || configs.pending;
     return (
-      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${config.bg} ${config.text}`}>
+      <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${config.bg} ${config.text}`}>
         {config.label}
       </span>
     );
   };
 
   const formatFileSize = (bytes: number) => {
+    if (!bytes) return '';
     if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' Ko';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' Mo';
   };
 
   const requiredCount = documentTypes.filter(t => t.required).length;
-  const providedRequiredCount = documentTypes.filter(t => t.required && files.some(f => f.name === t.id)).length;
+  const providedRequiredCount = documentTypes.filter(t => t.required && files.some(f => f.name === t.id || (t.id === 'id_document' && f.name === 'cni'))).length;
   const completionRate = requiredCount > 0 ? Math.round((providedRequiredCount / requiredCount) * 100) : 100;
 
   if (loading) {
@@ -170,45 +100,45 @@ export default function StudentFilesPage() {
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-900 rounded-2xl p-4 sm:p-8 text-white shadow-lg">
+      {/* Header Institutionnel */}
+      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-2xl p-5 sm:p-8 text-white shadow-xl border border-slate-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-              <Folder size={22} />
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center shrink-0 border border-white/15">
+              <Folder size={24} className="text-amber-400" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold">Mon dossier administratif</h1>
-                <span className="text-[11px] sm:text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-semibold">
-                  {isReturning ? '🔄 Ancien Étudiant (Réinscription)' : '🎓 Nouvel Étudiant'}
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dossier Administratif Officiel</h1>
+                <span className="text-[11px] sm:text-xs bg-white/15 px-2.5 py-0.5 rounded-full font-medium">
+                  {isReturning ? '🔄 Réinscription (Ancien)' : '🎓 Première Inscription'}
                 </span>
               </div>
-              <p className="text-emerald-100 text-xs sm:text-sm mt-0.5">
-                {isReturning 
-                  ? 'Transmettez vos pièces requises pour valider votre réinscription'
-                  : 'Transmettez l\'ensemble des pièces nécessaires à la validation définitive de votre inscription'}
+              <p className="text-slate-300 text-xs sm:text-sm mt-1">
+                Consultation et suivi de conformité des pièces académiques certifiées par la Scolarité
               </p>
             </div>
           </div>
           {studentInfo?.matricule && (
-            <div className="text-left md:text-right pl-13 md:pl-0">
-              <span className="text-[11px] text-emerald-200">Matricule</span>
-              <p className="font-mono font-bold text-white text-base sm:text-lg">{studentInfo.matricule}</p>
+            <div className="text-left md:text-right pl-14 md:pl-0">
+              <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Matricule Étudiant</span>
+              <p className="font-mono font-bold text-amber-400 text-base sm:text-xl">{studentInfo.matricule}</p>
             </div>
           )}
         </div>
 
-        {/* Progress bar */}
-        <div className="bg-white/10 rounded-xl p-3 sm:p-4 backdrop-blur mt-4 border border-white/10">
+        {/* Barre de complétion officielle */}
+        <div className="bg-white/5 rounded-xl p-3.5 sm:p-4 backdrop-blur mt-4 border border-white/10">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-            <span className="text-xs sm:text-sm font-medium">Complétion ({providedRequiredCount} / {requiredCount} pièces obligatoires)</span>
-            <span className="text-base sm:text-lg font-bold">{completionRate}%</span>
+            <span className="text-xs sm:text-sm font-medium text-slate-200">
+              État de conformité : <strong>{providedRequiredCount} sur {requiredCount}</strong> pièces obligatoires enregistrées
+            </span>
+            <span className="text-base sm:text-lg font-bold text-amber-400">{completionRate}%</span>
           </div>
-          <div className="w-full bg-white/20 rounded-full h-2.5">
+          <div className="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden">
             <div
               className={`h-2.5 rounded-full transition-all duration-500 ${
-                completionRate === 100 ? 'bg-green-400' : 'bg-[#FF6B00]'
+                completionRate === 100 ? 'bg-emerald-400' : 'bg-amber-500'
               }`}
               style={{ width: `${completionRate}%` }}
             />
@@ -216,132 +146,130 @@ export default function StudentFilesPage() {
         </div>
       </div>
 
-      {/* Alertes d'état */}
+      {/* Avertissement de sécurité et procédure de dépôt */}
+      <div className="bg-amber-50/90 border border-amber-200/80 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm">
+        <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+          <ShieldCheck size={20} className="text-amber-700" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
+            <span>Dépôt officiel des pièces au Secrétariat</span>
+            <span className="text-xs font-normal text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">Procédure Sécurisée</span>
+          </p>
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            Pour garantir l'authenticité et la valeur légale de vos attestations, <strong>seuls les agents habilités de la Scolarité et du Secrétariat sont autorisés à numériser et enregistrer vos documents originaux</strong>. Veuillez présenter vos originaux (ou copies certifiées) directement au guichet administratif.
+          </p>
+        </div>
+      </div>
+
+      {/* État général du dossier */}
       {studentInfo?.file_status === 'validated' ? (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
-          <CheckCircle size={20} className="text-green-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+          <CheckCircle size={22} className="text-emerald-600 flex-shrink-0" />
           <div>
-            <p className="font-semibold text-green-900">Dossier Validé par l'Administration 🎉</p>
-            <p className="text-sm text-green-700 mt-1">
-              Félicitations, l'ensemble de vos documents a été vérifié et validé définitivement par la scolarité.
+            <p className="font-semibold text-emerald-950 text-sm">Dossier Validé & Conforme 🎉</p>
+            <p className="text-xs text-emerald-700 mt-0.5">
+              L'ensemble de vos pièces a été vérifié, certifié conforme et validé par la Direction des Études.
             </p>
           </div>
         </div>
       ) : completionRate < 100 ? (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertCircle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3">
+          <AlertCircle size={22} className="text-blue-600 flex-shrink-0" />
           <div>
-            <p className="font-semibold text-amber-900">Dossier incomplet</p>
-            <p className="text-sm text-amber-700 mt-1">
-              Veuillez téléverser tous les documents signalés comme <strong>Requis</strong> pour permettre à la scolarité d'instruire votre inscription.
+            <p className="font-semibold text-blue-950 text-sm">Pièces justificatives requises</p>
+            <p className="text-xs text-blue-700 mt-0.5">
+              Il vous reste des pièces obligatoires à présenter au secrétariat académique pour finaliser votre dossier.
             </p>
           </div>
         </div>
       ) : (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-          <CheckCircle size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-3">
+          <CheckCircle size={22} className="text-indigo-600 flex-shrink-0" />
           <div>
-            <p className="font-semibold text-blue-900">Dossier complet en attente de vérification</p>
-            <p className="text-sm text-blue-700 mt-1">
-              Tous vos documents obligatoires ont bien été transmis. L'administration procède actuellement à leur validation.
+            <p className="font-semibold text-indigo-950 text-sm">Toutes les pièces sont déposées</p>
+            <p className="text-xs text-indigo-700 mt-0.5">
+              Vos documents sont actuellement en cours de revue finale par les agents de la scolarité.
             </p>
           </div>
         </div>
       )}
 
-      {/* Documents requis */}
+      {/* Tableau des Pièces du Dossier (Consultation uniquement) */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+        <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
+          <h2 className="font-bold text-slate-900 flex items-center gap-2 text-sm sm:text-base">
             <FileText size={18} className="text-[#FF6B00]" />
-            Pièces du dossier ({documentTypes.length})
+            Inventaire des Pièces Académiques ({documentTypes.length})
           </h2>
-          <span className="text-xs text-slate-500">Formats acceptés : PDF, JPG, PNG (max 10 Mo)</span>
+          <span className="text-xs text-slate-500 font-medium">Mode Consultation</span>
         </div>
         
         <div className="divide-y divide-slate-100">
           {documentTypes.map((docType) => {
             const existingFile = files.find(f => f.name === docType.id || (docType.id === 'id_document' && f.name === 'cni'));
             const Icon = docType.icon;
-            const isUploading = uploading === docType.id;
             
             return (
-              <div key={docType.id} className="p-4 hover:bg-slate-50/50 transition-colors">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                    existingFile ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'
-                  }`}>
-                    <Icon size={20} />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-slate-900">{docType.label}</h3>
-                      {docType.required ? (
-                        <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[11px] font-bold rounded-full">
-                          Obligatoire *
-                        </span>
+              <div key={docType.id} className="p-4 sm:p-5 hover:bg-slate-50/60 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                      existingFile ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      <Icon size={20} />
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-slate-900 text-sm sm:text-base">{docType.label}</h3>
+                        {docType.required ? (
+                          <span className="px-2 py-0.5 bg-rose-100 text-rose-700 text-[10px] font-bold rounded-full">
+                            Obligatoire
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-medium rounded-full">
+                            Facultatif
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">{docType.description}</p>
+                      
+                      {existingFile ? (
+                        <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                          <span className="text-[11px] font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {existingFile.filename} {existingFile.size ? `(${formatFileSize(existingFile.size)})` : ''}
+                          </span>
+                          {getStatusBadge(existingFile.status)}
+                        </div>
                       ) : (
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-medium rounded-full">
-                          Optionnel
-                        </span>
+                        <p className="text-xs text-amber-700 font-medium pt-0.5 flex items-center gap-1">
+                          <AlertCircle size={13} />
+                          À présenter au guichet du secrétariat
+                        </p>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{docType.description}</p>
-                    {existingFile ? (
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="text-xs text-slate-600 font-mono bg-slate-100 px-2 py-0.5 rounded">
-                          {existingFile.filename} ({formatFileSize(existingFile.size)})
-                        </span>
-                        {getStatusBadge(existingFile.status)}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-amber-600 font-medium mt-1">⚠️ Pièce manquante à fournir</p>
-                    )}
                   </div>
                   
-                  <div className="flex items-center gap-2 self-end sm:self-center">
-                    {existingFile && (
-                      <>
-                        <a
-                          href={`${API_BASE_URL}/${existingFile.path}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-                          title="Visualiser le fichier"
-                        >
-                          <Eye size={16} />
-                        </a>
-                        <button
-                          onClick={() => handleDelete(existingFile.id)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer ce fichier"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </>
+                  {/* Action : Visualisation uniquement */}
+                  <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                    {existingFile ? (
+                      <a
+                        href={`${API_BASE_URL}/${existingFile.path}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors border border-slate-200"
+                        title="Ouvrir le document certifié"
+                      >
+                        <Eye size={14} className="text-blue-600" />
+                        <span>Consulter</span>
+                        <ExternalLink size={12} className="text-slate-400 ml-0.5" />
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic bg-slate-50 px-2.5 py-1 rounded border border-slate-200/60">
+                        Non numérisé
+                      </span>
                     )}
-                    
-                    <button
-                      onClick={() => {
-                        setSelectedType(docType.id);
-                        setTimeout(() => fileInputRef.current?.click(), 100);
-                      }}
-                      disabled={isUploading}
-                      className="flex items-center gap-1.5 px-3.5 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-colors shadow-sm"
-                    >
-                      {isUploading ? (
-                        <>
-                          <Loader2 size={13} className="animate-spin" />
-                          Envoi...
-                        </>
-                      ) : (
-                        <>
-                          <Upload size={13} />
-                          {existingFile ? 'Remplacer' : 'Téléverser'}
-                        </>
-                      )}
-                    </button>
                   </div>
                 </div>
               </div>
@@ -350,55 +278,10 @@ export default function StudentFilesPage() {
         </div>
       </div>
 
-      {/* Input file caché */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,application/pdf"
-        onChange={handleFileSelect}
-        className="hidden"
-      />
-
-      {/* Historique des uploads */}
-      {files.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-slate-200 bg-slate-50">
-            <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-              <Folder size={18} className="text-[#FF6B00]" />
-              Fichiers transmis ({files.length})
-            </h2>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="min-w-[640px] w-full">
-              <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
-                <tr>
-                  <th className="px-4 py-3 text-left">Document</th>
-                  <th className="px-4 py-3 text-left">Nom du fichier</th>
-                  <th className="px-4 py-3 text-left">Taille</th>
-                  <th className="px-4 py-3 text-left">Date d'envoi</th>
-                  <th className="px-4 py-3 text-left">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {files.map((file) => (
-                  <tr key={file.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-semibold text-slate-900">
-                      {documentTypes.find(t => t.id === file.name)?.label || file.name}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 font-mono text-xs">{file.filename}</td>
-                    <td className="px-4 py-3 text-slate-600 text-xs">{formatFileSize(file.size)}</td>
-                    <td className="px-4 py-3 text-slate-600 text-xs">
-                      {new Date(file.uploaded_at).toLocaleDateString('fr-FR')} à {new Date(file.uploaded_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="px-4 py-3">{getStatusBadge(file.status)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* Information supplémentaire */}
+      <div className="text-center py-4 text-xs text-slate-500">
+        UniSphere AI • Système d'Information Académique Sécurisé • Contact Secrétariat : scolarite@unisphere.edu
+      </div>
     </div>
   );
 }

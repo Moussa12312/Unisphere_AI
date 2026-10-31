@@ -123,3 +123,4 @@ def compress_and_save_upload(
         with open(path, "wb") as f:
             f.write(data)
         return path
+

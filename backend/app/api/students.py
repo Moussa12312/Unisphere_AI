@@ -2412,125 +2412,25 @@ def get_my_files(
 
 @router.post("/me/files")
 async def upload_my_file(
-    document_type: str = Form(...),
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
     current_user: User = Depends(require_role("student"))
 ):
-    """Upload un fichier dans le dossier de l'étudiant et met à jour son profil"""
-    student = db.query(Student).filter(
-        Student.user_id == current_user.id
-    ).first()
-    
-    if not student:
-        raise HTTPException(status_code=404, detail="Profil étudiant non trouvé")
-    
-    allowed_types = ["image/jpeg", "image/png", "image/jpg", "application/pdf"]
-    if file.content_type not in allowed_types:
-        raise HTTPException(status_code=400, detail="Format non supporté. Utilisez JPG, PNG ou PDF.")
-    
-    content = await file.read()
-    if len(content) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 10 Mo)")
-    
-    base_dir = Path(__file__).resolve().parent.parent.parent
-    student_folder = base_dir / "uploads" / "dossier_etudiant" / str(student.id)
-    student_folder.mkdir(parents=True, exist_ok=True)
-    
-    # Supprimer l'ancien fichier du même type
-    for existing_file in student_folder.iterdir():
-        if existing_file.name.startswith(f"{document_type}_"):
-            try:
-                existing_file.unlink()
-            except Exception:
-                pass
-    
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    ext = Path(file.filename).suffix.lower() if file.filename else ".jpg"
-    filename = f"{document_type}_{timestamp}{ext}"
-    file_path = student_folder / filename
-    
-    saved_file = compress_and_save_upload(content, file_path, max_dimension=1600, quality=80)
-
-    rel_path = f"uploads/dossier_etudiant/{student.id}/{saved_file.name}"
-    
-    # Mettre à jour l'attribut du modèle Student
-    col_name = "id_document" if document_type == "cni" else document_type
-    if hasattr(student, col_name):
-        setattr(student, col_name, rel_path)
-    
-    # Recalculer complétude
-    st_type = student.student_type or "new"
-    if st_type == "new":
-        has_req = all([
-            student.birth_certificate,
-            student.bac_diploma,
-            student.bac_transcript,
-            student.id_document
-        ])
-    else:
-        has_req = all([
-            student.previous_transcript,
-            student.success_certificate,
-            student.financial_clearance
-        ])
-    
-    if student.file_status != "validated":
-        student.file_status = "complete" if has_req else "incomplete"
-
-    db.commit()
-    db.refresh(student)
-    
-    return {
-        "message": "Fichier uploadé avec succès",
-        "filename": filename,
-        "path": rel_path,
-        "file_status": student.file_status
-    }
+    """Accès restreint : Le dépôt et la modification de documents officiels sont réservés au secrétariat"""
+    raise HTTPException(
+        status_code=403,
+        detail="Le téléversement de documents officiels est réservé aux services de la scolarité et du secrétariat. Veuillez présenter vos pièces originales au secrétariat académique."
+    )
 
 
 @router.delete("/me/files/{filename}")
 def delete_my_file(
     filename: str,
-    db: Session = Depends(get_db),
     current_user: User = Depends(require_role("student"))
 ):
-    """Supprime un fichier du dossier de l'étudiant"""
-    student = db.query(Student).filter(
-        Student.user_id == current_user.id
-    ).first()
-    
-    if not student:
-        raise HTTPException(status_code=404, detail="Profil étudiant non trouvé")
-    
-    base_dir = Path(__file__).resolve().parent.parent.parent
-    file_path = base_dir / "uploads" / "dossier_etudiant" / str(student.id) / filename
-    
-    if not file_path.exists():
-        fallback = Path(f"uploads/dossier_etudiant/{student.id}/{filename}")
-        if fallback.exists():
-            file_path = fallback
-        else:
-            raise HTTPException(status_code=404, detail="Fichier non trouvé")
-    
-    file_path.unlink()
-
-    # Nettoyer l'attribut correspondant si c'est le fichier actif
-    for attr in [
-        "birth_certificate", "bac_diploma", "bac_transcript", "id_document",
-        "medical_certificate", "previous_transcript", "success_certificate",
-        "financial_clearance", "reenrollment_form"
-    ]:
-        val = getattr(student, attr, None)
-        if val and filename in val:
-            setattr(student, attr, None)
-    
-    if student.file_status != "validated":
-        student.file_status = "incomplete"
-
-    db.commit()
-    
-    return {"message": "Fichier supprimé avec succès"}
+    """Accès restreint : La suppression de pièces officielles du dossier est réservée à l'administration"""
+    raise HTTPException(
+        status_code=403,
+        detail="La suppression de pièces officielles du dossier étudiant est exclusivement réservée à l'administration."
+    )
 
 
 # ==========================================
