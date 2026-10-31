@@ -2,7 +2,9 @@ import os
 import sys
 import shutil
 
-sys.path.insert(0, r"c:\UniSphere_AI\backend")
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 from sqlalchemy import text, inspect
@@ -90,7 +92,7 @@ def reset_database():
     print(f"   - Mot de passe : {super_admin_pass}")
     
     # 5. Nettoyer les fichiers téléversés résiduels dans uploads et qr_codes
-    base_dir = r"c:\UniSphere_AI\backend"
+    base_dir = backend_dir
     for folder_name in ["uploads", "qr_codes"]:
         target_dir = os.path.join(base_dir, folder_name)
         if os.path.exists(target_dir):
