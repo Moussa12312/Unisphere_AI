@@ -2,22 +2,20 @@ version: '3.8'
 
 services:
   # ---------------------------------------------------------------------------
-  # 1. Base de données PostgreSQL
+  # 1. Base de données PostgreSQL 15
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:15-alpine
     container_name: unisphere_postgres
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-unisphereai73}
-      POSTGRES_DB: ${POSTGRES_DB:-unisphere_ai}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-unisphere_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-unisphere_secret_2026_moussa}
+      POSTGRES_DB: ${POSTGRES_DB:-unisphere_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-unisphere_admin} -d ${POSTGRES_DB:-unisphere_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,12 +35,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-unisphereai73}@postgres:5432/${POSTGRES_DB:-unisphere_ai}
-      SECRET_KEY: ${SECRET_KEY:-your-super-secret-key-change-in-production-2026}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-unisphere_admin}:${POSTGRES_PASSWORD:-unisphere_secret_2026_moussa}@postgres:5432/${POSTGRES_DB:-unisphere_db}
+      SECRET_KEY: ${SECRET_KEY:-c9284fae98214dbac91823746182937461928374}
       ALGORITHM: ${ALGORITHM:-HS256}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000,http://127.0.0.1:3000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost,http://169.58.101.183}
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -50,15 +48,13 @@ services:
       SMTP_FROM: ${SMTP_FROM:-noreply@unisphere.ai}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-      MAX_UPLOAD_SIZE_MB: 10
+      MAX_UPLOAD_SIZE_MB: 25
       UPLOAD_DIR: ./uploads
       QR_DIR: ./qr_codes
       DOCUMENTS_DIR: ./documents
       APP_NAME: "UniSphere AI"
       APP_VERSION: "2.0.0"
       ENVIRONMENT: ${ENVIRONMENT:-production}
-    ports:
-      - "8000:8000"
     volumes:
       - backend_uploads:/app/uploads
       - backend_qrcodes:/app/qr_codes
@@ -73,7 +69,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     container_name: unisphere_frontend
     restart: always
     depends_on:
@@ -82,9 +78,26 @@ services:
       NODE_ENV: production
       PORT: 3000
       BACKEND_INTERNAL_URL: http://backend:8000
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+    networks:
+      - unisphere_network
+
+  # ---------------------------------------------------------------------------
+  # 4. Reverse Proxy Nginx & Passerelle HTTP
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: unisphere_nginx
+    restart: always
     ports:
-      - "3000:3000"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - certbot_etc:/etc/letsencrypt
+    depends_on:
+      - backend
+      - frontend
     networks:
       - unisphere_network
 
@@ -92,6 +105,7 @@ volumes:
   postgres_data:
   backend_uploads:
   backend_qrcodes:
+  certbot_etc:
 
 networks:
   unisphere_network:
