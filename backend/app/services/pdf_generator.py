@@ -160,19 +160,20 @@ def generate_enrollment_certificate_pdf(
 
     elements = []
 
-    # En-tête national & universitaire avec Logo officiel
+    # En-tête national & universitaire avec Logo officiel AU MILIEU
     logo_flowable = get_dynamic_university_logo_flowable(university)
     header_data = [
         [
-            logo_flowable,
             Paragraph("<b>RÉPUBLIQUE DU MALI</b><br/><i>Un Peuple - Un But - Une Foi</i><br/>---------<br/><b>MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR<br/>ET DE LA RECHERCHE SCIENTIFIQUE</b>", h_republic),
+            logo_flowable,
             Paragraph(f"<b>N° RÉFÉRENCE :</b><br/><font color='#FF6B00'>{cert_num}</font><br/><br/><b>DATE D'ÉMISSION :</b><br/>{datetime.now().strftime('%d/%m/%Y')}", ParagraphStyle('RefStyle', fontName='Helvetica', fontSize=8.5, alignment=TA_RIGHT, leading=11))
         ]
     ]
-    t_header = Table(header_data, colWidths=[4.2 * cm, 8.0 * cm, 4.8 * cm])
+    t_header = Table(header_data, colWidths=[6.0 * cm, 5.0 * cm, 6.0 * cm])
     t_header.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
     ]))
@@ -250,24 +251,31 @@ def generate_enrollment_certificate_pdf(
     elements.append(Paragraph(text_concl, body_style))
     elements.append(Spacer(1, 0.8 * cm))
 
-    # Bloc signatures, tampon et QR Code
+    # Bloc signatures, tampon officiel et QR Code
     verify_url = f"UNISPHERE-VERIF:{mat_str}:{cert_num}:{academic_year}"
     qr_img = make_qr_code_image(verify_url, size=2.4 * cm)
+    stamp_img = get_dynamic_university_stamp_image(university, "LE DIRECTEUR GÉNÉRAL")
 
     sign_data = [
         [
             Paragraph("<b>Authentification Numérique</b><br/><font size=7 color='#64748B'>Scannez pour vérifier l'authenticité</font>", ParagraphStyle('QRTxt', fontSize=8, alignment=TA_CENTER, leading=10)),
-            Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d %B %Y')}<br/><b>Le Directeur des Études & de la Scolarité</b>", ParagraphStyle('SignHead', fontName='Helvetica-Bold', fontSize=10, alignment=TA_CENTER, leading=14))
+            Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d %B %Y')}<br/><b>Le Directeur Général</b>", ParagraphStyle('SignHead', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
         ],
         [
             qr_img,
-            Paragraph("<br/><br/><b>Dr. Souleymane DIARRA</b><br/><font size=8 color='#64748B'>[ Cachet Officiel & Signature Numérique Apposés ]</font>", ParagraphStyle('SignName', alignment=TA_CENTER, fontSize=9))
+            stamp_img
+        ],
+        [
+            Paragraph(f"<font size=7 color='#475569'>{mat_str}</font>", ParagraphStyle('QRSub', alignment=TA_CENTER, fontSize=7)),
+            Paragraph("<b>Prof. Moussa COULIBALY</b><br/><font size=7 color='#64748B'>Direction Générale • Cachet & Signature</font>", ParagraphStyle('SignName', alignment=TA_CENTER, fontSize=8.5, leading=10))
         ]
     ]
     t_sign = Table(sign_data, colWidths=[6.0 * cm, 11.0 * cm])
     t_sign.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
     ]))
     elements.append(KeepTogether(t_sign))
 
@@ -342,19 +350,20 @@ def generate_success_certificate_pdf(
 
     elements = []
 
-    # En-tête national avec Logo officiel de l'université
+    # En-tête national avec Logo officiel de l'université AU MILIEU
     logo_flowable = get_dynamic_university_logo_flowable(university)
     header_data = [
         [
-            logo_flowable,
             Paragraph("<b>RÉPUBLIQUE DU MALI</b><br/><i>Un Peuple - Un But - Une Foi</i><br/>---------<br/><b>MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR<br/>ET DE LA RECHERCHE SCIENTIFIQUE</b>", h_republic),
+            logo_flowable,
             Paragraph(f"<b>N° DIPLÔME :</b><br/><font color='#D97706'>{cert_num}</font><br/><br/><b>DÉLIVRÉ LE :</b><br/>{datetime.now().strftime('%d/%m/%Y')}", ParagraphStyle('RefStyle2', fontName='Helvetica', fontSize=8.5, alignment=TA_RIGHT, leading=11))
         ]
     ]
-    t_header = Table(header_data, colWidths=[4.2 * cm, 8.0 * cm, 4.8 * cm])
+    t_header = Table(header_data, colWidths=[6.0 * cm, 5.0 * cm, 6.0 * cm])
     t_header.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
     ]))
@@ -429,19 +438,29 @@ def generate_success_certificate_pdf(
     # Bloc signatures
     verify_url = f"UNISPHERE-DIPLOMA:{mat_str}:{cert_num}:{mention}"
     qr_img = make_qr_code_image(verify_url, size=2.4 * cm)
+    stamp_img = get_dynamic_university_stamp_image(university, "LE DIRECTEUR GÉNÉRAL")
 
     sign_data = [
         [
             Paragraph("<b>Contrôle d'Authenticité</b><br/><font size=7 color='#64748B'>Scannez pour valider ce diplôme</font>", ParagraphStyle('QRTxt2', fontSize=8, alignment=TA_CENTER, leading=10)),
-            Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d %B %Y')}<br/><b>Le Recteur de l'Université</b>", ParagraphStyle('SignHead2', fontName='Helvetica-Bold', fontSize=10, alignment=TA_CENTER, leading=14))
+            Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d %B %Y')}<br/><b>Le Directeur Général / Le Recteur</b>", ParagraphStyle('SignHead2', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
         ],
         [
             qr_img,
-            Paragraph("<br/><br/><b>Prof. Mahamadou CISSE</b><br/><font size=8 color='#64748B'>[ Sceau de l'Université & Signature Officielle ]</font>", ParagraphStyle('SignName2', alignment=TA_CENTER, fontSize=9))
+            stamp_img
+        ],
+        [
+            Paragraph(f"<font size=7 color='#475569'>{mat_str}</font>", ParagraphStyle('QRSub2', alignment=TA_CENTER, fontSize=7)),
+            Paragraph("<b>Prof. Moussa COULIBALY</b><br/><font size=7 color='#64748B'>Direction Générale • Cachet & Signature</font>", ParagraphStyle('SignName2', alignment=TA_CENTER, fontSize=8.5, leading=10))
         ]
     ]
     t_sign = Table(sign_data, colWidths=[6.0 * cm, 11.0 * cm])
-    t_sign.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
+    t_sign.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+    ]))
     elements.append(KeepTogether(t_sign))
 
     def on_page(canv, doc_inst):
@@ -1164,19 +1183,20 @@ def generate_financial_clearance_pdf(
 
     elements = []
 
-    # En-tête avec Logo officiel de l'université
+    # En-tête avec Logo officiel de l'université AU MILIEU
     logo_flowable = get_dynamic_university_logo_flowable(university)
     header_data = [
         [
-            logo_flowable,
             Paragraph(f"<b>{univ_name}</b><br/><font size=8 color='#475569'>Direction Administrative & Financière (DAF)<br/>Service de la Comptabilité et du Recouvrement</font>", ParagraphStyle('FHead1', fontSize=10, leading=13)),
+            logo_flowable,
             Paragraph(f"<b>N° RÉFÉRENCE :</b><br/><font color='#0F172A'><b>{ref_num}</b></font><br/><br/><b>DATE :</b> {datetime.now().strftime('%d/%m/%Y')}", ParagraphStyle('FHead2', fontSize=9, alignment=TA_RIGHT, leading=12))
         ]
     ]
-    t_head = Table(header_data, colWidths=[3.8 * cm, 7.8 * cm, 5.4 * cm])
+    t_head = Table(header_data, colWidths=[6.0 * cm, 5.0 * cm, 6.0 * cm])
     t_head.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
     ]))
@@ -1332,18 +1352,32 @@ def generate_financial_clearance_pdf(
         ))
     elements.append(Spacer(1, 0.6 * cm))
 
-    # Signatures & QR Code
+    # Signatures & QR Code avec cachet officiel
     qr_verify = f"UNISPHERE-FIN:{mat_str}:{ref_num}:{total_paid:.0f}FCFA:RESTANT={total_remaining:.0f}FCFA"
     qr_img = make_qr_code_image(qr_verify, size=2.2 * cm)
+    stamp_img = get_dynamic_university_stamp_image(university, "DIRECTION FINANCIÈRE")
 
     sign_data = [
         [
+            Paragraph("<b>Contrôle Financier</b><br/><font size=7 color='#64748B'>Scannez pour vérifier l'authenticité</font>", ParagraphStyle('QRTxtF', fontSize=8, alignment=TA_CENTER, leading=10)),
+            Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d %B %Y')}<br/><b>La Direction Administrative & Financière</b>", ParagraphStyle('SignFinHead', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
+        ],
+        [
             qr_img,
-            Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d %B %Y')}<br/><b>Le Directeur Administratif et Financier (DAF)</b><br/><br/><br/><b>M. Ousmane KONE</b><br/><font size=7 color='#64748B'>Cachet de la Comptabilité Générale</font>", ParagraphStyle('SignFin', alignment=TA_CENTER, fontSize=9, leading=13))
+            stamp_img
+        ],
+        [
+            Paragraph(f"<font size=7 color='#475569'>{ref_num}</font>", ParagraphStyle('QRSubF', alignment=TA_CENTER, fontSize=7)),
+            Paragraph("<b>M. Ousmane KONE</b><br/><font size=7 color='#64748B'>Service Comptabilité & DAF • Cachet Apposé</font>", ParagraphStyle('SignFin', alignment=TA_CENTER, fontSize=8.5, leading=10))
         ]
     ]
     t_signatures = Table(sign_data, colWidths=[6.0 * cm, 11.0 * cm])
-    t_signatures.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
+    t_signatures.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+    ]))
     elements.append(KeepTogether(t_signatures))
 
     watermark_label = "QUITUS FINANCIER" if is_fully_paid else "RÈGLEMENT PARTIEL"
