@@ -55,35 +55,35 @@ interface CardDesignInfo {
 const CARD_DESIGNS: CardDesignInfo[] = [
   {
     id: 'radar',
-    name: 'Tech Radar & Ondes',
-    tagline: 'Ondes numériques & Courbe asymétrique',
-    badge: 'Design 1',
-    icon: '📡',
-    description: 'Cercles concentriques haute précision avec en-tête asymétrique et capsule matricule'
-  },
-  {
-    id: 'vagues',
-    name: 'Vagues & Ondulations',
-    tagline: 'Courbe fluide moderne & Trame guillochée',
-    badge: 'Design 2',
-    icon: '🌊',
-    description: 'Ruban d\'en-tête galbé et fond sécurisé ondoyant anti-falsification'
-  },
-  {
-    id: 'medaillon',
-    name: 'Prestige & Médaillon Doré',
-    tagline: 'Photo circulaire & Cerclage or royal',
-    badge: 'Design 3',
-    icon: '🏅',
-    description: 'Cadre photo rond avec double bague dorée, rosace centrale et sceau prestige'
+    name: 'Style 1 : Épuré & Officiel',
+    tagline: 'Base équilibrée & En-tête descendant',
+    badge: 'Style 1',
+    icon: '🏛️',
+    description: 'En-tête descendant vers le centre, grand logo circulaire, étiquette matricule vive et QR code "SCAN MOI / ID CARD"'
   },
   {
     id: 'rubans',
-    name: 'Rubans & Facettes',
-    tagline: 'Facettes biseautées & Angles vifs',
-    badge: 'Design 4',
+    name: 'Style 2 : Corporate & Dynamique',
+    tagline: 'Lignes géométriques & Motifs polygonaux',
+    badge: 'Style 2',
     icon: '💎',
-    description: 'Liserés géométriques superposés, icônes filière/niveau et typographie ultra-nette'
+    description: 'Dégradés intenses, découpes diagonales franches, séparateurs nets et micro-icônes de cursus minimalistes'
+  },
+  {
+    id: 'vagues',
+    name: 'Style 3 : Sécurisé & Courbes',
+    tagline: 'Motifs guillochés & Ondes de sécurité',
+    badge: 'Style 3',
+    icon: '🌊',
+    description: 'Bordure ondulant doucement, filigranes concentriques biométriques, badge pilule et micro-bande anti-falsification'
+  },
+  {
+    id: 'medaillon',
+    name: 'Style 4 : Classique Institutionnel & Prestige',
+    tagline: 'Liseré fin & Finitions dorées royales',
+    badge: 'Style 4',
+    icon: '👑',
+    description: 'Bandeau sobre souligné d’un liseré or, grand blason officiel, photo cerclée d’or et typographie statutaire d’honneur'
   }
 ];
 
@@ -429,9 +429,8 @@ export default function SecretaryStudentCardsPrintPage() {
     return (
       <div
         key={student.id}
-        className={`student-card-printable relative bg-white border border-dashed border-slate-400/80 rounded-xl overflow-hidden flex flex-col justify-between transition-all ${
-          isTen ? 'h-[55.5mm] min-h-[55.5mm] max-h-[56.5mm]' : isCompact ? 'h-[68mm]' : 'h-[88mm]'
-        }`}
+        className={`student-card-printable relative bg-white border border-dashed border-slate-400/80 rounded-xl overflow-hidden flex flex-col justify-between transition-all ${isTen ? 'h-[55.5mm] min-h-[55.5mm] max-h-[56.5mm]' : isCompact ? 'h-[68mm]' : 'h-[88mm]'
+          }`}
         style={{
           pageBreakInside: 'avoid',
           breakInside: 'avoid',
@@ -443,9 +442,8 @@ export default function SecretaryStudentCardsPrintPage() {
         {/* ======================================================== */}
         {selectedDesign === 'radar' && (
           <div
-            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative overflow-hidden ${
-              isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
-            }`}
+            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative overflow-hidden ${isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
+              }`}
             style={{
               background: `linear-gradient(135deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 100%)`
             }}
@@ -481,9 +479,8 @@ export default function SecretaryStudentCardsPrintPage() {
 
         {selectedDesign === 'vagues' && (
           <div
-            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative overflow-hidden ${
-              isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
-            }`}
+            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative overflow-hidden ${isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
+              }`}
             style={{
               background: `linear-gradient(90deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 70%, ${activePrimaryColor} 100%)`
             }}
@@ -518,9 +515,8 @@ export default function SecretaryStudentCardsPrintPage() {
 
         {selectedDesign === 'medaillon' && (
           <div
-            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative ${
-              isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
-            }`}
+            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative ${isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
+              }`}
             style={{
               background: `linear-gradient(135deg, ${activeSecondaryColor} 0%, ${activePrimaryColor} 100%)`
             }}
@@ -549,9 +545,8 @@ export default function SecretaryStudentCardsPrintPage() {
 
         {selectedDesign === 'rubans' && (
           <div
-            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative overflow-hidden ${
-              isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
-            }`}
+            className={`px-3 flex items-center justify-between text-white flex-shrink-0 relative overflow-hidden ${isTen ? 'py-1 h-8' : isCompact ? 'py-1.5 h-9' : 'py-2 h-11'
+              }`}
             style={{
               background: `linear-gradient(110deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 65%, ${activePrimaryColor} 100%)`
             }}
@@ -591,10 +586,10 @@ export default function SecretaryStudentCardsPrintPage() {
               selectedDesign === 'medaillon'
                 ? 'linear-gradient(90deg, #F59E0B 0%, #FDE047 50%, #D97706 100%)'
                 : selectedDesign === 'vagues'
-                ? 'linear-gradient(90deg, #38BDF8 0%, #818CF8 50%, #C084FC 100%)'
-                : selectedDesign === 'rubans'
-                ? `linear-gradient(90deg, ${activePrimaryColor} 0%, #F59E0B 50%, #38BDF8 100%)`
-                : 'linear-gradient(90deg, #06B6D4 0%, #F59E0B 50%, #EC4899 100%)'
+                  ? 'linear-gradient(90deg, #38BDF8 0%, #818CF8 50%, #C084FC 100%)'
+                  : selectedDesign === 'rubans'
+                    ? `linear-gradient(90deg, ${activePrimaryColor} 0%, #F59E0B 50%, #38BDF8 100%)`
+                    : 'linear-gradient(90deg, #06B6D4 0%, #F59E0B 50%, #EC4899 100%)'
           }}
         />
 
@@ -672,7 +667,7 @@ export default function SecretaryStudentCardsPrintPage() {
               </div>
             </div>
             <span className="text-[6.8px] font-mono font-black text-slate-800 mt-0.5 tracking-wider uppercase text-center leading-tight">
-              SCAN MOI<br/><span className="text-[6.2px] text-slate-500">ID CARD</span>
+              SCAN MOI<br /><span className="text-[6.2px] text-slate-500 font-bold">/ ID CARD</span>
             </span>
           </div>
         </div>
@@ -687,7 +682,7 @@ export default function SecretaryStudentCardsPrintPage() {
             <div className="w-2.5 h-2.5 rounded-full overflow-hidden flex-shrink-0 border border-slate-300">
               <img src={logoUrl} alt="Mini Seal" className="w-full h-full object-cover" />
             </div>
-            <span className="font-bold text-slate-700 tracking-wider">EASOBE SÉCURISÉE & CERTIFIÉE</span>
+            <span className="font-bold text-slate-700 tracking-wider">SÉCURISÉE & CERTIFIÉE</span>
           </div>
           <span className="font-mono text-slate-500 text-[6.8px]">
             LIGNE ACADÉIF • {universityInfo.academic_year} • *Mentions administratives
@@ -751,27 +746,24 @@ export default function SecretaryStudentCardsPrintPage() {
               <button
                 type="button"
                 onClick={() => setCardsPerPage(10)}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  cardsPerPage === 10 ? 'bg-[#FF6B00] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
+                className={`px-3 py-1.5 rounded-lg transition-all ${cardsPerPage === 10 ? 'bg-[#FF6B00] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
               >
                 10 cartes / feuille (2×5) ★
               </button>
               <button
                 type="button"
                 onClick={() => setCardsPerPage(8)}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  cardsPerPage === 8 ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                }`}
+                className={`px-3 py-1.5 rounded-lg transition-all ${cardsPerPage === 8 ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  }`}
               >
                 8 cartes (2×4)
               </button>
               <button
                 type="button"
                 onClick={() => setCardsPerPage(6)}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  cardsPerPage === 6 ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                }`}
+                className={`px-3 py-1.5 rounded-lg transition-all ${cardsPerPage === 6 ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  }`}
               >
                 6 cartes (2×3)
               </button>
@@ -782,9 +774,8 @@ export default function SecretaryStudentCardsPrintPage() {
               <button
                 type="button"
                 onClick={() => setViewMode('preview')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  viewMode === 'preview' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                }`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${viewMode === 'preview' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  }`}
               >
                 <FileText size={13} />
                 Planche A4
@@ -792,9 +783,8 @@ export default function SecretaryStudentCardsPrintPage() {
               <button
                 type="button"
                 onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  viewMode === 'grid' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                }`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  }`}
               >
                 <LayoutGrid size={13} />
                 Grille
@@ -822,11 +812,10 @@ export default function SecretaryStudentCardsPrintPage() {
               <button
                 type="button"
                 onClick={() => setCardScope('students')}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                  cardScope === 'students'
-                    ? 'bg-[#FF6B00] text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${cardScope === 'students'
+                  ? 'bg-[#FF6B00] text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
               >
                 <GraduationCap size={16} />
                 <span>Cartes Étudiantes ({students.length})</span>
@@ -834,11 +823,10 @@ export default function SecretaryStudentCardsPrintPage() {
               <button
                 type="button"
                 onClick={() => setCardScope('secretary')}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                  cardScope === 'secretary'
-                    ? 'bg-[#FF6B00] text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${cardScope === 'secretary'
+                  ? 'bg-[#FF6B00] text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
               >
                 <ShieldCheck size={16} />
                 <span>Ma Carte Secrétariat (Badge Personnel)</span>
@@ -885,20 +873,18 @@ export default function SecretaryStudentCardsPrintPage() {
                     key={d.id}
                     type="button"
                     onClick={() => setSelectedDesign(d.id)}
-                    className={`text-left p-3.5 rounded-2xl border-2 transition-all relative flex flex-col justify-between group ${
-                      isSelected
-                        ? 'border-[#FF6B00] bg-orange-50/30 shadow-md ring-2 ring-orange-400/20'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
-                    }`}
+                    className={`text-left p-3.5 rounded-2xl border-2 transition-all relative flex flex-col justify-between group ${isSelected
+                      ? 'border-[#FF6B00] bg-orange-50/30 shadow-md ring-2 ring-orange-400/20'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                      }`}
                   >
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <span className="text-xl">{d.icon}</span>
                       <span
-                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                          isSelected
-                            ? 'bg-[#FF6B00] text-white shadow-2xs'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}
+                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${isSelected
+                          ? 'bg-[#FF6B00] text-white shadow-2xs'
+                          : 'bg-slate-100 text-slate-600'
+                          }`}
                       >
                         {d.badge}
                       </span>
@@ -949,11 +935,10 @@ export default function SecretaryStudentCardsPrintPage() {
                     key={p.id}
                     type="button"
                     onClick={() => setSelectedColorPreset(p.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                      isSelected
-                        ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
-                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${isSelected
+                      ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      }`}
                   >
                     <span
                       className="w-3 h-3 rounded-full border border-white/50 shadow-2xs flex-shrink-0"
@@ -999,107 +984,107 @@ export default function SecretaryStudentCardsPrintPage() {
         {/* BARRE DE FILTRES ET SÉLECTION RAPIDE */}
         {/* ======================================================== */}
         {cardScope === 'students' && (
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* Recherche */}
-            <div className="relative lg:col-span-2">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Rechercher par nom, prénom, matricule..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-              />
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {/* Recherche */}
+              <div className="relative lg:col-span-2">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher par nom, prénom, matricule..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                />
+              </div>
+
+              {/* Filière */}
+              <div>
+                <select
+                  value={filterFiliere}
+                  onChange={(e) => setFilterFiliere(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                >
+                  <option value="">Toutes les filières ({filieres.length})</option>
+                  {filieres.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Niveau */}
+              <div>
+                <select
+                  value={filterLevel}
+                  onChange={(e) => setFilterLevel(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                >
+                  <option value="">Tous les niveaux</option>
+                  {levels.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {lvl}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Statut */}
+              <div>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                >
+                  <option value="">Tous les statuts</option>
+                  <option value="active">Actif uniquement</option>
+                  <option value="pending">En attente</option>
+                  <option value="inactive">Inactif</option>
+                </select>
+              </div>
             </div>
 
-            {/* Filière */}
-            <div>
-              <select
-                value={filterFiliere}
-                onChange={(e) => setFilterFiliere(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-              >
-                <option value="">Toutes les filières ({filieres.length})</option>
-                {filieres.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Niveau */}
-            <div>
-              <select
-                value={filterLevel}
-                onChange={(e) => setFilterLevel(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-              >
-                <option value="">Tous les niveaux</option>
-                {levels.map((lvl) => (
-                  <option key={lvl} value={lvl}>
-                    {lvl}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Statut */}
-            <div>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-              >
-                <option value="">Tous les statuts</option>
-                <option value="active">Actif uniquement</option>
-                <option value="pending">En attente</option>
-                <option value="inactive">Inactif</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Barre d'action sur la sélection */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={toggleSelectAll}
-                className="flex items-center gap-1.5 font-semibold text-slate-700 hover:text-orange-600 transition-colors"
-              >
-                {selectedStudents.length === filteredStudents.length && filteredStudents.length > 0 ? (
-                  <CheckSquare size={16} className="text-[#FF6B00]" />
-                ) : (
-                  <Square size={16} className="text-slate-400" />
-                )}
-                <span>
-                  Tout cocher ({filteredStudents.length} étudiant{filteredStudents.length > 1 ? 's' : ''})
-                </span>
-              </button>
-
-              <span className="text-slate-300">|</span>
-
-              <span className="text-slate-500 font-medium">
-                <strong className="text-slate-900 font-bold">{selectedStudents.length}</strong> carte(s) sélectionnée(s)
-                sur {filteredStudents.length} affichée(s)
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {(search || filterFiliere || filterLevel || filterStatus) && (
+            {/* Barre d'action sur la sélection */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={resetFilters}
-                  className="flex items-center gap-1 text-slate-500 hover:text-slate-800 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100"
+                  onClick={toggleSelectAll}
+                  className="flex items-center gap-1.5 font-semibold text-slate-700 hover:text-orange-600 transition-colors"
                 >
-                  <RotateCcw size={12} />
-                  Réinitialiser les filtres
+                  {selectedStudents.length === filteredStudents.length && filteredStudents.length > 0 ? (
+                    <CheckSquare size={16} className="text-[#FF6B00]" />
+                  ) : (
+                    <Square size={16} className="text-slate-400" />
+                  )}
+                  <span>
+                    Tout cocher ({filteredStudents.length} étudiant{filteredStudents.length > 1 ? 's' : ''})
+                  </span>
                 </button>
-              )}
+
+                <span className="text-slate-300">|</span>
+
+                <span className="text-slate-500 font-medium">
+                  <strong className="text-slate-900 font-bold">{selectedStudents.length}</strong> carte(s) sélectionnée(s)
+                  sur {filteredStudents.length} affichée(s)
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {(search || filterFiliere || filterLevel || filterStatus) && (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="flex items-center gap-1 text-slate-500 hover:text-slate-800 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100"
+                  >
+                    <RotateCcw size={12} />
+                    Réinitialiser les filtres
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
         )}
       </div>
 
@@ -1259,11 +1244,10 @@ export default function SecretaryStudentCardsPrintPage() {
               <div
                 key={student.id}
                 onClick={() => toggleStudent(student.id)}
-                className={`cursor-pointer rounded-2xl border p-4 transition-all relative select-none ${
-                  isSelected
-                    ? 'border-[#FF6B00] bg-orange-50/20 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300 opacity-60'
-                }`}
+                className={`cursor-pointer rounded-2xl border p-4 transition-all relative select-none ${isSelected
+                  ? 'border-[#FF6B00] bg-orange-50/20 shadow-sm'
+                  : 'border-slate-200 bg-white hover:border-slate-300 opacity-60'
+                  }`}
               >
                 <div className="absolute top-3 right-3">
                   {isSelected ? (
@@ -1329,13 +1313,12 @@ export default function SecretaryStudentCardsPrintPage() {
               {/* LA PLANCHE A4 PHYSIQUE (Rendue responsive avec défilement horizontal sur mobile) */}
               <div className="w-full overflow-x-auto pb-4">
                 <div
-                  className={`print-sheet a4-sheet bg-white border border-slate-300 shadow-xl rounded-xl p-2 mx-auto grid grid-cols-2 min-w-[620px] sm:min-w-0 ${
-                    isTen
-                      ? 'grid-rows-5 gap-2 max-w-[210mm]'
-                      : isCompact
+                  className={`print-sheet a4-sheet bg-white border border-slate-300 shadow-xl rounded-xl p-2 mx-auto grid grid-cols-2 min-w-[620px] sm:min-w-0 ${isTen
+                    ? 'grid-rows-5 gap-2 max-w-[210mm]'
+                    : isCompact
                       ? 'grid-rows-4 gap-2.5 max-w-[210mm]'
                       : 'grid-rows-3 gap-3.5 max-w-[210mm]'
-                  }`}
+                    }`}
                   style={{
                     height: isTen ? '288mm' : isCompact ? '285mm' : '285mm',
                     minHeight: isTen ? '288mm' : isCompact ? '285mm' : '285mm',
@@ -1343,7 +1326,7 @@ export default function SecretaryStudentCardsPrintPage() {
                     boxSizing: 'border-box'
                   }}
                 >
-                {pageStudents.map((student) => renderCardItem(student, isTen || isCompact))}
+                  {pageStudents.map((student) => renderCardItem(student, isTen || isCompact))}
                 </div>
               </div>
             </div>
