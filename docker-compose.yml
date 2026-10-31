@@ -54,6 +54,7 @@ services:
       APP_VERSION: "2.0.0"
       ENVIRONMENT: ${ENVIRONMENT:-production}
     volumes:
+      - ./backend:/app
       - backend_uploads:/app/uploads
       - backend_qrcodes:/app/qr_codes
     networks:

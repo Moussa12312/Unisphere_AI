@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-email = os.getenv("SUPER_ADMIN_EMAIL", "balbychakir@gmail.com")
-password = os.getenv("SUPER_ADMIN_PASSWORD", "BalbyChakir73")
+email = os.getenv("SUPER_ADMIN_EMAIL", "chakirunisphereai@gmail.com")
+password = os.getenv("SUPER_ADMIN_PASSWORD", "f7@x4-Dx5K6xe")
 
 db = SessionLocal()
 try:
