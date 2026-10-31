@@ -57,7 +57,14 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
     const token = localStorage.getItem('token');
 
     if (!currentUser || !token || !memoizedAllowedRoles.includes(currentUser.role)) {
-      window.location.href = '/login';
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('role');
+        document.cookie = 'unisphere_token=; path=/; max-age=0';
+        document.cookie = 'unisphere_role=; path=/; max-age=0';
+        window.location.href = '/';
+      }
       return;
     }
 
@@ -120,7 +127,7 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
   const isAIPage = pathname === '/ai-assistant';
 
   return (
-    <div className="h-screen bg-[#f1f5f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden flex transition-colors duration-200 print:h-auto print:overflow-visible print:bg-white print:block">
+    <div className="h-screen h-[100dvh] bg-[#f1f5f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden flex transition-colors duration-200 print:h-auto print:overflow-visible print:bg-white print:block">
       <Toaster 
         position="top-right"
         toastOptions={{
@@ -145,10 +152,10 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
         <Sidebar userRole={user.role} />
       </div>
 
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isDesktop ? 'ml-60' : 'ml-0'} print:ml-0 print:w-full print:block`}>
+      <div className={`flex-1 flex flex-col h-full min-w-0 overflow-hidden transition-all duration-300 ${isDesktop ? 'ml-60' : 'ml-0'} print:ml-0 print:w-full print:block`}>
         {/* ✅ HEADER FIXE EN HAUT - NE DÉFILE PAS AVEC LE CONTENU */}
         {pathname !== '/ai-assistant' && (
-          <div className="sticky top-0 z-30 flex-shrink-0 w-full bg-[#f1f5f9]/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors print:hidden">
+          <div className="sticky top-0 z-40 flex-shrink-0 w-full bg-[#f1f5f9]/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs print:hidden">
             <Header 
               user={user} 
               isDesktop={isDesktop}

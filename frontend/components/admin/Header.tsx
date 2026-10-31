@@ -306,7 +306,9 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
       localStorage.removeItem('user');
       localStorage.removeItem('role');
       localStorage.removeItem('university');
-      window.location.href = '/login';
+      document.cookie = 'unisphere_token=; path=/; max-age=0';
+      document.cookie = 'unisphere_role=; path=/; max-age=0';
+      window.location.href = '/';
     }
   };
 

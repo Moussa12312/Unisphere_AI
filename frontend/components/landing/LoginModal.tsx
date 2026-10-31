@@ -57,6 +57,10 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('role', userData.role);
+      if (typeof document !== 'undefined') {
+        document.cookie = "unisphere_token=" + token + "; path=/; max-age=604800; SameSite=Lax";
+        document.cookie = "unisphere_role=" + userData.role + "; path=/; max-age=604800; SameSite=Lax";
+      }
 
       toast.success(`Connexion réussie : Bienvenue ${userData.full_name || ''} !`);
 

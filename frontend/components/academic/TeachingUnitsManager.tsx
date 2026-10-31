@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Layers, Plus, Edit2, Trash2, CheckCircle2, AlertCircle,
   GraduationCap, BookOpen, X, Loader2, Search, ArrowRight,
-  Filter, Sparkles, BookCheck
+  Filter, Sparkles, ChevronLeft, ChevronRight, RotateCcw
 } from 'lucide-react';
 import { teachingUnitService, TeachingUnit, LMDCurriculum } from '@/services/teachingUnitService';
 import { filiereService } from '@/services/filiereService';
@@ -14,6 +14,8 @@ import { useToast } from '@/components/ToastProvider';
 interface TeachingUnitsManagerProps {
   userRole: string; // 'admin' | 'censeur' | 'secretary'
 }
+
+const ITEMS_PER_PAGE = 10;
 
 export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerProps) {
   const toast = useToast();
@@ -30,7 +32,8 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [selectedSemester, setSelectedSemester] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'maquette' | 'table'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'maquette'>('table');
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -60,6 +63,7 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
 
   useEffect(() => {
     loadUnitsAndCurriculum();
+    setCurrentPage(1);
   }, [selectedFiliereId, selectedLevel, selectedSemester]);
 
   const loadInitialData = async () => {
@@ -74,7 +78,6 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
       const uList = initialUnits || [];
       setAllUnits(uList);
 
-      // Si des UEs existent dans l'université, on sélectionne intelligemment la dernière UE créée
       if (uList.length > 0) {
         const lastUnit = uList[uList.length - 1];
         if (lastUnit.filiere_id) {
@@ -84,12 +87,7 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
         }
         setSelectedLevel(lastUnit.level || 'all');
         setSelectedSemester(lastUnit.semester || 'all');
-        // Si une filière et un niveau sont définis, on peut directement afficher la maquette
-        if (lastUnit.filiere_id && lastUnit.level) {
-          setViewMode('maquette');
-        } else {
-          setViewMode('table');
-        }
+        setViewMode(lastUnit.filiere_id && lastUnit.level ? 'maquette' : 'table');
       } else if (fData && fData.length > 0) {
         setSelectedFiliereId(fData[0].id);
         setSelectedLevel('L1');
@@ -132,6 +130,14 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetFilters = () => {
+    setSelectedFiliereId('all');
+    setSelectedLevel('all');
+    setSelectedSemester('all');
+    setSearchQuery('');
+    setCurrentPage(1);
   };
 
   const handleOpenCreateModal = () => {
@@ -209,16 +215,9 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
         });
         toast.success('Unité d\'Enseignement créée avec succès');
 
-        // Bascule automatique des filtres sur la nouvelle UE pour qu'elle s'affiche immédiatement
-        if (formData.filiere_id) {
-          setSelectedFiliereId(formData.filiere_id);
-        }
-        if (formData.level) {
-          setSelectedLevel(formData.level);
-        }
-        if (formData.semester) {
-          setSelectedSemester(formData.semester);
-        }
+        if (formData.filiere_id) setSelectedFiliereId(formData.filiere_id);
+        if (formData.level) setSelectedLevel(formData.level);
+        if (formData.semester) setSelectedSemester(formData.semester);
       }
       setIsModalOpen(false);
       loadUnitsAndCurriculum();
@@ -243,17 +242,17 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
   const getCategoryBadge = (cat: string) => {
     switch (cat) {
       case 'Fondamentale':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">Fondamentale</span>;
+        return <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">Fondamentale</span>;
       case 'Méthodologique':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">Méthodologique</span>;
+        return <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">Méthodologique</span>;
       case 'Transversale':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Transversale</span>;
+        return <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">Transversale</span>;
       default:
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{cat}</span>;
+        return <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700">{cat}</span>;
     }
   };
 
-  // Filtrage local supplémentaire par recherche textuelle
+  // Filtrage local par recherche
   const filteredUnits = useMemo(() => {
     if (!searchQuery.trim()) return units;
     const q = searchQuery.toLowerCase();
@@ -265,64 +264,54 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
     );
   }, [units, searchQuery]);
 
-  // Filières qui contiennent au moins une UE
-  const filieresWithUnits = useMemo(() => {
-    const fMap = new Map<number, { filiere: any; count: number }>();
-    allUnits.forEach(u => {
-      if (u.filiere_id) {
-        const found = filieres.find(f => f.id === u.filiere_id);
-        if (found) {
-          const cur = fMap.get(u.filiere_id) || { filiere: found, count: 0 };
-          cur.count += 1;
-          fMap.set(u.filiere_id, cur);
-        }
-      }
-    });
-    return Array.from(fMap.values());
-  }, [allUnits, filieres]);
+  // Pagination pour le tableau
+  const totalPages = Math.max(1, Math.ceil(filteredUnits.length / ITEMS_PER_PAGE));
+  const paginatedUnits = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredUnits.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredUnits, currentPage]);
 
-  // Nom de la filière actuellement sélectionnée
   const selectedFiliereName = useMemo(() => {
     if (selectedFiliereId === 'all') return 'Toutes les filières';
     const found = filieres.find(f => f.id === selectedFiliereId);
     return found ? found.name : 'Filière';
   }, [selectedFiliereId, filieres]);
 
+  const hasActiveFilters = selectedFiliereId !== 'all' || selectedLevel !== 'all' || selectedSemester !== 'all' || searchQuery.trim() !== '';
+
   return (
-    <div className="space-y-6">
-      {/* En-tête */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF6B00] to-amber-500 flex items-center justify-center text-white shadow-sm">
-              <Layers size={22} />
+    <div className="space-y-5">
+      {/* En-tête simplifié et aéré */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#FF6B00] to-amber-500 flex items-center justify-center text-white shadow-sm flex-shrink-0">
+            <Layers size={22} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-bold text-slate-900">Unités d'Enseignement (UEs)</h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-[#FF6B00]">
+                {allUnits.length} UE{allUnits.length > 1 ? 's' : ''} au catalogue
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-slate-900">Unités d'Enseignement (UEs) & Maquette LMD</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-[#FF6B00]">
-                  {allUnits.length} UE{allUnits.length > 1 ? 's' : ''} au total
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500">Organisation curriculaire conforme au système LMD (30 ECTS / semestre)</p>
-            </div>
+            <p className="text-xs text-slate-500 mt-0.5">Gestion curriculaire et maquettes semestrielles ECTS (Système LMD)</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex bg-slate-100 p-1 rounded-xl">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
             <button
               onClick={() => setViewMode('table')}
-              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                viewMode === 'table' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Gestion UEs ({filteredUnits.length})
+              Vue Liste ({filteredUnits.length})
             </button>
             <button
               onClick={() => setViewMode('maquette')}
-              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                viewMode === 'maquette' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                viewMode === 'maquette' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Maquette LMD
@@ -331,22 +320,21 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
 
           <button
             onClick={handleOpenCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#FF6B00] hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-xs transition-all"
           >
-            <Plus size={18} />
-            <span className="hidden sm:inline">Nouvelle UE</span>
-            <span className="sm:hidden">Créer</span>
+            <Plus size={16} />
+            <span>Nouvelle UE</span>
           </button>
         </div>
       </div>
 
-      {/* Barre de filtres réactive */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Sélection Filière */}
+      {/* Barre de filtres épurée et compacte */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 shadow-xs space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {/* Filière */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-              Filière académique
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Filière
             </label>
             <select
               value={selectedFiliereId === 'all' ? 'all' : (selectedFiliereId || '')}
@@ -354,133 +342,116 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
                 const val = e.target.value;
                 setSelectedFiliereId(val === 'all' ? 'all' : Number(val));
               }}
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              className="w-full px-3 py-2 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] transition-colors"
             >
-              <option value="all">
-                Toutes les filières ({allUnits.length} UE{allUnits.length > 1 ? 's' : ''})
-              </option>
+              <option value="all">Toutes les filières ({allUnits.length} UEs)</option>
               {filieres.map((f) => {
                 const count = allUnits.filter(u => u.filiere_id === f.id).length;
                 return (
                   <option key={f.id} value={f.id}>
-                    {f.name} ({f.domain || 'Général'}) {count > 0 ? `• [${count} UE]` : ''}
+                    {f.name} {count > 0 ? `(${count} UE)` : ''}
                   </option>
                 );
               })}
             </select>
           </div>
 
-          {/* Sélection Niveau */}
+          {/* Niveau */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-              Niveau d'études
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Niveau
             </label>
-            <div className="flex bg-slate-100 p-1 rounded-xl">
-              <button
-                onClick={() => setSelectedLevel('all')}
-                className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  selectedLevel === 'all' ? 'bg-white text-[#FF6B00] shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Tous
-              </button>
+            <select
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] transition-colors"
+            >
+              <option value="all">Tous les niveaux (L1 à M2)</option>
               {levels.map((lvl) => {
-                const countForLevel = allUnits.filter(u =>
+                const count = allUnits.filter(u =>
                   (selectedFiliereId === 'all' || u.filiere_id === selectedFiliereId) && u.level === lvl
                 ).length;
                 return (
-                  <button
-                    key={lvl}
-                    onClick={() => setSelectedLevel(lvl)}
-                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                      selectedLevel === lvl ? 'bg-white text-[#FF6B00] shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {lvl}
-                    {countForLevel > 0 && (
-                      <span className="ml-1 text-[10px] font-bold text-[#FF6B00]">({countForLevel})</span>
-                    )}
-                  </button>
+                  <option key={lvl} value={lvl}>
+                    {lvl} {count > 0 ? `(${count} UEs)` : ''}
+                  </option>
                 );
               })}
-            </div>
+            </select>
           </div>
 
-          {/* Sélection Semestre */}
+          {/* Semestre */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
               Semestre
             </label>
-            <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto">
-              <button
-                onClick={() => setSelectedSemester('all')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-all ${
-                  selectedSemester === 'all' ? 'bg-white text-[#FF6B00] shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Tous
-              </button>
+            <select
+              value={selectedSemester}
+              onChange={(e) => setSelectedSemester(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] transition-colors"
+            >
+              <option value="all">Tous semestres (S1 à S6)</option>
               {semesters.map((sem) => (
-                <button
-                  key={sem}
-                  onClick={() => setSelectedSemester(sem)}
-                  className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition-all ${
-                    selectedSemester === sem ? 'bg-white text-[#FF6B00] shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {sem}
-                </button>
+                <option key={sem} value={sem}>{sem}</option>
               ))}
-            </div>
+            </select>
           </div>
 
-          {/* Recherche textuelle */}
+          {/* Recherche */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
-              Rechercher une UE
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Recherche
+              </label>
+              {hasActiveFilters && (
+                <button
+                  onClick={handleResetFilters}
+                  className="text-[11px] text-[#FF6B00] hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <RotateCcw size={10} /> Réinitialiser
+                </button>
+              )}
+            </div>
             <div className="relative">
               <input
                 type="text"
-                placeholder="Code, titre, module..."
+                placeholder="Code, intitulé, module..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                className="w-full pl-8 pr-7 py-2 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B00] transition-colors"
               />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
-                  <X size={14} />
+                  <X size={12} />
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Bilan ECTS */}
+        {/* Bilan ECTS compact */}
         {curriculum && (
-          <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-slate-600 font-medium">
-                Maquette annuelle ({selectedFiliereName} - {selectedLevel}) : <b className="text-slate-900">{curriculum.total_year_credits} Crédits ECTS</b>
+          <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-slate-600">
+                Maquette ({selectedFiliereName} - {selectedLevel}) : <strong className="text-slate-900 font-bold">{curriculum.total_year_credits} Crédits ECTS</strong>
               </span>
               {curriculum.is_valid_60_ects ? (
-                <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-medium">
-                  <CheckCircle2 size={13} />
-                  Conforme LMD (60 ECTS)
+                <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                  <CheckCircle2 size={11} /> 60 ECTS Conforme LMD
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full font-medium">
-                  <AlertCircle size={13} />
-                  En cours de complétion ({curriculum.total_year_credits}/60 ECTS)
+                <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                  <AlertCircle size={11} /> {curriculum.total_year_credits}/60 ECTS
                 </span>
               )}
             </div>
-            <div className="text-slate-500">
-              Total {filteredUnits.length} UE(s) affichée(s)
+            <div className="text-slate-500 text-[11px]">
+              {filteredUnits.length} UE(s) filtrée(s)
             </div>
           </div>
         )}
@@ -488,106 +459,61 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
 
       {/* Contenu principal */}
       {loading ? (
-        <div className="flex items-center justify-center min-h-[300px] bg-white rounded-2xl border border-slate-200">
-          <Loader2 className="animate-spin text-[#FF6B00]" size={32} />
+        <div className="flex items-center justify-center min-h-[260px] bg-white rounded-2xl border border-slate-200/80">
+          <Loader2 className="animate-spin text-[#FF6B00]" size={28} />
         </div>
       ) : filteredUnits.length === 0 ? (
-        /* État vide intelligent */
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-          <Layers size={48} className="text-amber-500 mx-auto mb-3" />
-          <h3 className="text-lg font-bold text-slate-800">
-            {allUnits.length > 0
-              ? 'Aucune UE pour ces filtres'
-              : 'Aucune Unité d\'Enseignement trouvée'}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-10 text-center">
+          <Layers size={40} className="text-amber-500 mx-auto mb-2.5 opacity-80" />
+          <h3 className="text-base font-bold text-slate-800">
+            {allUnits.length > 0 ? 'Aucune UE pour ces critères' : 'Aucune Unité d\'Enseignement configurée'}
           </h3>
-          <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-            {allUnits.length > 0 ? (
-              <>
-                Vous avez <strong className="text-slate-800 font-semibold">{allUnits.length} Unité(s) d'Enseignement</strong> enregistrée(s) dans l'université, mais aucune ne correspond aux critères sélectionnés ({selectedFiliereName} - {selectedLevel === 'all' ? 'Tous niveaux' : selectedLevel}).
-              </>
-            ) : (
-              'Configurez les UEs pour structurer la maquette LMD de cette filière et y rattacher les modules.'
-            )}
+          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+            {allUnits.length > 0
+              ? 'Modifiez les filtres ou réinitialisez la sélection pour afficher les autres UEs.'
+              : 'Commencez par créer une UE pour structurer la maquette LMD de votre établissement.'}
           </p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-            {allUnits.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+            {hasActiveFilters && (
               <button
-                onClick={() => {
-                  setSelectedFiliereId('all');
-                  setSelectedLevel('all');
-                  setSelectedSemester('all');
-                  setViewMode('table');
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm"
+                onClick={handleResetFilters}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors"
               >
-                <Layers size={16} />
-                Afficher toutes les UEs ({allUnits.length})
+                <RotateCcw size={12} /> Voir toutes les UEs ({allUnits.length})
               </button>
             )}
-            {filieresWithUnits.map(({ filiere, count }) => (
-              <button
-                key={filiere.id}
-                onClick={() => {
-                  setSelectedFiliereId(filiere.id);
-                  const firstUnit = allUnits.find(u => u.filiere_id === filiere.id);
-                  if (firstUnit?.level) setSelectedLevel(firstUnit.level);
-                  setSelectedSemester('all');
-                }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-orange-50 border border-orange-200 text-[#FF6B00] rounded-xl text-sm font-semibold hover:bg-orange-100 transition-colors"
-              >
-                <span>Voir {filiere.name}</span>
-                <span className="text-xs bg-[#FF6B00] text-white px-1.5 py-0.2 rounded-full font-bold">{count}</span>
-              </button>
-            ))}
             <button
               onClick={handleOpenCreateModal}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF6B00] text-white rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#FF6B00] text-white rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors"
             >
-              <Plus size={16} />
-              {allUnits.length > 0 ? 'Créer une UE dans cette filière' : 'Créer la première UE'}
+              <Plus size={13} /> Créer une UE
             </button>
           </div>
         </div>
       ) : viewMode === 'maquette' ? (
-        /* Vue Maquette LMD */
+        /* Vue Maquette LMD épurée */
         selectedFiliereId === 'all' || selectedLevel === 'all' ? (
-          /* Conseil de sélection de filière pour la maquette */
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm space-y-5 text-center">
-            <div className="w-14 h-14 bg-orange-100 text-[#FF6B00] rounded-2xl flex items-center justify-center mx-auto">
-              <GraduationCap size={30} />
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-8 shadow-xs text-center space-y-4">
+            <div className="w-12 h-12 bg-orange-50 text-[#FF6B00] rounded-2xl flex items-center justify-center mx-auto">
+              <GraduationCap size={24} />
             </div>
-            <div className="max-w-lg mx-auto">
-              <h2 className="text-lg font-bold text-slate-900">Maquette LMD Semestrielle (30 ECTS / semestre)</h2>
-              <p className="text-sm text-slate-500 mt-1">
-                La maquette LMD officielle est calculée par filière et par niveau d'études. Veuillez sélectionner une filière et un niveau précis ci-dessous pour voir le découpage semestriel.
+            <div className="max-w-md mx-auto">
+              <h2 className="text-base font-bold text-slate-900">Maquette LMD Semestrielle</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Sélectionnez une filière et un niveau spécifique dans la barre de filtres ci-dessus pour inspecter le découpage semestriel officiel (30 ECTS par semestre).
               </p>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              {filieresWithUnits.map(({ filiere, count }) => (
-                <button
-                  key={filiere.id}
-                  onClick={() => {
-                    setSelectedFiliereId(filiere.id);
-                    const firstUnit = allUnits.find(u => u.filiere_id === filiere.id);
-                    if (firstUnit?.level) setSelectedLevel(firstUnit.level);
-                  }}
-                  className="px-4 py-2 bg-slate-50 border border-slate-200 hover:border-[#FF6B00] text-slate-800 rounded-xl text-sm font-medium hover:bg-orange-50 transition-all flex items-center gap-2"
-                >
-                  <Layers size={16} className="text-[#FF6B00]" />
-                  <span>{filiere.name}</span>
-                  <span className="text-xs bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full font-bold">{count} UE</span>
-                </button>
-              ))}
+            <div className="flex justify-center gap-2 pt-1">
               <button
                 onClick={() => setViewMode('table')}
-                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors"
+                className="px-3.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors"
               >
-                Voir en vue Gestion UEs (Tableau complet)
+                Passer en Vue Liste complète
               </button>
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {(() => {
               const rawSemesters = curriculum?.semesters;
               const semesterList: [string, any][] = Array.isArray(rawSemesters)
@@ -596,7 +522,7 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
 
               if (semesterList.length === 0) {
                 return (
-                  <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-500">
+                  <div className="bg-white rounded-2xl border border-slate-200/80 p-8 text-center text-slate-500 text-xs">
                     Aucune maquette disponible pour cette sélection.
                   </div>
                 );
@@ -608,102 +534,98 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
                 const isValid30 = semData?.is_valid_30_ects ?? (totalCredits === 30);
 
                 return (
-                  <div key={semKey} className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="px-3 py-1 bg-[#0A1628] text-white font-bold rounded-lg text-sm">
+                  <div key={semKey} className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="px-2.5 py-1 bg-[#0A1628] text-white font-bold rounded-lg text-xs">
                           {semKey}
-                        </div>
-                        <h2 className="text-lg font-bold text-slate-900">
+                        </span>
+                        <h2 className="text-base font-bold text-slate-900">
                           Semestre {semKey.replace('S', '')} — {selectedLevel}
                         </h2>
                       </div>
-                      <div className="flex items-center gap-2 text-xs sm:text-sm">
-                        <span className="font-semibold text-slate-700">
-                          Volume : {totalCredits} / 30 ECTS
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-medium text-slate-600">
+                          Volume : <b className="text-slate-900">{totalCredits} / 30 ECTS</b>
                         </span>
                         {isValid30 ? (
-                          <span className="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-semibold">
-                            Complet (30 ECTS)
+                          <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                            ✓ 30 ECTS Complet
                           </span>
                         ) : (
-                          <span className="text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-semibold">
+                          <span className="text-amber-700 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md font-semibold text-[11px]">
                             {30 - totalCredits} ECTS manquants
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                       {semUnits.map((unit) => {
                         const coursesList: any[] = unit?.courses || [];
                         return (
                           <div
                             key={unit.id}
-                            className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+                            className="bg-slate-50/70 hover:bg-slate-50 rounded-xl border border-slate-200/80 p-3.5 transition-all flex flex-col justify-between hover:shadow-xs"
                           >
                             <div>
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <span className="font-mono text-xs font-bold text-[#FF6B00] bg-orange-50 px-2.5 py-1 rounded-lg">
+                              <div className="flex items-start justify-between gap-2 mb-1.5">
+                                <span className="font-mono text-xs font-bold text-[#FF6B00] bg-white border border-orange-200/60 px-2 py-0.5 rounded-md">
                                   {unit.code}
                                 </span>
                                 <div className="flex items-center gap-1.5">
                                   {getCategoryBadge(unit.category)}
-                                  <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-slate-900 text-white">
+                                  <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-900 text-white">
                                     {unit.credits} ECTS
                                   </span>
                                 </div>
                               </div>
 
-                              <h3 className="font-bold text-slate-900 text-base mb-2">{unit.name}</h3>
+                              <h3 className="font-bold text-slate-900 text-sm line-clamp-1 mb-1" title={unit.name}>
+                                {unit.name}
+                              </h3>
                               {unit.description && (
-                                <p className="text-xs text-slate-500 line-clamp-2 mb-3">{unit.description}</p>
+                                <p className="text-xs text-slate-500 line-clamp-1 mb-2">{unit.description}</p>
                               )}
 
-                              {/* Éléments constitutifs (ECUEs) */}
-                              <div className="mt-3 pt-3 border-t border-slate-100">
-                                <div className="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                                  <span>Modules ({coursesList.length})</span>
-                                  <span>Coeff / Heures</span>
+                              {/* Modules rattachés (compact) */}
+                              <div className="mt-2 pt-2 border-t border-slate-200/60">
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1">
+                                  <span className="font-semibold">Modules ({coursesList.length})</span>
                                 </div>
 
                                 {coursesList.length === 0 ? (
-                                  <p className="text-xs text-slate-400 italic py-1">Aucun module rattaché</p>
+                                  <p className="text-[11px] text-slate-400 italic">0 module rattaché</p>
                                 ) : (
-                                  <div className="space-y-1.5">
+                                  <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
                                     {coursesList.map((course) => (
-                                      <div
+                                      <span
                                         key={course.id}
-                                        className="flex items-center justify-between text-xs p-1.5 bg-slate-50 rounded-lg"
+                                        className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-700"
                                       >
-                                        <span className="font-medium text-slate-800 truncate pr-2">
-                                          {course.title}
-                                        </span>
-                                        <div className="flex items-center gap-2 text-slate-500 whitespace-nowrap">
-                                          <span className="font-mono font-semibold text-[#FF6B00]">{course.credits} cr</span>
-                                          {course.hours > 0 && <span>• {course.hours}h</span>}
-                                        </div>
-                                      </div>
+                                        <span className="font-medium truncate max-w-[130px]">{course.title}</span>
+                                        <b className="text-[#FF6B00] font-mono text-[10px]">{course.credits}cr</b>
+                                      </span>
                                     ))}
                                   </div>
                                 )}
                               </div>
                             </div>
 
-                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                            <div className="mt-3 pt-2 border-t border-slate-200/60 flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => handleOpenEditModal(unit)}
-                                className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Modifier l'UE"
+                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-white rounded-md transition-colors"
+                                title="Modifier"
                               >
-                                <Edit2 size={16} />
+                                <Edit2 size={14} />
                               </button>
                               <button
                                 onClick={() => handleDelete(unit.id)}
-                                className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Supprimer l'UE"
+                                className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded-md transition-colors"
+                                title="Supprimer"
                               >
-                                <Trash2 size={16} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           </div>
@@ -717,68 +639,69 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
           </div>
         )
       ) : (
-        /* Vue Tableau & Gestion complète */
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        /* Vue Liste / Tableau allégé avec pagination */
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-600 border-b border-slate-200/80 uppercase font-semibold text-[11px] tracking-wider">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Code UE</th>
-                  <th className="px-4 py-3 font-semibold">Intitulé</th>
-                  <th className="px-4 py-3 font-semibold">Filière / Niveau</th>
-                  <th className="px-4 py-3 font-semibold">Catégorie</th>
-                  <th className="px-4 py-3 font-semibold">Semestre</th>
-                  <th className="px-4 py-3 font-semibold">Crédits ECTS</th>
-                  <th className="px-4 py-3 font-semibold">Modules rattachés</th>
-                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                  <th className="px-3.5 py-3">Code UE</th>
+                  <th className="px-3.5 py-3">Intitulé</th>
+                  <th className="px-3.5 py-3">Filière / Niveau</th>
+                  <th className="px-3.5 py-3">Catégorie</th>
+                  <th className="px-3.5 py-3">Semestre</th>
+                  <th className="px-3.5 py-3">ECTS</th>
+                  <th className="px-3.5 py-3">Modules ({filteredUnits.reduce((acc, u) => acc + (u.courses?.length || 0), 0)})</th>
+                  <th className="px-3.5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredUnits.map((unit) => (
-                  <tr key={unit.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-3 font-mono font-bold text-[#FF6B00]">{unit.code}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-900">{unit.name}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-slate-800">{unit.filiere_name || 'Tronc commun'}</span>
-                        <span className="text-xs text-slate-500 font-mono font-semibold">{unit.level}</span>
-                      </div>
+                {paginatedUnits.map((unit) => (
+                  <tr key={unit.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-3.5 py-2.5 font-mono font-bold text-[#FF6B00]">{unit.code}</td>
+                    <td className="px-3.5 py-2.5 font-semibold text-slate-900 max-w-xs truncate">{unit.name}</td>
+                    <td className="px-3.5 py-2.5">
+                      <span className="font-medium text-slate-800">{unit.filiere_name || 'Tronc commun'}</span>
+                      <span className="ml-1.5 px-1.5 py-0.2 bg-slate-100 text-slate-700 rounded font-mono font-bold text-[10px]">
+                        {unit.level}
+                      </span>
                     </td>
-                    <td className="px-4 py-3">{getCategoryBadge(unit.category)}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-bold text-xs">
+                    <td className="px-3.5 py-2.5">{getCategoryBadge(unit.category)}</td>
+                    <td className="px-3.5 py-2.5">
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-bold text-[11px]">
                         {unit.semester}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-bold text-slate-900">{unit.credits} ECTS</td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-3.5 py-2.5 font-bold text-slate-900">{unit.credits} ECTS</td>
+                    <td className="px-3.5 py-2.5 text-slate-600">
                       {(unit.courses && unit.courses.length > 0) ? (
-                        <div className="flex flex-wrap gap-1 max-w-xs">
-                          {unit.courses.map(c => (
-                            <span key={c.id} className="px-2 py-0.5 bg-orange-50 text-orange-800 rounded text-xs font-medium">
-                              {c.title} ({c.credits} cr)
-                            </span>
-                          ))}
+                        <div className="flex items-center gap-1">
+                          <span className="px-2 py-0.5 bg-orange-50 border border-orange-200/60 text-[#FF6B00] rounded font-semibold text-[11px]">
+                            {unit.courses.length} module{unit.courses.length > 1 ? 's' : ''}
+                          </span>
+                          <span className="text-slate-400 text-[11px] truncate max-w-[140px]" title={unit.courses.map(c => c.title).join(', ')}>
+                            ({unit.courses[0]?.title}{unit.courses.length > 1 ? '...' : ''})
+                          </span>
                         </div>
                       ) : (
-                        <span className="text-slate-400 italic">0 module</span>
+                        <span className="text-slate-400 italic text-[11px]">0 module</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3.5 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => handleOpenEditModal(unit)}
-                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Modifier l'UE"
+                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                          title="Modifier"
                         >
-                          <Edit2 size={16} />
+                          <Edit2 size={13} />
                         </button>
                         <button
                           onClick={() => handleDelete(unit.id)}
-                          className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer l'UE"
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          title="Supprimer"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </td>
@@ -787,42 +710,73 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
               </tbody>
             </table>
           </div>
+
+          {/* Pagination intégrée */}
+          <div className="px-4 py-3 bg-slate-50/70 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-slate-600">
+            <div>
+              Affichage de <b className="text-slate-900">{Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredUnits.length)}</b> à <b className="text-slate-900">{Math.min(currentPage * ITEMS_PER_PAGE, filteredUnits.length)}</b> sur <b className="text-slate-900">{filteredUnits.length}</b> UE(s)
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Page précédente"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="px-2.5 py-1 text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg">
+                  Page {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Page suivante"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Modal Création / Édition */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Layers size={20} className="text-[#FF6B00]" />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl max-w-xl w-full p-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Layers size={18} className="text-[#FF6B00]" />
                 {editingUnit ? 'Modifier l\'Unité d\'Enseignement' : 'Nouvelle Unité d\'Enseignement (UE)'}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleSave} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Code UE *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Code UE *</label>
                   <input
                     type="text"
                     required
                     placeholder="Ex: UE-INFO101"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Crédits ECTS *</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Crédits ECTS *</label>
                   <input
                     type="number"
                     required
@@ -830,30 +784,30 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
                     max={30}
                     value={formData.credits}
                     onChange={(e) => setFormData({ ...formData, credits: parseInt(e.target.value) || 6 })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Intitulé de l'UE *</label>
+                <label className="block font-semibold text-slate-700 mb-1">Intitulé de l'UE *</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Logistique et gestion de flux"
+                  placeholder="Ex: Algorithmique et Structures de Données"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Catégorie LMD</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Catégorie LMD</label>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    className="w-full px-2.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   >
                     {categories.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -862,11 +816,11 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Semestre</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Semestre</label>
                   <select
                     value={formData.semester}
                     onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    className="w-full px-2.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   >
                     {semesters.map((s) => (
                       <option key={s} value={s}>{s}</option>
@@ -875,11 +829,11 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Niveau</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Niveau</label>
                   <select
                     value={formData.level}
                     onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    className="w-full px-2.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   >
                     {levels.map((l) => (
                       <option key={l} value={l}>{l}</option>
@@ -889,53 +843,50 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Filière</label>
+                <label className="block font-semibold text-slate-700 mb-1">Filière</label>
                 <select
                   value={formData.filiere_id || ''}
                   onChange={(e) => setFormData({ ...formData, filiere_id: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 >
                   <option value="">Tronc commun (toutes filières)</option>
                   {filieres.map((f) => (
-                    <option key={f.id} value={f.id}>{f.name} ({f.domain || 'Général'})</option>
+                    <option key={f.id} value={f.id}>{f.name}</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Description (Optionnelle)</label>
+                <label className="block font-semibold text-slate-700 mb-1">Description (Optionnelle)</label>
                 <textarea
                   rows={2}
-                  placeholder="Objectifs pédagogiques, compétences visées..."
+                  placeholder="Objectifs d'apprentissage et compétences..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
               </div>
 
               {/* Sélection des Modules (ECUE) rattachés */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-semibold text-slate-700">
+                  <label className="font-semibold text-slate-700">
                     Modules (ECUE) rattachés à cette UE
                   </label>
-                  <span className="text-xs text-slate-500">
-                    {formData.selected_course_ids.length} sélectionnée(s)
+                  <span className="text-slate-500 font-medium">
+                    {formData.selected_course_ids.length} sélectionné(s)
                   </span>
                 </div>
-                <div className="border border-slate-200 rounded-xl p-3 max-h-44 overflow-y-auto space-y-1.5 bg-slate-50">
+                <div className="border border-slate-200 rounded-xl p-2.5 max-h-40 overflow-y-auto space-y-1 bg-slate-50">
                   {courses.length === 0 ? (
-                    <p className="text-xs text-slate-400">Aucun module disponible dans la base</p>
+                    <p className="text-slate-400 italic">Aucun module disponible dans la base</p>
                   ) : (
                     courses.map((course) => {
                       const isChecked = formData.selected_course_ids.includes(course.id);
-                      const isSameFiliere = formData.filiere_id ? course.filiere_id === formData.filiere_id : true;
                       return (
                         <label
                           key={course.id}
-                          className={`flex items-center gap-2 p-1.5 hover:bg-white rounded-lg cursor-pointer text-xs transition-colors ${
-                            isSameFiliere ? 'bg-orange-50/50' : ''
-                          }`}
+                          className="flex items-center gap-2 p-1.5 hover:bg-white rounded-lg cursor-pointer transition-colors"
                         >
                           <input
                             type="checkbox"
@@ -956,13 +907,8 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
                             className="rounded border-slate-300 text-[#FF6B00] focus:ring-[#FF6B00]"
                           />
                           <span className="font-semibold text-slate-800 font-mono">{course.code}</span>
-                          <span className="text-slate-600 truncate">{course.title}</span>
-                          {course.level && (
-                            <span className="px-1.5 py-0.2 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">
-                              {course.level}
-                            </span>
-                          )}
-                          <span className="ml-auto text-slate-500 font-mono font-medium">{course.credits || 3} cr</span>
+                          <span className="text-slate-600 truncate flex-1">{course.title}</span>
+                          <span className="text-slate-400 font-mono">{course.credits || 3} cr</span>
                         </label>
                       );
                     })
@@ -970,20 +916,20 @@ export default function TeachingUnitsManager({ userRole }: TeachingUnitsManagerP
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+                  className="px-3.5 py-1.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-2 px-5 py-2 bg-[#FF6B00] hover:bg-orange-600 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-[#FF6B00] hover:bg-orange-600 text-white rounded-xl font-bold transition-colors disabled:opacity-50"
                 >
-                  {saving && <Loader2 size={16} className="animate-spin" />}
+                  {saving && <Loader2 size={13} className="animate-spin" />}
                   {editingUnit ? 'Mettre à jour' : 'Créer l\'UE'}
                 </button>
               </div>

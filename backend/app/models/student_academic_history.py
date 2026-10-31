@@ -32,3 +32,4 @@ class StudentAcademicHistory(Base):
 
     student = relationship("Student")
     university = relationship("University")
+
