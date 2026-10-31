@@ -25,14 +25,25 @@ def reset_database():
         db.execute(text("PRAGMA foreign_keys = OFF;"))
     
     # 2. Vider toutes les tables sauf 'subscription_plans'
-    for table in tables:
-        if table == "subscription_plans":
-            continue
-        try:
-            db.execute(text(f"DELETE FROM {table};"))
-            print(f"   🗑️ Table vidée : {table}")
-        except Exception as e:
-            print(f"   ⚠️ Erreur vidage table {table}: {e}")
+    is_postgres = "postgres" in str(engine.url) or "postgresql" in str(engine.url)
+    if is_postgres:
+        tables_to_truncate = [f'"{t}"' for t in tables if t != "subscription_plans"]
+        if tables_to_truncate:
+            joined = ", ".join(tables_to_truncate)
+            try:
+                db.execute(text(f"TRUNCATE TABLE {joined} RESTART IDENTITY CASCADE;"))
+                print(f"   🗑️ Tables PostgreSQL vidées avec TRUNCATE CASCADE.")
+            except Exception as e:
+                print(f"   ⚠️ Erreur TRUNCATE PostgreSQL: {e}")
+    else:
+        for table in tables:
+            if table == "subscription_plans":
+                continue
+            try:
+                db.execute(text(f'DELETE FROM "{table}";'))
+                print(f"   🗑️ Table vidée : {table}")
+            except Exception as e:
+                print(f"   ⚠️ Erreur vidage table {table}: {e}")
             
     # Réactiver les contraintes
     if "sqlite" in str(engine.url):
