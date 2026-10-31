@@ -1,6 +1,6 @@
 """
-Simulation complète et peuplement de l'Université UnisphereSchool.
-- 1 Université : UnisphereSchool
+Simulation complète et peuplement de l'Université ECOB.
+- 1 Université : ECOB
 - Rôles : Admin, Censeur, Secrétaire, Comptable, Gardien, 10 Enseignants, 15 Alumni, 260 Étudiants (100 nouveaux, 160 anciens)
 - 7 Filières (GLSI, RTC, CFA, DAF, MDEB, SEG, GC-BTP) réparties sur L1, L2, L3, M1, M2
 - UEs LMD (30 ECTS au S1, 30 ECTS au S2 = 60 ECTS annuels)
@@ -54,20 +54,21 @@ from app.services.pdf_generator import (
 
 def run_simulation():
     db = SessionLocal()
-    print("🚀 Démarrage de la simulation complète pour UnisphereSchool...")
+    print("🚀 Démarrage de la simulation complète pour ECOB...")
 
     # ==========================================
     # 1. CRÉATION DE L'UNIVERSITÉ UNISPHERESCHOOL
     # ==========================================
-    univ = db.query(University).filter(University.name == "UnisphereSchool").first()
+    univ = db.query(University).filter((University.name == "ECOB") | (University.id == 1)).first()
     if not univ:
         univ = University(
-            name="UnisphereSchool",
-            email="contact@unisphereschool.ml",
+            id=1,
+            name="ECOB",
+            email="contact@ecobmali.com",
             country="Mali",
             address="Hamdallaye ACI 2000, Bamako, Mali",
             phone="+223 20 22 44 88",
-            website="https://unisphereschool.ml",
+            website="https://ecobmali.com",
             slogan="Excellence, Innovation & Leadership Académique",
             description="Institut Universitaire Supérieur Pluridisciplinaire d'Excellence",
             established_year="2018",
@@ -109,11 +110,11 @@ def run_simulation():
     # 2. UTILISATEURS ADMINISTRATIFS & STAFF
     # ==========================================
     staff_data = [
-        ("Moussa Coulibaly", "admin@unisphereschool.ml", "admin", "+223 70 00 00 01"),
-        ("Dr. Boubacar TOURE", "censeur@unisphereschool.ml", "censeur", "+223 70 00 00 02"),
-        ("Mme Aminata DIARRA", "secretaire@unisphereschool.ml", "secretaire", "+223 70 00 00 03"),
-        ("M. Ousmane TRAORE", "comptable@unisphereschool.ml", "accountant", "+223 70 00 00 04"),
-        ("M. Bakary KONE", "gardien@unisphereschool.ml", "guard", "+223 70 00 00 05")
+        ("Moussa Coulibaly", "admin@unisphere.ai", "admin", "+223 70 00 00 01"),
+        ("Dr. Boubacar TOURE", "censeur@unisphere.ai", "censeur", "+223 70 00 00 02"),
+        ("Mme Aminata DIARRA", "secretaire@unisphere.ai", "secretaire", "+223 70 00 00 03"),
+        ("M. Ousmane TRAORE", "comptable@unisphere.ai", "accountant", "+223 70 00 00 04"),
+        ("M. Bakary KONE", "gardien@unisphere.ai", "guard", "+223 70 00 00 05")
     ]
 
     staff_users = {}
@@ -123,7 +124,7 @@ def run_simulation():
             u = User(
                 full_name=name,
                 email=email,
-                hashed_password=hash_password(f"{role}123"),
+                hashed_password=hash_password("unisphere2026"),
                 role=role,
                 phone=phone,
                 is_active=True,
@@ -186,16 +187,16 @@ def run_simulation():
     # 4. ENSEIGNANTS (10 PROFESSEURS)
     # ==========================================
     teachers_def = [
-        ("Salif", "DIABATE", "prof.diabate@unisphereschool.ml", "Informatique", "Algorithmique & Architectures"),
-        ("Fatoumata", "KEITA", "prof.keita@unisphereschool.ml", "Informatique", "Bases de Données & IA"),
-        ("Cheick", "SISSOKO", "prof.sissoko@unisphereschool.ml", "Télécoms", "Réseaux & Cybersécurité"),
-        ("Mariam", "SANOGO", "prof.sanogo@unisphereschool.ml", "Gestion", "Comptabilité & Analyse Financière"),
-        ("Ibrahim", "COULIBALY", "prof.coulibaly@unisphereschool.ml", "Droit", "Fiscalité & Droit des Sociétés"),
-        ("Kadidia", "MAIGA", "prof.maiga@unisphereschool.ml", "Marketing", "E-Business & Stratégie Digitale"),
-        ("Seydou", "DEMBELE", "prof.dembele@unisphereschool.ml", "Économie", "Macroéconomie & Économétrie"),
-        ("Adama", "KANTE", "prof.kante@unisphereschool.ml", "Génie Civil", "Résistance des Matériaux & Structures"),
-        ("Hawa", "TRAORE", "prof.traore@unisphereschool.ml", "Langues", "Anglais Professionnel & Soft Skills"),
-        ("Lassana", "DIARRA", "prof.diarra@unisphereschool.ml", "Mathématiques", "Maths Appliquées & Statistiques")
+        ("Salif", "DIABATE", "enseignant@unisphere.ai", "Informatique", "Algorithmique & Architectures"),
+        ("Fatoumata", "KEITA", "prof.keita@ecobmali.com", "Informatique", "Bases de Données & IA"),
+        ("Cheick", "SISSOKO", "prof.sissoko@ecobmali.com", "Télécoms", "Réseaux & Cybersécurité"),
+        ("Mariam", "SANOGO", "prof.sanogo@ecobmali.com", "Gestion", "Comptabilité & Analyse Financière"),
+        ("Ibrahim", "COULIBALY", "prof.coulibaly@ecobmali.com", "Droit", "Fiscalité & Droit des Sociétés"),
+        ("Kadidia", "MAIGA", "prof.maiga@ecobmali.com", "Marketing", "E-Business & Stratégie Digitale"),
+        ("Seydou", "DEMBELE", "prof.dembele@ecobmali.com", "Économie", "Macroéconomie & Économétrie"),
+        ("Adama", "KANTE", "prof.kante@ecobmali.com", "Génie Civil", "Résistance des Matériaux & Structures"),
+        ("Hawa", "TRAORE", "prof.traore@ecobmali.com", "Langues", "Anglais Professionnel & Soft Skills"),
+        ("Lassana", "DIARRA", "prof.diarra@ecobmali.com", "Mathématiques", "Maths Appliquées & Statistiques")
     ]
 
     teacher_objs = []
@@ -205,7 +206,7 @@ def run_simulation():
             u_t = User(
                 full_name=f"{fn} {ln}",
                 email=em,
-                hashed_password=hash_password("prof123"),
+                hashed_password=hash_password("unisphere2026"),
                 role="teacher",
                 phone="+223 75 00 00 " + str(random.randint(10, 99)),
                 is_active=True,
@@ -239,7 +240,7 @@ def run_simulation():
     # 5. ALUMNI (15 DIPLÔMÉS)
     # ==========================================
     alumni_def = [
-        ("Moussa", "SANGARE", "alumni.sangare@gmail.com", "GLSI", "Lead Architect", "Orange Mali", 2023),
+        ("Moussa", "SANGARE", "alumni@unisphere.ai", "GLSI", "Lead Architect", "Orange Mali", 2023),
         ("Kadiatou", "TRAORE", "alumni.traore@gmail.com", "CFA", "Audit Senior", "Deloitte Bamako", 2022),
         ("Sekou", "TOURE", "alumni.toure@gmail.com", "RTC", "Cybersecurity Engineer", "Sotelma Malitel", 2024),
         ("Aissata", "DIOP", "alumni.diop@gmail.com", "DAF", "Juriste d'Affaires", "Cabinet DLA Piper Mali", 2023),
@@ -262,7 +263,7 @@ def run_simulation():
             u_al = User(
                 full_name=f"{fn} {ln}",
                 email=em,
-                hashed_password=hash_password("alumni123"),
+                hashed_password=hash_password("unisphere2026"),
                 role="alumni",
                 is_active=True,
                 is_email_verified=True,
@@ -291,7 +292,7 @@ def run_simulation():
                 is_visible=True,
                 is_verified=True,
                 is_open_to_mentoring=True,
-                career_path=f"Diplômé(e) de UnisphereSchool en {grad_yr}. En poste chez {comp} en qualité de {job}."
+                career_path=f"Diplômé(e) de ECOB en {grad_yr}. En poste chez {comp} en qualité de {job}."
             )
             db.add(al_p)
             db.commit()
@@ -450,16 +451,16 @@ def run_simulation():
 
         fn = random.choice(first_names)
         ln = random.choice(last_names)
-        em = f"etudiant.{stu_idx:03d}@unisphereschool.ml"
+        em = f"etudiant.{stu_idx:03d}@ecobmali.com"
 
         # Distribution niveaux
         if is_new:
             # Majoritairement L1 et L2
             lvl = random.choice(["L1", "L1", "L1", "L2", "L3", "M1"])
-            mat = f"UNS-2026-N{stu_idx:04d}"
+            mat = f"EC-2026-N{stu_idx:04d}"
         else:
             lvl = random.choice(["L2", "L2", "L3", "L3", "M1", "M2"])
-            mat = f"UNS-2024-A{stu_idx:04d}"
+            mat = f"EC-2026-A{stu_idx:04d}"
 
         fil_code, fil_obj = random.choice(filiere_objs)
 
@@ -469,7 +470,7 @@ def run_simulation():
             u_stu = User(
                 full_name=f"{fn} {ln}",
                 email=em,
-                hashed_password=hash_password("student123"),
+                hashed_password=hash_password("unisphere2026"),
                 role="student",
                 phone="+223 60 00 " + f"{stu_idx:04d}"[-4:],
                 is_active=True,
