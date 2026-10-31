@@ -6,11 +6,9 @@ from typing import Optional
 from app.database.connection import get_db
 from app.models.user import User
 from app.core.dependencies import get_current_user # Adapte si le nom est différent
-from passlib.context import CryptContext
-from app.core.security import hash_password, verify_password
+from app.core.security import hash_password, verify_password, pwd_context
 
 router = APIRouter(prefix="/users", tags=["Users"])
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 UPLOAD_DIR = BASE_DIR / "uploads" / "profiles"

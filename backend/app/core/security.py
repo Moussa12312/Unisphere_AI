@@ -1,5 +1,24 @@
 from datetime import datetime, timedelta
 from jose import jwt
+import bcrypt
+
+# =========================================================================
+# ✅ Patch de compatibilité bcrypt >= 4.1.0 avec passlib 1.7.4
+# Résout AttributeError '__about__' et ValueError 'password cannot be longer than 72 bytes'
+# =========================================================================
+if not hasattr(bcrypt, "__about__"):
+    class _About:
+        __version__ = getattr(bcrypt, "__version__", "4.0.1")
+    bcrypt.__about__ = _About()
+
+if hasattr(bcrypt, "hashpw"):
+    _orig_hashpw = bcrypt.hashpw
+    def _safe_hashpw(password, salt):
+        if isinstance(password, (bytes, bytearray)) and len(password) > 72:
+            password = password[:72]
+        return _orig_hashpw(password, salt)
+    bcrypt.hashpw = _safe_hashpw
+
 from passlib.context import CryptContext
 from app.core.config import SECRET_KEY, ALGORITHM
 
@@ -16,10 +35,14 @@ pwd_context = CryptContext(
 
 
 def hash_password(password: str):
+    if isinstance(password, str) and len(password.encode("utf-8")) > 72:
+        password = password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
     return pwd_context.hash(password)
 
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password: str, hashed_password: str):
+    if isinstance(plain_password, str) and len(plain_password.encode("utf-8")) > 72:
+        plain_password = plain_password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
     return pwd_context.verify(plain_password, hashed_password)
 
 
