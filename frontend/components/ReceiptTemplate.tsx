@@ -314,7 +314,7 @@ export default function ReceiptTemplate({ receipt, showBackButton = false, backU
               Document officiel généré électroniquement • Fait foi de paiement libératoire conformément aux règlements universitaires.
             </p>
             <p className="mt-0.5 text-slate-400">
-              Ratures et surcharges interdites • {u.name || 'UniSphere AI'} • Contact : {u.phone || '+223 20 00 00 00'} {u.email ? `• ${u.email}` : ''}
+              {u.name || 'Établissement Universitaire'} • Contact : {u.phone || '+223 73 34 34 93'} {u.email ? `• ${u.email}` : ''}
             </p>
           </div>
 

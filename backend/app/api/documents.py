@@ -471,7 +471,7 @@ def generate_transcript(
         "TOTAL", "MOYENNE GÉNÉRALE", str(total_credits), "", "", f"{overall_avg:.2f}", f"{obtained_credits}/{total_credits} crédits"
     ])
 
-    notes_table = Table(table_data, colWidths=[2.2*cm, 6.2*cm, 1.6*cm, 1.6*cm, 1.6*cm, 2.2*cm, 2.2*cm])
+    notes_table = Table(table_data, colWidths=[2.8*cm, 5.6*cm, 1.5*cm, 1.5*cm, 1.5*cm, 2.1*cm, 2.6*cm])
     notes_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0a1628')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -758,7 +758,7 @@ def generate_receipt_pdf(
     # Bas de page sécurisé
     elements.append(Spacer(1, 0.3*cm))
     elements.append(Paragraph(
-        f"<font size=6.5 color='#94a3b8'>Document officiel généré par UniSphere AI. Toute altération ou falsification expose à des poursuites. Référence vérifiable N° {rec_num}.</font>",
+        f"<font size=6.5 color='#94a3b8'>Document officiel certifié. Référence de paiement vérifiable N° {rec_num}.</font>",
         ParagraphStyle('FooterNotice', fontSize=6.5, alignment=TA_CENTER)
     ))
 

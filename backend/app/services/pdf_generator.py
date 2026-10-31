@@ -81,12 +81,7 @@ def draw_official_page_decorations(canvas_obj, doc_obj, university_name: str = "
     canvas_obj.drawCentredString(0, 0, watermark.upper())
     canvas_obj.restoreState()
 
-    # 3. Pied de page sécurisé
-    canvas_obj.setFont("Helvetica", 7.5)
-    canvas_obj.setFillColor(DARK_GRAY)
-    sec_text = "UniSphere AI • Système d'Information Académique Sécurisé • Document officiel vérifiable par QR Code • Ratures et surcharges interdites"
-    canvas_obj.drawCentredString(w / 2.0, 1.55 * cm, sec_text)
-
+    # 3. Pied de page sécurisé (Filigrane institutionnel propre sans surcharge)
     canvas_obj.restoreState()
 
 
@@ -259,7 +254,7 @@ def generate_enrollment_certificate_pdf(
     sign_data = [
         [
             Paragraph("<b>Authentification Numérique</b><br/><font size=7 color='#64748B'>Scannez pour vérifier l'authenticité</font>", ParagraphStyle('QRTxt', fontSize=8, alignment=TA_CENTER, leading=10)),
-            Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d %B %Y')}<br/><b>Le Directeur Général</b>", ParagraphStyle('SignHead', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
+            Paragraph(f"Fait à Bamako, le {format_french_date()}<br/><b>Le Directeur Général</b>", ParagraphStyle('SignHead', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
         ],
         [
             qr_img,
@@ -443,7 +438,7 @@ def generate_success_certificate_pdf(
     sign_data = [
         [
             Paragraph("<b>Contrôle d'Authenticité</b><br/><font size=7 color='#64748B'>Scannez pour valider ce diplôme</font>", ParagraphStyle('QRTxt2', fontSize=8, alignment=TA_CENTER, leading=10)),
-            Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d %B %Y')}<br/><b>Le Directeur Général / Le Recteur</b>", ParagraphStyle('SignHead2', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
+            Paragraph(f"Fait à Bamako, le {format_french_date()}<br/><b>Le Directeur Général / Le Recteur</b>", ParagraphStyle('SignHead2', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
         ],
         [
             qr_img,
@@ -1360,7 +1355,7 @@ def generate_financial_clearance_pdf(
     sign_data = [
         [
             Paragraph("<b>Contrôle Financier</b><br/><font size=7 color='#64748B'>Scannez pour vérifier l'authenticité</font>", ParagraphStyle('QRTxtF', fontSize=8, alignment=TA_CENTER, leading=10)),
-            Paragraph(f"Fait à Bamako, le {datetime.now().strftime('%d %B %Y')}<br/><b>La Direction Administrative & Financière</b>", ParagraphStyle('SignFinHead', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
+            Paragraph(f"Fait à Bamako, le {format_french_date()}<br/><b>La Direction Administrative & Financière</b>", ParagraphStyle('SignFinHead', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
         ],
         [
             qr_img,
@@ -1447,7 +1442,7 @@ def make_official_footer_table(
     sign_data = [
         [
             Paragraph("<b>Authentification Numérique</b><br/><font size=7 color='#64748B'>Scannez pour vérifier l'authenticité</font>", ParagraphStyle('QRTxtFtr', fontSize=8, alignment=TA_CENTER, leading=10)),
-            Paragraph(f"Fait à {city}, le {datetime.now().strftime('%d %B %Y')}<br/><b>{director_title}</b>", ParagraphStyle('SignHeadFtr', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
+            Paragraph(f"Fait à {city}, le {format_french_date()}<br/><b>{director_title}</b>", ParagraphStyle('SignHeadFtr', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
         ],
         [
             qr_img,
@@ -2122,7 +2117,7 @@ def generate_jury_deliberation_pv_pdf(
     body_style = ParagraphStyle('PVB', fontName='Helvetica', fontSize=9.5, leading=15, alignment=TA_JUSTIFY)
 
     intro_text = (
-        f"L'an deux mille vingt-six et le {datetime.now().strftime('%d %B')}, s'est réuni le jury de délibération d'examen institué par décision rectorale au titre de l'année académique <b>{academic_year}</b> pour statuer sur les résultats des étudiants de la filière <b>{filiere}</b> (Niveau <b>{level}</b>).<br/><br/>"
+        f"L'an deux mille vingt-six et le {datetime.now().day:02d} {FRENCH_MONTHS.get(datetime.now().month, '')}, s'est réuni le jury de délibération d'examen institué par décision rectorale au titre de l'année académique <b>{academic_year}</b> pour statuer sur les résultats des étudiants de la filière <b>{filiere}</b> (Niveau <b>{level}</b>).<br/><br/>"
         "Après vérification minutieuse des procès-verbaux de notes, des coefficients et de la capitalisation des crédits ECTS, le jury a proclamé les résultats officiels suivants :"
     )
     elements.append(Paragraph(intro_text, body_style))
@@ -2296,4 +2291,21 @@ def generate_service_completion_certificate_pdf(
     doc.build(elements, onFirstPage=on_page)
     buffer.seek(0)
     return buffer.getvalue()
+
+FRENCH_MONTHS = {
+    1: "janvier", 2: "février", 3: "mars", 4: "avril",
+    5: "mai", 6: "juin", 7: "juillet", 8: "août",
+    9: "septembre", 10: "octobre", 11: "novembre", 12: "décembre"
+}
+
+def format_french_date(dt=None) -> str:
+    """Formate une date en français garanti (ex: 31 octobre 2026)"""
+    if dt is None:
+        dt = datetime.now()
+    if hasattr(dt, 'day') and hasattr(dt, 'month') and hasattr(dt, 'year'):
+        m_name = FRENCH_MONTHS.get(dt.month, str(dt.month))
+        return f"{dt.day:02d} {m_name} {dt.year}"
+    return str(dt)
+
+
 

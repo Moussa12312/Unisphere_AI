@@ -5,3 +5,4 @@ import SecretaryGenerateDocumentsPage from '@/app/secretary/documents/generate/p
 export default function AdminGenerateDocumentsPage() {
   return <SecretaryGenerateDocumentsPage />;
 }
+

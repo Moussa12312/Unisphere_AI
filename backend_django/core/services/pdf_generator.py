@@ -81,12 +81,7 @@ def draw_official_page_decorations(canvas_obj, doc_obj, university_name: str = "
     canvas_obj.drawCentredString(0, 0, watermark.upper())
     canvas_obj.restoreState()
 
-    # 3. Pied de page sécurisé
-    canvas_obj.setFont("Helvetica", 7.5)
-    canvas_obj.setFillColor(DARK_GRAY)
-    sec_text = "UniSphere AI • Système d'Information Académique Sécurisé • Document officiel vérifiable par QR Code • Ratures et surcharges interdites"
-    canvas_obj.drawCentredString(w / 2.0, 1.55 * cm, sec_text)
-
+    # 3. Pied de page sécurisé (Filigrane institutionnel propre sans surcharge)
     canvas_obj.restoreState()
 
 
