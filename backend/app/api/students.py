@@ -1605,9 +1605,12 @@ def generate_student_qr_code(
     qr_filename = os.path.basename(qr_filename)
     qr_path = str(qr_dir / qr_filename)
     
-    # Si le fichier existe déjà, le renvoyer directement
+    # Headers de mise en cache HTTP agressive (1 an) pour éviter de saturer le serveur
+    cache_headers = {"Cache-Control": "public, max-age=31536000, immutable"}
+
+    # Si le fichier existe déjà, le renvoyer directement avec mise en cache
     if os.path.exists(qr_path) and os.path.getsize(qr_path) > 0:
-        return FileResponse(qr_path, media_type="image/png", filename=f"QR_{student.matricule or student.id}.png")
+        return FileResponse(qr_path, media_type="image/png", filename=f"QR_{student.matricule or student.id}.png", headers=cache_headers)
     
     # Sinon, générer le QR code avec le matricule de l'étudiant
     qr_data = student.matricule or f"STUDENT-{student.id}"
@@ -1626,9 +1629,12 @@ def generate_student_qr_code(
     # Enregistrer la référence dans l'étudiant si manquante
     if student.qr_code != qr_filename:
         student.qr_code = qr_filename
-        db.commit()
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
     
-    return FileResponse(qr_path, media_type="image/png", filename=f"QR_{student.matricule or student.id}.png")
+    return FileResponse(qr_path, media_type="image/png", filename=f"QR_{student.matricule or student.id}.png", headers=cache_headers)
 
 
 # ==========================================

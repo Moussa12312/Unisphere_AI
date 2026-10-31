@@ -47,3 +47,4 @@ export const config = {
     '/scan-session/:path*',
   ],
 };
+
