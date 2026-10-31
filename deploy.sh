@@ -54,13 +54,59 @@ fi
 
 cd "$APP_DIR"
 
-# 6. Création des dossiers de persistance
+# 6. Gestion sécurisée des clés secrètes (.env)
+if [ ! -f "$APP_DIR/.env" ]; then
+    echo "🔐 Génération automatique des clés secrètes chiffrées pour la production..."
+    AUTO_SECRET_KEY=$(openssl rand -hex 32)
+    AUTO_DB_PASS=$(openssl rand -hex 24)
+
+    cat << EOF > "$APP_DIR/.env"
+# ==========================================================
+# UniSphere AI - Fichier de Secrets de Production (VPS)
+# ==========================================================
+
+# Base de Données PostgreSQL
+POSTGRES_USER=unisphere_admin
+POSTGRES_PASSWORD=$AUTO_DB_PASS
+POSTGRES_DB=unisphere_db
+POSTGRES_PORT=5432
+
+# Clé Maîtresse JWT (Chiffrement des sessions et tokens d'authentification)
+SECRET_KEY=$AUTO_SECRET_KEY
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Réseau & Domaine
+FRONTEND_URL=http://169.58.101.183
+NEXT_PUBLIC_API_URL=
+
+# Service Email (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=noreply@unisphere.ai
+
+# Assistant IA
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+
+ENVIRONMENT=production
+EOF
+    chmod 600 "$APP_DIR/.env"
+    echo "✅ Fichier .env créé avec des clés cryptographiques uniques et incassables !"
+else
+    echo "✅ Le fichier .env existant a été conservé intact."
+fi
+
+# 7. Création des dossiers de persistance
 mkdir -p uploads qr_codes /var/backups/unisphere
 
-# 7. Lancement des conteneurs via Docker Compose
+# 8. Lancement des conteneurs via Docker Compose
 echo "🏗️ Construction et démarrage des conteneurs (PostgreSQL, Backend, Frontend, Nginx)..."
 docker compose down || true
-docker compose up -d --build
+docker compose --env-file "$APP_DIR/.env" up -d --build
 
 # 8. Attente de la disponibilité de la base de données
 echo "⏳ Vérification de la disponibilité de PostgreSQL..."
