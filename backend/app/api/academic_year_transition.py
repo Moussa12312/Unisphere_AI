@@ -1,8 +1,10 @@
 """
 UniSphere AI - Module de Clôture & Migration d'Année Académique
-Permet la bascule sécurisée d'une année scolaire à la suivante (ex: 2026-2027 -> 2027-2028),
-avec promotion automatique des étudiants admis (L1->L2, L2->L3, L3->Diplômé),
-maintien des redoublants, archivage historique et initialisation de la nouvelle rentrée.
+Permet la bascule d'une année scolaire à la suivante (ex: 2026-2027 -> 2027-2028),
+avec choix de politique de promotion :
+1. "admitted_only" : Seuls les admis passent (les redoublants restent dans leur classe)
+2. "conditional"   : Passage conditionnel LMD (les admis passent, et les étudiants avec moyenne >= 8/20 ou rattrapage passent avec dettes)
+3. "all_pass"      : Passage généralisé (décision rectorale exceptionnelle : tout le monde passe)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -36,7 +38,6 @@ def calculate_next_academic_year(current_year: str) -> str:
             return f"{y1 + 1}-{y2 + 1}"
     except Exception:
         pass
-    # Secours basé sur l'année actuelle
     y = datetime.now().year
     return f"{y}-{y + 1}"
 
@@ -67,12 +68,16 @@ def get_next_level(current_level: str) -> tuple[str, str]:
     elif lvl in ["D3", "DOCTORAT 3"]:
         return "Docteur Diplômé", "graduated"
     
-    # Défaut
     return lvl, "promoted"
 
 
 class TransitionExecutionRequest(BaseModel):
     target_academic_year: str = Field(..., description="Année académique cible, ex: '2027-2028'")
+    promotion_policy: str = Field(
+        "admitted_only",
+        description="Politique de promotion : 'admitted_only' (admis seuls), 'conditional' (passage conditionnel avec crédits), ou 'all_pass' (passage généralisé de tous)"
+    )
+    conditional_min_average: float = Field(8.0, description="Moyenne min pour passage conditionnel")
     auto_promote_by_average: bool = Field(True, description="Si vrai, promeut les étudiants sans délibération formelle ayant moyenne >= 10")
     min_passing_average: float = Field(10.0, description="Moyenne minimale pour admission automatique")
     auto_promote_l3_to_m1: bool = Field(False, description="Si vrai, inscrit les diplômés de Licence directement en Master 1")
@@ -81,18 +86,21 @@ class TransitionExecutionRequest(BaseModel):
 
 @router.get("/preview")
 def preview_academic_year_transition(
+    policy: str = Query("admitted_only", description="Politique de promotion simulée"),
+    conditional_min_avg: float = Query(8.0, description="Moyenne min pour passage conditionnel"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "super_admin"))
 ):
     """
-    Simule la clôture de l'année courante et la bascule vers la suivante.
-    Retourne la liste des étudiants avec leur statut prévisionnel (Admis, Redouble, Diplômé).
+    Simule la clôture de l'année courante selon la politique choisie :
+    - admitted_only : seuls les admis passent
+    - conditional   : admis + rattrapage/notes >= conditional_min_avg passent
+    - all_pass      : tout le monde passe, y compris les redoublants
     """
     univ_id = current_user.university_id or 1
     current_year = get_current_academic_year(db, univ_id)
     suggested_next_year = calculate_next_academic_year(current_year)
 
-    # Récupérer tous les étudiants actifs
     students = db.query(Student).filter(
         Student.university_id == univ_id,
         Student.status == "active"
@@ -100,13 +108,11 @@ def preview_academic_year_transition(
 
     total_students = len(students)
     
-    # Statistiques par niveau
     levels_count: Dict[str, int] = {}
     for s in students:
         lvl = s.level or "Non défini"
         levels_count[lvl] = levels_count.get(lvl, 0) + 1
 
-    # Analyse des délibérations et résultats de chaque étudiant
     promotions_summary = {
         "admis": 0,
         "redoublants": 0,
@@ -117,7 +123,6 @@ def preview_academic_year_transition(
     students_preview = []
 
     for s in students:
-        # 1. Vérifier si une délibération officielle existe pour cet étudiant
         last_decision = db.query(DeliberationDecision).join(DeliberationSession).filter(
             DeliberationDecision.student_id == s.id,
             DeliberationSession.academic_year == current_year
@@ -130,7 +135,6 @@ def preview_academic_year_transition(
             decision_type = last_decision.decision.lower()
             avg_score = last_decision.average
         else:
-            # Calculer la moyenne des notes de l'étudiant s'il y en a
             student_grades = db.query(Grade).filter(Grade.student_id == s.id).all()
             if student_grades:
                 scores = [g.score for g in student_grades if g.score is not None]
@@ -138,14 +142,35 @@ def preview_academic_year_transition(
                     avg_score = round(sum(scores) / len(scores), 2)
                     decision_type = "admis" if avg_score >= 10.0 else "redouble"
 
-        # Déterminer la projection future
         current_lvl = s.level or "L1"
         target_lvl, status_kind = get_next_level(current_lvl)
+
+        # Application de la politique
+        should_promote = False
+        promotion_reason = "Maintien au niveau"
+
+        if policy == "all_pass":
+            should_promote = True
+            promotion_reason = "Passage généralisé autorisé"
+        elif policy == "conditional":
+            if decision_type in ["admis", "admis(e)", "validé"]:
+                should_promote = True
+                promotion_reason = "Admis direct"
+            elif avg_score is not None and avg_score >= conditional_min_avg:
+                should_promote = True
+                promotion_reason = f"Passage conditionnel (Moyenne {avg_score:.2f} >= {conditional_min_avg})"
+            elif decision_type in ["rattrapage", "compensation"]:
+                should_promote = True
+                promotion_reason = "Passage conditionnel avec dettes"
+        else:  # admitted_only
+            if decision_type in ["admis", "admis(e)", "validé"]:
+                should_promote = True
+                promotion_reason = "Admis au jury"
 
         future_level = current_lvl
         future_status = "active"
 
-        if decision_type in ["admis", "admis(e)", "validé"]:
+        if should_promote:
             if status_kind == "graduated":
                 future_level = current_lvl
                 future_status = "graduated"
@@ -153,11 +178,11 @@ def preview_academic_year_transition(
             else:
                 future_level = target_lvl
                 promotions_summary["admis"] += 1
-        elif decision_type in ["redouble", "ajourné", "échec"]:
-            promotions_summary["redoublants"] += 1
-            future_level = current_lvl
         else:
-            promotions_summary["a_deliberer"] += 1
+            if decision_type == "pending":
+                promotions_summary["a_deliberer"] += 1
+            else:
+                promotions_summary["redoublants"] += 1
 
         students_preview.append({
             "id": s.id,
@@ -167,6 +192,8 @@ def preview_academic_year_transition(
             "current_level": current_lvl,
             "average": avg_score,
             "decision": decision_type,
+            "should_promote": should_promote,
+            "promotion_reason": promotion_reason,
             "projected_level": future_level,
             "projected_status": future_status
         })
@@ -174,10 +201,11 @@ def preview_academic_year_transition(
     return {
         "current_academic_year": current_year,
         "suggested_next_year": suggested_next_year,
+        "applied_policy": policy,
         "total_active_students": total_students,
         "levels_distribution": levels_count,
         "promotions_summary": promotions_summary,
-        "students": students_preview[:50]  # Échantillon des 50 premiers pour fluidité
+        "students": students_preview[:60]
     }
 
 
@@ -189,7 +217,7 @@ def execute_academic_year_transition(
 ):
     """
     Exécute la bascule d'année académique de façon atomique et sécurisée.
-    Archive l'année passée, promeut les étudiants admis et met à jour l'année active.
+    Applique la politique choisie (Admis uniquement, Conditionnel, ou Tous).
     """
     univ_id = current_user.university_id or 1
     current_year = get_current_academic_year(db, univ_id)
@@ -201,14 +229,12 @@ def execute_academic_year_transition(
             detail=f"L'année cible ({target_year}) doit être différente de l'année actuelle ({current_year})."
         )
 
-    # Récupérer l'université et sa configuration
     univ = db.query(University).filter(University.id == univ_id).first()
     config = db.query(AcademicConfig).filter(AcademicConfig.university_id == univ_id).first()
     if not config:
         config = AcademicConfig(university_id=univ_id)
         db.add(config)
 
-    # Récupérer tous les étudiants actifs
     students = db.query(Student).filter(
         Student.university_id == univ_id,
         Student.status == "active"
@@ -220,7 +246,6 @@ def execute_academic_year_transition(
     archived_count = 0
 
     for s in students:
-        # Vérifier s'il y a une délibération enregistrée
         last_decision = db.query(DeliberationDecision).join(DeliberationSession).filter(
             DeliberationDecision.student_id == s.id,
             DeliberationSession.academic_year == current_year
@@ -243,7 +268,22 @@ def execute_academic_year_transition(
         current_lvl = s.level or "L1"
         next_lvl, status_kind = get_next_level(current_lvl)
 
-        # 1. Archiver dans l'historique académique de l'étudiant
+        # 1. Vérifier si l'étudiant doit être promu selon la politique sélectionnée
+        should_promote = False
+        if payload.promotion_policy == "all_pass":
+            should_promote = True
+        elif payload.promotion_policy == "conditional":
+            if decision in ["admis", "admis(e)", "validé"]:
+                should_promote = True
+            elif avg_score is not None and avg_score >= payload.conditional_min_average:
+                should_promote = True
+            elif decision in ["rattrapage", "compensation"]:
+                should_promote = True
+        else:  # admitted_only
+            if decision in ["admis", "admis(e)", "validé"]:
+                should_promote = True
+
+        # 2. Archiver dans l'historique académique de l'étudiant
         history_entry = StudentAcademicHistory(
             student_id=s.id,
             university_id=univ_id,
@@ -252,16 +292,15 @@ def execute_academic_year_transition(
             level=current_lvl,
             annual_average=avg_score,
             decision=decision,
-            promoted_to_level=next_lvl if decision == "admis" else current_lvl,
-            notes=f"Clôture officielle de l'année {current_year}"
+            promoted_to_level=next_lvl if should_promote else current_lvl,
+            notes=f"Clôture de l'année {current_year} (Politique : {payload.promotion_policy})"
         )
         db.add(history_entry)
         archived_count += 1
 
-        # 2. Appliquer la promotion / maintien
-        if decision in ["admis", "admis(e)", "validé"]:
+        # 3. Mettre à jour l'étudiant
+        if should_promote:
             if status_kind == "graduated":
-                # Étudiant ayant terminé son cycle (ex: Licence 3 ou Master 2)
                 if current_lvl in ["L3", "Licence 3"] and payload.auto_promote_l3_to_m1:
                     s.level = "M1"
                     s.student_type = "returning"
@@ -271,26 +310,32 @@ def execute_academic_year_transition(
                     graduated_count += 1
             else:
                 s.level = next_lvl
-                s.student_type = "returning"  # Marqué comme réinscription
+                s.student_type = "returning"
                 promoted_count += 1
         else:
-            # Redoublement : maintien au même niveau
             s.student_type = "returning"
             repeated_count += 1
 
-    # 3. Mettre à jour l'année académique active
+    # 4. Mettre à jour l'année académique active
     config.current_academic_year = target_year
-    config.grades_locked = False  # Déverrouiller la saisie des notes pour la nouvelle année
+    config.grades_locked = False
     if univ:
         univ.academic_year = target_year
 
     db.commit()
 
+    policy_labels = {
+        "admitted_only": "Seuls les Admis",
+        "conditional": "Passage Conditionnel LMD",
+        "all_pass": "Passage Généralisé"
+    }
+
     return {
         "success": True,
-        "message": f"Bascule académique réussie : {current_year} ➔ {target_year}",
+        "message": f"Bascule académique réussie : {current_year} ➔ {target_year} ({policy_labels.get(payload.promotion_policy, payload.promotion_policy)})",
         "previous_year": current_year,
         "new_academic_year": target_year,
+        "applied_policy": payload.promotion_policy,
         "promoted_students": promoted_count,
         "repeated_students": repeated_count,
         "graduated_students": graduated_count,
@@ -307,7 +352,6 @@ def get_transition_history(
     """Retourne l'historique des clôtures et bascules passées."""
     univ_id = current_user.university_id or 1
     
-    # Années archivées distinctes
     years = db.query(StudentAcademicHistory.academic_year).filter(
         StudentAcademicHistory.university_id == univ_id
     ).distinct().all()

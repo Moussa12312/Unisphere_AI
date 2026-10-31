@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import {
   Calendar, ArrowRight, ShieldAlert, Award, GraduationCap, CheckCircle2,
-  AlertTriangle, Users, BookOpen, RefreshCw, Loader2, Sparkles, History, Check
+  AlertTriangle, Users, BookOpen, RefreshCw, Loader2, Sparkles, History, Check,
+  CheckCircle, UserCheck, ShieldCheck
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
@@ -11,6 +12,7 @@ import api from '@/lib/api';
 interface PreviewData {
   current_academic_year: string;
   suggested_next_year: string;
+  applied_policy: string;
   total_active_students: number;
   levels_distribution: Record<string, number>;
   promotions_summary: {
@@ -27,6 +29,8 @@ interface PreviewData {
     current_level: string;
     average: number | null;
     decision: string;
+    should_promote: boolean;
+    promotion_reason: string;
     projected_level: string;
     projected_status: string;
   }>;
@@ -34,30 +38,43 @@ interface PreviewData {
 
 export default function AcademicYearTransitionPage() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [data, setData] = useState<PreviewData | null>(null);
   const [targetYear, setTargetYear] = useState('');
-  const [autoPromoteByAvg, setAutoPromoteByAvg] = useState(true);
+  
+  // Politique de promotion sélectionnée
+  const [policy, setPolicy] = useState<'admitted_only' | 'conditional' | 'all_pass'>('admitted_only');
+  const [conditionalMinAvg, setConditionalMinAvg] = useState(8.0);
   const [autoPromoteL3ToM1, setAutoPromoteL3ToM1] = useState(false);
+
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [executionResult, setExecutionResult] = useState<any>(null);
 
   useEffect(() => {
-    loadPreview();
+    loadPreview(policy, conditionalMinAvg);
   }, []);
 
-  const loadPreview = async () => {
+  const loadPreview = async (selectedPolicy = policy, minAvg = conditionalMinAvg) => {
     try {
-      setLoading(true);
-      const res = await api.get('/api/v1/academic-year-transition/preview');
+      setRefreshing(true);
+      const res = await api.get(`/api/v1/academic-year-transition/preview?policy=${selectedPolicy}&conditional_min_avg=${minAvg}`);
       setData(res.data);
-      setTargetYear(res.data.suggested_next_year || '');
+      if (!targetYear) {
+        setTargetYear(res.data.suggested_next_year || '');
+      }
     } catch (err: any) {
       console.error(err);
-      toast.error('Erreur lors du chargement de la simulation');
+      toast.error('Erreur lors du calcul de la simulation');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handlePolicyChange = (newPolicy: 'admitted_only' | 'conditional' | 'all_pass') => {
+    setPolicy(newPolicy);
+    loadPreview(newPolicy, conditionalMinAvg);
   };
 
   const handleExecute = async () => {
@@ -70,7 +87,9 @@ export default function AcademicYearTransitionPage() {
       setExecuting(true);
       const payload = {
         target_academic_year: targetYear,
-        auto_promote_by_average: autoPromoteByAvg,
+        promotion_policy: policy,
+        conditional_min_average: conditionalMinAvg,
+        auto_promote_by_average: true,
         min_passing_average: 10.0,
         auto_promote_l3_to_m1: autoPromoteL3ToM1
       };
@@ -79,7 +98,7 @@ export default function AcademicYearTransitionPage() {
       setExecutionResult(res.data);
       setShowConfirmModal(false);
       toast.success(res.data.message || 'Bascule effectuée avec succès !');
-      await loadPreview();
+      await loadPreview(policy, conditionalMinAvg);
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Erreur lors de la bascule d'année");
     } finally {
@@ -98,7 +117,7 @@ export default function AcademicYearTransitionPage() {
 
   return (
     <div className="p-4 sm:p-8 space-y-6 max-w-6xl mx-auto">
-      {/* Header */}
+      {/* Header Institutionnel */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -113,17 +132,18 @@ export default function AcademicYearTransitionPage() {
                 </span>
               </div>
               <p className="text-slate-300 text-xs sm:text-sm mt-1">
-                Assistant de fin d'année : Clôture officielle des délibérations, promotion automatique des étudiants admis et ouverture de la nouvelle session.
+                Assistant de fin d'année : Choix de la politique de passage (Admis seuls, Conditionnel ou Tous), promotion et réinscriptions.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={loadPreview}
+              onClick={() => loadPreview(policy, conditionalMinAvg)}
+              disabled={refreshing}
               className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-xs font-semibold rounded-xl transition-all border border-white/10 flex items-center gap-2"
             >
-              <RefreshCw size={14} />
+              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
               Actualiser
             </button>
           </div>
@@ -158,7 +178,97 @@ export default function AcademicYearTransitionPage() {
         </div>
       )}
 
-      {/* Cartes de Synthèse de la Promotion */}
+      {/* SÉLECTEUR DE POLITIQUE DE PASSAGE (RÈGLE DU JURY) */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+            <ShieldCheck size={22} className="text-[#FF6B00]" />
+            Quelle est la politique de passage pour cette fin d'année ?
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">
+            Choisissez comment l'établissement traite les redoublants et les admis lors de la bascule vers la nouvelle année.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          {/* Option 1 : Seuls les Admis */}
+          <div
+            onClick={() => handlePolicyChange('admitted_only')}
+            className={`cursor-pointer rounded-2xl p-5 border-2 transition-all relative ${
+              policy === 'admitted_only'
+                ? 'border-emerald-500 bg-emerald-50/40 shadow-md ring-2 ring-emerald-500/20'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                1
+              </span>
+              {policy === 'admitted_only' && (
+                <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-full">
+                  SÉLECTIONNÉ
+                </span>
+              )}
+            </div>
+            <h3 className="font-bold text-slate-900 text-sm mt-3">Seuls les Admis passent</h3>
+            <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+              <strong>Règle stricte :</strong> Seuls les étudiants ayant validé l'année sont promus au niveau supérieur. Les redoublants restent dans leur classe actuelle pour reprendre l'année.
+            </p>
+          </div>
+
+          {/* Option 2 : Passage Conditionnel LMD */}
+          <div
+            onClick={() => handlePolicyChange('conditional')}
+            className={`cursor-pointer rounded-2xl p-5 border-2 transition-all relative ${
+              policy === 'conditional'
+                ? 'border-amber-500 bg-amber-50/40 shadow-md ring-2 ring-amber-500/20'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">
+                2
+              </span>
+              {policy === 'conditional' && (
+                <span className="px-2 py-0.5 bg-amber-600 text-white text-[10px] font-bold rounded-full">
+                  SÉLECTIONNÉ
+                </span>
+              )}
+            </div>
+            <h3 className="font-bold text-slate-900 text-sm mt-3">Passage Conditionnel (LMD)</h3>
+            <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+              <strong>Tolérance académique :</strong> Les admis passent, et les étudiants en rattrapage ou ayant une moyenne ≥ {conditionalMinAvg}/20 sont autorisés à enjamber avec dettes de crédits.
+            </p>
+          </div>
+
+          {/* Option 3 : Passage Généralisé (Tous) */}
+          <div
+            onClick={() => handlePolicyChange('all_pass')}
+            className={`cursor-pointer rounded-2xl p-5 border-2 transition-all relative ${
+              policy === 'all_pass'
+                ? 'border-blue-600 bg-blue-50/40 shadow-md ring-2 ring-blue-600/20'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <span className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+                3
+              </span>
+              {policy === 'all_pass' && (
+                <span className="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded-full">
+                  SÉLECTIONNÉ
+                </span>
+              )}
+            </div>
+            <h3 className="font-bold text-slate-900 text-sm mt-3">Passage Généralisé (Tous)</h3>
+            <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+              <strong>Dérogation rectorale :</strong> Tous les étudiants sans exception passent au niveau supérieur, y compris les redoublants (passage automatique global).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Cartes de Synthèse de la Promotion selon la politique active */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-slate-500">
@@ -171,20 +281,20 @@ export default function AcademicYearTransitionPage() {
 
         <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-sm space-y-1 bg-gradient-to-b from-white to-emerald-50/30">
           <div className="flex items-center justify-between text-emerald-700">
-            <span className="text-xs font-bold uppercase tracking-wider">Admis / Promus</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Passent en N+1</span>
             <Award size={18} className="text-emerald-600" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-emerald-700">{data?.promotions_summary.admis || 0}</p>
-          <span className="text-[11px] text-emerald-600 block">Passent au niveau supérieur</span>
+          <span className="text-[11px] text-emerald-600 block">Promus au niveau supérieur</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm space-y-1 bg-gradient-to-b from-white to-amber-50/30">
           <div className="flex items-center justify-between text-amber-700">
-            <span className="text-xs font-bold uppercase tracking-wider">Redoublants</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Restent au Niveau</span>
             <AlertTriangle size={18} className="text-amber-600" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-amber-700">{data?.promotions_summary.redoublants || 0}</p>
-          <span className="text-[11px] text-amber-600 block">Réinscrits au même niveau</span>
+          <span className="text-[11px] text-amber-600 block">Maintenus pour redoubler</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-purple-200 shadow-sm space-y-1 bg-gradient-to-b from-white to-purple-50/30">
@@ -197,20 +307,9 @@ export default function AcademicYearTransitionPage() {
         </div>
       </div>
 
-      {/* Panneau de Configuration de la Bascule */}
+      {/* Paramétrage Année & Déclenchement */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Sparkles size={20} className="text-[#FF6B00]" />
-            Paramètres de la Nouvelle Rentrée Universitaire
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Définissez l'année scolaire de destination et les règles de promotion automatique.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          {/* Année scolaire cible */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
           <div className="space-y-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
               Année Académique Cible (Nouvelle Année) *
@@ -228,65 +327,27 @@ export default function AcademicYearTransitionPage() {
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 focus:border-[#FF6B00] focus:ring-2 focus:ring-[#FF6B00]/20 rounded-xl text-sm font-mono font-bold text-slate-900"
               />
             </div>
-            <p className="text-[11px] text-slate-500">
-              Format attendu : <code>YYYY-YYYY</code> (ex : 2027-2028).
-            </p>
           </div>
 
-          {/* Options de promotion */}
-          <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoPromoteByAvg}
-                onChange={(e) => setAutoPromoteByAvg(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-[#FF6B00] focus:ring-[#FF6B00]"
-              />
-              <div>
-                <span className="text-xs font-semibold text-slate-900 block">Promotion par moyenne générale (≥ 10/20)</span>
-                <span className="text-[11px] text-slate-500">Promeut automatiquement les étudiants dont le PV de jury n'a pas encore été saisi s'ils ont la moyenne requise.</span>
-              </div>
-            </label>
-
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoPromoteL3ToM1}
-                onChange={(e) => setAutoPromoteL3ToM1(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-[#FF6B00] focus:ring-[#FF6B00]"
-              />
-              <div>
-                <span className="text-xs font-semibold text-slate-900 block">Basculer les diplômés de Licence 3 en Master 1</span>
-                <span className="text-[11px] text-slate-500">Par défaut désactivé (les L3 admis sont archivés comme Diplômés). Cochez pour les inscrire directement en M1.</span>
-              </div>
-            </label>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-2">
+            <button
+              onClick={() => setShowConfirmModal(true)}
+              disabled={executing || !targetYear || targetYear === data?.current_academic_year}
+              className="px-8 py-3.5 bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-orange-500/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+            >
+              {executing ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Bascule en cours...
+                </>
+              ) : (
+                <>
+                  <Calendar size={16} />
+                  Valider la Bascule vers {targetYear || 'la nouvelle année'}
+                </>
+              )}
+            </button>
           </div>
-        </div>
-
-        {/* Bouton de Déclenchement */}
-        <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <History size={16} className="text-slate-400" />
-            <span>Toutes les notes et moyennes de l'année passée sont <strong>conservées à vie</strong> dans l'historique de l'étudiant.</span>
-          </div>
-
-          <button
-            onClick={() => setShowConfirmModal(true)}
-            disabled={executing || !targetYear || targetYear === data?.current_academic_year}
-            className="px-6 py-3 bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-orange-500/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-          >
-            {executing ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Bascule en cours...
-              </>
-            ) : (
-              <>
-                <Calendar size={16} />
-                Lancer la Bascule vers {targetYear || 'la nouvelle année'}
-              </>
-            )}
-          </button>
         </div>
       </div>
 
@@ -294,11 +355,13 @@ export default function AcademicYearTransitionPage() {
       <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="p-5 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-slate-900 text-sm sm:text-base">Aperçu Prévisionnel des Promotions</h3>
-            <p className="text-xs text-slate-500">Échantillon des étudiants et de leur projection pour la nouvelle année</p>
+            <h3 className="font-bold text-slate-900 text-sm sm:text-base">Aperçu Nominatif des Promotions</h3>
+            <p className="text-xs text-slate-500">
+              Simulation selon la règle choisie : <strong>{policy === 'admitted_only' ? 'Seuls les Admis' : policy === 'conditional' ? 'Passage Conditionnel LMD' : 'Passage Généralisé (Tous)'}</strong>
+            </p>
           </div>
           <span className="text-xs bg-slate-200 text-slate-700 px-3 py-1 rounded-full font-semibold">
-            {data?.students.length || 0} affichés
+            {data?.students.length || 0} étudiants affichés
           </span>
         </div>
 
@@ -312,6 +375,7 @@ export default function AcademicYearTransitionPage() {
                 <th className="py-3 px-4">Niveau Actuel</th>
                 <th className="py-3 px-4">Moyenne</th>
                 <th className="py-3 px-4">Décision Jury</th>
+                <th className="py-3 px-4">Motif de Promotion</th>
                 <th className="py-3 px-4 text-center">Niveau Après Bascule</th>
               </tr>
             </thead>
@@ -346,16 +410,19 @@ export default function AcademicYearTransitionPage() {
                       </span>
                     ) : (
                       <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium text-[10px]">
-                        À délibérer
+                        {st.decision}
                       </span>
                     )}
+                  </td>
+                  <td className="py-3 px-4 text-slate-500 font-medium">
+                    {st.promotion_reason}
                   </td>
                   <td className="py-3 px-4 text-center">
                     {st.projected_status === 'graduated' ? (
                       <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full font-bold text-[11px] border border-purple-200">
                         🎓 {st.projected_level}
                       </span>
-                    ) : st.projected_level !== st.current_level ? (
+                    ) : st.should_promote ? (
                       <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[11px] border border-emerald-200">
                         Promu ➔ {st.projected_level}
                       </span>
@@ -388,11 +455,12 @@ export default function AcademicYearTransitionPage() {
 
             <div className="space-y-3 bg-amber-50/80 p-4 rounded-2xl border border-amber-200 text-xs text-amber-950 leading-relaxed">
               <p>
-                Vous êtes sur le point de clôturer l'année <strong>{data?.current_academic_year}</strong> et d'ouvrir l'année <strong>{targetYear}</strong>.
+                Vous êtes sur le point de clôturer <strong>{data?.current_academic_year}</strong> et d'ouvrir <strong>{targetYear}</strong> avec la politique :
               </p>
+              <div className="p-2.5 bg-white rounded-xl border border-amber-200 font-bold text-amber-900">
+                👉 {policy === 'admitted_only' ? 'Seuls les Admis passent (Méritocratique)' : policy === 'conditional' ? 'Passage Conditionnel LMD (Avec dettes)' : 'Passage Généralisé (Tous les étudiants passent)'}
+              </div>
               <ul className="list-disc pl-5 space-y-1">
-                <li>Tous les étudiants admis passeront au niveau supérieur.</li>
-                <li>Les étudiants de fin de cycle (L3/M2) seront certifiés comme Diplômés.</li>
                 <li>L'historique académique complet sera archivé pour les relevés et attestations.</li>
                 <li>La saisie des notes sera réinitialisée pour la nouvelle rentrée.</li>
               </ul>
@@ -413,7 +481,7 @@ export default function AcademicYearTransitionPage() {
                 {executing ? (
                   <>
                     <Loader2 size={14} className="animate-spin" />
-                    Traitement...
+                    Bascule en cours...
                   </>
                 ) : (
                   <>
