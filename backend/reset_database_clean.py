@@ -125,7 +125,55 @@ def reset_database():
         db.rollback()
         print(f"⚠️ Erreur création Super Admin: {e}")
     
-    # 4. Nettoyer les fichiers téléversés résiduels dans uploads et qr_codes
+    # 4. Assurer l'existence exclusive de l'Université ECOB (ID: 1)
+    try:
+        from app.models.university import University
+        ecob = db.query(University).filter(
+            (University.id == 1) | (University.name.ilike("%ecob%"))
+        ).first()
+        if not ecob:
+            ecob = University(
+                id=1,
+                name="ECOB",
+                email="contact@ecobmali.com",
+                phone="+223 70 00 00 00",
+                address="Bamako, Mali",
+                slogan="Excellence & Innovation Académique",
+                website="https://ecobmali.com",
+                established_year="2010",
+                rector_name="Pr. Moussa Coulibaly",
+                academic_year="2026-2027",
+                is_active=True,
+                status="active",
+                country="Mali",
+                institution_type="university"
+            )
+            db.add(ecob)
+            db.commit()
+            db.refresh(ecob)
+            print(f"🏛️ Université ECOB (ID: {ecob.id}) initialisée avec succès.")
+        else:
+            ecob.name = "ECOB"
+            ecob.email = ecob.email or "contact@ecobmali.com"
+            ecob.slogan = "Excellence & Innovation Académique"
+            ecob.academic_year = "2026-2027"
+            ecob.is_active = True
+            ecob.status = "active"
+            db.commit()
+            print(f"🏛️ Université ECOB (ID: {ecob.id}) confirmée.")
+
+        # Supprimer toute autre université de test
+        other_unis = db.query(University).filter(University.id != ecob.id).all()
+        for u in other_unis:
+            db.delete(u)
+        if other_unis:
+            db.commit()
+            print(f"🗑️ {len(other_unis)} universités de test résiduelles supprimées.")
+    except Exception as e:
+        db.rollback()
+        print(f"⚠️ Erreur initialisation ECOB: {e}")
+    
+    # 5. Nettoyer les fichiers téléversés résiduels dans uploads et qr_codes
     base_dir = backend_dir
     for folder_name in ["uploads", "qr_codes"]:
         target_dir = os.path.join(base_dir, folder_name)

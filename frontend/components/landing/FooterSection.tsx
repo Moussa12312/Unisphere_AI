@@ -134,12 +134,12 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
               Accès Visiteur
             </h4>
             <div className="flex flex-col gap-2.5">
-              <button
-                onClick={onOpenLogin}
-                className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 text-xs font-bold text-center transition-colors"
+              <Link
+                href="/login"
+                className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 text-xs font-bold text-center transition-colors block"
               >
                 Espace Connexion
-              </button>
+              </Link>
               <button
                 onClick={() => onOpenRegister()}
                 className="w-full py-2.5 px-3 rounded-xl bg-[#FF6B00] hover:bg-orange-600 text-white text-xs font-bold text-center transition-colors shadow-sm"

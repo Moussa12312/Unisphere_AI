@@ -5,59 +5,11 @@ import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  Eye, EyeOff, Mail, Lock, Smartphone, ShieldCheck,
-  GraduationCap, Sparkles, Building2, User, CheckCircle2, ArrowRight,
-  Crown, Users, FileText, Scale, CreditCard, Shield, Award, Zap
+  Eye, EyeOff, Lock, Smartphone, ShieldCheck,
+  GraduationCap, Sparkles, User, ArrowRight
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
-
-const getQuickAccountIcon = (role: string) => {
-  switch (role) {
-    case 'super_admin':
-    case 'superadmin':
-      return <Crown size={16} className="text-amber-500" />;
-    case 'admin':
-      return <Building2 size={16} className="text-blue-600" />;
-    case 'teacher':
-      return <GraduationCap size={16} className="text-emerald-600" />;
-    case 'student':
-      return <Users size={16} className="text-cyan-600" />;
-    case 'secretary':
-      return <FileText size={16} className="text-indigo-600" />;
-    case 'censeur':
-      return <Scale size={16} className="text-purple-600" />;
-    case 'accountant':
-      return <CreditCard size={16} className="text-emerald-600" />;
-    case 'guard':
-      return <Shield size={16} className="text-slate-600" />;
-    case 'alumni':
-      return <Award size={16} className="text-orange-500" />;
-    default:
-      return <User size={16} className="text-slate-500" />;
-  }
-};
-
-const DEFAULT_AUTH_CONTEXT = {
-  university: {
-    name: "UniSphere AI",
-    slogan: "Excellence & Innovation Académique",
-    address: "Plateforme SaaS Multi-Universités",
-    academic_year: "2026-2027"
-  },
-  quick_accounts: [
-    
-    { role: "admin", label: "Direction", email: "admin@unisphere.ai", name: "Direction Université", department: "Administration" },
-    { role: "teacher", label: "Professeur", email: "enseignant@unisphere.ai", name: "Corps Professoral", department: "Pédagogie" },
-    { role: "student", label: "Étudiant", email: "etudiant@unisphere.ai", name: "Espace Étudiant", matricule: "EC-2026-0001", department: "LMD" },
-    { role: "secretary", label: "Secrétaire", email: "secretaire@unisphere.ai", name: "Secrétariat Général", department: "Scolarité" },
-    { role: "censeur", label: "Censeur", email: "censeur@unisphere.ai", name: "Direction des Études", department: "Études" },
-    { role: "accountant", label: "Comptable", email: "comptable@unisphere.ai", name: "Service Financier", department: "Finances" },
-    { role: "guard", label: "Poste Garde", email: "gardien@unisphere.ai", name: "Sécurité & Portique", department: "Contrôle" },
-    { role: "alumni", label: "Alumni", email: "alumni@unisphere.ai", name: "Moussa Fofana", department: "Réseau Diplômés" }
-  ],
-  default_password: "unisphere2026"
-};
 
 function LoginForm() {
   const router = useRouter();
@@ -66,35 +18,36 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeQuickEmail, setActiveQuickEmail] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(true);
-  const [authContext, setAuthContext] = useState<any>(DEFAULT_AUTH_CONTEXT);
+  const [authContext, setAuthContext] = useState<any>({
+    university: {
+      name: "ECOB",
+      slogan: "Excellence & Innovation Académique",
+      address: "Plateforme SaaS Multi-Universités",
+      academic_year: "2026-2027"
+    }
+  });
 
   useEffect(() => {
     const message = searchParams.get('message');
     if (message) {
       toast(message, { icon: '✉️', duration: 8000 });
     }
-    // Charger le contexte mis à jour depuis le backend Django
+    // Charger le contexte de l'université
     api.get('/api/v1/auth/context')
       .then(res => {
         if (res.data) setAuthContext(res.data);
       })
-      .catch(() => {
-        // En cas d'erreur, conserve DEFAULT_AUTH_CONTEXT
-      });
+      .catch(() => {});
   }, [searchParams]);
 
-  const performLogin = async (loginEmail: string, loginPassword: string) => {
+  const performLogin = async (loginEmail: string, loginPass: string) => {
     setLoading(true);
-    setIdentifier(loginEmail);
-    setPassword(loginPassword);
-
     try {
       const response = await api.post('/api/v1/auth/login', {
-        email: loginEmail.trim(),
-        password: loginPassword,
-        remember_me: rememberMe
+        email: loginEmail.trim().toLowerCase(),
+        password: loginPass,
+        remember_me: rememberMe,
       });
 
       const data = response.data;
@@ -102,7 +55,7 @@ function LoginForm() {
       const token = data.access_token;
 
       if (!token || !userData) {
-        throw new Error('Réponse invalide du serveur');
+        throw new Error('Réponse invalide du serveur d’authentification');
       }
 
       localStorage.setItem('token', token);
@@ -138,13 +91,12 @@ function LoginForm() {
       window.location.href = targetRoute;
 
     } catch (error: any) {
-      setActiveQuickEmail(null);
       setLoading(false);
       if (error.response?.status === 403 && String(error.response?.data?.detail || '').toLowerCase().includes('suspendu')) {
         window.location.href = '/suspended';
         return;
       }
-      let message = 'Erreur de connexion';
+      let message = 'Identifiant ou mot de passe incorrect';
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
         if (Array.isArray(detail)) {
@@ -157,58 +109,49 @@ function LoginForm() {
     }
   };
 
-  const handleQuickLogin = (email: string) => {
-    if (loading) return;
-    const pwd = authContext?.default_password || 'unisphere2026';
-    setActiveQuickEmail(email);
-    performLogin(email, pwd);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier || !password) {
       toast.error('Veuillez saisir votre identifiant et votre mot de passe');
       return;
     }
-    setActiveQuickEmail(null);
     performLogin(identifier, password);
   };
 
-  const quickAccounts = authContext?.quick_accounts || DEFAULT_AUTH_CONTEXT.quick_accounts;
   const university = authContext?.university;
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center p-3 sm:p-6 lg:p-10 overflow-hidden font-sans">
-      {/* Photo de fond conservée avec superposition sombre & dynamique */}
+      {/* Photo de fond institutionnelle */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 scale-105"
         style={{ backgroundImage: `url('/login.png')` }}
       />
-      <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/95 via-slate-900/80 to-[#1e1b4b]/75 backdrop-blur-[4px]" />
+      <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/95 via-slate-900/85 to-[#1e1b4b]/80 backdrop-blur-[4px]" />
 
       {/* Conteneur Hybride Responsif */}
-      <div className="relative z-10 w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+      <div className="relative z-10 w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
 
-        {/* Volet de Gauche : Identité Institutionnelle ECOB (Visible Desktop) */}
-        <div className="hidden lg:flex lg:col-span-5 flex-col justify-between text-white p-6 space-y-6">
+        {/* Volet de Gauche : Identité Institutionnelle (Visible Desktop) */}
+        <div className="hidden lg:flex lg:col-span-5 flex-col justify-between text-white p-6 space-y-8">
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-xs font-semibold text-orange-300">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-xs font-semibold text-orange-300">
               <Sparkles size={14} className="text-[#FF6B00]" />
               <span>Année Académique {university?.academic_year || '2026-2027'}</span>
             </div>
 
             <h1 className="text-4xl xl:text-5xl font-black tracking-tight leading-tight">
-              UniSphere <span className="bg-gradient-to-r from-[#FF6B00] via-orange-400 to-amber-300 bg-clip-text text-transparent">AI</span>
+              {university?.name || 'ECOB'}
             </h1>
 
             <p className="text-slate-300 text-sm font-medium leading-relaxed">
-              Plateforme Universitaire Intelligente & Système Intégré de Gestion Académique (LMD).
+              {university?.slogan || 'Portail Universitaire Intelligent & Système Intégré de Gestion Académique.'}
             </p>
 
             <div className="space-y-3 pt-3">
               <div className="flex items-center gap-3 text-xs text-slate-300 bg-white/5 p-3 rounded-xl border border-white/10 backdrop-blur-sm">
                 <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
-                <span>Portail Sécurisé & Certifié • Zéro Donnée Factice</span>
+                <span>Espace Sécurisé • Authentification Certifiée</span>
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-300 bg-white/5 p-3 rounded-xl border border-white/10 backdrop-blur-sm">
                 <Smartphone size={18} className="text-cyan-400 shrink-0" />
@@ -218,47 +161,46 @@ function LoginForm() {
           </div>
 
           <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
-            <span>UniSphere AI • <strong>Version Hybride 2.0</strong></span>
+            <span>UniSphere AI • <strong>Production</strong></span>
             <Link href="/download" className="text-[#FF6B00] hover:underline font-semibold flex items-center gap-1">
               Télécharger l'APK <ArrowRight size={13} />
             </Link>
           </div>
         </div>
 
-        {/* Volet de Droite : Carte de Connexion Verre Dépoli */}
-        <div className="lg:col-span-7 bg-white/95 backdrop-blur-xl rounded-3xl p-5 sm:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-white/40">
+        {/* Volet de Droite : Carte de Connexion Propre & Épurée */}
+        <div className="lg:col-span-7 bg-white/95 backdrop-blur-xl rounded-3xl p-6 sm:p-10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-white/40">
 
-          {/* Header Mobile / Tablette */}
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+          {/* Header Carte de Connexion */}
+          <div className="flex items-center justify-between pb-5 mb-6 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-orange-500 text-white font-black text-xl flex items-center justify-center shadow-lg shadow-orange-500/25">
-                <GraduationCap size={22} />
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-orange-500 text-white font-black text-xl flex items-center justify-center shadow-lg shadow-orange-500/25">
+                <GraduationCap size={24} />
               </div>
               <div>
-                <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
-                  UniSphere <span className="text-[#FF6B00]">AI</span>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                  Espace Connexion
                 </h2>
-                <p className="text-[11px] text-slate-500 font-medium">Espace d'Authentification Centralisé</p>
+                <p className="text-xs text-slate-500 font-medium">{university?.name || 'ECOB'} • Portail Académique</p>
               </div>
             </div>
 
             <Link
-              href="/download"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-[#FF6B00] text-xs font-bold transition-all border border-orange-200"
+              href="/"
+              className="text-xs text-slate-400 hover:text-slate-700 font-medium transition-colors"
             >
-              <Smartphone size={14} />
-              <span className="hidden sm:inline">App APK</span>
+              Retour à l'accueil
             </Link>
           </div>
 
-          {/* Formulaire de Connexion */}
+          {/* Formulaire de Connexion Standard */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Identifiant de Connexion
+                  Identifiant
                 </label>
-                <span className="text-[10px] text-slate-400 font-medium">Email ou Matricule</span>
+                <span className="text-[11px] text-slate-400 font-medium">Email professionnel ou matricule</span>
               </div>
               <div className="relative">
                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
@@ -268,14 +210,12 @@ function LoginForm() {
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="ex: chakirunisphereai@gmail.com ou matricule..."
+                  placeholder="nom@ecobmali.com ou matricule..."
                   required
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all"
+                  autoFocus
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all"
                 />
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Portail universel : Administrateur, Professeur, Secrétaire, Comptable, Censeur, Vigile & Étudiant
-              </p>
             </div>
 
             <div>
@@ -287,7 +227,7 @@ function LoginForm() {
                   href="/forgot-password"
                   className="text-xs text-[#FF6B00] hover:underline font-semibold"
                 >
-                  Oublié ?
+                  Mot de passe oublié ?
                 </Link>
               </div>
               <div className="relative">
@@ -298,14 +238,14 @@ function LoginForm() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Votre mot de passe"
+                  placeholder="••••••••••••"
                   required
-                  className="w-full pl-11 pr-11 py-3 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all"
+                  className="w-full pl-11 pr-11 py-3.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -327,7 +267,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all transform active:scale-[0.99] disabled:opacity-50 text-sm flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-4 px-4 bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition-all transform active:scale-[0.99] disabled:opacity-50 text-sm flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {loading ? (
                 <>
@@ -335,71 +275,15 @@ function LoginForm() {
                   <span>Authentification en cours...</span>
                 </>
               ) : (
-                <span>Se connecter à UniSphere AI</span>
+                <span>Se connecter</span>
               )}
             </button>
           </form>
 
-          {/* Connexion Rapide (Les vrais comptes de la base de données) */}
-          <div className="mt-5 pt-4 border-t border-slate-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                <Zap size={14} className="text-amber-500 shrink-0" />
-                <span>Accès Rapide Démo (Connexion Directe 1 Clic)</span>
-              </span>
-              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                Données Réelles
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {quickAccounts.map((acc: any) => {
-                const isSelected = activeQuickEmail === acc.email && loading;
-                return (
-                  <button
-                    key={acc.email}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => handleQuickLogin(acc.email)}
-                    title={`Cliquer pour vous connecter directement en tant que ${acc.name}`}
-                    className={`relative flex flex-col items-start p-2.5 rounded-xl border text-left transition-all cursor-pointer active:scale-95 select-none disabled:cursor-not-allowed ${isSelected
-                        ? 'bg-orange-100/90 border-[#FF6B00] ring-2 ring-[#FF6B00]/50 shadow-md scale-[1.02]'
-                        : 'bg-slate-50 hover:bg-orange-50/80 border-slate-200/90 hover:border-orange-300 shadow-xs hover:shadow-sm'
-                      }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="w-7 h-7 rounded-lg bg-white shadow-xs border border-slate-200/80 flex items-center justify-center shrink-0">
-                        {getQuickAccountIcon(acc.role)}
-                      </div>
-                      <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${isSelected
-                          ? 'bg-[#FF6B00] text-white animate-pulse'
-                          : 'bg-white/90 text-slate-500 border border-slate-200/60'
-                        }`}>
-                        {isSelected ? 'Connexion...' : acc.label}
-                      </span>
-                    </div>
-                    <span className="text-xs font-bold text-slate-900 truncate w-full mt-1.5">
-                      {acc.name}
-                    </span>
-                    <span className="text-[10px] text-slate-500 truncate w-full flex items-center justify-between mt-0.5">
-                      <span className="truncate">{acc.matricule || acc.filiere || acc.department || acc.role}</span>
-                      {isSelected && (
-                        <div className="w-3 h-3 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin shrink-0 ml-1" />
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-[10px] text-slate-400 mt-2 text-center">
-              Cliquez sur un profil pour ouvrir directement son tableau de bord sans mot de passe
-            </p>
-          </div>
-
-          {/* Note Institutionnelle & Application Mobile */}
-          <div className="mt-4 pt-3 border-t border-slate-100 text-center space-y-2">
+          {/* Footer Institutionnel */}
+          <div className="mt-8 pt-4 border-t border-slate-100 text-center space-y-2">
             <p className="text-xs text-slate-500">
-              Les accès officiels sont délivrés exclusivement par l'administration ou le secrétariat académique.
+              Les comptes d'accès sont délivrés exclusivement par l'administration universitaire.
             </p>
             <div className="flex items-center justify-center gap-2 text-xs">
               <Link
@@ -424,7 +308,7 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
         <div className="flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin" />
-          <span>Chargement du portail ECOB...</span>
+          <span>Chargement du portail de connexion...</span>
         </div>
       </div>
     }>

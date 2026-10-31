@@ -1,31 +1,29 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import LandingHeader from '@/components/landing/LandingHeader';
 import HeroSection from '@/components/landing/HeroSection';
 import FeaturesSection from '@/components/landing/FeaturesSection';
 import PricingSection from '@/components/landing/PricingSection';
 import FooterSection from '@/components/landing/FooterSection';
-import LoginModal from '@/components/landing/LoginModal';
 import RegisterModal from '@/components/landing/RegisterModal';
 import {
-  Building2, Users, GraduationCap, ShieldCheck,
-  Sparkles, CheckCircle2, ArrowRight
+  Sparkles, ArrowRight
 } from 'lucide-react';
 
 export default function HomePage() {
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const router = useRouter();
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('etablissement');
 
   const handleOpenLogin = () => {
-    setRegisterModalOpen(false);
-    setLoginModalOpen(true);
+    router.push('/login');
   };
 
   const handleOpenRegister = (plan: string = 'etablissement') => {
     setSelectedPlan(plan);
-    setLoginModalOpen(false);
     setRegisterModalOpen(true);
   };
 
@@ -98,18 +96,18 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <button
                 onClick={() => handleOpenRegister('etablissement')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25 transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25 transition-all cursor-pointer"
               >
                 <span>Activer mon essai gratuit</span>
                 <ArrowRight size={16} />
               </button>
 
-              <button
-                onClick={handleOpenLogin}
+              <Link
+                href="/login"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 transition-all shadow-2xs"
               >
-                <span>Accès Démo 1-Clic</span>
-              </button>
+                <span>Accéder à l'espace de connexion</span>
+              </Link>
             </div>
           </div>
         </section>
@@ -120,15 +118,6 @@ export default function HomePage() {
         onOpenLogin={handleOpenLogin}
         onOpenRegister={handleOpenRegister}
       />
-
-      {/* MODALE DE CONNEXION */}
-      <LoginModal
-        isOpen={loginModalOpen}
-        onClose={() => setLoginModalOpen(false)}
-        onSwitchToRegister={() => handleOpenRegister()}
-      />
-
-
 
     </div>
   );

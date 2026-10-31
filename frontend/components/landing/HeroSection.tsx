@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   ShieldCheck, ArrowRight, LogIn, CheckCircle2, Sparkles,
   TrendingUp, Users, CreditCard, QrCode, GraduationCap,
@@ -58,13 +59,13 @@ export default function HeroSection({ onOpenLogin, onOpenRegister }: HeroSection
                 <ArrowRight size={18} />
               </button>
 
-              <button
-                onClick={onOpenLogin}
+              <Link
+                href="/login"
                 className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl text-base font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 shadow-2xs transition-all active:scale-98"
               >
                 <LogIn size={18} className="text-slate-500" />
                 <span>Se connecter</span>
-              </button>
+              </Link>
             </div>
 
             {/* 5. Ligne de réassurance sous les boutons (3 arguments clés cochés) */}
