@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
+  CreditCard,
   Users, UserPlus, FileText, Calendar, Clock, TrendingUp,
   AlertCircle, CheckCircle, Bell, BookOpen, Edit3,
   ArrowRight, Activity, Folder, Megaphone, GraduationCap
@@ -248,7 +249,21 @@ export default function SecretaryDashboardPage() {
           <Activity size={20} />
           Actions rapides
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <Link
+            href="/secretary/documents/generate"
+            className="flex items-center gap-2 px-4 py-3 bg-[#FF6B00] text-white hover:bg-[#e05e00] rounded-xl text-sm font-bold transition-all shadow-md shadow-[#FF6B00]/30"
+          >
+            <FileText size={16} />
+            Générer Documents
+          </Link>
+          <Link
+            href="/secretary/student-cards"
+            className="flex items-center gap-2 px-4 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl text-sm font-bold text-white transition-all border border-white/30"
+          >
+            <CreditCard size={16} />
+            Cartes Étudiants (4 Styles)
+          </Link>
           <Link
             href="/secretary/students/enrollment"
             className="flex items-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl text-sm font-medium transition-all border border-white/20"
@@ -262,13 +277,6 @@ export default function SecretaryDashboardPage() {
           >
             <Edit3 size={16} />
             Saisir des notes
-          </Link>
-          <Link
-            href="/secretary/documents/generate"
-            className="flex items-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl text-sm font-medium transition-all border border-white/20"
-          >
-            <FileText size={16} />
-            Générer document
           </Link>
           <Link
             href="/secretary/announcements"

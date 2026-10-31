@@ -43,7 +43,8 @@ unisphere.db
 # ===== Uploads & Médias générés =====
 uploads/
 qr_codes/
-documents/
+/documents/
+backend/documents/
 
 # ===== Fichiers temporaires & Scratch =====
 scratch/

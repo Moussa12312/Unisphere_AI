@@ -114,6 +114,36 @@ const formatTimeAgo = (dateStr: string | null) => {
         </p>
       </div>
 
+      {/* 🏛️ BANNIÈRE D'ACCÈS RAPIDE DIRECTION (DOCUMENTS & CARTES) */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 text-white shadow-xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FF6B00] animate-pulse"></span>
+            <span className="text-xs uppercase tracking-wider font-bold text-amber-300">Administration & Direction</span>
+          </div>
+          <h2 className="text-lg font-black text-white mt-0.5">
+            Centre Officiel des Documents & Cartes d'Étudiants
+          </h2>
+          <p className="text-xs text-slate-300 mt-1 max-w-xl">
+            Générez directement les 15 documents académiques officiels (conventions de stage, attestations, ordres de mission, relevés) ou imprimez les cartes d'étudiants aux 4 styles et couleurs.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href="/secretary/documents/generate"
+            className="px-4 py-2.5 bg-[#FF6B00] hover:bg-[#e05e00] text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-[#FF6B00]/25 flex items-center gap-1.5"
+          >
+            🏛️ Centre de Génération (15 Docs)
+          </Link>
+          <Link
+            href="/secretary/student-cards"
+            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all border border-white/20 flex items-center gap-1.5"
+          >
+            🪪 Cartes Étudiants (4 Styles)
+          </Link>
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Étudiants */}

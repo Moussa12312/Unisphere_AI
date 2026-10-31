@@ -1,3 +1,4 @@
+import Link from 'next/link';
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -153,14 +154,33 @@ export default function SecretaryDocumentsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-xl flex items-center justify-center">
-            <FileText size={24} className="text-white" />
-          </div>
-          Gestion des Documents
-        </h1>
-        <p className="text-slate-500 mt-1">Gérez les dossiers étudiants, supports de cours et certificats</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-xl flex items-center justify-center shadow-md">
+              <FileText size={24} className="text-white" />
+            </div>
+            Gestion des Documents
+          </h1>
+          <p className="text-slate-500 mt-1">Gérez les dossiers étudiants, supports de cours et certificats officiels</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href="/secretary/documents/generate"
+            className="px-4 py-2.5 bg-[#FF6B00] text-white hover:bg-[#e05e00] rounded-xl font-bold text-sm flex items-center gap-2 shadow-md shadow-[#FF6B00]/25 transition-all"
+          >
+            <Award size={18} />
+            Centre de Génération Officielle (15 Documents)
+          </Link>
+          <Link
+            href="/secretary/student-cards"
+            className="px-4 py-2.5 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md transition-all"
+          >
+            <FolderOpen size={18} />
+            Cartes Étudiants (4 Styles & Couleurs)
+          </Link>
+        </div>
       </div>
 
       {/* Stats rapides */}

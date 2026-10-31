@@ -48,11 +48,22 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'SCOLARITÉ',
       items: [
         { label: 'Étudiants', href: '/admin/students', icon: Users },
+        { label: 'Cartes Étudiants (4 Styles)', href: '/secretary/student-cards', icon: CreditCard },
         { label: 'Inscription en masse', href: '/admin/students/bulk', icon: FileSpreadsheet },
         { label: 'Enseignants', href: '/admin/teachers', icon: GraduationCap },
         { label: 'Cours', href: '/admin/courses', icon: BookOpen },
         { label: 'Unités d\'Enseignement (UEs)', href: '/admin/teaching-units', icon: Layers },
         { label: 'Notes & Résultats', href: '/admin/grades', icon: FileText },
+      ]
+    },
+
+    {
+      title: 'DOCUMENTS & CERTIFICATIONS',
+      items: [
+        { label: 'Générer documents officiels', href: '/secretary/documents/generate', icon: FileCheck },
+        { label: 'Cartes Étudiants (4 Styles & Couleurs)', href: '/secretary/student-cards', icon: CreditCard },
+        { label: 'Tous les documents & archives', href: '/secretary/documents', icon: FileText },
+        { label: 'Demandes d\'attestations & relevés', href: '/secretary/certificate-requests', icon: ScrollText },
       ]
     },
 
@@ -161,11 +172,12 @@ const MENU_CONFIG: Record<string, Array<{
     },
 
     {
-      title: 'DOCUMENTS',
+      title: 'DOCUMENTS & CERTIFICATIONS',
       items: [
-        { label: 'Générer documents', href: '/secretary/documents/generate', icon: FileCheck },
-        { label: 'Mes documents', href: '/secretary/documents', icon: FileText },
-        { label: 'Demandes d\'attestations & relevés', href: '/secretary/certificate-requests', icon: FileCheck },
+        { label: 'Générer documents officiels', href: '/secretary/documents/generate', icon: FileCheck },
+        { label: 'Cartes Étudiants (4 Styles & Couleurs)', href: '/secretary/student-cards', icon: CreditCard },
+        { label: 'Tous les documents & archives', href: '/secretary/documents', icon: FileText },
+        { label: 'Demandes d\'attestations & relevés', href: '/secretary/certificate-requests', icon: ScrollText },
         { label: 'Upload Cours PDF', href: '/secretary/upload-materials', icon: Upload },
       ]
     },
@@ -581,6 +593,9 @@ const MENU_CONFIG: Record<string, Array<{
   ],
 
 };
+
+MENU_CONFIG.director = MENU_CONFIG.admin;
+MENU_CONFIG.directeur = MENU_CONFIG.admin;
 
 export default function Sidebar({ userRole }: SidebarProps) {
   const pathname = usePathname();
