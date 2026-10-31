@@ -43,6 +43,7 @@ from app.models.notification import Notification
 from app.core.dependencies import get_current_user, require_role
 from app.core.security import hash_password, verify_password
 from app.core.config import BACKEND_URL
+from app.services.image_compressor import compress_and_save_upload, compress_image_data
 from app.utils.email_validator import validate_email_exists
 from app.utils.academic_year import get_current_academic_year
 from app.utils.email_service import send_credentials_email, send_password_reset_email
@@ -266,17 +267,15 @@ async def create_student(
         qr.save(qr_path)
         new_student.qr_code = qr_filename
 
-        # Photo de profil
+        # Photo de profil (avec compression automatique)
         if photo and photo.filename and getattr(photo, "size", 1) > 0:
             os.makedirs("uploads", exist_ok=True)
-            photo_filename = f"STUDENT_{new_student.id}_{int(time_module.time())}.png"
-            photo_path = os.path.join("uploads", photo_filename)
+            photo_filename = f"STUDENT_{new_student.id}_{int(time_module.time())}.jpg"
+            photo_path = Path("uploads") / photo_filename
             
             content = await photo.read()
-            with open(photo_path, "wb") as buffer:
-                buffer.write(content)
-            
-            new_student.photo = photo_filename
+            saved_p = compress_and_save_upload(content, photo_path, max_dimension=1200, quality=82)
+            new_student.photo = saved_p.name
 
         # Dossier de l'étudiant (créé uniquement à la demande si des fichiers sont téléversés)
         dossier_dir = Path(f"uploads/dossier_etudiant/{new_student.id}")
@@ -288,20 +287,19 @@ async def create_student(
                 fname = f"{prefix}_{new_student.id}_{int(time_module.time())}{ext}"
                 target_path = dossier_dir / fname
                 c = await file_obj.read()
-                with open(target_path, "wb") as f:
-                    f.write(c)
+                saved_target = compress_and_save_upload(c, target_path, max_dimension=1600, quality=80)
                 
                 # Enregistrer dans la table Document
                 doc_record = Document(
                     document_type=prefix,
                     title=f"{doc_title} - {first_name} {last_name}",
-                    file_path=str(target_path),
+                    file_path=str(saved_target),
                     student_id=new_student.id,
                     generated_by=current_user.id,
                     university_id=current_user.university_id
                 )
                 db.add(doc_record)
-                return str(target_path)
+                return str(saved_target)
             return None
 
         # Gestion des documents scannés via OCR / Scanner
@@ -962,7 +960,7 @@ async def public_register_student(
     upload_dir = Path(f"uploads/dossier_etudiant/{new_student.id}")
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    # Photo de profil
+    # Photo de profil (optimisée et compressée)
     if photo and photo.filename:
         photo_dir = Path("uploads/photos")
         photo_dir.mkdir(parents=True, exist_ok=True)
@@ -970,9 +968,8 @@ async def public_register_student(
         photo_name = f"student_{new_student.id}_{int(datetime.now().timestamp())}{photo_ext}"
         photo_path = photo_dir / photo_name
         photo_bytes = await photo.read()
-        with open(photo_path, "wb") as f:
-            f.write(photo_bytes)
-        new_student.photo = f"uploads/photos/{photo_name}"
+        saved_photo = compress_and_save_upload(photo_bytes, photo_path, max_dimension=1200, quality=82)
+        new_student.photo = f"uploads/photos/{saved_photo.name}"
 
     dossier_files = {
         "birth_certificate": birth_certificate,
@@ -992,17 +989,16 @@ async def public_register_student(
             ext = Path(upload_file.filename).suffix.lower() or ".pdf"
             fname = f"{doc_key}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
             fpath = upload_dir / fname
-            with open(fpath, "wb") as f:
-                f.write(file_bytes)
+            saved_fpath = compress_and_save_upload(file_bytes, fpath, max_dimension=1600, quality=80)
             
-            rel_path = f"uploads/dossier_etudiant/{new_student.id}/{fname}"
+            rel_path = f"uploads/dossier_etudiant/{new_student.id}/{saved_fpath.name}"
             setattr(new_student, doc_key, rel_path)
 
             doc_entry = Document(
                 title=f"{doc_key} - {new_student.first_name} {new_student.last_name}",
                 file_path=rel_path,
                 file_type=upload_file.content_type or "application/octet-stream",
-                file_size=len(file_bytes),
+                file_size=saved_fpath.stat().st_size if saved_fpath.exists() else len(file_bytes),
                 university_id=university_id,
                 uploaded_by=new_user.id
             )
@@ -1279,17 +1275,16 @@ async def upload_dossier_document(
     target_path = dossier_dir / fname
     
     content = await file.read()
-    with open(target_path, "wb") as f:
-        f.write(content)
+    saved_target = compress_and_save_upload(content, target_path, max_dimension=1600, quality=80)
 
     # Assigner à l'attribut de l'étudiant
-    setattr(student, resolved_type, str(target_path))
+    setattr(student, resolved_type, str(saved_target))
 
     # Enregistrer dans la table Document
     doc_record = Document(
         document_type=resolved_type,
         title=f"{allowed_types[resolved_type]} - {student.first_name} {student.last_name}",
-        file_path=str(target_path),
+        file_path=str(saved_target),
         student_id=student.id,
         generated_by=current_user.id,
         university_id=current_user.university_id
@@ -1747,8 +1742,8 @@ async def upload_my_photo(
         raise HTTPException(status_code=400, detail="Image trop volumineuse (max 5 Mo)")
     
     os.makedirs("uploads", exist_ok=True)
-    photo_filename = f"STUDENT_{student.id}_{int(time_module.time())}.png"
-    photo_path = os.path.join("uploads", photo_filename)
+    photo_filename = f"STUDENT_{student.id}_{int(time_module.time())}.jpg"
+    photo_path = Path("uploads") / photo_filename
     
     # Supprimer l'ancienne photo si elle existe
     if student.photo:
@@ -1759,16 +1754,15 @@ async def upload_my_photo(
             except Exception:
                 pass
     
-    with open(photo_path, "wb") as buffer:
-        buffer.write(content)
+    saved_photo = compress_and_save_upload(content, photo_path, max_dimension=1200, quality=82)
     
-    student.photo = photo_filename
-    current_user.photo = photo_filename
+    student.photo = saved_photo.name
+    current_user.photo = saved_photo.name
     db.commit()
     
     return {
         "message": "Photo mise à jour",
-        "photo": photo_filename
+        "photo": saved_photo.name
     }
 
 
@@ -2456,10 +2450,9 @@ async def upload_my_file(
     filename = f"{document_type}_{timestamp}{ext}"
     file_path = student_folder / filename
     
-    with open(file_path, "wb") as f:
-        f.write(content)
+    saved_file = compress_and_save_upload(content, file_path, max_dimension=1600, quality=80)
 
-    rel_path = f"uploads/dossier_etudiant/{student.id}/{filename}"
+    rel_path = f"uploads/dossier_etudiant/{student.id}/{saved_file.name}"
     
     # Mettre à jour l'attribut du modèle Student
     col_name = "id_document" if document_type == "cni" else document_type
