@@ -92,7 +92,7 @@ export default function SecretaryStudentCardsPrintPage() {
   const [filterLevel, setFilterLevel] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Format d'impression A4
+  // Format d'impression A4 : 10, 8 ou 6 cartes par feuille
   const [cardsPerPage, setCardsPerPage] = useState<6 | 8 | 10>(10);
   const [showPrintModal, setShowPrintModal] = useState(false);
 
@@ -128,7 +128,7 @@ export default function SecretaryStudentCardsPrintPage() {
       setStudents(studentList);
       if (resMe?.data) setSecretaryUser(resMe.data);
 
-      // Par défaut : cocher les 10 premiers pour éviter de surcharger le serveur avec 500 requêtes
+      // Pré-sélectionner les 10 premiers par défaut (1 planche A4 complète prête à imprimer)
       const initialSelection = new Set<number>(studentList.slice(0, 10).map((s: Student) => s.id));
       setSelectedIds(initialSelection);
 
@@ -223,7 +223,7 @@ export default function SecretaryStudentCardsPrintPage() {
     setShowPrintModal(false);
     setTimeout(() => {
       window.print();
-    }, 200);
+    }, 250);
   };
 
   // Helper de rendu de photo d'étudiant
@@ -278,7 +278,7 @@ export default function SecretaryStudentCardsPrintPage() {
     );
   };
 
-  // Rendu unitaire d'une carte étudiante
+  // Rendu unitaire d'une carte étudiante (Remplit 100% de la cellule A4 en impression)
   const renderCardItem = (student: Student) => {
     const isMed = selectedDesign === 'medaillon';
     const qrCodeUrl = `/api/v1/students/${student.id}/qrcode`;
@@ -287,35 +287,32 @@ export default function SecretaryStudentCardsPrintPage() {
     return (
       <div
         key={student.id}
-        className="student-card-printable relative bg-white border border-slate-300 rounded-xl overflow-hidden flex flex-col justify-between shadow-2xs"
+        className="student-card-printable relative bg-white border border-dashed border-slate-400/90 rounded-xl overflow-hidden flex flex-col justify-between shadow-2xs w-full h-[55.5mm] print:h-full print:max-h-none print:min-h-0"
         style={{
-          height: '55.5mm',
-          minHeight: '55.5mm',
-          maxHeight: '56.5mm',
           boxSizing: 'border-box',
-          fontFamily: 'Inter, system-ui, sans-serif'
+          fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
         }}
       >
-        {/* En-tête */}
+        {/* En-tête officiel */}
         <div
-          className="px-2.5 py-1 flex items-center justify-between text-white flex-shrink-0 h-8"
+          className="px-3 py-1 flex items-center justify-between text-white flex-shrink-0 h-8"
           style={{ background: `linear-gradient(135deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 100%)` }}
         >
           <div className="flex items-center gap-1.5 min-w-0">
-            <div className="w-6 h-6 rounded-full bg-white p-0.5 flex-shrink-0 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-full bg-white p-0.5 flex-shrink-0 flex items-center justify-center shadow-2xs">
               <img src={logoUrl} alt="" loading="lazy" className="w-full h-full object-contain" />
             </div>
-            <div className="min-w-0 leading-none">
-              <p className="font-black text-[9.5px] uppercase truncate text-white">{universityInfo.name}</p>
-              <p className="text-[6.5px] font-bold uppercase tracking-wider text-amber-300">CARTE D'ÉTUDIANT</p>
+            <div className="min-w-0 leading-tight">
+              <p className="font-black text-[10px] uppercase truncate text-white">{universityInfo.name}</p>
+              <p className="text-[6.8px] font-bold uppercase tracking-wider text-amber-300">CARTE OFFICIELLE D'ÉTUDIANT</p>
             </div>
           </div>
-          <span className="text-[7.5px] font-mono font-bold text-amber-200 bg-white/10 px-1.5 py-0.2 rounded border border-white/20">
+          <span className="text-[7.5px] font-mono font-bold text-amber-200 bg-white/10 px-2 py-0.5 rounded border border-white/20">
             {universityInfo.academic_year}
           </span>
         </div>
 
-        {/* Liseré sécurité */}
+        {/* Liseré de sécurité */}
         <div
           className="h-[2px] w-full flex-shrink-0"
           style={{
@@ -325,35 +322,35 @@ export default function SecretaryStudentCardsPrintPage() {
           }}
         />
 
-        {/* Corps de carte */}
-        <div className="px-2.5 py-1 flex items-center justify-between gap-2 flex-1 min-h-0 bg-white">
+        {/* Corps de carte (remplit l'espace disponible) */}
+        <div className="px-3 py-1.5 flex items-center justify-between gap-3 flex-1 min-h-0 bg-white">
           {renderStudentPhoto(student, isMed)}
 
           <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
             <div>
-              <p className="text-[12px] font-black text-slate-900 leading-tight uppercase truncate">
+              <p className="text-[12.5px] font-black text-slate-950 leading-tight uppercase truncate">
                 {student.last_name}
               </p>
-              <p className="text-[10px] font-bold text-slate-700 leading-tight capitalize truncate">
+              <p className="text-[11px] font-bold text-slate-700 leading-tight capitalize truncate">
                 {student.first_name}
               </p>
             </div>
 
             <div className="my-0.5">
-              <span className="inline-block px-2 py-0.2 rounded bg-orange-600 text-[9.5px] font-mono font-black text-white">
+              <span className="inline-block px-2.5 py-0.5 rounded-md bg-orange-600 text-[10px] font-mono font-black text-white shadow-2xs">
                 {student.matricule || `EC-${String(student.id).padStart(4, '0')}`}
               </span>
             </div>
 
-            <div className="text-[7.5px] text-slate-600 leading-tight">
-              <p className="truncate"><b className="text-slate-800">Filière:</b> {student.filiere || 'Général'}</p>
-              <p className="truncate"><b className="text-slate-800">Niveau:</b> <span className="font-bold text-blue-800">{student.level || 'L1'}</span></p>
+            <div className="text-[8px] text-slate-700 leading-tight space-y-0.5">
+              <p className="truncate"><b className="text-slate-900">Filière:</b> {student.filiere || 'Général'}</p>
+              <p className="truncate"><b className="text-slate-900">Niveau:</b> <span className="font-bold text-blue-900 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded text-[8.5px]">{student.level || 'L1'}</span></p>
             </div>
           </div>
 
-          {/* QR Code */}
+          {/* QR Code de vérification */}
           <div className="flex flex-col items-center justify-center flex-shrink-0">
-            <div className="p-0.5 bg-white rounded border border-slate-300">
+            <div className="p-0.5 bg-white rounded-lg border border-slate-300 shadow-2xs">
               <img
                 src={qrCodeUrl}
                 alt=""
@@ -361,14 +358,14 @@ export default function SecretaryStudentCardsPrintPage() {
                 className="w-14 h-14 object-contain"
               />
             </div>
-            <span className="text-[6px] font-mono font-bold text-slate-600 mt-0.5 uppercase">SCAN MOI</span>
+            <span className="text-[6.5px] font-mono font-bold text-slate-700 mt-0.5 uppercase tracking-wider">SCAN MOI</span>
           </div>
         </div>
 
-        {/* Pied de carte */}
-        <div className="px-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[6.5px] text-slate-500 font-bold flex-shrink-0 h-3.5">
+        {/* Pied de carte sécurisé */}
+        <div className="px-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[7px] text-slate-600 font-bold flex-shrink-0 h-4">
           <span>SÉCURISÉE & CERTIFIÉE</span>
-          <span className="font-mono">{universityInfo.academic_year}</span>
+          <span className="font-mono text-slate-500">LIGNE ACADÉMIQUE • {universityInfo.academic_year}</span>
         </div>
       </div>
     );
@@ -413,12 +410,43 @@ export default function SecretaryStudentCardsPrintPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Sélectionnez les étudiants et imprimez les badges officiels au format standard 10 cartes par feuille A4 (2×5)
+                Planches complètes A4 (10 cartes / feuille au format CR80 standard 2×5) avec repères de coupe
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Sélecteur de format de feuille (10, 8 ou 6) */}
+            <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setCardsPerPage(10)}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  cardsPerPage === 10 ? 'bg-[#FF6B00] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                10 / feuille (2×5) ★
+              </button>
+              <button
+                type="button"
+                onClick={() => setCardsPerPage(8)}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  cardsPerPage === 8 ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                8 / feuille
+              </button>
+              <button
+                type="button"
+                onClick={() => setCardsPerPage(6)}
+                className={`px-2.5 py-1 rounded-lg transition-all ${
+                  cardsPerPage === 6 ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                6 / feuille
+              </button>
+            </div>
+
             <button
               onClick={() => setCardScope(cardScope === 'students' ? 'secretary' : 'students')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
@@ -427,7 +455,7 @@ export default function SecretaryStudentCardsPrintPage() {
                   : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
               }`}
             >
-              {cardScope === 'secretary' ? '← Revenir aux Étudiants' : '🪪 Badge Secrétariat'}
+              {cardScope === 'secretary' ? '← Étudiants' : '🪪 Badge Secrétariat'}
             </button>
 
             <button
@@ -436,7 +464,7 @@ export default function SecretaryStudentCardsPrintPage() {
               className="flex items-center gap-1.5 px-4 py-2 bg-[#FF6B00] hover:bg-orange-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
             >
               <Printer size={15} />
-              <span>Imprimer la sélection ({selectedStudents.length})</span>
+              <span>Imprimer ({selectedStudents.length} cartes)</span>
             </button>
           </div>
         </div>
@@ -560,14 +588,14 @@ export default function SecretaryStudentCardsPrintPage() {
                 Aperçu instantané du modèle ({CARD_DESIGNS.find(d => d.id === selectedDesign)?.shortName})
               </h2>
               <p className="text-xs text-slate-300 max-w-md">
-                Toutes les cartes imprimées adopteront cette mise en page officielle avec QR code haute définition et mentions sécurisées.
+                Toutes les cartes imprimées adopteront cette disposition officielle conforme aux dimensions A4 avec repères de découpe nets.
               </p>
               <div className="pt-2 flex items-center justify-center md:justify-start gap-3 text-xs">
                 <span className="bg-white/10 px-2.5 py-1 rounded-lg border border-white/10">
                   <b>{selectedStudents.length}</b> carte(s) cochée(s)
                 </span>
                 <span className="bg-white/10 px-2.5 py-1 rounded-lg border border-white/10">
-                  <b>{printPages.length}</b> feuille(s) A4 (10 cartes / page)
+                  <b>{printPages.length}</b> planche(s) A4 ({cardsPerPage} cartes / page)
                 </span>
               </div>
             </div>
@@ -746,8 +774,8 @@ export default function SecretaryStudentCardsPrintPage() {
         </div>
       )}
 
-      {/* 5. PLANCHES D'IMPRESSION PHYSIQUES A4 (Rendu strict pour Impression & Modal) */}
-      <div className="hidden print:block space-y-6">
+      {/* 5. PLANCHES D'IMPRESSION PHYSIQUES A4 (Remplissent 100% de la feuille A4) */}
+      <div className="hidden print:block">
         {printPages.map((pageStudents, pageIdx) => (
           <div key={pageIdx} className="print-page-wrapper">
             <div className="print-sheet a4-sheet">
@@ -765,7 +793,7 @@ export default function SecretaryStudentCardsPrintPage() {
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">Confirmation du Tirage A4</h3>
                 <p className="text-xs text-slate-500">
-                  {selectedStudents.length} cartes réparties sur {printPages.length} planche(s) A4 (10 cartes / page)
+                  {selectedStudents.length} cartes réparties sur {printPages.length} planche(s) A4 ({cardsPerPage} cartes / page)
                 </p>
               </div>
               <button
@@ -780,7 +808,7 @@ export default function SecretaryStudentCardsPrintPage() {
               <div className="bg-orange-50 border border-orange-200/80 rounded-xl p-3 text-xs text-orange-800 flex items-center gap-2">
                 <Sparkles size={16} className="text-[#FF6B00] flex-shrink-0" />
                 <span>
-                  Prêt pour l'impression. Cliquez sur <b>« Lancer l'impression »</b> pour ouvrir la boîte de dialogue d'impression navigateur.
+                  Prêt pour l'impression. La planche est calibrée pour remplir <b>100% de la feuille A4</b> sans rognage.
                 </span>
               </div>
 
@@ -815,17 +843,19 @@ export default function SecretaryStudentCardsPrintPage() {
         </div>
       )}
 
-      {/* RÈGLES CSS IMPRESSION A4 STRICTES */}
+      {/* RÈGLES CSS IMPRESSION A4 STRICTES POUR REMPLIR 100% DE LA FEUILLE */}
       <style jsx global>{`
         @page {
-          size: 210mm 297mm !important;
-          margin: 4mm 5mm !important;
+          size: A4 portrait !important;
+          margin: 6mm 5mm !important;
         }
         @media print {
           html, body {
             margin: 0 !important;
             padding: 0 !important;
             background: white !important;
+            width: 100% !important;
+            height: 100% !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -835,36 +865,30 @@ export default function SecretaryStudentCardsPrintPage() {
           .print-page-wrapper {
             page-break-after: always !important;
             break-after: page !important;
-            height: 288mm !important;
-            max-height: 288mm !important;
-            margin: 0 !important;
+            width: 200mm !important;
+            height: 284mm !important;
+            max-height: 284mm !important;
+            margin: 0 auto !important;
             padding: 0 !important;
+            box-sizing: border-box !important;
             overflow: hidden !important;
           }
           .print-sheet {
             display: grid !important;
             width: 100% !important;
-            max-width: 200mm !important;
-            height: 288mm !important;
-            max-height: 288mm !important;
+            height: 100% !important;
             grid-template-columns: repeat(2, 1fr) !important;
-            grid-template-rows: repeat(5, 1fr) !important;
-            gap: 2mm !important;
-            margin: 0 auto !important;
+            grid-template-rows: ${cardsPerPage === 10 ? 'repeat(5, 1fr)' : cardsPerPage === 8 ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)'} !important;
+            gap: 2.5mm 3.5mm !important;
+            margin: 0 !important;
             padding: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-            page-break-after: always !important;
-            break-after: page !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
             box-sizing: border-box !important;
           }
           .student-card-printable {
             width: 100% !important;
             height: 100% !important;
-            min-height: 55.5mm !important;
-            max-height: 56.5mm !important;
+            max-height: none !important;
+            min-height: 0 !important;
             border: 1px dashed #94a3b8 !important;
             box-shadow: none !important;
             box-sizing: border-box !important;

@@ -152,7 +152,7 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
         <Sidebar userRole={user.role} />
       </div>
 
-      <div className={`flex-1 flex flex-col h-full min-w-0 overflow-hidden transition-all duration-300 ${isDesktop ? 'ml-60' : 'ml-0'} print:ml-0 print:w-full print:block`}>
+      <div className={`flex-1 flex flex-col h-full min-w-0 overflow-hidden transition-all duration-300 ${isDesktop ? 'ml-60' : 'ml-0'} print:ml-0 print:w-full print:h-auto print:overflow-visible print:block`}>
         {/* ✅ HEADER FIXE EN HAUT - NE DÉFILE PAS AVEC LE CONTENU */}
         {pathname !== '/ai-assistant' && (
           <div className="sticky top-0 z-40 flex-shrink-0 w-full bg-[#f1f5f9]/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs print:hidden">
