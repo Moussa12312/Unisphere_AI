@@ -9,7 +9,9 @@ import sys
 import random
 from datetime import datetime, date, time
 
-sys.path.insert(0, r"c:\UniSphere_AI\backend")
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
