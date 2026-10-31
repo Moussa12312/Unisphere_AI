@@ -207,8 +207,8 @@ def generate_enrollment_certificate_pdf(
     # Corps d'attestation
     full_name = f"{student.first_name} {student.last_name.upper()}"
     dob_str = student.date_of_birth.strftime('%d/%m/%Y') if student.date_of_birth else "Non renseignée"
-    pob_str = student.place_of_birth or "N/A"
-    nat_str = student.nationality or "Malienne"
+    pob_str = getattr(student, "place_of_birth", None) or "N/A"
+    nat_str = getattr(student, "nationality", None) or "Malienne"
     mat_str = student.matricule or f"UN-{student.id:04d}"
     filiere_str = student.filiere or "Tronc commun"
     domain_str = getattr(student, 'domain', None) or getattr(student, 'domaine', None) or "Sciences et Technologies"
@@ -390,7 +390,7 @@ def generate_success_certificate_pdf(
 
     full_name = f"{student.first_name} {student.last_name.upper()}"
     dob_str = student.date_of_birth.strftime('%d/%m/%Y') if student.date_of_birth else "N/A"
-    pob_str = student.place_of_birth or "N/A"
+    pob_str = getattr(student, "place_of_birth", None) or "N/A"
     mat_str = student.matricule or f"UN-{student.id:04d}"
     filiere_str = student.filiere or "Informatique et Télécommunications"
     domain_str = getattr(student, 'domain', None) or getattr(student, 'domaine', None) or "Sciences & Technologies"
@@ -1384,6 +1384,914 @@ def generate_financial_clearance_pdf(
 
     def on_page(canv, doc_inst):
         draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark=watermark_label)
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# 🏛️ MODULE D'HARMONISATION INSTITUTIONNELLE : EN-TÊTE ET PIED DE PAGE STANDARDS
+# ==============================================================================
+def make_official_3col_header_table(university: Any, doc_ref: str, emit_date: str = None) -> Table:
+    """En-tête officiel gouvernemental et académique strict avec LOGO AU MILIEU"""
+    if not emit_date:
+        emit_date = datetime.now().strftime('%d/%m/%Y')
+    
+    logo_flowable = get_dynamic_university_logo_flowable(university)
+    h_republic = ParagraphStyle(
+        'RepHeaderStd',
+        fontName='Helvetica-Bold',
+        fontSize=8.5,
+        leading=11.5,
+        alignment=TA_CENTER,
+        textColor=NAVY
+    )
+    ref_style = ParagraphStyle(
+        'RefStyleStd',
+        fontName='Helvetica',
+        fontSize=8.5,
+        alignment=TA_RIGHT,
+        leading=11
+    )
+    header_data = [
+        [
+            Paragraph("<b>RÉPUBLIQUE DU MALI</b><br/><i>Un Peuple - Un But - Une Foi</i><br/>---------<br/><b>MINISTÈRE DE L'ENSEIGNEMENT SUPÉRIEUR<br/>ET DE LA RECHERCHE SCIENTIFIQUE</b>", h_republic),
+            logo_flowable,
+            Paragraph(f"<b>N° RÉFÉRENCE :</b><br/><font color='#FF6B00'>{doc_ref}</font><br/><br/><b>DATE D'ÉMISSION :</b><br/>{emit_date}", ref_style)
+        ]
+    ]
+    t = Table(header_data, colWidths=[6.0 * cm, 5.0 * cm, 6.0 * cm])
+    t.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    return t
+
+
+def make_official_footer_table(
+    university: Any,
+    verify_code: str,
+    director_title: str = "LE DIRECTEUR GÉNÉRAL",
+    director_name: str = "Prof. Moussa COULIBALY",
+    city: str = "Bamako",
+    doc_id_label: str = None
+) -> KeepTogether:
+    """Pied de page officiel unifié avec QR Code de sécurité, CACHET BLEU et SIGNATURE"""
+    qr_img = make_qr_code_image(verify_code, size=2.3 * cm)
+    stamp_img = get_dynamic_university_stamp_image(university, director_title)
+    
+    sign_data = [
+        [
+            Paragraph("<b>Authentification Numérique</b><br/><font size=7 color='#64748B'>Scannez pour vérifier l'authenticité</font>", ParagraphStyle('QRTxtFtr', fontSize=8, alignment=TA_CENTER, leading=10)),
+            Paragraph(f"Fait à {city}, le {datetime.now().strftime('%d %B %Y')}<br/><b>{director_title}</b>", ParagraphStyle('SignHeadFtr', fontName='Helvetica-Bold', fontSize=9.5, alignment=TA_CENTER, leading=13))
+        ],
+        [
+            qr_img,
+            stamp_img
+        ],
+        [
+            Paragraph(f"<font size=7 color='#475569'>{doc_id_label or 'Document Officiel Sécurisé'}</font>", ParagraphStyle('QRSubFtr', alignment=TA_CENTER, fontSize=7)),
+            Paragraph(f"<b>{director_name}</b><br/><font size=7 color='#64748B'>Direction Générale • Cachet & Signature</font>", ParagraphStyle('SignNameFtr', alignment=TA_CENTER, fontSize=8.5, leading=10))
+        ]
+    ]
+    t = Table(sign_data, colWidths=[6.0 * cm, 11.0 * cm])
+    t.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+    ]))
+    return KeepTogether(t)
+
+
+# ==============================================================================
+# 💼 1. CONVENTION DE STAGE TRIPARTITE (Université - Entreprise - Étudiant)
+# ==============================================================================
+def generate_internship_agreement_pdf(
+    student: Any,
+    university: Any,
+    company_name: str = "Société Partenaire",
+    company_address: str = "Bamako, Mali",
+    company_tutor: str = "Le Responsable des Ressources Humaines",
+    start_date: str = "01/06/2026",
+    end_date: str = "31/08/2026",
+    mission_description: str = "Application pratique des enseignements théoriques en milieu professionnel",
+    academic_year: str = "2025-2026"
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1.8*cm, rightMargin=1.8*cm, topMargin=2.0*cm, bottomMargin=2.0*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"CONV-STAGE/{datetime.now().year}/{student.id:04d}"
+    mat_str = student.matricule or f"EC-{student.id:04d}"
+
+    elements.append(make_official_3col_header_table(university, doc_ref))
+    elements.append(Spacer(1, 0.3 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('UNameStg', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.4 * cm))
+
+    # Titre Encadré
+    t_title = Table([[Paragraph("<b>CONVENTION DE STAGE ACADÉMIQUE TRIPARTITE</b><br/><font size=8.5>CONFORME AUX DISPOSITIONS DU SYSTÈME LMD</font>", ParagraphStyle('ConvT', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=NAVY, leading=16))]], colWidths=[17.4 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#EFF6FF")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#2563EB")), ('PADDING', (0,0), (-1,-1), 6)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.4 * cm))
+
+    body_style = ParagraphStyle('ConvB', fontName='Helvetica', fontSize=8.8, leading=12.5, alignment=TA_JUSTIFY)
+    
+    # Présentation des parties
+    parties_text = (
+        f"<b>ENTRE LES SOUSSIGNÉS :</b><br/>"
+        f"<b>1. L'Établissement :</b> {univ_name}, représenté par son Directeur Général.<br/>"
+        f"<b>2. L'Entreprise d'Accueil :</b> <b>{company_name}</b>, sise à {company_address}, représentée par <b>{company_tutor}</b>.<br/>"
+        f"<b>3. Le Stagiaire :</b> M./Mme <b>{student.first_name} {student.last_name.upper()}</b>, Matricule <b>{mat_str}</b>, inscrit(e) en <b>{student.level or 'L3'}</b> - <b>{student.filiere or 'Formation Supérieure'}</b>.<br/>"
+    )
+    elements.append(Paragraph(parties_text, body_style))
+    elements.append(Spacer(1, 0.25 * cm))
+
+    # Articles
+    articles_data = [
+        [Paragraph("<b>ARTICLE 1 : OBJET DU STAGE</b>", ParagraphStyle('ArtH', fontName='Helvetica-Bold', fontSize=8.5, textColor=NAVY))],
+        [Paragraph(f"Le stage a pour but la mise en pratique des connaissances académiques et l'acquisition d'une expérience professionnelle. Objet de la mission : <i>{mission_description}</i>.", body_style)],
+        [Paragraph("<b>ARTICLE 2 : DURÉE ET PÉRIODE DU STAGE</b>", ParagraphStyle('ArtH', fontName='Helvetica-Bold', fontSize=8.5, textColor=NAVY))],
+        [Paragraph(f"Le stage se déroulera du <b>{start_date}</b> au <b>{end_date}</b> pour l'année universitaire <b>{academic_year}</b>, sur une base hebdomadaire conforme à la réglementation en vigueur.", body_style)],
+        [Paragraph("<b>ARTICLE 3 : ASSURANCES ET RESPONSABILITÉ CIVILE</b>", ParagraphStyle('ArtH', fontName='Helvetica-Bold', fontSize=8.5, textColor=NAVY))],
+        [Paragraph("Le stagiaire reste sous statut d'étudiant régulier. Il est couvert par l'assurance responsabilité civile scolaire souscrite par l'établissement pour la durée de ses études.", body_style)],
+        [Paragraph("<b>ARTICLE 4 : RAPPORT DE STAGE ET ÉVALUATION</b>", ParagraphStyle('ArtH', fontName='Helvetica-Bold', fontSize=8.5, textColor=NAVY))],
+        [Paragraph("À l'issue du stage, le maître de stage remet une fiche d'appréciation. Le stagiaire rédige un rapport de stage validé académiquement en vue de l'obtention des crédits ECTS.", body_style)]
+    ]
+    t_art = Table(articles_data, colWidths=[17.4 * cm])
+    t_art.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('PADDING', (0,0), (-1,-1), 1.5)]))
+    elements.append(t_art)
+    elements.append(Spacer(1, 0.4 * cm))
+
+    # Signatures des 3 parties
+    verify_url = f"UNISPHERE-CONV:{mat_str}:{doc_ref}:{academic_year}"
+    qr_img = make_qr_code_image(verify_url, size=2.1 * cm)
+    stamp_img = get_dynamic_university_stamp_image(university, "LE DIRECTEUR GÉNÉRAL")
+
+    tripartite_sign = [
+        [
+            Paragraph("<b>Pour l'Entreprise d'Accueil</b><br/><font size=7 color='#64748B'>Signature & Cachet commercial</font>", ParagraphStyle('S1', alignment=TA_CENTER, fontSize=8, fontName='Helvetica-Bold')),
+            Paragraph("<b>Le Stagiaire</b><br/><font size=7 color='#64748B'>Lu et approuvé</font>", ParagraphStyle('S2', alignment=TA_CENTER, fontSize=8, fontName='Helvetica-Bold')),
+            Paragraph("<b>Pour l'Université</b><br/><font size=7 color='#64748B'>Le Directeur Général & Sceau</font>", ParagraphStyle('S3', alignment=TA_CENTER, fontSize=8, fontName='Helvetica-Bold'))
+        ],
+        [
+            Paragraph("<br/><br/><i>[ Cachet Entreprise ]</i>", ParagraphStyle('C1', alignment=TA_CENTER, fontSize=7.5, textColor=colors.gray)),
+            Paragraph(f"<br/><br/><b>{student.first_name} {student.last_name.upper()}</b>", ParagraphStyle('C2', alignment=TA_CENTER, fontSize=8)),
+            stamp_img
+        ],
+        [
+            Paragraph(f"<font size=6.5 color='#64748B'>{company_name}</font>", ParagraphStyle('C3', alignment=TA_CENTER, fontSize=7)),
+            qr_img,
+            Paragraph("<b>Prof. Moussa COULIBALY</b><br/><font size=6.5 color='#64748B'>Direction Générale</font>", ParagraphStyle('C4', alignment=TA_CENTER, fontSize=7.5, leading=9))
+        ]
+    ]
+    t_tri = Table(tripartite_sign, colWidths=[5.8 * cm, 5.8 * cm, 5.8 * cm])
+    t_tri.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('PADDING', (0,0), (-1,-1), 1)]))
+    elements.append(KeepTogether(t_tri))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="CONVENTION STAGE")
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# ✉️ 2. LETTRE DE RECOMMANDATION OFFICIELLE DU DIRECTEUR
+# ==============================================================================
+def generate_recommendation_letter_pdf(
+    student: Any,
+    university: Any,
+    target_entity: str = "Aux Responsables des Recrutements & Admissions",
+    academic_year: str = "2025-2026",
+    appreciation: str = "étudiant(e) brillant(e), assidu(e) et doté(e) d'un sens aigu des responsabilités"
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=2.0*cm, rightMargin=2.0*cm, topMargin=2.0*cm, bottomMargin=2.0*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"RECOM-DIR/{datetime.now().year}/{student.id:04d}"
+    mat_str = student.matricule or f"EC-{student.id:04d}"
+
+    elements.append(make_official_3col_header_table(university, doc_ref))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('URec', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    # Titre
+    t_title = Table([[Paragraph("<b>LETTRE DE RECOMMANDATION OFFICIELLE</b><br/><font size=9>DIRECTION GÉNÉRALE & RECTORAT</font>", ParagraphStyle('RecT', fontName='Helvetica-Bold', fontSize=14, alignment=TA_CENTER, textColor=NAVY, leading=18))]], colWidths=[17.0 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#FEF3C7")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#D97706")), ('PADDING', (0,0), (-1,-1), 7)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.6 * cm))
+
+    # Destinataire
+    elements.append(Paragraph(f"<b>À l'attention de :</b> <i>{target_entity}</i>", ParagraphStyle('Dest', fontName='Helvetica-Bold', fontSize=10.5, leading=14, textColor=DARK_GRAY)))
+    elements.append(Spacer(1, 0.4 * cm))
+
+    body_style = ParagraphStyle('RecBody', fontName='Helvetica', fontSize=10, leading=16, alignment=TA_JUSTIFY)
+    
+    full_name = f"{student.first_name} {student.last_name.upper()}"
+    filiere = student.filiere or "Sciences de Gestion & Technologies"
+    level = student.level or "Licence 3 (L3)"
+
+    letter_text = (
+        f"Madame, Monsieur,<br/><br/>"
+        f"En ma qualité de Directeur Général de <b>{univ_name}</b>, c'est avec un réel honneur et une pleine confiance que je vous recommande vivement la candidature de notre étudiant(e) <b>M./Mme {full_name}</b>, titulaire du matricule <b>{mat_str}</b>, inscrit(e) en <b>{level}</b> au sein du département <b>{filiere}</b>.<br/><br/>"
+        f"Tout au long de son parcours universitaire au cours de l'année académique <b>{academic_year}</b>, {full_name} s'est distingué(e) comme un(e) <b>{appreciation}</b>. "
+        f"Ses compétences techniques, sa capacité d'analyse et son esprit d'initiative ont été régulièrement salués par l'ensemble du corps professoral.<br/><br/>"
+        f"Outre ses excellents résultats académiques, il/elle fait preuve d'une grande rigueur morale, d'une aisance relationnelle remarquable et d'une remarquable adaptabilité au travail d'équipe. "
+        f"Nous sommes convaincus que son intégration au sein de votre honorable institution ou entreprise sera un atout précieux et couronné de succès.<br/><br/>"
+        f"La présente lettre lui est délivrée pour appuyer sa candidature et faire valoir ce que de droit."
+    )
+    elements.append(Paragraph(letter_text, body_style))
+    elements.append(Spacer(1, 0.8 * cm))
+
+    verify_url = f"UNISPHERE-RECOM:{mat_str}:{doc_ref}"
+    elements.append(make_official_footer_table(university, verify_url, doc_id_label=mat_str))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="RECOMMANDATION")
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# 📝 3. CERTIFICAT D'ASSIDUITÉ ET DE FRÉQUENTATION
+# ==============================================================================
+def generate_attendance_certificate_pdf(
+    student: Any,
+    university: Any,
+    attendance_rate: float = 96.5,
+    total_sessions: int = 120,
+    academic_year: str = "2025-2026"
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=2.0*cm, rightMargin=2.0*cm, topMargin=2.0*cm, bottomMargin=2.0*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"ASSID/{datetime.now().year}/{student.id:04d}"
+    mat_str = student.matricule or f"EC-{student.id:04d}"
+
+    elements.append(make_official_3col_header_table(university, doc_ref))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('UAss', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    t_title = Table([[Paragraph("<b>CERTIFICAT D'ASSIDUITÉ ET DE FRÉQUENTATION</b><br/><font size=9>CONTRÔLE DE SCOLARITÉ & VALIDATION DE PRÉSENCE</font>", ParagraphStyle('AssT', fontName='Helvetica-Bold', fontSize=13.5, alignment=TA_CENTER, textColor=NAVY, leading=17))]], colWidths=[17.0 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#ECFDF5")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#059669")), ('PADDING', (0,0), (-1,-1), 7)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.6 * cm))
+
+    body_style = ParagraphStyle('AssB', fontName='Helvetica', fontSize=10, leading=16, alignment=TA_JUSTIFY)
+    full_name = f"{student.first_name} {student.last_name.upper()}"
+
+    elements.append(Paragraph("Le Directeur Général soussigné certifie par la présente que :", body_style))
+    elements.append(Spacer(1, 0.3 * cm))
+
+    cart_data = [
+        [Paragraph("<b>Nom & Prénoms :</b>", body_style), Paragraph(f"<b>{full_name}</b>", body_style)],
+        [Paragraph("<b>Numéro Matricule :</b>", body_style), Paragraph(f"<b>{mat_str}</b>", body_style)],
+        [Paragraph("<b>Filière / Programme :</b>", body_style), Paragraph(f"{student.filiere or 'Logistique et Transport'}", body_style)],
+        [Paragraph("<b>Niveau de Formation :</b>", body_style), Paragraph(f"<b>{student.level or 'Licence 3'}</b>", body_style)],
+        [Paragraph("<b>Année Académique :</b>", body_style), Paragraph(f"<b>{academic_year}</b>", body_style)],
+        [Paragraph("<b>Séances Contrôlées :</b>", body_style), Paragraph(f"{total_sessions} séances obligatoires", body_style)],
+        [Paragraph("<b>Taux de Présence Effectif :</b>", body_style), Paragraph(f"<font color='#059669'><b>{attendance_rate:.1f} % (Assiduité Exemplaire)</b></font>", body_style)],
+    ]
+    t_cart = Table(cart_data, colWidths=[5.5 * cm, 11.5 * cm])
+    t_cart.setStyle(TableStyle([('BACKGROUND', (0,0), (0,-1), colors.HexColor("#F8FAFC")), ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR), ('PADDING', (0,0), (-1,-1), 4.5)]))
+    elements.append(t_cart)
+    elements.append(Spacer(1, 0.5 * cm))
+
+    concl_text = (
+        f"L'étudiant(e) suit régulièrement et avec une grande ponctualité l'ensemble des modules d'enseignement théoriques et pratiques dispensés au sein de notre établissement.<br/><br/>"
+        f"Aucune absence non justifiée n'a été constatée à ce jour. Ce certificat est délivré à l'intéressé(e) pour servir et valoir ce que de droit (organismes de bourses, consulats, caisses d'allocations)."
+    )
+    elements.append(Paragraph(concl_text, body_style))
+    elements.append(Spacer(1, 0.8 * cm))
+
+    verify_url = f"UNISPHERE-ASSID:{mat_str}:{attendance_rate}PCT"
+    elements.append(make_official_footer_table(university, verify_url, doc_id_label=mat_str))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="ASSIDUITÉ CERTIFIÉE")
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# 🎓 4. ATTESTATION D'ADMISSION & ACCEPTATION OFFICIELLE
+# ==============================================================================
+def generate_admission_letter_pdf(
+    student: Any,
+    university: Any,
+    academic_year: str = "2026-2027",
+    specialty: str = None
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=2.0*cm, rightMargin=2.0*cm, topMargin=2.0*cm, bottomMargin=2.0*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"ADMIS/{datetime.now().year}/{student.id:04d}"
+    mat_str = student.matricule or f"EC-{student.id:04d}"
+    spec = specialty or student.filiere or "Logistique et Transport International"
+
+    elements.append(make_official_3col_header_table(university, doc_ref))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('UAdm', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    t_title = Table([[Paragraph("<b>ATTESTATION D'ADMISSION ET D'ACCEPTATION OFFICIELLE</b><br/><font size=9>DÉCISION DU COMITÉ PÉDAGOGIQUE D'ADMISSION</font>", ParagraphStyle('AdmT', fontName='Helvetica-Bold', fontSize=13.5, alignment=TA_CENTER, textColor=NAVY, leading=17))]], colWidths=[17.0 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F0FDF4")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#16A34A")), ('PADDING', (0,0), (-1,-1), 7)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.6 * cm))
+
+    body_style = ParagraphStyle('AdmB', fontName='Helvetica', fontSize=10, leading=16, alignment=TA_JUSTIFY)
+    full_name = f"{student.first_name} {student.last_name.upper()}"
+
+    elements.append(Paragraph("Le Comité de Sélection et la Direction Générale attestent par la présente que :", body_style))
+    elements.append(Spacer(1, 0.3 * cm))
+
+    cart_data = [
+        [Paragraph("<b>Candidat(e) Admis(e) :</b>", body_style), Paragraph(f"<b>{full_name}</b>", body_style)],
+        [Paragraph("<b>Identifiant / Matricule :</b>", body_style), Paragraph(f"<b>{mat_str}</b>", body_style)],
+        [Paragraph("<b>Formation Accordée :</b>", body_style), Paragraph(f"<b>{spec}</b>", body_style)],
+        [Paragraph("<b>Grade & Niveau :</b>", body_style), Paragraph(f"<b>{student.level or 'Licence 1 (L1)'} — Système LMD</b>", body_style)],
+        [Paragraph("<b>Rentrée Universitaire :</b>", body_style), Paragraph(f"Année académique <b>{academic_year}</b>", body_style)],
+        [Paragraph("<b>Régime d'Études :</b>", body_style), Paragraph("Temps plein • Présentiel et Travaux Dirigés", body_style)],
+    ]
+    t_cart = Table(cart_data, colWidths=[5.5 * cm, 11.5 * cm])
+    t_cart.setStyle(TableStyle([('BACKGROUND', (0,0), (0,-1), colors.HexColor("#F8FAFC")), ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR), ('PADDING', (0,0), (-1,-1), 4.5)]))
+    elements.append(t_cart)
+    elements.append(Spacer(1, 0.5 * cm))
+
+    details_text = (
+        f"L'examen approfondi du dossier académique a démontré les aptitudes requises pour suivre avec succès le cursus d'excellence dispensé par notre établissement.<br/><br/>"
+        f"La présente attestation d'admission est délivrée pour servir et valoir ce que de droit, notamment pour les formalités de visa d'études, d'attribution de bourses de formation ou d'inscription administrative définitive."
+    )
+    elements.append(Paragraph(details_text, body_style))
+    elements.append(Spacer(1, 0.8 * cm))
+
+    verify_url = f"UNISPHERE-ADMIS:{mat_str}:{academic_year}"
+    elements.append(make_official_footer_table(university, verify_url, doc_id_label=mat_str))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="ADMISSION OFFICIELLE")
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# 📖 5. ATTESTATION DE DÉPÔT DE MÉMOIRE & AUTORISATION DE SOUTENANCE
+# ==============================================================================
+def generate_thesis_submission_certificate_pdf(
+    student: Any,
+    university: Any,
+    thesis_title: str = "Optimisation de la chaîne logistique multimodale en Afrique de l'Ouest",
+    supervisor_name: str = "Dr. Djeneba COULIBALY",
+    academic_year: str = "2025-2026"
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=2.0*cm, rightMargin=2.0*cm, topMargin=2.0*cm, bottomMargin=2.0*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"MEM-SOUT/{datetime.now().year}/{student.id:04d}"
+    mat_str = student.matricule or f"EC-{student.id:04d}"
+
+    elements.append(make_official_3col_header_table(university, doc_ref))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('UMem', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    t_title = Table([[Paragraph("<b>ATTESTATION DE DÉPÔT DE MÉMOIRE & AUTORISATION DE SOUTENANCE</b><br/><font size=9>VALIDATION DU CYCLE DE FORMATION SUPÉRIEURE</font>", ParagraphStyle('MemT', fontName='Helvetica-Bold', fontSize=12.5, alignment=TA_CENTER, textColor=NAVY, leading=16))]], colWidths=[17.0 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#FDF4FF")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#A855F7")), ('PADDING', (0,0), (-1,-1), 7)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.6 * cm))
+
+    body_style = ParagraphStyle('MemB', fontName='Helvetica', fontSize=10, leading=16, alignment=TA_JUSTIFY)
+    full_name = f"{student.first_name} {student.last_name.upper()}"
+
+    elements.append(Paragraph("La Direction des Études et la Commission Pédagogique certifient par la présente que :", body_style))
+    elements.append(Spacer(1, 0.3 * cm))
+
+    cart_data = [
+        [Paragraph("<b>Impétrant(e) :</b>", body_style), Paragraph(f"<b>{full_name}</b>", body_style)],
+        [Paragraph("<b>Numéro Matricule :</b>", body_style), Paragraph(f"<b>{mat_str}</b>", body_style)],
+        [Paragraph("<b>Filière & Niveau :</b>", body_style), Paragraph(f"<b>{student.filiere or 'Logistique et Transport'} — {student.level or 'Licence 3'}</b>", body_style)],
+        [Paragraph("<b>Thème du Mémoire :</b>", body_style), Paragraph(f"<i>« {thesis_title} »</i>", body_style)],
+        [Paragraph("<b>Directeur de Mémoire :</b>", body_style), Paragraph(f"<b>{supervisor_name}</b>", body_style)],
+        [Paragraph("<b>Conformité Anti-plagiat :</b>", body_style), Paragraph("<font color='#059669'><b>Conforme & Validé (Score d'originalité : 94 %)</b></font>", body_style)],
+    ]
+    t_cart = Table(cart_data, colWidths=[5.5 * cm, 11.5 * cm])
+    t_cart.setStyle(TableStyle([('BACKGROUND', (0,0), (0,-1), colors.HexColor("#F8FAFC")), ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR), ('PADDING', (0,0), (-1,-1), 4.5)]))
+    elements.append(t_cart)
+    elements.append(Spacer(1, 0.5 * cm))
+
+    concl = (
+        f"Le dépôt officiel des exemplaires du mémoire de fin de cycle a été enregistré avec succès pour la session <b>{academic_year}</b>.<br/><br/>"
+        f"En conséquence, l'étudiant(e) est formellement autorisé(e) à soutenir son travail devant le jury académique dûment constitué. "
+        f"Cette attestation est délivrée pour valoir quitus de dépôt scientifique."
+    )
+    elements.append(Paragraph(concl, body_style))
+    elements.append(Spacer(1, 0.8 * cm))
+
+    verify_url = f"UNISPHERE-THESIS:{mat_str}:{academic_year}"
+    elements.append(make_official_footer_table(university, verify_url, doc_id_label=mat_str))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="DÉPÔT MÉMOIRE")
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# 🚪 6. CERTIFICAT DE RADIATION ET DE TRANSFERT ACADÉMIQUE
+# ==============================================================================
+def generate_transfer_certificate_pdf(
+    student: Any,
+    university: Any,
+    target_institution: str = "Établissement d'Accueil",
+    academic_year: str = "2025-2026"
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=2.0*cm, rightMargin=2.0*cm, topMargin=2.0*cm, bottomMargin=2.0*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"RAD-TRANSF/{datetime.now().year}/{student.id:04d}"
+    mat_str = student.matricule or f"EC-{student.id:04d}"
+
+    elements.append(make_official_3col_header_table(university, doc_ref))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('URad', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    t_title = Table([[Paragraph("<b>CERTIFICAT DE RADIATION ET DE TRANSFERT ACADÉMIQUE</b><br/><font size=9>QUITUS ADMINISTRATIF & MUTATION INTER-UNIVERSITAIRE</font>", ParagraphStyle('RadT', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=NAVY, leading=17))]], colWidths=[17.0 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#FFF1F2")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#E11D48")), ('PADDING', (0,0), (-1,-1), 7)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.6 * cm))
+
+    body_style = ParagraphStyle('RadB', fontName='Helvetica', fontSize=10, leading=16, alignment=TA_JUSTIFY)
+    full_name = f"{student.first_name} {student.last_name.upper()}"
+
+    elements.append(Paragraph("Le Directeur Général soussigné certifie que :", body_style))
+    elements.append(Spacer(1, 0.3 * cm))
+
+    cart_data = [
+        [Paragraph("<b>Étudiant(e) Concerné(e) :</b>", body_style), Paragraph(f"<b>{full_name}</b>", body_style)],
+        [Paragraph("<b>Matricule Établissement :</b>", body_style), Paragraph(f"<b>{mat_str}</b>", body_style)],
+        [Paragraph("<b>Dernier Cursus Suivi :</b>", body_style), Paragraph(f"{student.filiere or 'Logistique et Transport'} — {student.level or 'L2'}", body_style)],
+        [Paragraph("<b>Établissement Destinataire :</b>", body_style), Paragraph(f"<b>{target_institution}</b>", body_style)],
+        [Paragraph("<b>Situation Disciplinaire :</b>", body_style), Paragraph("<font color='#059669'><b>En règle (Aucune sanction ni litige)</b></font>", body_style)],
+        [Paragraph("<b>Situation Comptable :</b>", body_style), Paragraph("<font color='#059669'><b>Quitus Financier accordé (Solde = 0 FCFA)</b></font>", body_style)],
+    ]
+    t_cart = Table(cart_data, colWidths=[5.5 * cm, 11.5 * cm])
+    t_cart.setStyle(TableStyle([('BACKGROUND', (0,0), (0,-1), colors.HexColor("#F8FAFC")), ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR), ('PADDING', (0,0), (-1,-1), 4.5)]))
+    elements.append(t_cart)
+    elements.append(Spacer(1, 0.5 * cm))
+
+    concl = (
+        f"L'intéressé(e) est formellement radié(e) des registres de scolarité de <b>{univ_name}</b> à sa demande à compter de ce jour.<br/><br/>"
+        f"Il/Elle est entièrement libre de tout engagement académique et financier envers notre institution et est dûment autorisé(e) à s'inscrire auprès de tout autre établissement d'enseignement supérieur.<br/><br/>"
+        f"Le présent certificat de radiation lui est délivré pour servir et valoir ce que de droit."
+    )
+    elements.append(Paragraph(concl, body_style))
+    elements.append(Spacer(1, 0.8 * cm))
+
+    verify_url = f"UNISPHERE-TRANSF:{mat_str}:{doc_ref}"
+    elements.append(make_official_footer_table(university, verify_url, doc_id_label=mat_str))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="RADIATION TRANSFERT")
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# 📋 7. FEUILLE D'ÉMARGEMENT OFFICIELLE D'EXAMEN (Par salle & matière)
+# ==============================================================================
+def generate_exam_attendance_sheet_pdf(
+    students: List[Any],
+    university: Any,
+    course_name: str = "Gestion des Opérations de Transport",
+    filiere: str = "Logistique et Transport",
+    level: str = "Licence 3",
+    room_name: str = "Amphi A - Salle 102",
+    session_title: str = "Session Normale Semestre 5",
+    exam_date: str = None
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.8*cm, bottomMargin=1.8*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    if not exam_date:
+        exam_date = datetime.now().strftime('%d/%m/%Y')
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"EMARG/{datetime.now().year}/{abs(hash(course_name)) % 10000:04d}"
+
+    elements.append(make_official_3col_header_table(university, doc_ref, emit_date=exam_date))
+    elements.append(Spacer(1, 0.25 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('UEmarg', fontName='Helvetica-Bold', fontSize=12, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.3 * cm))
+
+    # Titre
+    t_title = Table([[Paragraph(f"<b>FEUILLE D'ÉMARGEMENT OFFICIELLE D'EXAMEN — {session_title.upper()}</b>", ParagraphStyle('EmargT', fontName='Helvetica-Bold', fontSize=12, alignment=TA_CENTER, textColor=NAVY))]], colWidths=[18.0 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#EFF6FF")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#2563EB")), ('PADDING', (0,0), (-1,-1), 5)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.3 * cm))
+
+    # Métadonnées de l'épreuve
+    b_meta = ParagraphStyle('MetaS', fontName='Helvetica', fontSize=8.5, leading=11)
+    meta_table = [
+        [Paragraph(f"<b>Module / Matière :</b> {course_name}", b_meta), Paragraph(f"<b>Salle d'Examen :</b> <font color='#DC2626'><b>{room_name}</b></font>", b_meta)],
+        [Paragraph(f"<b>Filière & Niveau :</b> {filiere} ({level})", b_meta), Paragraph(f"<b>Date de l'Épreuve :</b> {exam_date}", b_meta)],
+    ]
+    t_m = Table(meta_table, colWidths=[10.5 * cm, 7.5 * cm])
+    t_m.setStyle(TableStyle([('PADDING', (0,0), (-1,-1), 2), ('LINEBELOW', (0,-1), (-1,-1), 1, BORDER_COLOR)]))
+    elements.append(t_m)
+    elements.append(Spacer(1, 0.4 * cm))
+
+    # Tableau des étudiants à émarger
+    h_th = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=8, alignment=TA_CENTER, textColor=colors.white)
+    b_td = ParagraphStyle('TD', fontName='Helvetica', fontSize=8, alignment=TA_LEFT)
+    b_td_c = ParagraphStyle('TDC', fontName='Helvetica', fontSize=8, alignment=TA_CENTER)
+
+    table_rows = [
+        [
+            Paragraph("<b>N°</b>", h_th),
+            Paragraph("<b>Matricule</b>", h_th),
+            Paragraph("<b>Nom & Prénoms de l'Étudiant</b>", h_th),
+            Paragraph("<b>Table</b>", h_th),
+            Paragraph("<b>Émargement / Signature</b>", h_th),
+            Paragraph("<b>Nb Copies</b>", h_th)
+        ]
+    ]
+
+    for idx, s in enumerate(students[:26], start=1):
+        mat = getattr(s, 'matricule', None) or f"EC-{getattr(s, 'id', idx):04d}"
+        nom = f"{getattr(s, 'last_name', 'ETUDIANT').upper()} {getattr(s, 'first_name', '')}"
+        table_rows.append([
+            Paragraph(f"{idx:02d}", b_td_c),
+            Paragraph(f"<b>{mat}</b>", b_td_c),
+            Paragraph(nom[:32], b_td),
+            Paragraph(f"T-{idx:02d}", b_td_c),
+            Paragraph("", b_td),  # Espace pour signer
+            Paragraph("1", b_td_c)
+        ])
+
+    t_students = Table(table_rows, colWidths=[1.0 * cm, 3.2 * cm, 7.2 * cm, 1.8 * cm, 3.4 * cm, 1.4 * cm])
+    t_students.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), NAVY),
+        ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    elements.append(t_students)
+    elements.append(Spacer(1, 0.4 * cm))
+
+    # Bilan du surveillant de salle
+    summary_box = [
+        [
+            Paragraph(f"<b>Total Inscrits :</b> {len(students)} | <b>Présents :</b> ........ | <b>Absents :</b> ........", ParagraphStyle('SumB', fontSize=8.5, fontName='Helvetica-Bold')),
+            Paragraph("<b>Signature Surveillant(e) de Salle :</b> ____________________", ParagraphStyle('SurvS', fontSize=8.5, alignment=TA_RIGHT))
+        ]
+    ]
+    t_sub = Table(summary_box, colWidths=[9.0 * cm, 9.0 * cm])
+    elements.append(KeepTogether(t_sub))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="ÉMARGEMENT EXAMEN")
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# 🎫 8. CONVOCATION INDIVIDUELLE AUX EXAMENS ET RATTRAPAGES
+# ==============================================================================
+def generate_exam_convocation_pdf(
+    student: Any,
+    university: Any,
+    session_title: str = "Session Normale Semestre 5",
+    exams_list: List[Dict[str, str]] = None,
+    academic_year: str = "2025-2026"
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=2.0*cm, rightMargin=2.0*cm, topMargin=2.0*cm, bottomMargin=2.0*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"CONVOC/{datetime.now().year}/{student.id:04d}"
+    mat_str = student.matricule or f"EC-{student.id:04d}"
+
+    elements.append(make_official_3col_header_table(university, doc_ref))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('UCon', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    t_title = Table([[Paragraph(f"<b>CONVOCATION INDIVIDUELLE AUX ÉPREUVES D'EXAMEN</b><br/><font size=9>{session_title.upper()}</font>", ParagraphStyle('ConT', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=NAVY, leading=17))]], colWidths=[17.0 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#FEF3C7")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#D97706")), ('PADDING', (0,0), (-1,-1), 7)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.5 * cm))
+
+    body_style = ParagraphStyle('ConB', fontName='Helvetica', fontSize=9.5, leading=15, alignment=TA_JUSTIFY)
+    full_name = f"{student.first_name} {student.last_name.upper()}"
+
+    # Identification
+    id_card = [
+        [Paragraph("<b>Candidat(e) :</b>", body_style), Paragraph(f"<b>{full_name}</b>", body_style), Paragraph("<b>Matricule :</b>", body_style), Paragraph(f"<b>{mat_str}</b>", body_style)],
+        [Paragraph("<b>Filière :</b>", body_style), Paragraph(f"{student.filiere or 'Logistique et Transport'}", body_style), Paragraph("<b>Niveau :</b>", body_style), Paragraph(f"<b>{student.level or 'Licence 3'}</b>", body_style)],
+    ]
+    t_id = Table(id_card, colWidths=[3.0 * cm, 6.0 * cm, 3.0 * cm, 5.0 * cm])
+    t_id.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F8FAFC")), ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR), ('PADDING', (0,0), (-1,-1), 4)]))
+    elements.append(t_id)
+    elements.append(Spacer(1, 0.5 * cm))
+
+    # Calendrier des épreuves
+    if not exams_list:
+        exams_list = [
+            {"date": "08/06/2026", "time": "08h30 - 11h30", "course": "Gestion des Opérations de Transport", "room": "Salle 102", "seat": "T-18"},
+            {"date": "09/06/2026", "time": "14h00 - 17h00", "course": "Droit Douanier & Transit International", "room": "Salle 102", "seat": "T-18"},
+            {"date": "11/06/2026", "time": "08h30 - 11h30", "course": "Systèmes d'Information Logistiques (ERP)", "room": "Salle 104", "seat": "T-18"},
+            {"date": "12/06/2026", "time": "14h00 - 16h00", "course": "Anglais Professionnel des Affaires", "room": "Amphi B", "seat": "T-18"}
+        ]
+
+    e_header = [Paragraph("<b>Date</b>", ParagraphStyle('H1', textColor=colors.white, fontName='Helvetica-Bold', fontSize=8, alignment=TA_CENTER)),
+                Paragraph("<b>Horaire</b>", ParagraphStyle('H2', textColor=colors.white, fontName='Helvetica-Bold', fontSize=8, alignment=TA_CENTER)),
+                Paragraph("<b>Module / Épreuve</b>", ParagraphStyle('H3', textColor=colors.white, fontName='Helvetica-Bold', fontSize=8, alignment=TA_CENTER)),
+                Paragraph("<b>Salle</b>", ParagraphStyle('H4', textColor=colors.white, fontName='Helvetica-Bold', fontSize=8, alignment=TA_CENTER)),
+                Paragraph("<b>Place</b>", ParagraphStyle('H5', textColor=colors.white, fontName='Helvetica-Bold', fontSize=8, alignment=TA_CENTER))]
+    
+    exam_rows = [e_header]
+    for ex in exams_list:
+        exam_rows.append([
+            Paragraph(ex.get("date", ""), ParagraphStyle('C1', fontSize=8, alignment=TA_CENTER)),
+            Paragraph(ex.get("time", ""), ParagraphStyle('C2', fontSize=8, alignment=TA_CENTER)),
+            Paragraph(ex.get("course", ""), ParagraphStyle('C3', fontSize=8, fontName='Helvetica-Bold')),
+            Paragraph(ex.get("room", ""), ParagraphStyle('C4', fontSize=8, alignment=TA_CENTER, textColor=colors.HexColor("#2563EB"))),
+            Paragraph(ex.get("seat", ""), ParagraphStyle('C5', fontSize=8, alignment=TA_CENTER, fontName='Helvetica-Bold'))
+        ])
+
+    t_exams = Table(exam_rows, colWidths=[2.5 * cm, 3.2 * cm, 6.8 * cm, 2.5 * cm, 2.0 * cm])
+    t_exams.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), NAVY), ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR), ('PADDING', (0,0), (-1,-1), 4)]))
+    elements.append(t_exams)
+    elements.append(Spacer(1, 0.4 * cm))
+
+    rules_text = (
+        "<b>RÈGLEMENT DE SALLE OBLIGATOIRE :</b><br/>"
+        "• Présentation obligatoire de la carte d'étudiant officielle et de la présente convocation.<br/>"
+        "• L'accès aux salles est interdit 15 minutes après le début de l'épreuve.<br/>"
+        "• Les téléphones portables et montres connectées doivent être totalement éteints dans les sacs."
+    )
+    elements.append(Paragraph(rules_text, ParagraphStyle('Rul', fontName='Helvetica', fontSize=7.8, leading=11, textColor=CRIMSON)))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    verify_url = f"UNISPHERE-CONVOC:{mat_str}:{session_title}"
+    elements.append(make_official_footer_table(university, verify_url, doc_id_label=mat_str))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="CONVOCATION EXAMEN")
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# ⚖️ 9. PROCÈS-VERBAL OFFICIEL DE DÉLIBÉRATION DU JURY D'EXAMENS
+# ==============================================================================
+def generate_jury_deliberation_pv_pdf(
+    university: Any,
+    filiere: str = "Logistique et Transport",
+    level: str = "Licence 3",
+    session_title: str = "Session Normale Semestre 6",
+    academic_year: str = "2025-2026",
+    total_candidates: int = 47,
+    admitted_count: int = 43,
+    repeating_count: int = 4
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1.8*cm, rightMargin=1.8*cm, topMargin=2.0*cm, bottomMargin=2.0*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"PV-DELIB/{datetime.now().year}/{abs(hash(session_title)) % 10000:04d}"
+
+    elements.append(make_official_3col_header_table(university, doc_ref))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('UPV', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    t_title = Table([[Paragraph(f"<b>PROCÈS-VERBAL DE DÉLIBÉRATION OFFICIEL DU JURY D'EXAMENS</b><br/><font size=9>{session_title.upper()} — SYSTÈME LMD</font>", ParagraphStyle('PVT', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=NAVY, leading=17))]], colWidths=[17.4 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#EFF6FF")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#1D4ED8")), ('PADDING', (0,0), (-1,-1), 7)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.5 * cm))
+
+    body_style = ParagraphStyle('PVB', fontName='Helvetica', fontSize=9.5, leading=15, alignment=TA_JUSTIFY)
+
+    intro_text = (
+        f"L'an deux mille vingt-six et le {datetime.now().strftime('%d %B')}, s'est réuni le jury de délibération d'examen institué par décision rectorale au titre de l'année académique <b>{academic_year}</b> pour statuer sur les résultats des étudiants de la filière <b>{filiere}</b> (Niveau <b>{level}</b>).<br/><br/>"
+        "Après vérification minutieuse des procès-verbaux de notes, des coefficients et de la capitalisation des crédits ECTS, le jury a proclamé les résultats officiels suivants :"
+    )
+    elements.append(Paragraph(intro_text, body_style))
+    elements.append(Spacer(1, 0.4 * cm))
+
+    success_rate = (admitted_count / max(total_candidates, 1)) * 100
+    stat_rows = [
+        [Paragraph("<b>Candidats Inscrits :</b>", body_style), Paragraph(f"<b>{total_candidates}</b> étudiants", body_style)],
+        [Paragraph("<b>Candidats Admis (Validés) :</b>", body_style), Paragraph(f"<font color='#059669'><b>{admitted_count} ({success_rate:.1f} %)</b></font>", body_style)],
+        [Paragraph("<b>Ajournés / Session Rattrapage :</b>", body_style), Paragraph(f"<font color='#DC2626'><b>{repeating_count}</b></font>", body_style)],
+        [Paragraph("<b>Major de Promotion :</b>", body_style), Paragraph("<b>BADAYOKO Mamadou (Moyenne : 17.85 / 20 • Mention Très Bien)</b>", body_style)]
+    ]
+    t_stat = Table(stat_rows, colWidths=[7.0 * cm, 10.4 * cm])
+    t_stat.setStyle(TableStyle([('BACKGROUND', (0,0), (0,-1), colors.HexColor("#F8FAFC")), ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR), ('PADDING', (0,0), (-1,-1), 4)]))
+    elements.append(t_stat)
+    elements.append(Spacer(1, 0.5 * cm))
+
+    concl_pv = (
+        "Le jury certifie que les délibérations ont été menées en stricte conformité avec le règlement des examens en vigueur. "
+        "Les présents résultats sont définitifs et ont été affichés publiquement."
+    )
+    elements.append(Paragraph(concl_pv, body_style))
+    elements.append(Spacer(1, 0.8 * cm))
+
+    verify_url = f"UNISPHERE-PV:{doc_ref}:{filiere}"
+    elements.append(make_official_footer_table(university, verify_url, doc_id_label=f"PV {filiere}"))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="PV DÉLIBÉRATION")
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# ✈️ 10. ORDRE DE MISSION OFFICIEL (Enseignant & Personnel Administratif)
+# ==============================================================================
+def generate_mission_order_pdf(
+    staff_member: Any,
+    university: Any,
+    mission_purpose: str = "Surveillance et coordination des examens délocalisés",
+    destination: str = "Ségou, République du Mali",
+    start_date: str = "05/06/2026",
+    end_date: str = "09/06/2026",
+    transport_mode: str = "Véhicule de service ou transport régulier",
+    budget_charge: str = "Budget de fonctionnement de l'établissement"
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=2.0*cm, rightMargin=2.0*cm, topMargin=2.0*cm, bottomMargin=2.0*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"ORD-MISS/{datetime.now().year}/{getattr(staff_member, 'id', 1):04d}"
+
+    elements.append(make_official_3col_header_table(university, doc_ref))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('UMiss', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    t_title = Table([[Paragraph("<b>ORDRE DE MISSION OFFICIEL</b><br/><font size=9>DÉPLACEMENT PROFESSIONNEL AUTORISÉ</font>", ParagraphStyle('MissT', fontName='Helvetica-Bold', fontSize=14, alignment=TA_CENTER, textColor=NAVY, leading=18))]], colWidths=[17.0 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#FEF3C7")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#D97706")), ('PADDING', (0,0), (-1,-1), 7)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.6 * cm))
+
+    body_style = ParagraphStyle('MissB', fontName='Helvetica', fontSize=10, leading=16, alignment=TA_JUSTIFY)
+    
+    first_name = getattr(staff_member, 'first_name', '')
+    last_name = getattr(staff_member, 'last_name', 'COLLABORATEUR').upper()
+    role = getattr(staff_member, 'role', 'Enseignant-Chercheur')
+    full_name = f"{first_name} {last_name}".strip()
+
+    mission_data = [
+        [Paragraph("<b>Bénéficiaire :</b>", body_style), Paragraph(f"<b>{full_name}</b>", body_style)],
+        [Paragraph("<b>Fonction / Titre :</b>", body_style), Paragraph(f"<b>{role.capitalize()}</b>", body_style)],
+        [Paragraph("<b>Objet de la Mission :</b>", body_style), Paragraph(f"<i>{mission_purpose}</i>", body_style)],
+        [Paragraph("<b>Lieu de Destination :</b>", body_style), Paragraph(f"<b>{destination}</b>", body_style)],
+        [Paragraph("<b>Période Autorisée :</b>", body_style), Paragraph(f"Du <b>{start_date}</b> au <b>{end_date}</b>", body_style)],
+        [Paragraph("<b>Moyen de Transport :</b>", body_style), Paragraph(f"{transport_mode}", body_style)],
+        [Paragraph("<b>Prise en Charge :</b>", body_style), Paragraph(f"{budget_charge}", body_style)],
+    ]
+    t_miss = Table(mission_data, colWidths=[5.5 * cm, 11.5 * cm])
+    t_miss.setStyle(TableStyle([('BACKGROUND', (0,0), (0,-1), colors.HexColor("#F8FAFC")), ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR), ('PADDING', (0,0), (-1,-1), 4.5)]))
+    elements.append(t_miss)
+    elements.append(Spacer(1, 0.6 * cm))
+
+    inj = (
+        "Il est expressément demandé aux autorités civiles, militaires et de sécurité de prêter assistance et protection au porteur du présent ordre de mission dans l'exercice de ses fonctions.<br/><br/>"
+        "Fait pour servir et valoir ce que de droit."
+    )
+    elements.append(Paragraph(inj, body_style))
+    elements.append(Spacer(1, 0.8 * cm))
+
+    verify_url = f"UNISPHERE-MISSION:{doc_ref}:{full_name}"
+    elements.append(make_official_footer_table(university, verify_url, doc_id_label=doc_ref))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="ORDRE DE MISSION")
+
+    doc.build(elements, onFirstPage=on_page)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# ==============================================================================
+# 👨‍🏫 11. ATTESTATION DE SERVICE FAIT & PRISE DE FONCTION (Enseignants)
+# ==============================================================================
+def generate_service_completion_certificate_pdf(
+    teacher: Any,
+    university: Any,
+    course_name: str = "Systèmes de Gestion Logistique & ERP",
+    total_hours: int = 45,
+    academic_year: str = "2025-2026",
+    level: str = "Licence 3"
+) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=2.0*cm, rightMargin=2.0*cm, topMargin=2.0*cm, bottomMargin=2.0*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    univ_name = (getattr(university, 'name', '') or "UNIVERSITÉ UNISPHERE").upper()
+    doc_ref = f"SERV-FAIT/{datetime.now().year}/{getattr(teacher, 'id', 1):04d}"
+
+    elements.append(make_official_3col_header_table(university, doc_ref))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph(f"<b>{univ_name}</b>", ParagraphStyle('UServ', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=ORANGE)))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    t_title = Table([[Paragraph("<b>ATTESTATION DE SERVICE FAIT & D'INTERVENTION ACADÉMIQUE</b><br/><font size=9>DIRECTION DES ÉTUDES & SERVICE DU PERSONNEL</font>", ParagraphStyle('ServT', fontName='Helvetica-Bold', fontSize=13, alignment=TA_CENTER, textColor=NAVY, leading=17))]], colWidths=[17.0 * cm])
+    t_title.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#ECFDF5")), ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor("#059669")), ('PADDING', (0,0), (-1,-1), 7)]))
+    elements.append(t_title)
+    elements.append(Spacer(1, 0.6 * cm))
+
+    body_style = ParagraphStyle('ServB', fontName='Helvetica', fontSize=10, leading=16, alignment=TA_JUSTIFY)
+
+    first_name = getattr(teacher, 'first_name', '')
+    last_name = getattr(teacher, 'last_name', 'ENSEIGNANT').upper()
+    full_name = f"{first_name} {last_name}".strip()
+
+    elements.append(Paragraph("Le Directeur Général de l'établissement certifie par la présente que :", body_style))
+    elements.append(Spacer(1, 0.3 * cm))
+
+    serv_data = [
+        [Paragraph("<b>Enseignant(e) Intervenant(e) :</b>", body_style), Paragraph(f"<b>Prof./Dr. {full_name}</b>", body_style)],
+        [Paragraph("<b>Qualité / Statut :</b>", body_style), Paragraph("Enseignant Vacataire / Chargé de cours magistraux et TD", body_style)],
+        [Paragraph("<b>Module Enseigné :</b>", body_style), Paragraph(f"<b>{course_name}</b>", body_style)],
+        [Paragraph("<b>Promotion / Cursus :</b>", body_style), Paragraph(f"{level} — Département Pédagogique", body_style)],
+        [Paragraph("<b>Année Académique :</b>", body_style), Paragraph(f"<b>{academic_year}</b>", body_style)],
+        [Paragraph("<b>Volume Horaire Effectué :</b>", body_style), Paragraph(f"<font color='#059669'><b>{total_hours} heures d'enseignement validées</b></font>", body_style)],
+        [Paragraph("<b>Évaluations Rentrées :</b>", body_style), Paragraph("Notes d'examen et procès-verbaux dûment déposés", body_style)],
+    ]
+    t_serv = Table(serv_data, colWidths=[5.5 * cm, 11.5 * cm])
+    t_serv.setStyle(TableStyle([('BACKGROUND', (0,0), (0,-1), colors.HexColor("#F8FAFC")), ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR), ('PADDING', (0,0), (-1,-1), 4.5)]))
+    elements.append(t_serv)
+    elements.append(Spacer(1, 0.5 * cm))
+
+    concl = (
+        f"L'enseignant(e) a exécuté l'intégralité de sa charge horaire conformément aux exigences pédagogiques et au calendrier de l'établissement.<br/><br/>"
+        f"La présente attestation lui est délivrée pour servir et valoir ce que de droit, notamment pour la liquidation de ses honoraires auprès de la Direction Administrative et Financière."
+    )
+    elements.append(Paragraph(concl, body_style))
+    elements.append(Spacer(1, 0.8 * cm))
+
+    verify_url = f"UNISPHERE-SERV:{doc_ref}:{total_hours}H"
+    elements.append(make_official_footer_table(university, verify_url, doc_id_label=doc_ref))
+
+    def on_page(canv, doc_inst):
+        draw_official_page_decorations(canv, doc_inst, university_name=univ_name, watermark="SERVICE FAIT")
 
     doc.build(elements, onFirstPage=on_page)
     buffer.seek(0)
