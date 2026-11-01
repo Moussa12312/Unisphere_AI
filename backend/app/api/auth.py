@@ -36,8 +36,8 @@ def get_auth_context(db: Session = Depends(get_db)):
     univ = db.query(University).filter(University.id == 1).first() or db.query(University).first()
     return {
         "university": {
-            "name": univ.name if univ else "ECOB",
-            "slogan": getattr(univ, 'slogan', None) or "Excellence & Innovation Académique",
+            "name": univ.name if univ else "UniSphere AI",
+            "slogan": getattr(univ, 'slogan', None) or "Excellence, Innovation & Technologie",
             "address": getattr(univ, 'address', None) or "Hamdallaye ACI 2000, Bamako, Mali",
             "academic_year": "2026-2027",
             "logo": univ.logo if univ else None
@@ -589,41 +589,6 @@ def platform_contact(db: Session = Depends(get_db)):
     }
 
 # ==========================================
-# CONTEXTE AUTH & COMPTES DÉMO UNISPHERE
-# ==========================================
-@router.get("/context")
-def auth_context(db: Session = Depends(get_db)):
-    univ = db.query(University).first()
-    quick_accounts = [
-        
-        {"role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration"},
-        {"role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie"},
-        {"role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD"},
-        {"role": "secretary", "label": "Secrétaire", "email": "secretaire@unisphere.ai", "name": "Secrétariat Général", "department": "Scolarité"},
-        {"role": "censeur", "label": "Censeur", "email": "censeur@unisphere.ai", "name": "Direction des Études", "department": "Études"},
-        {"role": "accountant", "label": "Comptable", "email": "comptable@unisphere.ai", "name": "Service Financier", "department": "Finances"},
-        {"role": "guard", "label": "Poste Garde", "email": "gardien@unisphere.ai", "name": "Sécurité & Contrôle", "department": "Portique"},
-        {"role": "alumni", "label": "Alumni", "email": "alumni@unisphere.ai", "name": "Moussa Fofana", "department": "Réseau Diplômés"}
-    ]
-    return {
-        "university": {
-            "id": univ.id if univ else 1,
-            "name": univ.name if univ else "UniSphere AI",
-            "slogan": univ.slogan if univ else "Excellence & Innovation",
-            "address": univ.address if univ else "Bamako, Mali",
-            "phone": univ.phone if univ else "+223 77 66 66 36",
-            "email": univ.email if univ else "contact@unisphere.ai",
-            "website": univ.website if univ else "https://unisphere.ai",
-            "academic_year": univ.academic_year if univ else "2026-2027",
-            "rector_name": univ.rector_name if univ else "Joackim Komi BADJOGOUMEY"
-        },
-        "quick_accounts": quick_accounts,
-        "default_password": "unisphere2026"
-    }
-
-
-
-# ==========================================
 # BASCULE D'UNIVERSITÉ (Option B Enseignants Multi-Universités)
 # ==========================================
 @router.post("/switch-university")
@@ -720,10 +685,31 @@ def request_password_reset_otp(
 
     # Envoi email
     from app.utils.email_service import send_otp_email, is_email_configured
-    sent = send_otp_email(user.email, user.full_name, otp_code)
-
     parts = user.email.split("@")
     masked_email = parts[0][0] + "••••" + ("@" + parts[1] if len(parts) > 1 else "")
+
+    if not is_email_configured():
+        return {
+            "status": "warning",
+            "message": f"Service SMTP non configuré dans .env. Code de sécurité pour test : {otp_code}",
+            "channel": "email",
+            "target_masked": masked_email,
+            "identifier": user.email,
+            "dev_otp": otp_code,
+            "smtp_configured": False
+        }
+
+    sent = send_otp_email(user.email, user.full_name, otp_code)
+    if not sent:
+        return {
+            "status": "warning",
+            "message": f"Échec d'envoi SMTP (vérifiez vos identifiants SMTP). Code de secours : {otp_code}",
+            "channel": "email",
+            "target_masked": masked_email,
+            "identifier": user.email,
+            "dev_otp": otp_code,
+            "smtp_configured": True
+        }
 
     return {
         "status": "success",
@@ -731,7 +717,8 @@ def request_password_reset_otp(
         "channel": "email",
         "target_masked": masked_email,
         "identifier": user.email,
-        "dev_otp": otp_code if not is_email_configured() else None
+        "dev_otp": None,
+        "smtp_configured": True
     }
 
 

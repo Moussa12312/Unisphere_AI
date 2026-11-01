@@ -394,7 +394,7 @@ export default function SecretaryGenerateDocumentsPage() {
           <div className="flex items-center gap-3">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
               <div className="text-xs text-slate-400">Établissement</div>
-              <div className="text-sm font-bold text-amber-300">{university?.name || 'ECOB Universitaire'}</div>
+              <div className="text-sm font-bold text-amber-300">{university?.name || 'UniSphere AI'}</div>
             </div>
             <div className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center">
               <div className="text-xs text-slate-400">Année Académique</div>

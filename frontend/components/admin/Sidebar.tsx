@@ -515,7 +515,7 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'DÉMONSTRATION CLIENT',
       items: [
-        { label: 'Univ_Demo (ECOB)', href: '#univ-demo', icon: Sparkles, badge: '8 Rôles' },
+        { label: 'Univ_Demo', href: '#univ-demo', icon: Sparkles, badge: '8 Rôles' },
       ]
     },
     {
@@ -565,7 +565,7 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'DÉMONSTRATION CLIENT',
       items: [
-        { label: 'Univ_Demo (ECOB)', href: '#univ-demo', icon: Sparkles, badge: '8 Rôles' },
+        { label: 'Univ_Demo', href: '#univ-demo', icon: Sparkles, badge: '8 Rôles' },
       ]
     },
     {

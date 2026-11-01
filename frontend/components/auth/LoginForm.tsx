@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { User, LogIn, GraduationCap, ArrowRight, AlertCircle, Phone, MessageCircle } from 'lucide-react';
+import { User, LogIn, GraduationCap, ArrowRight, AlertCircle, Phone, MessageCircle, Smartphone } from 'lucide-react';
 import UniSphereLogo from './UniSphereLogo';
 import PasswordInput from './PasswordInput';
 import api from '@/lib/api';
@@ -67,6 +67,13 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
         const maxAge = rememberMe ? 604800 : 86400; // 7 jours ou 1 jour
         document.cookie = `unisphere_token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
         document.cookie = `unisphere_role=${userData.role}; path=/; max-age=${maxAge}; SameSite=Lax`;
+      }
+
+      if (data.requires_university_selection) {
+        localStorage.setItem('affiliations', JSON.stringify(data.affiliations || []));
+        toast('Veuillez choisir votre établissement de travail pour cette session', { icon: '🏛️' });
+        window.location.href = '/select-university';
+        return;
       }
 
       try {
@@ -286,6 +293,17 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
           >
             Contactez l’administration
           </button>
+        </div>
+
+        {/* Accès Téléchargement APK */}
+        <div className="pt-2 text-center border-t border-slate-100">
+          <Link
+            href="/download"
+            className="text-[11px] text-slate-500 hover:text-[#FF7900] font-medium inline-flex items-center gap-1.5 transition-colors"
+          >
+            <Smartphone size={13} className="text-[#FF7900]" />
+            <span>Télécharger l’Application Mobile (APK Android)</span>
+          </Link>
         </div>
 
       </form>

@@ -66,7 +66,7 @@ interface ColorPreset {
 }
 
 const COLOR_PRESETS: ColorPreset[] = [
-  { id: 'bordeaux', name: 'Bordeaux ECOB', primary: '#6B1426', secondary: '#430814', accent: '#F59E0B', colorClass: 'bg-[#6B1426]' },
+  { id: 'bordeaux', name: 'Bordeaux Prestige', primary: '#6B1426', secondary: '#430814', accent: '#F59E0B', colorClass: 'bg-[#6B1426]' },
   { id: 'bleu', name: 'Bleu Nuit', primary: '#0B192C', secondary: '#1E293B', accent: '#38BDF8', colorClass: 'bg-[#0B192C]' },
   { id: 'emeraude', name: 'Émeraude', primary: '#064E3B', secondary: '#022C22', accent: '#34D399', colorClass: 'bg-[#064E3B]' },
   { id: 'royal', name: 'Noir & Or', primary: '#18181B', secondary: '#09090B', accent: '#EAB308', colorClass: 'bg-[#18181B]' },
@@ -102,7 +102,7 @@ export default function SecretaryStudentCardsPrintPage() {
     logo: string;
     academic_year: string;
   }>({
-    name: 'ECOB',
+    name: 'UniSphere AI',
     logo: '/uploads/logos/university_1_1791668644.png',
     academic_year: '2026-2027'
   });
@@ -134,7 +134,7 @@ export default function SecretaryStudentCardsPrintPage() {
 
       if (resUniv) {
         setUniversityInfo({
-          name: resUniv.name || 'ECOB',
+          name: resUniv.name || 'UniSphere AI',
           logo: resUniv.logo
             ? (resUniv.logo.startsWith('/') || resUniv.logo.startsWith('http') ? resUniv.logo : `/uploads/logos/${resUniv.logo}`)
             : '/uploads/logos/university_1_1791668644.png',

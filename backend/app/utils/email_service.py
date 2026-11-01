@@ -58,10 +58,15 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
         msg.attach(text_part)
         msg.attach(html_part)
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.sendmail(sender_email, to_email, msg.as_string())
+        if SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=12) as server:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.sendmail(sender_email, to_email, msg.as_string())
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=12) as server:
+                server.starttls()
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.sendmail(sender_email, to_email, msg.as_string())
 
         print(f"✅ Email délivré avec succès à {to_email}")
         return True

@@ -663,12 +663,12 @@ def download_csv_template(
         "Nom Parent", "Téléphone Parent", "Email Parent", "Type Inscription", "Plan Paiement"
     ]
     sample1 = [
-        "Traoré", "Moussa", "moussa.traore@ecob.edu.ml", "Génie Logiciel", "L1", "Informatique & Technologies",
+        "Traoré", "Moussa", "moussa.traore@unisphere.edu", "Génie Logiciel", "L1", "Informatique & Technologies",
         "+223 70 00 00 01", "2004-05-15", "Bamako", "M", "Malienne", "Hamdallaye ACI 2000",
         "Mariam Traoré", "+223 60 00 00 01", "mariam.traore@gmail.com", "Nouveau", "Tranches"
     ]
     sample2 = [
-        "Coulibaly", "Fatoumata", "fatoumata.coulibaly@ecob.edu.ml", "Sciences Économiques & Gestion", "L1", "Gestion & Economie",
+        "Coulibaly", "Fatoumata", "fatoumata.coulibaly@unisphere.edu", "Sciences Économiques & Gestion", "L1", "Gestion & Economie",
         "+223 70 00 00 02", "2003-09-20", "Ségou", "F", "Malienne", "Badalabougou",
         "Ousmane Coulibaly", "+223 60 00 00 02", "ousmane.c@gmail.com", "Nouveau", "Mensuel"
     ]
@@ -706,12 +706,12 @@ def download_excel_template(
         "Nom Parent", "Téléphone Parent", "Email Parent", "Type Inscription", "Plan Paiement"
     ]
     sample1 = [
-        "Traoré", "Moussa", "moussa.traore@ecob.edu.ml", "Génie Logiciel", "L1", "Informatique & Technologies",
+        "Traoré", "Moussa", "moussa.traore@unisphere.edu", "Génie Logiciel", "L1", "Informatique & Technologies",
         "+223 70 00 00 01", "2004-05-15", "Bamako", "M", "Malienne", "Hamdallaye ACI 2000",
         "Mariam Traoré", "+223 60 00 00 01", "mariam.traore@gmail.com", "Nouveau", "Tranches"
     ]
     sample2 = [
-        "Coulibaly", "Fatoumata", "fatoumata.coulibaly@ecob.edu.ml", "Sciences Économiques & Gestion", "L1", "Gestion & Economie",
+        "Coulibaly", "Fatoumata", "fatoumata.coulibaly@unisphere.edu", "Sciences Économiques & Gestion", "L1", "Gestion & Economie",
         "+223 70 00 00 02", "2003-09-20", "Ségou", "F", "Malienne", "Badalabougou",
         "Ousmane Coulibaly", "+223 60 00 00 02", "ousmane.c@gmail.com", "Nouveau", "Mensuel"
     ]

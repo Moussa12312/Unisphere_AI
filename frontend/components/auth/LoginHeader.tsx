@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
+import { Smartphone, ShieldCheck } from 'lucide-react';
 import UniSphereLogo from './UniSphereLogo';
 import LoginFeatures from './LoginFeatures';
 
@@ -31,8 +33,8 @@ export default function LoginHeader() {
         </div>
       </div>
 
-      {/* 3. Bas : Slogan calligraphique & trait orange */}
-      <div className="pt-4">
+      {/* 3. Bas : Slogan calligraphique & trait orange + Accès Mobile APK */}
+      <div className="pt-4 flex items-end justify-between gap-4">
         <div className="inline-block">
           <p className="font-serif italic text-2xl sm:text-[26px] text-white tracking-wide select-none drop-shadow-xs">
             Innover • Gérer • Réussir
@@ -52,6 +54,14 @@ export default function LoginHeader() {
             </svg>
           </div>
         </div>
+
+        <Link
+          href="/download"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/20 text-orange-400 hover:text-orange-300 font-bold text-xs transition-colors border border-white/15 backdrop-blur-md shadow-xs shrink-0"
+        >
+          <Smartphone size={15} className="text-[#FF7900]" />
+          <span>Application APK</span>
+        </Link>
       </div>
     </div>
   );

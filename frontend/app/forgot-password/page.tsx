@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   KeyRound, Mail, Lock, Eye, EyeOff, ArrowLeft, ArrowRight,
-  ShieldCheck, Loader2, CheckCircle2, RotateCcw, Sparkles
+  ShieldCheck, Loader2, CheckCircle2, RotateCcw, Sparkles, AlertTriangle
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -20,6 +20,7 @@ export default function ForgotPasswordPage() {
   // Données Étape 1
   const [identifier, setIdentifier] = useState('');
   const [targetMasked, setTargetMasked] = useState('');
+  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   // Données Étape 2
   const [otpCode, setOtpCode] = useState('');
@@ -60,7 +61,18 @@ export default function ForgotPasswordPage() {
       setTargetMasked(masked);
       setStep(2);
       setResendCooldown(60);
-      toast.success(res.data?.message || `Code de sécurité envoyé à ${masked}`);
+
+      if (res.data?.dev_otp) {
+        setDevOtp(res.data.dev_otp);
+        setOtpCode(res.data.dev_otp);
+        toast(`Code de sécurité : ${res.data.dev_otp}`, {
+          icon: '🔑',
+          duration: 12000,
+        });
+      } else {
+        setDevOtp(null);
+        toast.success(res.data?.message || `Code de sécurité envoyé à ${masked}`);
+      }
     } catch (err: any) {
       const msg = err.response?.data?.detail || 'Erreur lors de l’envoi du code OTP.';
       toast.error(msg);
@@ -79,7 +91,17 @@ export default function ForgotPasswordPage() {
         channel: 'email'
       });
       setResendCooldown(60);
-      toast.success('Un nouveau code de sécurité vous a été envoyé.');
+      if (res.data?.dev_otp) {
+        setDevOtp(res.data.dev_otp);
+        setOtpCode(res.data.dev_otp);
+        toast(`Nouveau code généré : ${res.data.dev_otp}`, {
+          icon: '🔑',
+          duration: 12000,
+        });
+      } else {
+        setDevOtp(null);
+        toast.success('Un nouveau code de sécurité vous a été envoyé.');
+      }
     } catch (err: any) {
       const msg = err.response?.data?.detail || 'Échec du renvoi du code.';
       toast.error(msg);
@@ -118,7 +140,6 @@ export default function ForgotPasswordPage() {
 
       const data = res.data;
       if (data?.access_token && data?.user) {
-        // Enregistrer la session
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('role', data.user.role);
@@ -130,7 +151,6 @@ export default function ForgotPasswordPage() {
 
         toast.success('Mot de passe réinitialisé ! Connexion en cours...');
 
-        // Redirection vers le tableau de bord approprié
         const routes: Record<string, string> = {
           admin: '/admin/dashboard',
           secretary: '/secretary/dashboard',
@@ -263,10 +283,27 @@ export default function ForgotPasswordPage() {
             /* ÉTAPE 2 : SAISIE OTP + NOUVEAU MOT DE PASSE               */
             /* ======================================================== */
             <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="bg-emerald-50 border border-emerald-200/60 rounded-2xl p-3 text-xs text-emerald-900 flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                <p>Consultez votre boîte de réception pour saisir le code à 6 chiffres.</p>
-              </div>
+              
+              {/* Alerte si le code temporaire de secours est fourni (SMTP en cours de config) */}
+              {devOtp ? (
+                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 text-xs text-amber-950 space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                    <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+                    <span>Code temporaire généré (Configuration SMTP en cours)</span>
+                  </div>
+                  <p className="text-slate-600 text-[11px] leading-relaxed">
+                    Le serveur SMTP (.env) n'est pas encore activé sur le VPS. Pour vous permettre de tester sans attendre, voici votre code :
+                  </p>
+                  <div className="text-center bg-white border-2 border-dashed border-[#FF7900] py-2 px-3 rounded-xl">
+                    <span className="font-mono text-xl font-black text-[#031B63] tracking-[6px]">{devOtp}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-emerald-50 border border-emerald-200/60 rounded-2xl p-3 text-xs text-emerald-900 flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                  <p>Consultez votre boîte de réception pour saisir le code à 6 chiffres.</p>
+                </div>
+              )}
 
               {/* Code OTP */}
               <div>

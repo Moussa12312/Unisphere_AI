@@ -148,7 +148,7 @@ export default function SuperAdminDashboard() {
             </p>
           </div>
           <span className="text-[11px] bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 self-start sm:self-auto font-mono">
-            Univers Démo : ECOB (ID 1)
+            Université Pilote (ID 1)
           </span>
         </div>
 

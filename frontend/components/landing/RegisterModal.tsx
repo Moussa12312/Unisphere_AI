@@ -198,7 +198,7 @@ export default function RegisterModal({
                       type="text"
                       value={universityName}
                       onChange={(e) => setUniversityName(e.target.value)}
-                      placeholder="ex: ECOB Mali"
+                      placeholder="ex: Université des Sciences & Technologies"
                       className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                       required
                     />

@@ -722,7 +722,7 @@ export default function BulkStudentRegistration({ basePath }: BulkStudentRegistr
                       <td className="py-2.5 px-2">
                         <input
                           type="email"
-                          placeholder="moussa@ecob.edu.ml"
+                          placeholder="moussa@unisphere.edu"
                           value={row.email}
                           onChange={(e) => handleUpdateRow(row.id, 'email', e.target.value)}
                           className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-medium focus:ring-1 focus:ring-[#FF6B00] focus:border-[#FF6B00]"

@@ -35,7 +35,7 @@ const DEMO_ROLES: DemoRoleItem[] = [
     label: 'Direction Générale / Recteur',
     role: 'admin',
     email: 'admin@unisphere.ai',
-    name: 'Direction ECOB',
+    name: 'Direction Générale',
     department: 'Administration Centrale',
     route: '/admin/dashboard',
     color: 'from-blue-600 to-indigo-700',
@@ -180,7 +180,7 @@ export default function UnivDemoModal({ isOpen, onClose }: UnivDemoModalProps) {
       const detail = err.response?.data?.detail || '';
       if (String(detail).toLowerCase().includes('incorrect') || err.response?.status === 401) {
         toast.error(
-          `Le compte ${item.email} n'existe pas encore. Cliquez sur "Initialiser Démo ECOB" ci-dessous.`,
+          `Le compte ${item.email} n'existe pas encore. Cliquez sur "Initialiser Comptes Démo" ci-dessous.`,
           { duration: 6000 }
         );
       } else {
@@ -192,10 +192,10 @@ export default function UnivDemoModal({ isOpen, onClose }: UnivDemoModalProps) {
   const handleSeedEcob = async () => {
     if (isSeeding) return;
     setIsSeeding(true);
-    const toastId = toast.loading('Peuplement des données de démonstration ECOB en cours...');
+    const toastId = toast.loading('Peuplement des comptes de démonstration en cours...');
     try {
       const res = await api.post('/api/v1/superadmin/seed-ecob');
-      toast.success(res.data?.message || 'Données Démo ECOB initialisées avec succès !', { id: toastId });
+      toast.success(res.data?.message || 'Données Démo initialisées avec succès !', { id: toastId });
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.message;
       toast.error(`Échec du peuplement : ${msg}`, { id: toastId });
@@ -212,7 +212,7 @@ export default function UnivDemoModal({ isOpen, onClose }: UnivDemoModalProps) {
         className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* En-tête Institutionnel ECOB */}
+        {/* En-tête Institutionnel UniSphere */}
         <div className="bg-gradient-to-r from-slate-900 via-[#1e1b4b] to-slate-900 text-white px-6 py-5 flex items-center justify-between border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/25">
@@ -221,14 +221,14 @@ export default function UnivDemoModal({ isOpen, onClose }: UnivDemoModalProps) {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-black tracking-tight text-white">
-                  Univ_Demo • Présentation Client ECOB
+                  Univ_Demo • Démonstration Multi-Rôles
                 </h3>
                 <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase">
                   8 Rôles Prêts
                 </span>
               </div>
               <p className="text-xs text-slate-300">
-                Université Pilote ECOB (Hamdallaye ACI 2000, Bamako) • Connexion instantanée en 1 clic
+                Université Pilote UniSphere (Hamdallaye ACI 2000, Bamako) • Connexion instantanée en 1 clic
               </p>
             </div>
           </div>
@@ -266,10 +266,10 @@ export default function UnivDemoModal({ isOpen, onClose }: UnivDemoModalProps) {
               onClick={handleSeedEcob}
               disabled={isSeeding}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 shadow-2xs transition-all disabled:opacity-50 cursor-pointer"
-              title="Générer ou régénérer les données complètes de démonstration pour ECOB"
+              title="Générer ou régénérer les données complètes de démonstration pour l'Université Pilote"
             >
               <RefreshCw size={13} className={isSeeding ? 'animate-spin text-[#FF6B00]' : 'text-slate-500'} />
-              <span>{isSeeding ? 'Initialisation...' : 'Initialiser Démo ECOB'}</span>
+              <span>{isSeeding ? 'Initialisation...' : 'Initialiser Comptes Démo'}</span>
             </button>
           </div>
         </div>

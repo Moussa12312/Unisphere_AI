@@ -125,22 +125,22 @@ def reset_database():
         db.rollback()
         print(f"⚠️ Erreur création Super Admin: {e}")
     
-    # 4. Assurer l'existence exclusive de l'Université ECOB (ID: 1)
+    # 4. Assurer l'existence exclusive de l'Université Pilote (ID: 1)
     try:
         from app.models.university import University
-        ecob = db.query(University).filter(
-            (University.id == 1) | (University.name.ilike("%ecob%"))
+        univ = db.query(University).filter(
+            (University.id == 1) | (University.name.ilike("%unisphere%")) | (University.name.ilike("%ecob%"))
         ).first()
-        if not ecob:
-            ecob = University(
+        if not univ:
+            univ = University(
                 id=1,
-                name="ECOB",
-                email="contact@ecobmali.com",
+                name="Université Pilote UniSphere",
+                email="contact@unisphere-ai.com",
                 phone="+223 70 00 00 00",
-                address="Bamako, Mali",
-                slogan="Excellence & Innovation Académique",
-                website="https://ecobmali.com",
-                established_year="2010",
+                address="Hamdallaye ACI 2000, Bamako, Mali",
+                slogan="Excellence, Innovation & Technologie",
+                website="https://www.unisphere-ai.com",
+                established_year="2020",
                 rector_name="Pr. Moussa Coulibaly",
                 academic_year="2026-2027",
                 is_active=True,
@@ -148,22 +148,22 @@ def reset_database():
                 country="Mali",
                 institution_type="university"
             )
-            db.add(ecob)
+            db.add(univ)
             db.commit()
-            db.refresh(ecob)
-            print(f"🏛️ Université ECOB (ID: {ecob.id}) initialisée avec succès.")
+            db.refresh(univ)
+            print(f"🏛️ Université Pilote UniSphere (ID: {univ.id}) initialisée avec succès.")
         else:
-            ecob.name = "ECOB"
-            ecob.email = ecob.email or "contact@ecobmali.com"
-            ecob.slogan = "Excellence & Innovation Académique"
-            ecob.academic_year = "2026-2027"
-            ecob.is_active = True
-            ecob.status = "active"
+            univ.name = "Université Pilote UniSphere"
+            univ.email = univ.email or "contact@unisphere-ai.com"
+            univ.slogan = "Excellence, Innovation & Technologie"
+            univ.academic_year = "2026-2027"
+            univ.is_active = True
+            univ.status = "active"
             db.commit()
-            print(f"🏛️ Université ECOB (ID: {ecob.id}) confirmée.")
+            print(f"🏛️ Université Pilote UniSphere (ID: {univ.id}) confirmée.")
 
         # Supprimer toute autre université de test
-        other_unis = db.query(University).filter(University.id != ecob.id).all()
+        other_unis = db.query(University).filter(University.id != univ.id).all()
         for u in other_unis:
             db.delete(u)
         if other_unis:
