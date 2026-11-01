@@ -4,11 +4,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Camera, CheckCircle, XCircle, Clock,
   AlertTriangle, X, Volume2, VolumeX,
-  ScanLine, MapPin
+  ScanLine, MapPin, Wifi, WifiOff, RefreshCw
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
+import offlineAttendanceService from '@/services/offlineAttendanceService';
 
 interface GuardScannerModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ interface ScanResult {
   level: string;
   status: 'present' | 'late' | 'absent';
   scan_time: string;
+  is_offline?: boolean;
 }
 
 export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: GuardScannerModalProps) {
@@ -47,6 +49,64 @@ export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: G
   const [manualMatricule, setManualMatricule] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
   const [stats, setStats] = useState({ total: 0, present: 0, late: 0 });
+  const [isOnline, setIsOnline] = useState(true);
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // 📶 Écoute de l'état réseau et préchargement du cache étudiants pour le mode hors-ligne
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    setIsOnline(navigator.onLine);
+    setPendingOfflineCount(offlineAttendanceService.getPendingCount());
+
+    const updateNetwork = () => setIsOnline(navigator.onLine);
+    const updateCount = (e: any) => {
+      setPendingOfflineCount(e.detail?.count ?? offlineAttendanceService.getPendingCount());
+    };
+
+    window.addEventListener('online', updateNetwork);
+    window.addEventListener('offline', updateNetwork);
+    window.addEventListener('unisphere:offline_scans_updated', updateCount);
+
+    // Pré-mise en cache silencieuse des étudiants si en ligne
+    if (navigator.onLine && isOpen) {
+      api.get('/api/v1/students/?limit=300').then((res) => {
+        const list = res.data?.students || res.data || [];
+        if (Array.isArray(list) && list.length > 0) {
+          offlineAttendanceService.cacheStudents(list);
+        }
+      }).catch(() => {});
+    }
+
+    return () => {
+      window.removeEventListener('online', updateNetwork);
+      window.removeEventListener('offline', updateNetwork);
+      window.removeEventListener('unisphere:offline_scans_updated', updateCount);
+    };
+  }, [isOpen]);
+
+  const handleManualSync = async () => {
+    if (!navigator.onLine) {
+      toast.error('Connexion impossible : vous êtes hors ligne.');
+      return;
+    }
+    setIsSyncing(true);
+    const toastId = toast.loading('Synchronisation des scans hors-ligne...');
+    try {
+      const res = await offlineAttendanceService.syncPendingScans();
+      if (res.success) {
+        toast.success(res.message || 'Scans synchronisés !', { id: toastId });
+        onScanComplete?.();
+      } else {
+        toast.error(res.message || 'Échec de la synchronisation', { id: toastId });
+      }
+    } catch (e: any) {
+      toast.error(`Erreur : ${e.message}`, { id: toastId });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // ✅ Cleanup au démontage
   useEffect(() => {
@@ -198,15 +258,51 @@ export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: G
     }
   }, []);
 
-  // ✅ Traitement du scan
+  // ✅ Traitement du scan (avec support Hors-Ligne automatique)
   const handleScan = useCallback(async (qrData: string) => {
     if (loading) return;
     setLoading(true);
     playBeep(true);
     
+    const matricule = qrData.trim();
+    const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+
+    // 1. Si appareil hors-ligne : sauvegarde directe locale
+    if (isOffline) {
+      const offScan = offlineAttendanceService.saveOfflineScan(matricule, 'qr_code');
+      const result: ScanResult = {
+        student_id: 0,
+        student_name: offScan.student_name || `Étudiant (${matricule})`,
+        matricule: matricule,
+        class_name: offScan.class_name || 'Enregistré hors ligne',
+        level: offScan.level || 'LMD',
+        status: 'present',
+        scan_time: offScan.scan_time,
+        is_offline: true
+      };
+
+      if (isMountedRef.current) {
+        setLastScan(result);
+        setScanHistory(prev => [result, ...prev.slice(0, 9)]);
+        setStats(prev => ({
+          total: prev.total + 1,
+          present: prev.present + 1,
+          late: prev.late
+        }));
+      }
+
+      toast.success(`📶 ${result.student_name} - Enregistré Hors Ligne`);
+      if ('vibrate' in navigator) {
+        try { navigator.vibrate([100, 50, 100]); } catch (e) {}
+      }
+      setLoading(false);
+      return;
+    }
+
+    // 2. Si en ligne : tentative d'envoi API standard avec fallback hors-ligne en cas de coupure
     try {
       const response = await api.post('/api/v1/attendance/scan', {
-        matricule: qrData.trim(),
+        matricule: matricule,
         scan_type: 'qr_code'
       });
       
@@ -217,7 +313,8 @@ export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: G
         class_name: response.data.class_name,
         level: response.data.level,
         status: response.data.status,
-        scan_time: response.data.scan_time
+        scan_time: response.data.scan_time,
+        is_offline: false
       };
       
       if (isMountedRef.current) {
@@ -242,10 +339,41 @@ export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: G
         try { navigator.vibrate(result.status === 'present' ? 100 : [100, 50, 100]); } catch (e) {}
       }
     } catch (error: any) {
-      playBeep(false);
-      toast.error(`❌ ${error.response?.data?.detail || 'QR invalide'}`);
-      if ('vibrate' in navigator) {
-        try { navigator.vibrate([200, 100, 200]); } catch (e) {}
+      const isNetworkErr = !error.response || error.code === 'ERR_NETWORK' || [502, 503, 504].includes(error.response?.status);
+      if (isNetworkErr) {
+        // Fallback hors-ligne immédiat
+        const offScan = offlineAttendanceService.saveOfflineScan(matricule, 'qr_code');
+        const result: ScanResult = {
+          student_id: 0,
+          student_name: offScan.student_name || `Étudiant (${matricule})`,
+          matricule: matricule,
+          class_name: offScan.class_name || 'Enregistré hors ligne',
+          level: offScan.level || 'LMD',
+          status: 'present',
+          scan_time: offScan.scan_time,
+          is_offline: true
+        };
+
+        if (isMountedRef.current) {
+          setLastScan(result);
+          setScanHistory(prev => [result, ...prev.slice(0, 9)]);
+          setStats(prev => ({
+            total: prev.total + 1,
+            present: prev.present + 1,
+            late: prev.late
+          }));
+        }
+
+        toast.success(`📶 Connexion perdue : scan conservé hors-ligne pour ${result.student_name}`);
+        if ('vibrate' in navigator) {
+          try { navigator.vibrate([100, 50, 100]); } catch (e) {}
+        }
+      } else {
+        playBeep(false);
+        toast.error(`❌ ${error.response?.data?.detail || 'QR invalide'}`);
+        if ('vibrate' in navigator) {
+          try { navigator.vibrate([200, 100, 200]); } catch (e) {}
+        }
       }
     } finally {
       if (isMountedRef.current) setLoading(false);
@@ -274,7 +402,10 @@ export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: G
     onClose();
   };
 
-  const getStatusConfig = (status: string) => {
+  const getStatusConfig = (status: string, is_offline?: boolean) => {
+    if (is_offline) {
+      return { label: 'Enregistré (Hors Ligne)', color: 'text-amber-700', bg: 'bg-amber-100 border-amber-300' };
+    }
     switch (status) {
       case 'present': return { label: 'Présent', color: 'text-green-600', bg: 'bg-green-100 border-green-200' };
       case 'late': return { label: 'En retard', color: 'text-orange-600', bg: 'bg-orange-100 border-orange-200' };
@@ -292,22 +423,55 @@ export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: G
           <div className="flex items-center gap-3 text-white">
             <ScanLine size={24} />
             <div>
-              <h2 className="text-lg font-bold">Scanner QR Code</h2>
-              <p className="text-xs text-white/80">Enregistrez les présences rapidement</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold">Scanner QR Code</h2>
+                {isOnline ? (
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold">
+                    <Wifi size={11} />
+                    <span>En Ligne</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-300 text-slate-950 text-[10px] font-black animate-pulse">
+                    <WifiOff size={11} />
+                    <span>Hors Ligne</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-white/80">Enregistrez les présences même sans connexion Internet</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className="p-2 bg-white/20 hover:bg-white/30 rounded-lg"
+              className="p-2 bg-white/20 hover:bg-white/30 rounded-lg cursor-pointer"
             >
               {soundEnabled ? <Volume2 size={16} className="text-white" /> : <VolumeX size={16} className="text-white" />}
             </button>
-            <button onClick={handleClose} className="p-2 bg-white/20 hover:bg-white/30 rounded-lg">
+            <button onClick={handleClose} className="p-2 bg-white/20 hover:bg-white/30 rounded-lg cursor-pointer">
               <X size={16} className="text-white" />
             </button>
           </div>
         </div>
+
+        {/* Barre d'alerte / synchronisation hors-ligne */}
+        {pendingOfflineCount > 0 && (
+          <div className="bg-amber-500/15 border-b border-amber-300/40 px-4 py-2.5 flex items-center justify-between text-xs text-amber-950">
+            <div className="flex items-center gap-2 font-medium">
+              <WifiOff size={15} className="text-amber-600 shrink-0" />
+              <span>
+                <strong>{pendingOfflineCount} scan(s)</strong> conservé(s) en mémoire locale.
+              </span>
+            </div>
+            <button
+              onClick={handleManualSync}
+              disabled={isSyncing || !isOnline}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#FF6B00] hover:bg-[#e55f00] text-white font-bold text-xs transition-colors shadow-2xs disabled:opacity-50 cursor-pointer shrink-0"
+            >
+              <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
+              <span>{isSyncing ? 'Synchronisation...' : 'Synchroniser'}</span>
+            </button>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 border-b border-slate-200">
@@ -451,7 +615,7 @@ export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: G
 
           {/* Dernier scan */}
           {lastScan && (
-            <div className={`p-3 rounded-xl border-2 ${getStatusConfig(lastScan.status).bg}`}>
+            <div className={`p-3 rounded-xl border-2 ${getStatusConfig(lastScan.status, lastScan.is_offline).bg}`}>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0">
                   {lastScan.student_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
@@ -465,8 +629,8 @@ export default function GuardScannerModal({ isOpen, onClose, onScanComplete }: G
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`font-bold ${getStatusConfig(lastScan.status).color}`}>
-                    {getStatusConfig(lastScan.status).label}
+                  <p className={`font-bold ${getStatusConfig(lastScan.status, lastScan.is_offline).color}`}>
+                    {getStatusConfig(lastScan.status, lastScan.is_offline).label}
                   </p>
                   <p className="text-xs text-slate-500">
                     {new Date(lastScan.scan_time).toLocaleTimeString('fr-FR', {

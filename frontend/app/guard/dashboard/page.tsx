@@ -10,6 +10,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 import GuardScannerModal from '@/components/guard/GuardScannerModal';
+import offlineAttendanceService from '@/services/offlineAttendanceService';
 
 export default function GuardDashboardPage() {
   const toast = useToast();
@@ -31,12 +32,18 @@ export default function GuardDashboardPage() {
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const [statsRes, scansRes] = await Promise.all([
+      const [statsRes, scansRes, studentsRes] = await Promise.all([
         api.get('/api/v1/attendance/today/stats').catch(() => ({ data: null })),
-        api.get('/api/v1/attendance/recent?limit=5').catch(() => ({ data: [] }))
+        api.get('/api/v1/attendance/recent?limit=5').catch(() => ({ data: [] })),
+        api.get('/api/v1/students/?limit=300').catch(() => ({ data: [] }))
       ]);
       setStats(statsRes.data);
       setRecentScans(Array.isArray(scansRes.data) ? scansRes.data : []);
+
+      const studentList = studentsRes.data?.students || studentsRes.data || [];
+      if (Array.isArray(studentList) && studentList.length > 0) {
+        offlineAttendanceService.cacheStudents(studentList);
+      }
     } catch (error) {
       console.error('Erreur chargement:', error);
     } finally {

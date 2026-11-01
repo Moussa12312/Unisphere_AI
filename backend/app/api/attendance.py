@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta, time
 from sqlalchemy import func
@@ -659,6 +660,151 @@ def scan_qr_code(
         "course_name": course_name,
         "expected_start": schedule.start_time if schedule else None,
         "scan_time": now.isoformat()
+    }
+
+
+# ==========================================
+# 📶 SYNCHRONISATION DES SCANS HORS-LIGNE (BATCH)
+# ==========================================
+
+class OfflineScanItem(BaseModel):
+    matricule: str
+    scan_time: Optional[str] = None
+    method: Optional[str] = "qr_code"
+    offline_id: Optional[str] = None
+
+class OfflineSyncRequest(BaseModel):
+    scans: List[OfflineScanItem]
+
+@router.post("/sync-offline")
+def sync_offline_scans(
+    payload: OfflineSyncRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("guard", "admin", "secretary"))
+):
+    """
+    Synchronise un lot de scans de présence effectués en mode hors-ligne.
+    Préserve l'heure exacte du scan original pour calculer le retard et l'assiduité.
+    Gère les doublons sans bloquer le reste du lot.
+    """
+    if not payload.scans:
+        return {
+            "status": "success",
+            "total": 0,
+            "synchronized_count": 0,
+            "duplicates_count": 0,
+            "errors_count": 0,
+            "synchronized": [],
+            "duplicates": [],
+            "errors": []
+        }
+
+    synced = []
+    duplicates = []
+    errors = []
+
+    for item in payload.scans:
+        raw_matricule = (item.matricule or "").strip()
+        if not raw_matricule:
+            errors.append({"offline_id": item.offline_id, "error": "Matricule vide"})
+            continue
+
+        matricule = extract_matricule(raw_matricule)
+        student = db.query(Student).filter(
+            Student.matricule == matricule,
+            Student.university_id == current_user.university_id
+        ).first()
+
+        if not student:
+            errors.append({
+                "offline_id": item.offline_id,
+                "matricule": matricule,
+                "error": f"Étudiant non trouvé ({matricule})"
+            })
+            continue
+
+        # Horodatage réel du scan d'origine
+        scan_dt = None
+        if item.scan_time:
+            try:
+                clean_time = item.scan_time.replace("Z", "+00:00")
+                scan_dt = datetime.fromisoformat(clean_time)
+                if scan_dt.tzinfo:
+                    scan_dt = scan_dt.astimezone().replace(tzinfo=None)
+            except Exception:
+                scan_dt = datetime.now()
+        else:
+            scan_dt = datetime.now()
+
+        scan_date = scan_dt.date()
+        scan_time = scan_dt.time()
+
+        # Évaluation ponctualité par rapport à l'emploi du temps au moment du scan
+        schedule, is_late, late_minutes = get_current_schedule_for_student(
+            db, student, current_user.university_id, scan_dt
+        )
+        status = "late" if is_late and late_minutes > 0 else "present"
+
+        # Vérification doublon
+        existing_query = db.query(Attendance).filter(
+            Attendance.student_id == student.id,
+            Attendance.date == scan_date,
+            Attendance.university_id == current_user.university_id,
+            Attendance.attendance_type == 'student'
+        )
+        if schedule:
+            existing_query = existing_query.filter(Attendance.schedule_id == schedule.id)
+
+        existing = existing_query.first()
+        if existing:
+            duplicates.append({
+                "offline_id": item.offline_id,
+                "matricule": student.matricule,
+                "student_name": f"{student.first_name} {student.last_name}",
+                "status": "already_recorded"
+            })
+            continue
+
+        attendance = Attendance(
+            student_id=student.id,
+            date=scan_date,
+            check_in_time=scan_time,
+            status=status,
+            method=item.method or "qr_code",
+            attendance_type="student",
+            scanned_by=current_user.id,
+            university_id=current_user.university_id,
+            schedule_id=schedule.id if schedule else None,
+            course_id=schedule.course_id if schedule else None,
+            expected_start_time=schedule.start_time if schedule else None,
+            expected_end_time=schedule.end_time if schedule else None,
+            late_minutes=late_minutes if is_late else 0
+        )
+        db.add(attendance)
+
+        synced.append({
+            "offline_id": item.offline_id,
+            "student_id": student.id,
+            "student_name": f"{student.first_name} {student.last_name}",
+            "matricule": student.matricule,
+            "class_name": student.filiere,
+            "level": student.level,
+            "status": status,
+            "late_minutes": late_minutes if is_late else 0,
+            "scan_time": scan_dt.isoformat()
+        })
+
+    db.commit()
+
+    return {
+        "status": "success",
+        "total": len(payload.scans),
+        "synchronized_count": len(synced),
+        "duplicates_count": len(duplicates),
+        "errors_count": len(errors),
+        "synchronized": synced,
+        "duplicates": duplicates,
+        "errors": errors
     }
 
 

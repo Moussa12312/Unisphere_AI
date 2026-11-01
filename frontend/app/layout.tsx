@@ -5,6 +5,7 @@ import ConfirmProvider from '@/components/ConfirmProvider';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import StartupAnimation from '@/components/StartupAnimation';
 import PushNotificationManager from '@/components/PushNotificationManager';
+import OfflineBanner from '@/components/OfflineBanner';
 
 export const metadata: Metadata = {
   title: "UniSphere AI - Plateforme Universitaire Intelligente",
@@ -39,6 +40,7 @@ export default function RootLayout({
       <body>
         <StartupAnimation />
         <PushNotificationManager />
+        <OfflineBanner />
         <SettingsProvider>
           <ToastProvider>
             <ConfirmProvider>
