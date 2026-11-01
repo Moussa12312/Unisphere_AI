@@ -207,6 +207,36 @@ def ensure_alumni_demo():
     except Exception as e:
         print(f"[STARTUP] Erreur initialisation alumni demo: {e}")
 
+
+@app.on_event("startup")
+async def start_nightly_backup_scheduler():
+    import asyncio
+    from datetime import datetime, timedelta
+
+    async def run_nightly_backup_loop():
+        await asyncio.sleep(15)  # Laisser le temps à l'application de démarrer
+        while True:
+            try:
+                now = datetime.utcnow()
+                target = now.replace(hour=2, minute=0, second=0, microsecond=0)
+                if now >= target:
+                    target += timedelta(days=1)
+                sleep_seconds = max(60.0, (target - now).total_seconds())
+                await asyncio.sleep(sleep_seconds)
+
+                print("[NIGHTLY BACKUP] 🌙 Démarrage de la sauvegarde automatique nocturne (02:00 UTC)...")
+                from app.services.backup_service import perform_automated_backup
+                res = perform_automated_backup(source="nightly_cron_02h")
+                print(f"[NIGHTLY BACKUP] ✅ Sauvegarde réussie : {res.get('filename')} ({res.get('size_mb')} MB)")
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"[NIGHTLY BACKUP] ⚠️ Erreur lors de la sauvegarde nocturne : {e}")
+                await asyncio.sleep(3600)
+
+    asyncio.create_task(run_nightly_backup_loop())
+    print("[STARTUP] 🕒 Scheduler de sauvegarde nocturne automatique (02:00) activé.")
+
 # ============================================
 # CORS
 # ============================================
@@ -342,6 +372,7 @@ rooms_router = try_import_router("app.api.rooms")
 exam_schedules_router = try_import_router("app.api.exam_schedules")
 subscriptions_router = try_import_router("app.api.subscriptions")
 password_reset_router = try_import_router("app.api.password_reset")
+reminders_router = try_import_router("app.api.reminders")
 
 
 # ============================================
@@ -397,6 +428,7 @@ all_routers = {
     "subscriptions": subscriptions_router,
     "password_reset": password_reset_router,
     "academic_year_transition": academic_year_transition_router,
+    "reminders": reminders_router,
 }
 
 registered = []

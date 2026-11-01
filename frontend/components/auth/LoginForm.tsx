@@ -269,9 +269,8 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
           <button
             type="button"
             onClick={handleStudentAccess}
-            className={`w-full py-3 px-6 rounded-2xl bg-white border-2 border-[#031B63] hover:bg-[#031B63]/5 text-[#031B63] font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              isStudentMode ? 'bg-[#031B63] text-white hover:bg-[#031B63]' : ''
-            }`}
+            className={`w-full py-3 px-6 rounded-2xl bg-white border-2 border-[#031B63] hover:bg-[#031B63]/5 text-[#031B63] font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${isStudentMode ? 'bg-[#031B63] text-white hover:bg-[#031B63]' : ''
+              }`}
           >
             <GraduationCap size={18} className={isStudentMode ? 'text-white' : 'text-[#031B63]'} />
             <span>{isStudentMode ? '✓ Mode Étudiant sélectionné' : 'Accès étudiant'}</span>

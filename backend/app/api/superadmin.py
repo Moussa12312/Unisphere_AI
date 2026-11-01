@@ -1451,3 +1451,59 @@ def update_saas_settings(
         db.commit()
 
     return {"message": "Paramètres SaaS enregistrés avec succès", "config": config}
+
+
+# ==========================================
+# 🗄️ SAUVEGARDES CLOUD & BASE DE DONNÉES NOCTURNES
+# ==========================================
+@router.get("/database/backups")
+def get_database_backups(
+    current_user: User = Depends(require_role("super_admin"))
+):
+    from app.services.backup_service import list_backups, BACKUP_DIR
+    backups = list_backups()
+    return {
+        "status": "active",
+        "schedule": "Quotidien automatique à 02:00 UTC",
+        "retention_policy": "Rotation automatique sur 7 jours",
+        "cloud_sync": "Local Chiffré + Prêt Cloud S3/Drive",
+        "backup_directory": str(BACKUP_DIR),
+        "backups": backups
+    }
+
+
+@router.post("/database/trigger-backup")
+def trigger_immediate_backup(
+    current_user: User = Depends(require_role("super_admin"))
+):
+    from app.services.backup_service import perform_automated_backup
+    try:
+        record = perform_automated_backup(source="manual_superadmin", trigger_user_id=current_user.id)
+        return {
+            "status": "success",
+            "message": f"Sauvegarde créée et chiffrée avec succès ({record.get('size_mb')} MB).",
+            "backup": record
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Échec de la sauvegarde : {str(e)}")
+
+
+@router.get("/database/download-backup/{filename}")
+def download_backup_archive(
+    filename: str,
+    current_user: User = Depends(require_role("super_admin"))
+):
+    from fastapi.responses import FileResponse
+    from app.services.backup_service import BACKUP_DIR
+    
+    # Sécurité anti-traversal
+    safe_filename = os.path.basename(filename)
+    file_path = BACKUP_DIR / safe_filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Archive de sauvegarde introuvable")
+        
+    return FileResponse(
+        path=str(file_path),
+        filename=safe_filename,
+        media_type="application/gzip"
+    )
