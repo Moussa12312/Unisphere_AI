@@ -293,3 +293,4 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
     </div>
   );
 }
+
