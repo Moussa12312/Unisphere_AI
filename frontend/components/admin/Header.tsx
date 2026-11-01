@@ -134,7 +134,15 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
       
       try {
         const response = await api.get('/api/v1/notifications/?limit=50');
-        const notifList = response.data || [];
+        const rawList = response.data || [];
+        const isSuperAdmin = user?.role === 'super_admin' || user?.role === 'superadmin';
+        const notifList = rawList.filter((n: any) => {
+          if (isSuperAdmin) return true;
+          if (n.notification_type === 'bug') return false;
+          const title = String(n.title || '').toLowerCase();
+          if (title.includes('bug') || title.includes('crash')) return false;
+          return true;
+        });
         setNotifications(notifList);
 
         if (isInitialNotifRef.current) {

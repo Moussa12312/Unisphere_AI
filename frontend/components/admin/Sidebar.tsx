@@ -12,7 +12,6 @@ import {
   BrainCircuit, UserPlus, Folder, Users2, ScrollText, FileSearch, Scale, Lock, HelpCircle,
   Layers, FileSpreadsheet, Printer, Megaphone, LogOut, X, Sparkles
 } from 'lucide-react';
-import UnivDemoModal from '@/components/admin/UnivDemoModal';
 import { authService } from '@/services/authService';
 import LogoutConfirmModal from '@/components/LogoutConfirmModal';
 import { useRouter } from 'next/navigation';
@@ -42,6 +41,13 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'TABLEAU DE BORD',
       items: [
         { label: 'Vue d\'ensemble', href: '/admin/dashboard', icon: LayoutDashboard },
+      ]
+    },
+
+    {
+      title: 'DÉMONSTRATION CLIENT',
+      items: [
+        { label: 'Univ_Demo', href: '/admin/demo', icon: Sparkles, badge: '8 Rôles' },
       ]
     },
 
@@ -623,7 +629,6 @@ export default function Sidebar({ userRole }: SidebarProps) {
   const { settings } = useSettings();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showUnivDemoModal, setShowUnivDemoModal] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -730,12 +735,13 @@ export default function Sidebar({ userRole }: SidebarProps) {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
 
-                  if (item.href === '/superadmin/demo' || item.href === '#univ-demo') {
+                  if (item.href === '/superadmin/demo' || item.href === '/admin/demo' || item.href === '#univ-demo') {
                     const isDemoActive = pathname === '/superadmin/demo' || pathname === '/admin/demo';
+                    const targetHref = item.href.startsWith('/') ? item.href : '/admin/demo';
                     return (
                       <li key={item.href}>
                         <Link
-                          href="/superadmin/demo"
+                          href={targetHref}
                           className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border font-bold group shadow-xs ${
                             isDemoActive
                               ? 'bg-gradient-to-r from-amber-500 to-[#FF6B00] border-amber-300 text-white shadow-md'
@@ -807,11 +813,6 @@ export default function Sidebar({ userRole }: SidebarProps) {
         onConfirm={confirmLogout}
         userName={currentUser?.full_name || 'Utilisateur'}
         userRole={userRole}
-      />
-
-      <UnivDemoModal
-        isOpen={showUnivDemoModal}
-        onClose={() => setShowUnivDemoModal(false)}
       />
     </>
   );

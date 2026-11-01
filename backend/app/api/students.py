@@ -693,8 +693,18 @@ def download_excel_template(
     current_user: User = Depends(require_role("admin", "secretary"))
 ):
     """Télécharge le modèle officiel Excel (.xlsx) pour l'import d'étudiants"""
+    global HAS_OPENPYXL
     if not HAS_OPENPYXL:
-        raise HTTPException(status_code=500, detail="openpyxl n'est pas disponible sur le serveur")
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, PatternFill, Alignment
+            HAS_OPENPYXL = True
+        except ImportError:
+            pass
+
+    if not HAS_OPENPYXL:
+        # Fallback élégant en CSV compatible Excel si openpyxl n'est pas installé
+        return download_csv_template(current_user=current_user)
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -2615,70 +2625,102 @@ def delete_student(
         except Exception:
             pass
 
-    # 2. Supprimer toutes les dépendances en base de données
-    models_to_clean = [
-        ("app.models.grade", "Grade"),
-        ("app.models.attendance", "Attendance"),
-        ("app.models.payment", "Payment"),
-        ("app.models.document", "Document"),
-        ("app.models.payment_installment", "PaymentInstallment"),
-        ("app.models.deliberation", "DeliberationDecision"),
-        ("app.models.report_card", "ReportCard"),
-        ("app.models.incident", "Incident"),
-        ("app.models.certificate_request", "CertificateRequest"),
-        ("app.models.scan_session", "ScanSession"),
-        ("app.models.student_academic_history", "StudentAcademicHistory"),
-        ("app.models.alumni", "AlumniConnection"),
-        ("app.models.alumni_profile", "AlumniProfile"),
-    ]
-    for mod_path, cls_name in models_to_clean:
-        try:
-            mod = __import__(mod_path, fromlist=[cls_name])
-            cls = getattr(mod, cls_name)
-            if hasattr(cls, "student_id"):
-                db.query(cls).filter(cls.student_id == student_id).delete(synchronize_session=False)
-        except Exception:
-            pass
+    # 2. Supprimer toutes les dépendances en base de données selon l'ordre strict des clés étrangères
+    try:
+        # A. Relations Alumni : supprimer d'abord les messages liés aux connexions
+        from app.models.alumni import AlumniConnection, AlumniMessage
+        from app.models.alumni_profile import AlumniProfile
+        conn_ids = [c.id for c in db.query(AlumniConnection.id).filter(AlumniConnection.student_id == student_id).all()]
+        if conn_ids:
+            db.query(AlumniMessage).filter(AlumniMessage.connection_id.in_(conn_ids)).delete(synchronize_session=False)
+        if user_id:
+            db.query(AlumniMessage).filter((AlumniMessage.sender_id == user_id) | (AlumniMessage.receiver_id == user_id)).delete(synchronize_session=False)
+        db.query(AlumniConnection).filter(AlumniConnection.student_id == student_id).delete(synchronize_session=False)
+        db.query(AlumniProfile).filter((AlumniProfile.student_id == student_id) | (AlumniProfile.user_id == user_id)).delete(synchronize_session=False)
+    except Exception as e:
+        logger.warning(f"Nettoyage alumni pour student {student_id}: {e}")
 
+    try:
+        # B. Paiements : supprimer d'abord les échéances (PaymentInstallment) avant le paiement parent (Payment)
+        from app.models.payment_installment import PaymentInstallment
+        from app.models.payment import Payment
+        db.query(PaymentInstallment).filter(PaymentInstallment.student_id == student_id).delete(synchronize_session=False)
+        db.query(Payment).filter(Payment.student_id == student_id).delete(synchronize_session=False)
+    except Exception as e:
+        logger.warning(f"Nettoyage paiements pour student {student_id}: {e}")
+
+    try:
+        # C. Notes, Délibérations et Bulletins
+        from app.models.grade import Grade
+        from app.models.deliberation import DeliberationDecision
+        from app.models.report_card import ReportCard
+        from app.models.student_academic_history import StudentAcademicHistory
+        db.query(Grade).filter(Grade.student_id == student_id).delete(synchronize_session=False)
+        db.query(DeliberationDecision).filter(DeliberationDecision.student_id == student_id).delete(synchronize_session=False)
+        db.query(ReportCard).filter(ReportCard.student_id == student_id).delete(synchronize_session=False)
+        db.query(StudentAcademicHistory).filter(StudentAcademicHistory.student_id == student_id).delete(synchronize_session=False)
+    except Exception as e:
+        logger.warning(f"Nettoyage académique pour student {student_id}: {e}")
+
+    try:
+        # D. Présences, Scans, Documents et Certificats
+        from app.models.attendance import Attendance
+        from app.models.scan_session import ScanSession
+        from app.models.document import Document
+        from app.models.certificate_request import CertificateRequest
+        db.query(Attendance).filter(Attendance.student_id == student_id).delete(synchronize_session=False)
+        db.query(ScanSession).filter(ScanSession.student_id == student_id).delete(synchronize_session=False)
+        db.query(Document).filter(Document.student_id == student_id).delete(synchronize_session=False)
+        db.query(CertificateRequest).filter(CertificateRequest.student_id == student_id).delete(synchronize_session=False)
+    except Exception as e:
+        logger.warning(f"Nettoyage présences/documents pour student {student_id}: {e}")
+
+    try:
+        # E. Incidents
+        from app.models.incident import Incident
+        db.query(Incident).filter(Incident.student_id == student_id).delete(synchronize_session=False)
+        if user_id:
+            db.query(Incident).filter(Incident.reported_by == user_id).update({Incident.reported_by: current_user.id}, synchronize_session=False)
+    except Exception as e:
+        logger.warning(f"Nettoyage incidents pour student {student_id}: {e}")
+
+    # 3. Supprimer l'étudiant
+    # D'abord détacher user_id pour éviter tout verrouillage circulaire
+    student.user_id = None
+    db.flush()
     db.delete(student)
     db.commit()
 
-    # 3. Supprimer le compte utilisateur associé et ses références si existant
+    # 4. Supprimer le compte utilisateur User s'il existe
     if user_id:
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            try:
-                db.query(Message).filter((Message.sender_id == user_id) | (Message.recipient_id == user_id)).delete(synchronize_session=False)
-            except Exception:
-                pass
-            try:
-                from app.models.notification import Notification
-                db.query(Notification).filter((Notification.recipient_id == user_id) | (Notification.created_by == user_id)).delete(synchronize_session=False)
-            except Exception:
-                pass
-            try:
-                from app.models.password_reset_otp import PasswordResetOtp
-                db.query(PasswordResetOtp).filter(PasswordResetOtp.user_id == user_id).delete(synchronize_session=False)
-            except Exception:
-                pass
-            try:
-                from app.models.password_reset_request import PasswordResetRequest
-                db.query(PasswordResetRequest).filter(PasswordResetRequest.user_id == user_id).delete(synchronize_session=False)
-            except Exception:
-                pass
-            try:
-                from app.models.alumni import AlumniMessage
-                db.query(AlumniMessage).filter((AlumniMessage.sender_id == user_id) | (AlumniMessage.receiver_id == user_id)).delete(synchronize_session=False)
-            except Exception:
-                pass
-            try:
-                from app.models.audit_log import AuditLog
-                db.query(AuditLog).filter(AuditLog.user_id == user_id).update({AuditLog.user_id: None}, synchronize_session=False)
-            except Exception:
-                pass
+        try:
+            from app.models.message import Message
+            from app.models.notification import Notification
+            from app.models.password_reset_otp import PasswordResetOtp
+            from app.models.password_reset_request import PasswordResetRequest
+            from app.models.audit_log import AuditLog
+            from app.models.attendance import Attendance
+            from app.models.document import Document
+            from app.models.payment import Payment
+            from app.models.grade import Grade
 
-            db.delete(user)
-            db.commit()
+            db.query(Message).filter((Message.sender_id == user_id) | (Message.recipient_id == user_id)).delete(synchronize_session=False)
+            db.query(Notification).filter((Notification.recipient_id == user_id) | (Notification.created_by == user_id)).delete(synchronize_session=False)
+            db.query(PasswordResetOtp).filter(PasswordResetOtp.user_id == user_id).delete(synchronize_session=False)
+            db.query(PasswordResetRequest).filter((PasswordResetRequest.user_id == user_id) | (PasswordResetRequest.handled_by == user_id)).delete(synchronize_session=False)
+            db.query(AuditLog).filter(AuditLog.user_id == user_id).update({AuditLog.user_id: None}, synchronize_session=False)
+            db.query(Attendance).filter(Attendance.scanned_by == user_id).update({Attendance.scanned_by: None}, synchronize_session=False)
+            db.query(Document).filter(Document.generated_by == user_id).update({Document.generated_by: None}, synchronize_session=False)
+            db.query(Payment).filter((Payment.paid_by == user_id) | (Payment.created_by == user_id)).update({Payment.paid_by: None, Payment.created_by: None}, synchronize_session=False)
+            db.query(Grade).filter((Grade.graded_by == user_id) | (Grade.validated_by == user_id) | (Grade.rejected_by == user_id)).update({Grade.graded_by: None, Grade.validated_by: None, Grade.rejected_by: None}, synchronize_session=False)
+
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                db.delete(user)
+                db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.warning(f"Avertissement lors de la suppression de l'utilisateur {user_id}: {e}")
         
     return {"message": "Étudiant supprimé avec succès", "id": student_id}
 

@@ -111,8 +111,8 @@ def filter_notifications_by_role(
     # 1. Seul le super_admin peut voir les notifications d'erreurs techniques et de bugs
     query = query.filter(
         Notification.notification_type != "bug",
-        not_(Notification.title.like("🚨 Bug%")),
-        not_(Notification.title.like("%Crash%"))
+        not_(Notification.title.ilike("%bug%")),
+        not_(Notification.title.ilike("%crash%"))
     )
 
     # 2. Filtrage par université

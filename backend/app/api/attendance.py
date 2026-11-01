@@ -338,9 +338,16 @@ def get_today_stats(
 
     is_out_of_term = False
     out_of_term_msg = None
-    if semester_start and semester_start.deadline_date and target_date < semester_start.deadline_date:
-        is_out_of_term = True
-        out_of_term_msg = f"Le Semestre 1 démarre le {semester_start.deadline_date.strftime('%d/%m/%Y')}. Aucun cours dispensé ce jour."
+    if semester_start and semester_start.deadline_date:
+        sem_date = semester_start.deadline_date
+        if isinstance(sem_date, str):
+            try:
+                sem_date = datetime.strptime(sem_date[:10], "%Y-%m-%d").date()
+            except Exception:
+                sem_date = None
+        if sem_date and target_date < sem_date:
+            is_out_of_term = True
+            out_of_term_msg = f"Le Semestre 1 démarre le {sem_date.strftime('%d/%m/%Y')}. Aucun cours dispensé ce jour."
 
     # 2. Vérifier si des cours sont programmés dans l'emploi du temps pour ce jour
     french_days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
