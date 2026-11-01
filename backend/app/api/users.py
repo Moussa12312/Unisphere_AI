@@ -61,31 +61,58 @@ def update_profile(
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
     
-    # Mettre à jour les champs
-    if data.full_name:
-        user.full_name = data.full_name
-    if data.email:
-        # Vérifier si l'email n'est pas déjà utilisé
-        existing = db.query(User).filter(User.email == data.email, User.id != user.id).first()
-        if existing:
-            raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
-        user.email = data.email
-    if data.phone:
-        user.phone = data.phone
+    # 1. Mettre à jour le nom complet
+    if data.full_name is not None and data.full_name.strip():
+        user.full_name = data.full_name.strip()
+        
+    # 2. Mettre à jour l'email avec sécurité et renouvellement de session
+    new_token = None
+    if data.email is not None and data.email.strip():
+        cleaned_email = data.email.strip().lower()
+        if cleaned_email != user.email:
+            existing = db.query(User).filter(User.email == cleaned_email, User.id != user.id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="Cet email est déjà utilisé par un autre compte.")
+            user.email = cleaned_email
+            # Renouveler le token JWT pour ne pas invalider la session courante
+            try:
+                from app.core.security import create_access_token
+                from datetime import timedelta
+                new_token = create_access_token(
+                    data={"sub": user.email, "role": user.role, "id": user.id},
+                    expires_delta=timedelta(days=15)
+                )
+            except Exception as e:
+                print(f"⚠️ Erreur génération token profil: {e}")
+
+    # 3. Mettre à jour le téléphone avec gestion stricte d'unicité et de None
+    if data.phone is not None:
+        cleaned_phone = data.phone.strip() if data.phone.strip() else None
+        if cleaned_phone:
+            existing_phone = db.query(User).filter(User.phone == cleaned_phone, User.id != user.id).first()
+            if existing_phone:
+                raise HTTPException(status_code=400, detail="Ce numéro de téléphone est déjà associé à un autre compte.")
+            user.phone = cleaned_phone
+        else:
+            user.phone = None
     
     db.commit()
     db.refresh(user)
     
-    return {
+    res = {
         "message": "Profil mis à jour avec succès",
         "user": {
             "id": user.id,
             "full_name": user.full_name,
             "email": user.email,
-            "phone": user.phone,
-            "role": user.role
+            "phone": user.phone or "",
+            "role": user.role,
+            "photo": user.photo or ""
         }
     }
+    if new_token:
+        res["access_token"] = new_token
+    return res
 
 
 @router.post("/profile/photo")

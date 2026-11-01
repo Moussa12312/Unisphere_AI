@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LandingHeader from '@/components/landing/LandingHeader';
@@ -17,6 +17,41 @@ export default function HomePage() {
   const router = useRouter();
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('etablissement');
+
+  // ✅ PERSISTANCE WHATSAPP : Redirection automatique directe vers le Dashboard pour l'utilisateur déjà connecté
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        const role = (user.role || '').toLowerCase();
+        const roleMap: Record<string, string> = {
+          super_admin: 'superadmin',
+          superadmin: 'superadmin',
+          admin: 'admin',
+          censeur: 'censeur',
+          censor: 'censeur',
+          teacher: 'teacher',
+          enseignant: 'teacher',
+          secretary: 'secretary',
+          secretaire: 'secretary',
+          accountant: 'accountant',
+          comptable: 'accountant',
+          guard: 'guard',
+          gardien: 'guard',
+          student: 'student',
+          etudiant: 'student',
+          alumni: 'alumni',
+        };
+        const dest = roleMap[role] || 'admin';
+        router.replace(`/${dest}/dashboard`);
+      } catch {
+        // Ignorer si parse invalide
+      }
+    }
+  }, [router]);
 
   const handleOpenLogin = () => {
     router.push('/login');
@@ -117,6 +152,14 @@ export default function HomePage() {
       <FooterSection
         onOpenLogin={handleOpenLogin}
         onOpenRegister={handleOpenRegister}
+      />
+
+      {/* 6. MODALE D'INSCRIPTION & ESSAI GRATUIT DÉDIÉ */}
+      <RegisterModal
+        isOpen={registerModalOpen}
+        initialPlan={selectedPlan}
+        onClose={() => setRegisterModalOpen(false)}
+        onSwitchToLogin={handleOpenLogin}
       />
 
     </div>

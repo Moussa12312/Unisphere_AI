@@ -154,6 +154,12 @@ export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Set
         phone: profile.phone.trim(),
       });
 
+      // Mettre à jour le jeton si l'email a changé
+      if (res.data?.access_token && typeof window !== 'undefined') {
+        localStorage.setItem('token', res.data.access_token);
+        document.cookie = `unisphere_token=${res.data.access_token}; path=/; max-age=1296000; SameSite=Lax`;
+      }
+
       // Mettre à jour l'utilisateur local
       if (typeof window !== 'undefined') {
         const localUser = localStorage.getItem('user');

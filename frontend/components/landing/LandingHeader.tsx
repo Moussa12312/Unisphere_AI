@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, X, ArrowRight, LogIn, Sparkles, GraduationCap } from 'lucide-react';
+import { Menu, X, ArrowRight, LogIn, Sparkles, GraduationCap, LayoutDashboard } from 'lucide-react';
 
 interface LandingHeaderProps {
   onOpenLogin: () => void;
@@ -12,6 +12,39 @@ interface LandingHeaderProps {
 
 export default function LandingHeader({ onOpenLogin, onOpenRegister }: LandingHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const u = localStorage.getItem('user');
+      const t = localStorage.getItem('token');
+      if (u && t) setCurrentUser(JSON.parse(u));
+    } catch {}
+  }, []);
+
+  const getDashboardRoute = () => {
+    if (!currentUser) return '/login';
+    const role = (currentUser.role || '').toLowerCase();
+    const roleMap: Record<string, string> = {
+      super_admin: 'superadmin',
+      superadmin: 'superadmin',
+      admin: 'admin',
+      censeur: 'censeur',
+      censor: 'censeur',
+      teacher: 'teacher',
+      enseignant: 'teacher',
+      secretary: 'secretary',
+      secretaire: 'secretary',
+      accountant: 'accountant',
+      comptable: 'accountant',
+      guard: 'guard',
+      gardien: 'guard',
+      student: 'student',
+      etudiant: 'student',
+      alumni: 'alumni',
+    };
+    return `/${roleMap[role] || 'admin'}/dashboard`;
+  };
 
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false);
@@ -95,17 +128,27 @@ export default function LandingHeader({ onOpenLogin, onOpenRegister }: LandingHe
 
         {/* Actions à Droite (Desktop) */}
         <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all active:scale-95 shadow-2xs"
-          >
-            <LogIn size={16} className="text-slate-500" />
-            Se connecter
-          </Link>
+          {currentUser ? (
+            <Link
+              href={getDashboardRoute()}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-md transition-all active:scale-95"
+            >
+              <LayoutDashboard size={16} className="text-[#FF6B00]" />
+              <span>Accéder à mon espace</span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all active:scale-95 shadow-2xs"
+            >
+              <LogIn size={16} className="text-slate-500" />
+              Se connecter
+            </Link>
+          )}
 
           <button
             onClick={() => onOpenRegister()}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25 transition-all hover:shadow-lg active:scale-95"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25 transition-all hover:shadow-lg active:scale-95 cursor-pointer"
           >
             <span>Créer un compte</span>
             <ArrowRight size={16} />
@@ -114,13 +157,24 @@ export default function LandingHeader({ onOpenLogin, onOpenRegister }: LandingHe
 
         {/* Bouton Hamburger Mobile */}
         <div className="flex md:hidden items-center gap-2">
-          <Link
-            href="/login"
-            className="p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-sm font-bold flex items-center gap-1 border border-slate-200"
-            title="Connexion"
-          >
-            <LogIn size={18} className="text-[#FF6B00]" />
-          </Link>
+          {currentUser ? (
+            <Link
+              href={getDashboardRoute()}
+              className="p-2 text-white bg-slate-900 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"
+              title="Mon Espace"
+            >
+              <LayoutDashboard size={16} className="text-[#FF6B00]" />
+              <span>Espace</span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="p-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-sm font-bold flex items-center gap-1 border border-slate-200"
+              title="Connexion"
+            >
+              <LogIn size={18} className="text-[#FF6B00]" />
+            </Link>
+          )}
 
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

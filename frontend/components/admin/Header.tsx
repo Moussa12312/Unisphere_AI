@@ -731,7 +731,7 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
                   </div>
                   <div className="py-1">
                     <Link 
-                      href={`/${user?.role}/profile`} 
+                      href={`/${rolePath}/profile`} 
                       className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
                       onClick={() => setShowProfileMenu(false)}
                     >
@@ -739,7 +739,7 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
                       Mon profil
                     </Link>
                     <Link 
-                      href={`/${user?.role}/settings`} 
+                      href={`/${rolePath}/settings`} 
                       className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
                       onClick={() => setShowProfileMenu(false)}
                     >

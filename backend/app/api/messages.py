@@ -45,11 +45,12 @@ def send_message(
     if not subject or not content:
         raise HTTPException(status_code=400, detail="Sujet et contenu requis")
     
+    recipient = None
     if recipient_id:
-        recipient = db.query(User).filter(
-            User.id == recipient_id,
-            User.university_id == current_user.university_id
-        ).first()
+        rec_q = db.query(User).filter(User.id == recipient_id)
+        if current_user.role not in ["super_admin", "superadmin"] and current_user.university_id:
+            rec_q = rec_q.filter(User.university_id == current_user.university_id)
+        recipient = rec_q.first()
         if not recipient:
             raise HTTPException(status_code=404, detail="Destinataire non trouvé")
     
@@ -58,6 +59,7 @@ def send_message(
         if not parent:
             raise HTTPException(status_code=404, detail="Message parent non trouvé")
     
+    target_univ_id = current_user.university_id or (recipient.university_id if recipient else 1) or 1
     new_message = Message(
         sender_id=current_user.id,
         recipient_id=recipient_id,
@@ -65,7 +67,7 @@ def send_message(
         content=content,
         message_type=message_type,
         parent_id=parent_id,
-        university_id=current_user.university_id
+        university_id=target_univ_id
     )
     
     # ✅ Support des pièces jointes si les colonnes existent
@@ -118,9 +120,10 @@ def get_inbox(
 ):
     query = db.query(Message).filter(
         Message.recipient_id == current_user.id,
-        Message.is_deleted_recipient == False,
-        Message.university_id == current_user.university_id
+        Message.is_deleted_recipient == False
     )
+    if current_user.role not in ["super_admin", "superadmin"] and current_user.university_id:
+        query = query.filter(Message.university_id == current_user.university_id)
     
     if unread_only:
         query = query.filter(Message.is_read == False)
@@ -181,9 +184,11 @@ def get_sent_messages(
 ):
     query = db.query(Message).filter(
         Message.sender_id == current_user.id,
-        Message.is_deleted_sender == False,
-        Message.university_id == current_user.university_id
-    ).order_by(Message.created_at.desc())
+        Message.is_deleted_sender == False
+    )
+    if current_user.role not in ["super_admin", "superadmin"] and current_user.university_id:
+        query = query.filter(Message.university_id == current_user.university_id)
+    query = query.order_by(Message.created_at.desc())
     
     total = query.count()
     messages = query.offset((page - 1) * per_page).limit(per_page).all()
@@ -232,15 +237,17 @@ def get_sent_messages(
 @router.get("/unread")
 def get_unread_count(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "censeur", "accountant", "guard", "teacher", "student", "alumni"))
+    current_user: User = Depends(require_role(*ALL_ROLES))
 ):
     """Retourne le nombre de messages non lus pour l'utilisateur connecté"""
-    unread_count = db.query(func.count(Message.id)).filter(
+    query = db.query(func.count(Message.id)).filter(
         Message.recipient_id == current_user.id,
         Message.is_read == False,
-        Message.is_deleted_recipient == False,
-        Message.university_id == current_user.university_id
-    ).scalar() or 0
+        Message.is_deleted_recipient == False
+    )
+    if current_user.role not in ["super_admin", "superadmin"] and current_user.university_id:
+        query = query.filter(Message.university_id == current_user.university_id)
+    unread_count = query.scalar() or 0
     
     return {"unread_count": unread_count}
 
@@ -380,10 +387,10 @@ def get_users_for_messaging(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(*ALL_ROLES))
 ):
-    users = db.query(User).filter(
-        User.university_id == current_user.university_id,
-        User.id != current_user.id
-    ).order_by(User.role, User.full_name).all()
+    query = db.query(User).filter(User.id != current_user.id)
+    if current_user.role not in ["super_admin", "superadmin"] and current_user.university_id:
+        query = query.filter(User.university_id == current_user.university_id)
+    users = query.order_by(User.role, User.full_name).all()
     
     return [
         {

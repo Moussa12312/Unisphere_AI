@@ -64,7 +64,8 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
       localStorage.setItem('role', userData.role);
 
       if (typeof document !== 'undefined') {
-        const maxAge = rememberMe ? 604800 : 86400; // 7 jours ou 1 jour
+        // ✅ Session persistante style WhatsApp : 15 jours par défaut (1 296 000 s), 30 jours si se souvenir
+        const maxAge = rememberMe ? 2592000 : 1296000;
         document.cookie = `unisphere_token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
         document.cookie = `unisphere_role=${userData.role}; path=/; max-age=${maxAge}; SameSite=Lax`;
       }

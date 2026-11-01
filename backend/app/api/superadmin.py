@@ -1382,7 +1382,7 @@ def seed_ecob_data(
 
 
 # ==========================================
-# ⚙️ PARAMÈTRES GÉNÉRAUX DU SAAS (PERSISTANCE BDD)
+# ⚙️ PARAMÈTRES GÉNÉRAUX DU SAAS (PERSISTANCE BDD & FICHIER)
 # ==========================================
 @router.get("/settings")
 def get_saas_settings(
@@ -1402,10 +1402,25 @@ def get_saas_settings(
         "autoReportCrashes": True,
         "auditRetentionDays": 90
     }
+    
+    # 1. Vérifier la sauvegarde fichier locale si présente
+    backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    config_file = os.path.join(backend_root, "saas_platform_config.json")
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, "r", encoding="utf-8") as f:
+                file_cfg = json.load(f)
+                if isinstance(file_cfg, dict):
+                    default_config.update(file_cfg)
+        except Exception:
+            pass
+
+    # 2. Vérifier la configuration en base de données
     if univ and univ.card_config and isinstance(univ.card_config, dict):
         saved = univ.card_config.get("saas_platform_config")
         if saved and isinstance(saved, dict):
             default_config.update(saved)
+            
     return default_config
 
 
@@ -1415,12 +1430,24 @@ def update_saas_settings(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("super_admin"))
 ):
-    univ = db.query(University).filter(University.id == 1).first() or db.query(University).first()
-    if not univ:
-        raise HTTPException(status_code=404, detail="Université introuvable")
+    from sqlalchemy.orm.attributes import flag_modified
 
-    current_card_config = dict(univ.card_config or {})
-    current_card_config["saas_platform_config"] = config
-    univ.card_config = current_card_config
-    db.commit()
-    return {"message": "Paramètres SaaS enregistrés en base de données avec succès", "config": config}
+    # 1. Sauvegarder dans le fichier saas_platform_config.json (garantie de persistance)
+    backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    config_file = os.path.join(backend_root, "saas_platform_config.json")
+    try:
+        with open(config_file, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️ Erreur sauvegarde saas_platform_config.json: {e}")
+
+    # 2. Sauvegarder en base de données avec flag_modified
+    univ = db.query(University).filter(University.id == 1).first() or db.query(University).first()
+    if univ:
+        current_card_config = dict(univ.card_config or {})
+        current_card_config["saas_platform_config"] = config
+        univ.card_config = current_card_config
+        flag_modified(univ, "card_config")
+        db.commit()
+
+    return {"message": "Paramètres SaaS enregistrés avec succès", "config": config}

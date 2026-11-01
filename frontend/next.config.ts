@@ -70,6 +70,11 @@ const nextConfig: NextConfig = {
         destination: '/login',
         permanent: true,
       },
+      {
+        source: '/super_admin/:path*',
+        destination: '/superadmin/:path*',
+        permanent: true,
+      },
     ];
   },
   async headers() {
