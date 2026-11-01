@@ -199,7 +199,7 @@ export default function AlumniDashboardPage() {
                     href={`/alumni/students/${conn.student?.id}`}
                     className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
                   >
-                    Voir profil
+                    Voir étudiant
                   </Link>
                   <Link
                     href={`/alumni/messages?to=${conn.student?.user_id}`}

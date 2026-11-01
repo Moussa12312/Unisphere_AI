@@ -14,3 +14,4 @@ class PasswordResetOTP(Base):
     is_used = Column(Boolean, default=False)
     channel = Column(String(50), default="email")                 # "email", "sms", "whatsapp"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+

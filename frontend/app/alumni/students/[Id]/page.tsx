@@ -1,11 +1,12 @@
 'use client';
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, GraduationCap, BookOpen, TrendingUp, Calendar,
-  Award, MessageSquare, Loader2, FileText, Download,
-  CheckCircle, AlertCircle, Clock, User
+  Award, MessageSquare, Loader2, FileText, CheckCircle, AlertCircle, RotateCcw
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -13,22 +14,32 @@ import { toast } from 'react-hot-toast';
 export default function AlumniStudentDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const studentId = params.id;
+  const studentId = params?.id;
 
   const [studentData, setStudentData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    loadStudentData();
+    if (studentId) {
+      loadStudentData();
+    }
   }, [studentId]);
 
   const loadStudentData = async () => {
+    setLoading(true);
+    setErrorMessage(null);
     try {
       const res = await api.get(`/api/v1/alumni/student/${studentId}`);
-      setStudentData(res.data);
+      if (res.data) {
+        setStudentData(res.data);
+      } else {
+        throw new Error('Données étudiant non reçues');
+      }
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erreur de chargement');
-      router.push('/alumni/students');
+      const msg = error.response?.data?.detail || 'Impossible de charger le profil de cet étudiant';
+      setErrorMessage(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -36,15 +47,50 @@ export default function AlumniStudentDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <Loader2 size={40} className="animate-spin text-[#FF6B00]" />
+        <p className="text-slate-500 text-xs sm:text-sm font-medium">Chargement du profil étudiant...</p>
       </div>
     );
   }
 
-  if (!studentData) return null;
+  if (errorMessage || !studentData) {
+    return (
+      <div className="p-4 sm:p-6 max-w-2xl mx-auto my-12">
+        <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 text-center shadow-sm space-y-4">
+          <div className="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+            <AlertCircle size={28} />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">Accès au profil étudiant</h2>
+          <p className="text-sm text-slate-600 max-w-md mx-auto">
+            {errorMessage || "Le profil de cet étudiant n'est pas accessible."}
+          </p>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={loadStudentData}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-semibold transition-colors"
+            >
+              <RotateCcw size={15} />
+              <span>Réessayer</span>
+            </button>
+            <Link
+              href="/alumni/students"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-orange-600 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-md shadow-orange-500/20"
+            >
+              <ArrowLeft size={15} />
+              <span>Retour à mes étudiants</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const { student, average, grades, attendance, connection_type } = studentData;
+  const student = studentData.student || {};
+  const average = Number(studentData.average) || 0;
+  const grades = Array.isArray(studentData.grades) ? studentData.grades : [];
+  const attendance = studentData.attendance || { total: 0, present: 0, absent: 0, late: 0, excused: 0 };
+  const connection_type = studentData.connection_type || 'mentor';
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
@@ -72,14 +118,16 @@ export default function AlumniStudentDetailPage() {
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
                   {student.first_name} {student.last_name}
                 </h1>
-                <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full border border-orange-200">
-                  {student.matricule}
-                </span>
+                {student.matricule && (
+                  <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full border border-orange-200">
+                    {student.matricule}
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs sm:text-sm text-slate-600">
                 <span className="flex items-center gap-1">
                   <GraduationCap size={15} className="text-slate-400" />
-                  {student.level} - {student.filiere}
+                  {student.level || 'Étudiant'} {student.filiere ? `- ${student.filiere}` : ''}
                 </span>
                 <span className="flex items-center gap-1">
                   <Award size={15} className="text-slate-400" />

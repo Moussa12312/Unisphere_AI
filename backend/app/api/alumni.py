@@ -1032,28 +1032,42 @@ def get_student_data(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("alumni"))
 ):
-    """Données complètes d'un étudiant mentoré"""
-    # Vérifier que l'alumni est bien mentor de cet étudiant
+    """Données complètes d'un étudiant mentoré ou demandeur"""
     alumni = db.query(AlumniProfile).filter(
         AlumniProfile.user_id == current_user.id
     ).first()
 
     if not alumni:
-        raise HTTPException(status_code=404, detail="Profil alumni non trouvé")
-
-    connection = db.query(AlumniConnection).filter(
-        AlumniConnection.alumni_id == alumni.id,
-        AlumniConnection.student_id == student_id,
-        AlumniConnection.status == "accepted"
-    ).first()
-
-    if not connection:
-        raise HTTPException(status_code=403, detail="Vous n'êtes pas connecté à cet étudiant")
+        names = (current_user.full_name or "Alumni").split(" ", 1)
+        alumni = AlumniProfile(
+            user_id=current_user.id,
+            university_id=current_user.university_id or 1,
+            first_name=names[0],
+            last_name=names[1] if len(names) > 1 else "",
+            email=current_user.email,
+            phone=current_user.phone,
+            status="active",
+            is_visible=True,
+            is_verified=True,
+            accepted_conditions=True
+        )
+        db.add(alumni)
+        db.commit()
+        db.refresh(alumni)
 
     # Récupérer les données de l'étudiant
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
+
+    # Sécurité multi-tenant : même établissement
+    if alumni.university_id and student.university_id and student.university_id != alumni.university_id:
+        raise HTTPException(status_code=403, detail="Vous n'avez pas accès aux étudiants d'autres universités.")
+
+    connection = db.query(AlumniConnection).filter(
+        AlumniConnection.alumni_id == alumni.id,
+        AlumniConnection.student_id == student_id
+    ).first()
 
     # Notes
     grades = db.query(Grade).filter(
@@ -1068,12 +1082,17 @@ def get_student_data(
         cc_val = getattr(grade, 'cc_score', None) if getattr(grade, 'cc_score', None) is not None else getattr(grade, 'cc_note', None)
         exam_val = getattr(grade, 'exam_score', None) if getattr(grade, 'exam_score', None) is not None else getattr(grade, 'exam_note', None)
         final_val = getattr(grade, 'score', None) if getattr(grade, 'score', None) is not None else getattr(grade, 'final_note', None)
+        
+        session_name = "Session normale"
+        if getattr(grade, 'session', None):
+            session_name = getattr(grade.session, 'name', None) or "Session normale"
+
         grades_data.append({
-            "course_name": course_name,
-            "cc_note": cc_val,
-            "exam_note": exam_val,
-            "final_note": final_val,
-            "session": getattr(grade, "session", None) or "Session normale"
+            "course_name": str(course_name),
+            "cc_note": float(cc_val) if cc_val is not None else None,
+            "exam_note": float(exam_val) if exam_val is not None else None,
+            "final_note": float(final_val) if final_val is not None else None,
+            "session": str(session_name)
         })
 
     # Présences
@@ -1108,8 +1127,8 @@ def get_student_data(
         "average": round(average, 2),
         "grades": grades_data,
         "attendance": attendance_stats,
-        "connection_type": connection.connection_type,
-        "since": connection.accepted_at.isoformat() if connection.accepted_at else None
+        "connection_type": connection.connection_type if connection else "mentor",
+        "since": connection.accepted_at.isoformat() if connection and connection.accepted_at else None
     }
 
 

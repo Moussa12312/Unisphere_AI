@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
-  Bell, CheckCircle, XCircle, Clock, Users, GraduationCap,
+  Bell, CheckCircle, XCircle, Eye, Clock, Users, GraduationCap,
   Loader2, MessageSquare
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -120,6 +121,13 @@ export default function AlumniRequestsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto self-end sm:self-center shrink-0">
+                  <Link
+                    href={`/alumni/students/${req.student?.id}`}
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-semibold transition-all border border-slate-200"
+                  >
+                    <Eye size={15} />
+                    <span>Voir étudiant</span>
+                  </Link>
                   <button
                     onClick={() => handleAccept(req.id)}
                     disabled={processingId === req.id}

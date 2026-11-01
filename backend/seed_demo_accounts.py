@@ -21,7 +21,7 @@ from app.models.user import User
 from app.models.censor import Censor
 from app.models.teacher import Teacher
 from app.models.student import Student
-from app.models.alumni import AlumniProfile
+from app.models.alumni import AlumniProfile, AlumniConnection
 from app.models.filiere import Filiere
 from app.models.teaching_unit import TeachingUnit
 from app.models.course import Course
@@ -424,6 +424,24 @@ def seed_demo_accounts(db=None):
                 )
                 db.add(alumni)
                 db.commit()
+                db.refresh(alumni)
+
+            if student:
+                conn_demo = db.query(AlumniConnection).filter(
+                    AlumniConnection.alumni_id == alumni.id,
+                    AlumniConnection.student_id == student.id
+                ).first()
+                if not conn_demo:
+                    conn_demo = AlumniConnection(
+                        alumni_id=alumni.id,
+                        student_id=student.id,
+                        connection_type="mentor",
+                        status="accepted",
+                        message="Mentorat académique et accompagnement professionnel GLSI",
+                        accepted_at=datetime.utcnow()
+                    )
+                    db.add(conn_demo)
+                    db.commit()
 
         print("✨ [ECOB DEMO] Tous les 8 comptes de démonstration et leurs profils sont prêts et fonctionnels !")
         return {
