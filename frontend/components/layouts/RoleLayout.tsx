@@ -195,8 +195,8 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
       {/* Navigation Mobile en bas d'écran (Écrans < 768px) */}
       <MobileBottomNav userRole={user.role} />
 
-      {/* Bouton flottant IA - Masqué à l'impression */}
-      {!isAIPage && (
+      {/* Bouton flottant IA - Masqué à l'impression et exclu du rôle superadmin */}
+      {!isAIPage && user.role !== 'super_admin' && user.role !== 'superadmin' && (
         <div className="print:hidden">
           <FloatingAIButton />
         </div>

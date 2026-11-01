@@ -783,8 +783,10 @@ def report_client_incident(
             title=f"🚨 Bug signalé : {data.error_message[:60]}",
             message=f"{user_name} ({user_role}) sur {university_name} a rencontré un problème sur {data.url}.",
             type="error",
+            notification_type="bug",
+            target_roles=["super_admin"],
             recipient_id=sa.id,
-            university_id=university_id,
+            university_id=None,
             is_read=False
         )
         db.add(notif)
@@ -1377,3 +1379,48 @@ def seed_ecob_data(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Échec de l'initialisation ECOB : {str(e)}")
+
+
+# ==========================================
+# ⚙️ PARAMÈTRES GÉNÉRAUX DU SAAS (PERSISTANCE BDD)
+# ==========================================
+@router.get("/settings")
+def get_saas_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin"))
+):
+    univ = db.query(University).filter(University.id == 1).first() or db.query(University).first()
+    default_config = {
+        "platformName": "UniSphere AI Platform",
+        "supportEmail": "support@unisphere.ai",
+        "supportPhone": "+223 70 00 00 00",
+        "defaultCurrency": "FCFA",
+        "maintenanceIntervalMonths": 6,
+        "invoiceGracePeriodDays": 15,
+        "autoSuspendOverdueDays": 45,
+        "diskWarningThreshold": 85,
+        "autoReportCrashes": True,
+        "auditRetentionDays": 90
+    }
+    if univ and univ.card_config and isinstance(univ.card_config, dict):
+        saved = univ.card_config.get("saas_platform_config")
+        if saved and isinstance(saved, dict):
+            default_config.update(saved)
+    return default_config
+
+
+@router.put("/settings")
+def update_saas_settings(
+    config: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin"))
+):
+    univ = db.query(University).filter(University.id == 1).first() or db.query(University).first()
+    if not univ:
+        raise HTTPException(status_code=404, detail="Université introuvable")
+
+    current_card_config = dict(univ.card_config or {})
+    current_card_config["saas_platform_config"] = config
+    univ.card_config = current_card_config
+    db.commit()
+    return {"message": "Paramètres SaaS enregistrés en base de données avec succès", "config": config}

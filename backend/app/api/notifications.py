@@ -16,7 +16,7 @@ AUCUNE notification système sans cible n'est visible par les non-admins.
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, and_, cast, String, desc
+from sqlalchemy import func, or_, and_, not_, cast, String, desc
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 from pydantic import BaseModel
@@ -89,20 +89,17 @@ def filter_notifications_by_role(
     audit_university_id: int = None
 ):
     if user_role in ["super_admin", "superadmin"]:
-        # Si le Super Admin demande explicitement à auditer une université précise
         if audit_university_id:
             return query.filter(Notification.university_id == audit_university_id)
 
-        # Par défaut : le Super Admin voit uniquement les notifications qui le concernent directement :
-        # 1. Ses alertes personnelles (ex: crashs/bugs système générés par superadmin.py, messages directs)
-        # 2. Notifications ciblant explicitement le rôle super_admin
-        # 3. Notifications globales de la plateforme (sans établissement rattaché)
         role_pattern_1 = '%"super_admin"%'
         role_pattern_2 = '%"superadmin"%'
         role_pattern_all = '%"all"%'
         return query.filter(
             or_(
                 Notification.recipient_id == user_id,
+                Notification.notification_type == "bug",
+                Notification.title.like("🚨 Bug%"),
                 cast(Notification.target_roles, String).like(role_pattern_1),
                 cast(Notification.target_roles, String).like(role_pattern_2),
                 cast(Notification.target_roles, String).like(role_pattern_all),
@@ -110,17 +107,36 @@ def filter_notifications_by_role(
             )
         )
 
-    if user_role == "admin":
-        return query.filter(or_(Notification.university_id == university_id, Notification.university_id == None))
-    
-    role_pattern = f'%"{user_role}"%'
-    univ_filter = or_(Notification.university_id == university_id, Notification.university_id == None)
-    role_or_personal = or_(
-        Notification.recipient_id == user_id,
-        cast(Notification.target_roles, String).like(role_pattern),
-        cast(Notification.target_roles, String).like('%"all"%')
+    # 🛑 SÉCURITÉ ABSOLUE POUR TOUS LES AUTRES RÔLES (admin, teacher, student, etc.) :
+    # 1. Seul le super_admin peut voir les notifications d'erreurs techniques et de bugs
+    query = query.filter(
+        Notification.notification_type != "bug",
+        not_(Notification.title.like("🚨 Bug%")),
+        not_(Notification.title.like("%Crash%"))
     )
-    return query.filter(and_(univ_filter, role_or_personal))
+
+    # 2. Filtrage par université
+    if university_id:
+        univ_cond = or_(Notification.university_id == university_id, Notification.university_id == None)
+    else:
+        univ_cond = (Notification.university_id == None)
+
+    # 3. Filtrage par destinataire :
+    # - Soit la notification est spécifiquement adressée à cet utilisateur (recipient_id == user_id)
+    # - Soit c'est une notification de groupe destinée à son rôle (recipient_id est None ET target_roles contient son rôle ou 'all')
+    role_pattern = f'%"{user_role}"%'
+    target_cond = or_(
+        Notification.recipient_id == user_id,
+        and_(
+            Notification.recipient_id == None,
+            or_(
+                cast(Notification.target_roles, String).like(role_pattern),
+                cast(Notification.target_roles, String).like('%"all"%')
+            )
+        )
+    )
+
+    return query.filter(and_(univ_cond, target_cond))
 
 def _old_filter_notifications_by_role(
     query, 

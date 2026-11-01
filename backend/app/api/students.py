@@ -2615,48 +2615,35 @@ def delete_student(
         except Exception:
             pass
 
-    # 2. Supprimer les dépendances en base de données
-    try:
-        db.query(Grade).filter(Grade.student_id == student_id).delete(synchronize_session=False)
-    except Exception:
-        pass
-    try:
-        db.query(Attendance).filter(Attendance.student_id == student_id).delete(synchronize_session=False)
-    except Exception:
-        pass
-    try:
-        db.query(Payment).filter(Payment.student_id == student_id).delete(synchronize_session=False)
-    except Exception:
-        pass
-    try:
-        db.query(Document).filter(Document.student_id == student_id).delete(synchronize_session=False)
-    except Exception:
-        pass
-    try:
-        from app.models.payment_installment import PaymentInstallment
-        db.query(PaymentInstallment).filter(PaymentInstallment.student_id == student_id).delete(synchronize_session=False)
-    except Exception:
-        pass
-    try:
-        from app.models.deliberation import DeliberationDecision
-        db.query(DeliberationDecision).filter(DeliberationDecision.student_id == student_id).delete(synchronize_session=False)
-    except Exception:
-        pass
-    try:
-        from app.models.report_card import ReportCard
-        db.query(ReportCard).filter(ReportCard.student_id == student_id).delete(synchronize_session=False)
-    except Exception:
-        pass
-    try:
-        from app.models.incident import Incident
-        db.query(Incident).filter(Incident.student_id == student_id).delete(synchronize_session=False)
-    except Exception:
-        pass
+    # 2. Supprimer toutes les dépendances en base de données
+    models_to_clean = [
+        ("app.models.grade", "Grade"),
+        ("app.models.attendance", "Attendance"),
+        ("app.models.payment", "Payment"),
+        ("app.models.document", "Document"),
+        ("app.models.payment_installment", "PaymentInstallment"),
+        ("app.models.deliberation", "DeliberationDecision"),
+        ("app.models.report_card", "ReportCard"),
+        ("app.models.incident", "Incident"),
+        ("app.models.certificate_request", "CertificateRequest"),
+        ("app.models.scan_session", "ScanSession"),
+        ("app.models.student_academic_history", "StudentAcademicHistory"),
+        ("app.models.alumni", "AlumniConnection"),
+        ("app.models.alumni_profile", "AlumniProfile"),
+    ]
+    for mod_path, cls_name in models_to_clean:
+        try:
+            mod = __import__(mod_path, fromlist=[cls_name])
+            cls = getattr(mod, cls_name)
+            if hasattr(cls, "student_id"):
+                db.query(cls).filter(cls.student_id == student_id).delete(synchronize_session=False)
+        except Exception:
+            pass
 
     db.delete(student)
     db.commit()
-    
-    # 3. Supprimer le compte utilisateur et ses traces si présent
+
+    # 3. Supprimer le compte utilisateur associé et ses références si existant
     if user_id:
         user = db.query(User).filter(User.id == user_id).first()
         if user:
@@ -2665,9 +2652,31 @@ def delete_student(
             except Exception:
                 pass
             try:
-                db.query(Notification).filter(Notification.user_id == user_id).delete(synchronize_session=False)
+                from app.models.notification import Notification
+                db.query(Notification).filter((Notification.recipient_id == user_id) | (Notification.created_by == user_id)).delete(synchronize_session=False)
             except Exception:
                 pass
+            try:
+                from app.models.password_reset_otp import PasswordResetOtp
+                db.query(PasswordResetOtp).filter(PasswordResetOtp.user_id == user_id).delete(synchronize_session=False)
+            except Exception:
+                pass
+            try:
+                from app.models.password_reset_request import PasswordResetRequest
+                db.query(PasswordResetRequest).filter(PasswordResetRequest.user_id == user_id).delete(synchronize_session=False)
+            except Exception:
+                pass
+            try:
+                from app.models.alumni import AlumniMessage
+                db.query(AlumniMessage).filter((AlumniMessage.sender_id == user_id) | (AlumniMessage.receiver_id == user_id)).delete(synchronize_session=False)
+            except Exception:
+                pass
+            try:
+                from app.models.audit_log import AuditLog
+                db.query(AuditLog).filter(AuditLog.user_id == user_id).update({AuditLog.user_id: None}, synchronize_session=False)
+            except Exception:
+                pass
+
             db.delete(user)
             db.commit()
         

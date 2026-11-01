@@ -6,6 +6,7 @@ import { BrainCircuit } from 'lucide-react';
 
 export default function FloatingAIButton() {
   const router = useRouter();
+  const [role, setRole] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const isDragging = useRef(false);
@@ -14,6 +15,14 @@ export default function FloatingAIButton() {
   const hasMoved = useRef(false);
 
   useEffect(() => {
+    try {
+      const storedRole = localStorage.getItem('role');
+      setRole(storedRole);
+      if (storedRole === 'super_admin' || storedRole === 'superadmin') {
+        return;
+      }
+    } catch {}
+
     const timer = setTimeout(() => {
       // Position initiale par défaut : en bas à droite bien au-dessus de la barre d'onglets
       const isSmall = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -106,7 +115,7 @@ export default function FloatingAIButton() {
     router.push('/ai-assistant');
   };
 
-  if (!isVisible || !position) return null;
+  if (!isVisible || !position || role === 'super_admin' || role === 'superadmin') return null;
 
   return (
     <div
@@ -136,4 +145,4 @@ export default function FloatingAIButton() {
       </button>
     </div>
   );
-}
+}

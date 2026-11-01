@@ -1,5 +1,7 @@
 'use client';
 
+import api from '@/lib/api';
+
 import { useState, useEffect } from 'react';
 import { 
   Settings, Shield, Bell, HardDrive, DollarSign, 
@@ -31,23 +33,30 @@ export default function SuperAdminSettingsPage() {
   });
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('unisphere_saas_config');
-      if (saved) {
-        setPlatformConfig(JSON.parse(saved));
-      }
-    } catch {}
+    api.get('/api/v1/superadmin/settings')
+      .then((res) => {
+        if (res.data) setPlatformConfig(res.data);
+      })
+      .catch(() => {
+        try {
+          const saved = localStorage.getItem('unisphere_saas_config');
+          if (saved) setPlatformConfig(JSON.parse(saved));
+        } catch {}
+      });
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
     try {
-      localStorage.setItem('unisphere_saas_config', JSON.stringify(platformConfig));
-      toast.success('Paramètres SaaS enregistrés avec succès');
+      await api.put('/api/v1/superadmin/settings', platformConfig);
+      try {
+        localStorage.setItem('unisphere_saas_config', JSON.stringify(platformConfig));
+      } catch {}
+      toast.success('Paramètres SaaS enregistrés en base de données avec succès');
     } catch {
-      toast.error('Erreur lors de la sauvegarde');
+      toast.error('Erreur lors de la sauvegarde sur le serveur');
     } finally {
-      setTimeout(() => setSaving(false), 300);
+      setSaving(false);
     }
   };
 

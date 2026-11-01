@@ -151,6 +151,11 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
             playAlertSound();
 
             newUnreads.slice(0, 3).forEach((n: any) => {
+              if (n.notification_type === 'bug' || String(n.title || '').includes('Bug signalé')) {
+                if (user?.role !== 'super_admin' && user?.role !== 'superadmin') {
+                  return;
+                }
+              }
               const preview = n.message ? (n.message.length > 90 ? n.message.slice(0, 90) + '...' : n.message) : '';
               if (n.type === 'error') {
                 toast.error(`${n.title} : ${preview}`);
