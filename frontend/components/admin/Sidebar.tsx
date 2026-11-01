@@ -10,8 +10,9 @@ import {
   ClipboardList, Receipt, AlertCircle, FileCheck, School, Building2, DollarSign, Shield, KeyRound,
   QrCode, Edit3, Clock, AlertTriangle, RotateCcw, FileBarChart,
   BrainCircuit, UserPlus, Folder, Users2, ScrollText, FileSearch, Scale, Lock, HelpCircle,
-  Layers, FileSpreadsheet, Printer, Megaphone, LogOut, X
+  Layers, FileSpreadsheet, Printer, Megaphone, LogOut, X, Sparkles
 } from 'lucide-react';
+import UnivDemoModal from '@/components/admin/UnivDemoModal';
 import { authService } from '@/services/authService';
 import LogoutConfirmModal from '@/components/LogoutConfirmModal';
 import { useRouter } from 'next/navigation';
@@ -512,6 +513,12 @@ const MENU_CONFIG: Record<string, Array<{
       ]
     },
     {
+      title: 'DÉMONSTRATION CLIENT',
+      items: [
+        { label: 'Univ_Demo (ECOB)', href: '#univ-demo', icon: Sparkles, badge: '8 Rôles' },
+      ]
+    },
+    {
       title: 'FLOTTE UNIVERSITÉS',
       items: [
         { label: 'Universités', href: '/superadmin/universities', icon: Building2 },
@@ -553,6 +560,12 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'TABLEAU DE BORD',
       items: [
         { label: "Vue d'ensemble", href: '/superadmin/dashboard', icon: LayoutDashboard },
+      ]
+    },
+    {
+      title: 'DÉMONSTRATION CLIENT',
+      items: [
+        { label: 'Univ_Demo (ECOB)', href: '#univ-demo', icon: Sparkles, badge: '8 Rôles' },
       ]
     },
     {
@@ -610,6 +623,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
   const { settings } = useSettings();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showUnivDemoModal, setShowUnivDemoModal] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -716,6 +730,28 @@ export default function Sidebar({ userRole }: SidebarProps) {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
 
+                  if (item.href === '#univ-demo') {
+                    return (
+                      <li key={item.href}>
+                        <button
+                          type="button"
+                          onClick={() => setShowUnivDemoModal(true)}
+                          className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm transition-all bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/40 text-amber-200 font-bold group shadow-xs cursor-pointer text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Icon size={18} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                            <span>{item.label}</span>
+                          </div>
+                          {item.badge && (
+                            <span className="text-[10px] bg-[#FF6B00] text-white px-2 py-0.5 rounded-full font-black">
+                              {item.badge}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  }
+
                   return (
                     <li key={item.href}>
                       <Link
@@ -767,6 +803,11 @@ export default function Sidebar({ userRole }: SidebarProps) {
         onConfirm={confirmLogout}
         userName={currentUser?.full_name || 'Utilisateur'}
         userRole={userRole}
+      />
+
+      <UnivDemoModal
+        isOpen={showUnivDemoModal}
+        onClose={() => setShowUnivDemoModal(false)}
       />
     </>
   );

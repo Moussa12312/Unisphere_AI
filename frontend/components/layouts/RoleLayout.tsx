@@ -56,14 +56,35 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
     const currentUser = getUserFromStorage();
     const token = localStorage.getItem('token');
 
-    if (!currentUser || !token || !memoizedAllowedRoles.includes(currentUser.role)) {
+    if (!currentUser || !token) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('role');
         document.cookie = 'unisphere_token=; path=/; max-age=0';
         document.cookie = 'unisphere_role=; path=/; max-age=0';
-        window.location.href = '/';
+        const redirectParam = encodeURIComponent(pathname || '/');
+        window.location.href = `/login?redirect=${redirectParam}`;
+      }
+      return;
+    }
+
+    if (!memoizedAllowedRoles.includes(currentUser.role)) {
+      if (typeof window !== 'undefined') {
+        const routes: Record<string, string> = {
+          admin: '/admin/dashboard',
+          secretary: '/secretary/dashboard',
+          censeur: '/censeur/dashboard',
+          teacher: '/teacher/dashboard',
+          student: '/student/dashboard',
+          accountant: '/accountant/dashboard',
+          guard: '/guard',
+          alumni: '/alumni/dashboard',
+          super_admin: '/superadmin/dashboard',
+          superadmin: '/superadmin/dashboard',
+        };
+        const targetRoute = routes[currentUser.role] || '/login';
+        window.location.href = targetRoute;
       }
       return;
     }

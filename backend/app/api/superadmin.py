@@ -1356,3 +1356,24 @@ def clean_system_logs(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erreur lors du nettoyage : {str(e)}")
 
+
+
+@router.post("/seed-ecob")
+def seed_ecob_data(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin"))
+):
+    """Initialise ou réinitialise la maquette complète de démonstration de l'Université ECOB"""
+    try:
+        import sys
+        backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        if backend_root not in sys.path:
+            sys.path.insert(0, backend_root)
+        from seed_ecob_showcase import run_simulation
+        run_simulation()
+        return {
+            "status": "success",
+            "message": "Université ECOB et données de démonstration initialisées avec succès !"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Échec de l'initialisation ECOB : {str(e)}")

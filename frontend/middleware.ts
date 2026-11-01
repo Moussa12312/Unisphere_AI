@@ -23,10 +23,12 @@ export function middleware(request: NextRequest) {
   if (isProtected) {
     const token = request.cookies.get('unisphere_token')?.value;
 
-    // Si aucune session valide n'est détectée, redirection automatique immédiate vers le site public ('/')
+    // Si aucune session valide n'est détectée, rediriger vers la page de connexion
+    // avec le paramètre redirect pour renvoyer l'utilisateur vers sa destination après login
     if (!token) {
-      const homeUrl = new URL('/', request.url);
-      return NextResponse.redirect(homeUrl);
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
     }
   }
 
@@ -47,4 +49,3 @@ export const config = {
     '/scan-session/:path*',
   ],
 };
-
