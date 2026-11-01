@@ -45,13 +45,6 @@ const MENU_CONFIG: Record<string, Array<{
     },
 
     {
-      title: 'DÉMONSTRATION CLIENT',
-      items: [
-        { label: 'Univ_Demo', href: '/admin/demo', icon: Sparkles, badge: '8 Rôles' },
-      ]
-    },
-
-    {
       title: 'SCOLARITÉ',
       items: [
         { label: 'Étudiants', href: '/admin/students', icon: Users },
@@ -618,11 +611,19 @@ const MENU_CONFIG: Record<string, Array<{
 
 MENU_CONFIG.director = MENU_CONFIG.admin;
 MENU_CONFIG.directeur = MENU_CONFIG.admin;
+MENU_CONFIG.enseignant = MENU_CONFIG.teacher;
+MENU_CONFIG.professeur = MENU_CONFIG.teacher;
+MENU_CONFIG.etudiant = MENU_CONFIG.student;
+MENU_CONFIG.secretaire = MENU_CONFIG.secretary;
+MENU_CONFIG.comptable = MENU_CONFIG.accountant;
+MENU_CONFIG.gardien = MENU_CONFIG.guard;
 
 export default function Sidebar({ userRole }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const menu = MENU_CONFIG[userRole] || MENU_CONFIG.admin;
+  const normalizedRole = (userRole || '').toLowerCase().trim();
+  const isSuperAdmin = normalizedRole === 'super_admin' || normalizedRole === 'superadmin';
+  const menu = MENU_CONFIG[normalizedRole] || MENU_CONFIG[userRole] || MENU_CONFIG.admin;
   const [expandedSections, setExpandedSections] = useState<string[]>(
     menu.map(section => section.title)
   );
@@ -738,8 +739,12 @@ export default function Sidebar({ userRole }: SidebarProps) {
                     const isActive = pathname === item.href;
 
                     if (item.href === '/superadmin/demo' || item.href === '/admin/demo' || item.href === '#univ-demo') {
+                      // 🛑 SÉCURITÉ ABSOLUE : Seul le Super Admin est autorisé à voir l'espace démo
+                      if (!isSuperAdmin) {
+                        return null;
+                      }
                       const isDemoActive = pathname === '/superadmin/demo' || pathname === '/admin/demo';
-                      const targetHref = item.href.startsWith('/') ? item.href : '/admin/demo';
+                      const targetHref = '/superadmin/demo';
                       return (
                         <li key={item.href}>
                           <Link
