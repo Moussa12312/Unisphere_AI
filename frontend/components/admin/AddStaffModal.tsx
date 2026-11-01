@@ -137,6 +137,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }: AddStaffMo
                                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
                                     placeholder="ex: marie.kone@univ.edu"
                                 />
+                                <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-1.5 mt-1.5 flex items-center gap-1 font-medium">
+                                    <span>⚠️</span> L&apos;adresse email doit être réelle et accessible. Les accès et les codes de sécurité y seront transmis.
+                                </p>
                             </div>
 
                             <div>

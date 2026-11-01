@@ -25,7 +25,7 @@ class User(Base):
     role = Column(String, default=UserRole.STUDENT.value) # ✅ Ajouté .value pour être sûr que c'est une string
     
     # ✅ NOUVEAUX CHAMPS AJOUTÉS
-    phone = Column(String, nullable=True)
+    phone = Column(String, unique=True, index=True, nullable=True)
     photo = Column(String, nullable=True)
     last_login = Column(DateTime, nullable=True)
 
@@ -41,4 +41,4 @@ class User(Base):
     university = relationship("University", back_populates="users")
     recorded_payments = relationship("Payment", foreign_keys="Payment.paid_by", back_populates="payer")
     announcements = relationship("Announcement", back_populates="creator")
-    censor_profile = relationship("Censor", back_populates="user", uselist=False)
+    censor_profile = relationship("Censor", back_populates="user", uselist=False)

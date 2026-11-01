@@ -1,3 +1,4 @@
+import ChangeUserEmailModal from '@/components/admin/ChangeUserEmailModal';
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -31,6 +32,7 @@ export default function AdminTeachersPage() {
   const [search, setSearch] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
@@ -234,6 +236,15 @@ export default function AdminTeachersPage() {
               <Users size={20} className="text-blue-600" />
             </div>
             <div>
+                            <button
+                type="button"
+                onClick={() => setShowEmailModal(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold shadow-sm transition-colors"
+                title="Modifier l'email d'un enseignant"
+              >
+                <Mail size={15} />
+                <span>Modifier un email</span>
+              </button>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-[#e55f00] text-white rounded-xl text-sm font-medium shadow-md"
@@ -497,6 +508,10 @@ export default function AdminTeachersPage() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-1.5 flex items-start gap-1.5 font-medium">
+                  <span>⚠️</span>
+                  <span>L&apos;adresse email doit être réelle et accessible. Si cet enseignant enseigne déjà dans un autre établissement partenaire, il sera automatiquement rattaché avec son compte existant.</span>
+                </p>
               </div>
 
               <div>
@@ -656,6 +671,11 @@ export default function AdminTeachersPage() {
           </div>
         </div>
       )}
+          <ChangeUserEmailModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        onSuccess={loadTeachers}
+      />
     </div>
   );
 }

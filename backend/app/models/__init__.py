@@ -27,6 +27,7 @@ from app.models.censor import Censor
 from app.models.teaching_unit import TeachingUnit
 from app.models.room import Room
 from app.models.exam_schedule import ExamSchedule
+from app.models.password_reset_otp import PasswordResetOTP
 
 
 __all__ = [

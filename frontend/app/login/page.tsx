@@ -81,6 +81,13 @@ function LoginPageContent() {
         document.cookie = "unisphere_role=" + userData.role + "; path=/; max-age=604800; SameSite=Lax";
       }
 
+      if (data.requires_university_selection) {
+        localStorage.setItem('affiliations', JSON.stringify(data.affiliations || []));
+        toast('Veuillez choisir votre établissement de travail pour cette session', { icon: '🏛️' });
+        window.location.href = '/select-university';
+        return;
+      }
+
       try {
         await api.post('/api/v1/notifications/generate');
       } catch {

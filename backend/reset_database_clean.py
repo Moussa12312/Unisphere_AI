@@ -205,16 +205,12 @@ def reset_database():
                 
     print("🧹 Répertoires uploads et qr_codes nettoyés et sécurisés.")
     
-    # 6. Initialiser immédiatement les 8 comptes de démonstration pour ECOB
-    try:
-        from seed_demo_accounts import seed_demo_accounts
-        seed_demo_accounts(db)
-        print("🎭 8 Comptes de démonstration ECOB provisionnés avec succès.")
-    except Exception as e:
-        print(f"⚠️ Erreur initialisation comptes démo: {e}")
+    # 6. Base de données vierge (Zero Mock Data)
+    # Les utilisateurs et enseignants seront créés manuellement ou par inscription
+    print("✨ Base de données totalement vierge et prête (Super Admin + Université ECOB prête).")
 
     db.close()
-    print("✨ Base de données totalement propre et prête avec comptes démo !")
+
 
 if __name__ == "__main__":
     reset_database()

@@ -9,7 +9,7 @@ from app.models.filiere import Filiere
 from app.models.user import User
 from app.core.dependencies import require_role
 from app.core.security import hash_password
-from app.utils.email_service import send_credentials_email, send_password_reset_email
+from app.utils.email_service import send_credentials_email, send_password_reset_email, send_affiliation_email
 from app.utils.email_validator import validate_email_exists
 
 import time
@@ -180,8 +180,11 @@ async def create_teacher(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary"))
 ):
-    """Créer un nouvel enseignant (form-data pour upload photo)"""
+    """Créer un nouvel enseignant ou rattacher un enseignant existant (form-data pour upload photo)"""
     
+    clean_email = email.strip().lower()
+    clean_phone = phone.strip() if phone and phone.strip() else None
+
     if filiere_id:
         filiere = db.query(Filiere).filter(
             Filiere.id == filiere_id,
@@ -194,12 +197,93 @@ async def create_teacher(
         department = "Enseignement Général"
     if not speciality:
         speciality = department
-    
-    existing_user = db.query(User).filter(User.email == email).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
 
-    is_valid, error_msg = validate_email_exists(email)
+    # 1. Vérification d'unicité du téléphone
+    if clean_phone:
+        existing_phone_user = db.query(User).filter(User.phone == clean_phone).first()
+        if existing_phone_user:
+            existing_by_email = db.query(User).filter(User.email == clean_email).first()
+            if not existing_by_email or existing_phone_user.id != existing_by_email.id:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Ce numéro de téléphone est déjà associé à un autre compte utilisateur."
+                )
+
+    # 2. Gestion de l'existence de l'utilisateur (Option B : Rattachement multi-universités)
+    existing_user = db.query(User).filter(User.email == clean_email).first()
+    univ_name = current_user.university.name if current_user.university else "UniSphere AI"
+
+    if existing_user:
+        if existing_user.role != "teacher":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cet email est déjà associé à un compte ({existing_user.role}). Impossible de l'enregistrer comme enseignant."
+            )
+        
+        # Vérifier si cet enseignant est déjà affilié à cette université
+        existing_affiliation = db.query(Teacher).filter(
+            Teacher.user_id == existing_user.id,
+            Teacher.university_id == current_user.university_id
+        ).first()
+        if existing_affiliation:
+            raise HTTPException(
+                status_code=400, 
+                detail="Cet enseignant est déjà rattaché à votre université."
+            )
+
+        # Créer le nouveau profil enseignant rattaché à l'université active
+        new_teacher = Teacher(
+            first_name=first_name,
+            last_name=last_name,
+            email=clean_email,
+            department=department,
+            speciality=speciality,
+            phone=clean_phone or existing_user.phone,
+            user_id=existing_user.id,
+            university_id=current_user.university_id,
+            university_name=univ_name,
+            filiere_id=filiere_id
+        )
+        db.add(new_teacher)
+        db.commit()
+        db.refresh(new_teacher)
+
+        # Génération QR Code
+        os.makedirs("qr_codes", exist_ok=True)
+        qr_filename = f"TEACHER_{new_teacher.id}.png"
+        qr_path = os.path.join("qr_codes", qr_filename)
+        qr = qrcode.make(f"TEACHER-{new_teacher.id}")
+        qr.save(qr_path)
+        new_teacher.qr_code = qr_filename
+
+        # Photo
+        if photo and photo.filename and photo.size > 0:
+            os.makedirs("uploads", exist_ok=True)
+            photo_filename = f"TEACHER_{new_teacher.id}_{int(time.time())}.png"
+            photo_path = os.path.join("uploads", photo_filename)
+            content = await photo.read()
+            with open(photo_path, "wb") as buffer:
+                buffer.write(content)
+            new_teacher.photo = photo_filename
+
+        db.commit()
+        db.refresh(new_teacher)
+
+        # Envoi d'un email de notification de nouveau rattachement
+        send_affiliation_email(
+            to_email=clean_email,
+            full_name=f"{first_name} {last_name}",
+            university_name=univ_name
+        )
+
+        return {
+            "teacher": format_teacher(new_teacher),
+            "temp_password": None,
+            "message": f"L'enseignant {first_name} {last_name} a été rattaché avec succès à votre établissement."
+        }
+
+    # 3. Nouvel utilisateur enseignant
+    is_valid, error_msg = validate_email_exists(clean_email)
     if not is_valid:
         raise HTTPException(status_code=400, detail=error_msg)
 
@@ -207,7 +291,8 @@ async def create_teacher(
 
     new_user = User(
         full_name=f"{first_name} {last_name}",
-        email=email,
+        email=clean_email,
+        phone=clean_phone,
         hashed_password=hash_password(temp_password),
         role="teacher",
         university_id=current_user.university_id
@@ -219,13 +304,13 @@ async def create_teacher(
     new_teacher = Teacher(
         first_name=first_name,
         last_name=last_name,
-        email=email,
+        email=clean_email,
         department=department,
         speciality=speciality,
-        phone=phone,
+        phone=clean_phone,
         user_id=new_user.id,
         university_id=current_user.university_id,
-        university_name=current_user.university.name if current_user.university else "UniSphere AI",
+        university_name=univ_name,
         filiere_id=filiere_id
     )
     db.add(new_teacher)
@@ -243,23 +328,21 @@ async def create_teacher(
         os.makedirs("uploads", exist_ok=True)
         photo_filename = f"TEACHER_{new_teacher.id}_{int(time.time())}.png"
         photo_path = os.path.join("uploads", photo_filename)
-        
         content = await photo.read()
         with open(photo_path, "wb") as buffer:
             buffer.write(content)
-        
         new_teacher.photo = photo_filename
 
     db.commit()
     db.refresh(new_teacher)
 
-    # ✅ AJOUTÉ : envoi des identifiants directement par email à l'enseignant
+    # Envoi des identifiants par email
     send_credentials_email(
-        to_email=email,
+        to_email=clean_email,
         full_name=f"{first_name} {last_name}",
         password=temp_password,
         role="teacher",
-        university_name=current_user.university.name if current_user.university else ""
+        university_name=univ_name
     )
 
     return {
@@ -289,10 +372,48 @@ def update_teacher(
     if not existing_teacher:
         raise HTTPException(status_code=404, detail="Enseignant non trouvé")
 
-    if teacher_data.email and teacher_data.email != existing_teacher.email:
-        existing_user = db.query(User).filter(User.email == teacher_data.email).first()
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
+    user = db.query(User).filter(User.id == existing_teacher.user_id).first()
+
+    # Téléphone unique
+    if teacher_data.phone is not None:
+        clean_phone = teacher_data.phone.strip() if teacher_data.phone.strip() else None
+        if clean_phone:
+            existing_phone_user = db.query(User).filter(
+                User.phone == clean_phone,
+                User.id != existing_teacher.user_id
+            ).first()
+            if existing_phone_user:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Ce numéro de téléphone est déjà utilisé par un autre utilisateur."
+                )
+        existing_teacher.phone = clean_phone
+        if user:
+            user.phone = clean_phone
+
+    # Email
+    if teacher_data.email is not None:
+        clean_email = teacher_data.email.strip().lower()
+        if clean_email != existing_teacher.email:
+            existing_user = db.query(User).filter(
+                User.email == clean_email,
+                User.id != existing_teacher.user_id
+            ).first()
+            if existing_user:
+                raise HTTPException(status_code=400, detail="Cet email est déjà utilisé par un autre compte.")
+            
+            # Vérifier que l'email n'est pas déjà utilisé dans la même université
+            other_teacher = db.query(Teacher).filter(
+                Teacher.email == clean_email,
+                Teacher.university_id == current_user.university_id,
+                Teacher.id != existing_teacher.id
+            ).first()
+            if other_teacher:
+                raise HTTPException(status_code=400, detail="Un enseignant avec cet email existe déjà dans cette université.")
+
+            existing_teacher.email = clean_email
+            if user:
+                user.email = clean_email
 
     if teacher_data.filiere_id:
         filiere = db.query(Filiere).filter(
@@ -302,31 +423,24 @@ def update_teacher(
         if filiere:
             teacher_data.department = filiere.name
 
-    # Mettre à jour les champs fournis
+    # Mettre à jour les autres champs
     if teacher_data.first_name is not None:
         existing_teacher.first_name = teacher_data.first_name
     if teacher_data.last_name is not None:
         existing_teacher.last_name = teacher_data.last_name
-    if teacher_data.email is not None:
-        existing_teacher.email = teacher_data.email
     if teacher_data.department is not None:
         existing_teacher.department = teacher_data.department
     if teacher_data.speciality is not None:
         existing_teacher.speciality = teacher_data.speciality
-    if teacher_data.phone is not None:
-        existing_teacher.phone = teacher_data.phone
     if teacher_data.filiere_id is not None:
         existing_teacher.filiere_id = teacher_data.filiere_id
     if teacher_data.photo is not None:
         existing_teacher.photo = teacher_data.photo
 
     # Mettre à jour l'utilisateur associé
-    user = db.query(User).filter(User.id == existing_teacher.user_id).first()
     if user:
         if teacher_data.first_name or teacher_data.last_name:
             user.full_name = f"{existing_teacher.first_name} {existing_teacher.last_name}"
-        if teacher_data.email:
-            user.email = teacher_data.email
         
         if teacher_data.password:
             if len(teacher_data.password) < 6:

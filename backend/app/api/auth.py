@@ -147,6 +147,42 @@ def login(
         db.rollback()
         print(f"⚠️ Erreur log succès: {e}")
 
+    # ✅ MULTI-UNIVERSITÉS (Option B Enseignants)
+    if user.role == "teacher":
+        from app.models.teacher import Teacher
+        affiliations = db.query(Teacher).filter(Teacher.user_id == user.id).all()
+        if len(affiliations) > 1:
+            univ_list = []
+            for aff in affiliations:
+                u_obj = db.query(University).filter(University.id == aff.university_id).first()
+                univ_list.append({
+                    "teacher_id": aff.id,
+                    "university_id": aff.university_id,
+                    "university_name": u_obj.name if u_obj else (aff.university_name or "Université"),
+                    "department": aff.department,
+                    "speciality": aff.speciality,
+                    "slogan": u_obj.slogan if u_obj else "",
+                    "city": u_obj.address if u_obj else ""
+                })
+            
+            token = create_access_token(
+                data={"sub": user.email, "role": user.role, "requires_select": True},
+                remember_me=data.remember_me
+            )
+            return {
+                "access_token": token,
+                "token_type": "bearer",
+                "requires_university_selection": True,
+                "affiliations": univ_list,
+                "user": {
+                    "id": user.id,
+                    "full_name": user.full_name,
+                    "email": user.email,
+                    "role": user.role,
+                    "phone": user.phone
+                }
+            }
+
     user_photo = user.photo or ""
     if not user_photo:
         if user.role == "student":
@@ -585,3 +621,196 @@ def auth_context(db: Session = Depends(get_db)):
         "default_password": "unisphere2026"
     }
 
+
+
+# ==========================================
+# BASCULE D'UNIVERSITÉ (Option B Enseignants Multi-Universités)
+# ==========================================
+@router.post("/switch-university")
+def switch_university(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    target_univ_id = data.get("university_id")
+    if not target_univ_id:
+        raise HTTPException(status_code=400, detail="Veuillez sélectionner un établissement.")
+
+    if current_user.role == "teacher":
+        from app.models.teacher import Teacher
+        aff = db.query(Teacher).filter(
+            Teacher.user_id == current_user.id,
+            Teacher.university_id == target_univ_id
+        ).first()
+        if not aff:
+            raise HTTPException(status_code=403, detail="Vous n'êtes pas affilié à cet établissement.")
+
+        current_user.university_id = target_univ_id
+        db.commit()
+
+        new_token = create_access_token(data={"sub": current_user.email, "role": current_user.role, "university_id": target_univ_id})
+        univ = db.query(University).filter(University.id == target_univ_id).first()
+        return {
+            "status": "success",
+            "access_token": new_token,
+            "university_id": target_univ_id,
+            "university_name": univ.name if univ else "",
+            "message": f"Session activée pour {univ.name if univ else 'cet établissement'}"
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Action réservée aux enseignants multi-établissements.")
+
+
+# ==========================================
+# RÉINITIALISATION MOT DE PASSE PAR CODE OTP
+# ==========================================
+@router.post("/forgot-password/request-otp")
+def request_password_reset_otp(
+    data: dict,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    raw_ident = (data.get("identifier") or data.get("email") or "").strip()
+    if not raw_ident:
+        raise HTTPException(status_code=400, detail="Veuillez saisir votre adresse email ou votre matricule.")
+
+    # Trouver l'utilisateur
+    user = db.query(User).filter(User.email.ilike(raw_ident)).first()
+    if not user:
+        from app.models.student import Student
+        stu = db.query(Student).filter(Student.matricule.ilike(raw_ident)).first()
+        if stu and stu.user_id:
+            user = db.query(User).filter(User.id == stu.user_id).first()
+    if not user:
+        user = db.query(User).filter(User.phone == raw_ident).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Aucun compte associé à cet identifiant n'a été trouvé.")
+
+    if not user.email or "@" not in user.email:
+        raise HTTPException(status_code=400, detail="Ce compte ne dispose pas d'une adresse email valide pour recevoir le code OTP.")
+
+    from app.models.password_reset_otp import PasswordResetOTP
+    from datetime import datetime, timezone, timedelta
+    import random, hashlib
+
+    # Invalider les anciens codes non utilisés
+    db.query(PasswordResetOTP).filter(
+        PasswordResetOTP.user_id == user.id,
+        PasswordResetOTP.is_used == False
+    ).update({"is_used": True})
+
+    # Générer le code OTP 6 chiffres
+    otp_code = f"{random.randint(100000, 999999)}"
+    salt = f"{user.id}_{user.email}"
+    otp_hash = hashlib.sha256(f"{otp_code}_{salt}".encode()).hexdigest()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    otp_record = PasswordResetOTP(
+        identifier=user.email,
+        otp_code_hash=otp_hash,
+        user_id=user.id,
+        expires_at=expires_at,
+        attempts=0,
+        is_used=False,
+        channel="email"
+    )
+    db.add(otp_record)
+    db.commit()
+
+    # Envoi email
+    from app.utils.email_service import send_otp_email, is_email_configured
+    sent = send_otp_email(user.email, user.full_name, otp_code)
+
+    parts = user.email.split("@")
+    masked_email = parts[0][0] + "••••" + ("@" + parts[1] if len(parts) > 1 else "")
+
+    return {
+        "status": "success",
+        "message": f"Code de sécurité envoyé avec succès à {masked_email}",
+        "channel": "email",
+        "target_masked": masked_email,
+        "identifier": user.email,
+        "dev_otp": otp_code if not is_email_configured() else None
+    }
+
+
+@router.post("/forgot-password/verify-otp")
+def verify_password_reset_otp(
+    data: dict,
+    db: Session = Depends(get_db)
+):
+    identifier = (data.get("identifier") or "").strip()
+    otp_code = str(data.get("otp_code") or "").strip()
+    new_password = str(data.get("new_password") or "").strip()
+
+    if not identifier or not otp_code or not new_password:
+        raise HTTPException(status_code=400, detail="Tous les champs sont obligatoires (identifiant, code OTP et nouveau mot de passe).")
+
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit comporter au moins 6 caractères.")
+
+    user = db.query(User).filter(User.email.ilike(identifier)).first()
+    if not user:
+        user = db.query(User).filter(User.phone == identifier).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+
+    from app.models.password_reset_otp import PasswordResetOTP
+    from datetime import datetime, timezone
+    import hashlib
+
+    otp_record = db.query(PasswordResetOTP).filter(
+        PasswordResetOTP.user_id == user.id,
+        PasswordResetOTP.is_used == False
+    ).order_by(PasswordResetOTP.id.desc()).first()
+
+    if not otp_record:
+        raise HTTPException(status_code=400, detail="Aucun code de réinitialisation actif. Veuillez faire une nouvelle demande.")
+
+    now = datetime.now(timezone.utc)
+    exp = otp_record.expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+
+    if now > exp:
+        otp_record.is_used = True
+        db.commit()
+        raise HTTPException(status_code=400, detail="Le code de sécurité a expiré (validité 10 min). Veuillez en demander un nouveau.")
+
+    if otp_record.attempts >= 5:
+        otp_record.is_used = True
+        db.commit()
+        raise HTTPException(status_code=400, detail="Trop de tentatives erronées. Pour votre sécurité, demandez un nouveau code.")
+
+    salt = f"{user.id}_{user.email}"
+    expected_hash = hashlib.sha256(f"{otp_code}_{salt}".encode()).hexdigest()
+
+    if otp_record.otp_code_hash != expected_hash:
+        otp_record.attempts += 1
+        db.commit()
+        remaining = 5 - otp_record.attempts
+        raise HTTPException(status_code=400, detail=f"Code de sécurité incorrect. Il vous reste {remaining} tentative(s).")
+
+    # Code validé avec succès
+    otp_record.is_used = True
+    user.hashed_password = hash_password(new_password)
+    user.is_email_verified = True
+    db.commit()
+
+    token = create_access_token(data={"sub": user.email, "role": user.role})
+
+    return {
+        "status": "success",
+        "message": "Mot de passe réinitialisé avec succès !",
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "role": user.role,
+            "university_id": user.university_id
+        }
+    }
