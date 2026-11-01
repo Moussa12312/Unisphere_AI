@@ -92,7 +92,21 @@ def get_grades_by_context(
     session_obj = db.query(ExamSession).filter(ExamSession.id == session_id).first()
     is_session_closed = session_obj.status == "closed" if session_obj else False
     is_globally_locked = bool(getattr(ac_config, "grades_locked", False)) if ac_config else False
-    is_locked = is_session_closed or is_globally_locked
+    
+    # Vérification de la date de fin de session (épreuves en cours)
+    is_before_session_end = False
+    if session_obj and session_obj.end_date and date.today() < session_obj.end_date:
+        is_before_session_end = True
+
+    is_locked = is_session_closed or is_globally_locked or is_before_session_end
+
+    lock_reason = None
+    if is_session_closed:
+        lock_reason = "Session clôturée. La saisie des notes est verrouillée."
+    elif is_before_session_end and session_obj and session_obj.end_date:
+        lock_reason = f"Session d'examen en cours (se termine le {session_obj.end_date.strftime('%d/%m/%Y')}). La saisie des notes sera déverrouillée à la fin des épreuves."
+    elif is_globally_locked:
+        lock_reason = "Verrouillage académique général"
 
     return {
         "course": {
@@ -107,7 +121,7 @@ def get_grades_by_context(
         "default_exam_coefficient": default_exam,
         "max_grade": max_grade,
         "is_locked": is_locked,
-        "lock_reason": "Session clôturée" if is_session_closed else ("Verrouillage académique général" if is_globally_locked else None),
+        "lock_reason": lock_reason,
         "students": result
     }
 
@@ -348,6 +362,12 @@ def bulk_save_grades(
     
     if session.status == "closed":
         raise HTTPException(status_code=403, detail="Cette session d'examen est clôturée. La saisie des notes est strictement verrouillée.")
+
+    if session.end_date and date.today() < session.end_date:
+        raise HTTPException(
+            status_code=403,
+            detail=f"La saisie des notes n'est autorisée qu'après la fin des épreuves de la session (prévue le {session.end_date.strftime('%d/%m/%Y')})."
+        )
     
     if ac_config and getattr(ac_config, "grades_locked", False):
         raise HTTPException(
@@ -728,7 +748,7 @@ def get_anomalies(
 @router.get("/anomalies/config")
 def get_anomaly_config(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "censeur"))
+    current_user: User = Depends(require_role("admin", "censeur", "secretary"))
 ):
     """Récupère la configuration des anomalies"""
     from app.models.anomaly_config import AnomalyConfig
@@ -763,7 +783,7 @@ def get_anomaly_config(
 def update_anomaly_config(
     data: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "censeur"))
+    current_user: User = Depends(require_role("admin", "censeur", "secretary"))
 ):
     """Met à jour la configuration des anomalies"""
     from app.models.anomaly_config import AnomalyConfig

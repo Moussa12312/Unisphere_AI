@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import {
   FileText, Plus, Edit3, Trash2, Loader2, Search,
-  Calendar
+  Calendar, Lock, Unlock, Clock
 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
@@ -79,6 +79,21 @@ export default function CenseurExamsSessionsPage() {
       } catch (error: any) {
         toast.error(error.response?.data?.detail || 'Erreur');
       }
+    }
+  };
+
+  const handleToggleStatus = async (session: any) => {
+    try {
+      const res = await api.put(`/api/v1/exam-sessions/${session.id}/toggle-status`);
+      const isClosed = res.data?.status === 'closed';
+      toast.success(
+        isClosed
+          ? `Session « ${session.name} » clôturée. La saisie des notes est maintenant verrouillée.`
+          : `Session « ${session.name} » rouverte. La saisie des notes est autorisée.`
+      );
+      loadSessions();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Erreur lors du changement de statut');
     }
   };
 
@@ -194,13 +209,39 @@ export default function CenseurExamsSessionsPage() {
                         {' → '}
                         {session.end_date ? new Date(session.end_date).toLocaleDateString('fr-FR') : '?'}
                       </p>
+
+                      {session.end_date && new Date() < new Date(session.end_date) && session.status !== 'closed' && (
+                        <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
+                          <Clock size={12} className="text-amber-600" />
+                          <span>Épreuves en cours • Saisie des notes autorisée après le {new Date(session.end_date).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                      )}
+                      {session.status === 'closed' && (
+                        <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold">
+                          <Lock size={12} className="text-slate-600" />
+                          <span>Session clôturée • Saisie des notes verrouillée</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleToggleStatus(session)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-95 ${
+                        session.status === 'closed'
+                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                          : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                      }`}
+                      title={session.status === 'closed' ? 'Rouvrir la session' : 'Fermer la session pour verrouiller la saisie des notes'}
+                    >
+                      {session.status === 'closed' ? <Unlock size={13} /> : <Lock size={13} />}
+                      <span>{session.status === 'closed' ? 'Rouvrir' : 'Fermer la session'}</span>
+                    </button>
+
                     <Link
                       href={`/censeur/exams/sessions/${session.id}`}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Voir"
+                      title="Modifier / Voir détails"
                     >
                       <Edit3 size={16} />
                     </Link>

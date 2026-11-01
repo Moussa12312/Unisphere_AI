@@ -58,7 +58,16 @@ export default function AdminAttendancePage() {
 
   // Données étudiants
   const [attendances, setAttendances] = useState<StudentAttendance[]>([]);
-  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, late: 0, attendance_rate: 0 });
+  const [stats, setStats] = useState<any>({
+    total: 0,
+    present: 0,
+    absent: 0,
+    late: 0,
+    attendance_rate: 0,
+    message: null,
+    is_out_of_term: false,
+    is_off_day: false
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split("T")[0]);
@@ -70,8 +79,10 @@ export default function AdminAttendancePage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Stats globales du jour
-      const statsRes = await api.get("/api/v1/attendance/today/stats");
+      // 1. Stats globales avec prise en compte de la date sélectionnée
+      const statsRes = await api.get("/api/v1/attendance/today/stats", {
+        params: { date: dateFilter }
+      });
       setStats(statsRes.data || { total: 0, present: 0, absent: 0, late: 0, attendance_rate: 0 });
 
       // 2. Présences détaillées avec filtre de date
@@ -209,6 +220,16 @@ export default function AdminAttendancePage() {
         </div>
       </div>
 
+      {/* Alerte contextuelle calendrier (période pré-rentrée ou jour férié / sans cours) */}
+      {stats.message && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-sm font-medium shadow-xs">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <span className="font-bold">Information de session :</span> {stats.message}
+          </div>
+        </div>
+      )}
+
       {/* Cartes de statistiques globales */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
@@ -244,7 +265,9 @@ export default function AdminAttendancePage() {
             <XCircle className="w-5 h-5 text-rose-500" />
           </div>
           <div className="text-2xl sm:text-3xl font-bold text-rose-600">{stats.absent}</div>
-          <p className="text-xs text-slate-400 mt-1">Non enregistrés</p>
+          <p className="text-xs text-slate-400 mt-1">
+            {stats.is_out_of_term || stats.is_off_day ? "Non concernés aujourd'hui" : "Non enregistrés"}
+          </p>
         </div>
       </div>
 

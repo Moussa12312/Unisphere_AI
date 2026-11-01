@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Calendar, Plus, Search, Edit3, Trash2, Eye, X, Save,
-  Loader2, AlertTriangle, FileText, CheckCircle2, Clock, Lock
+  Loader2, AlertTriangle, FileText, CheckCircle2, Clock, Lock, Unlock
 } from 'lucide-react';
 import { examSessionService, ExamSession } from '@/services/examSessionService';
 import { useToast } from '@/components/ToastProvider';
@@ -128,6 +128,21 @@ export default function SecretaryExamSessionsPage() {
       toast.error(getApiErrorMessage(error, 'Erreur lors de la suppression'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleStatus = async (session: ExamSession) => {
+    try {
+      const updated = await examSessionService.toggleStatus(session.id);
+      const isClosed = updated.status === 'closed';
+      toast.success(
+        isClosed
+          ? `Session « ${session.name} » clôturée. La saisie des notes est maintenant verrouillée.`
+          : `Session « ${session.name} » rouverte. La saisie des notes est autorisée.`
+      );
+      loadSessions();
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Erreur lors du changement de statut de la session'));
     }
   };
 
@@ -317,8 +332,34 @@ export default function SecretaryExamSessionsPage() {
                         Du {formatDate(session.start_date)} au {formatDate(session.end_date)}
                       </span>
                     </div>
+
+                    {session.end_date && new Date() < new Date(session.end_date) && session.status !== 'closed' && (
+                      <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
+                        <Clock size={12} className="text-amber-600" />
+                        <span>Épreuves en cours • Saisie des notes déverrouillée après le {formatDate(session.end_date)}</span>
+                      </div>
+                    )}
+                    {session.status === 'closed' && (
+                      <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold">
+                        <Lock size={12} className="text-slate-600" />
+                        <span>Session clôturée • Saisie des notes verrouillée</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      onClick={() => handleToggleStatus(session)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-95 ${
+                        session.status === 'closed'
+                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                          : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                      }`}
+                      title={session.status === 'closed' ? 'Rouvrir la session' : 'Fermer la session pour verrouiller la saisie des notes'}
+                    >
+                      {session.status === 'closed' ? <Unlock size={13} /> : <Lock size={13} />}
+                      <span>{session.status === 'closed' ? 'Rouvrir la session' : 'Fermer la session'}</span>
+                    </button>
+
                     <Link
                       href={`/secretary/exam-sessions/${session.id}/schedule`}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-95"

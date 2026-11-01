@@ -31,6 +31,7 @@ export default function SecretaryGradesEntryPage() {
   const [examCoeff, setExamCoeff] = useState(0.7);
   const [maxGrade, setMaxGrade] = useState(20.0);
   const [isLocked, setIsLocked] = useState(false);
+  const [lockReason, setLockReason] = useState<string | null>(null);
   const [togglingLock, setTogglingLock] = useState(false);
 
   useEffect(() => {
@@ -92,6 +93,8 @@ export default function SecretaryGradesEntryPage() {
       if (ctx.default_cc_coefficient !== undefined) setCcCoeff(ctx.default_cc_coefficient);
       if (ctx.default_exam_coefficient !== undefined) setExamCoeff(ctx.default_exam_coefficient);
       if (ctx.max_grade !== undefined) setMaxGrade(ctx.max_grade);
+      if (ctx.is_locked !== undefined) setIsLocked(Boolean(ctx.is_locked));
+      if (ctx.lock_reason !== undefined) setLockReason(ctx.lock_reason);
       setHasChanges(false);
     } catch (error) {
       toast.error('Erreur lors du chargement des notes');
@@ -283,7 +286,7 @@ export default function SecretaryGradesEntryPage() {
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 text-sm text-amber-800">
           <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
           <p>
-            <strong>Attention :</strong> La saisie et modification des notes est actuellement clôturée par l'administration. Les modifications sont temporairement verrouillées.
+            <strong>Attention :</strong> {lockReason || "La saisie et modification des notes est actuellement clôturée par l'administration ou la session est en cours."}
           </p>
         </div>
       )}
@@ -302,9 +305,14 @@ export default function SecretaryGradesEntryPage() {
               className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
             >
               <option value="">Sélectionner...</option>
-              {sessions.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
+              {sessions.map(s => {
+                const isOngoing = s.end_date && new Date() < new Date(s.end_date);
+                return (
+                  <option key={s.id} value={s.id}>
+                    {s.name} {isOngoing ? `⏳ (Épreuves en cours jusqu'au ${new Date(s.end_date).toLocaleDateString('fr-FR')})` : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div>

@@ -27,7 +27,7 @@ def get_db():
 def get_performance(
     session_id: int = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "censeur"))
+    current_user: User = Depends(require_role("admin", "censeur", "secretary"))
 ):
     """Performance par classe et filière"""
     
@@ -166,7 +166,7 @@ def get_performance(
 def get_statistics(
     session_id: int = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "censeur"))
+    current_user: User = Depends(require_role("admin", "censeur", "secretary"))
 ):
     """Statistiques avancées"""
     
@@ -245,7 +245,7 @@ def get_statistics(
 @router.get("/reports")
 def get_reports(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "censeur"))
+    current_user: User = Depends(require_role("admin", "censeur", "secretary"))
 ):
     """Liste des rapports disponibles"""
     

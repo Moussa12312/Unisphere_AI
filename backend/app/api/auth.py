@@ -588,6 +588,134 @@ def platform_contact(db: Session = Depends(get_db)):
         "platform_name": "UniSphere AI",
     }
 
+
+# ==========================================
+# DEMANDE DE CONTACT / ESSAI GRATUIT (Public)
+# ==========================================
+@router.post("/contact-request")
+def submit_contact_request(
+    data: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Formulaire public de demande d'ouverture de compte, d'essai gratuit ou de devis
+    transmis directement au Super Administrateur (Moussa Coulibaly).
+    """
+    university_name = (data.get("university_name") or "").strip()
+    contact_name = (data.get("contact_name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    email = (data.get("email") or "").strip()
+    plan = (data.get("plan") or "Non spécifié").strip()
+    message_text = (data.get("message") or "").strip()
+
+    if not university_name or not contact_name or not phone:
+        raise HTTPException(
+            status_code=400,
+            detail="Veuillez renseigner le nom de l'université, votre nom complet et votre numéro de téléphone."
+        )
+
+    # 1. Trouver le Super Admin
+    super_admin = db.query(User).filter(User.role == "super_admin").first()
+    recipient_id = super_admin.id if super_admin else 1
+    target_univ_id = super_admin.university_id if (super_admin and super_admin.university_id) else None
+    if not target_univ_id:
+        from app.models.university import University
+        first_univ = db.query(University).first()
+        target_univ_id = first_univ.id if first_univ else 1
+
+    subject = f"🚀 Nouvelle demande d'essai / compte : {university_name}"
+    content = (
+        f"📋 DEMANDE D'OUVERTURE DE COMPTE / ESSAI GRATUIT\n\n"
+        f"• Établissement : {university_name}\n"
+        f"• Responsable / Contact : {contact_name}\n"
+        f"• Téléphone : {phone}\n"
+        f"• Email : {email if email else 'Non renseigné'}\n"
+        f"• Formule choisie : {plan}\n"
+        f"• Message / Précisions : {message_text if message_text else 'Demande de rappel et mise en service de la plateforme'}\n\n"
+        f"Date : {datetime.now().strftime('%d/%m/%Y à %H:%M')}"
+    )
+
+    # 2. Créer le Message interne pour le Super Admin
+    try:
+        from app.models.message import Message
+        msg = Message(
+            sender_id=recipient_id,
+            recipient_id=recipient_id,
+            subject=subject,
+            content=content,
+            message_type="direct",
+            university_id=target_univ_id
+        )
+        db.add(msg)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"⚠️ Erreur création message contact: {e}")
+
+    # 3. Créer une Notification instantanée pour le Super Admin
+    try:
+        from app.models.notification import Notification
+        notif = Notification(
+            title=f"🚀 Nouvelle demande : {university_name}",
+            message=f"{contact_name} ({phone}) souhaite déployer UniSphere AI pour {university_name}.",
+            notification_type="contact_request",
+            type="info",
+            target_roles=["super_admin"],
+            recipient_id=recipient_id,
+            created_by=recipient_id,
+            university_id=target_univ_id,
+            is_read=False,
+            extra_data={
+                "university_name": university_name,
+                "contact_name": contact_name,
+                "phone": phone,
+                "email": email,
+                "plan": plan,
+                "message": message_text
+            }
+        )
+        db.add(notif)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"⚠️ Erreur création notification contact: {e}")
+
+    # 4. Envoi Email au Super Admin si SMTP actif
+    if super_admin and super_admin.email:
+        from app.utils.email_service import send_email
+        html_email = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+            <div style="background-color: #031B63; padding: 15px; border-radius: 8px; text-align: center; color: white;">
+                <h2 style="margin: 0; font-size: 20px;">UniSphere AI • Nouveau Prospect</h2>
+            </div>
+            <div style="padding: 20px 10px; color: #1e293b; line-height: 1.6;">
+                <p>Salam Moussa Coulibaly,</p>
+                <p>Un nouvel établissement vient de soumettre une demande via le site web :</p>
+                <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+                    <tr><td style="padding: 8px; font-weight: bold; width: 140px;">Établissement :</td><td style="padding: 8px;">{university_name}</td></tr>
+                    <tr style="background-color: #f8fafc;"><td style="padding: 8px; font-weight: bold;">Contact :</td><td style="padding: 8px;">{contact_name}</td></tr>
+                    <tr><td style="padding: 8px; font-weight: bold;">Téléphone :</td><td style="padding: 8px;"><a href="tel:{phone}" style="color: #FF6B00; font-weight: bold;">{phone}</a></td></tr>
+                    <tr style="background-color: #f8fafc;"><td style="padding: 8px; font-weight: bold;">Email :</td><td style="padding: 8px;">{email if email else 'Non renseigné'}</td></tr>
+                    <tr><td style="padding: 8px; font-weight: bold;">Offre choisie :</td><td style="padding: 8px; font-weight: bold; color: #031B63;">{plan}</td></tr>
+                    <tr style="background-color: #f8fafc;"><td style="padding: 8px; font-weight: bold;">Précisions :</td><td style="padding: 8px;">{message_text if message_text else 'N/A'}</td></tr>
+                </table>
+            </div>
+        </div>
+        """
+        try:
+            send_email(
+                to_email=super_admin.email,
+                subject=f"🚀 Nouvelle demande d'essai : {university_name} ({contact_name})",
+                html_body=html_email
+            )
+        except Exception as e:
+            print(f"⚠️ Erreur envoi email lead: {e}")
+
+    return {
+        "success": True,
+        "message": "Votre demande a été transmise avec succès à Moussa Coulibaly (Directeur Technique). Vous serez contacté très rapidement."
+    }
+
 # ==========================================
 # BASCULE D'UNIVERSITÉ (Option B Enseignants Multi-Universités)
 # ==========================================

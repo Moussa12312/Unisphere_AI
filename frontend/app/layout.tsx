@@ -4,6 +4,7 @@ import { ToastProvider } from "@/components/ToastProvider";
 import ConfirmProvider from '@/components/ConfirmProvider';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import StartupAnimation from '@/components/StartupAnimation';
+import PushNotificationManager from '@/components/PushNotificationManager';
 
 export const metadata: Metadata = {
   title: "UniSphere AI - Plateforme Universitaire Intelligente",
@@ -37,6 +38,7 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning>
       <body>
         <StartupAnimation />
+        <PushNotificationManager />
         <SettingsProvider>
           <ToastProvider>
             <ConfirmProvider>

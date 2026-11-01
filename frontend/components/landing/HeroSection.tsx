@@ -52,10 +52,10 @@ export default function HeroSection({ onOpenLogin, onOpenRegister }: HeroSection
             {/* 4. Double bouton d'appel à l'action (CTA) */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 mb-8">
               <button
-                onClick={() => onOpenRegister('recommande')}
+                onClick={() => onOpenRegister('mensuel')}
                 className="inline-flex items-center justify-center gap-3 px-7 py-4 rounded-xl text-base font-bold text-white bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 transition-all transform active:scale-98"
               >
-                <span>Commencer gratuitement</span>
+                <span>Commencer mon essai gratuit</span>
                 <ArrowRight size={18} />
               </button>
 

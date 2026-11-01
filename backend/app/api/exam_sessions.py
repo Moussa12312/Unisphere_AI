@@ -19,6 +19,17 @@ def get_db():
 
 def session_to_dict(s):
     """Convertit une session en dict de manière sécurisée"""
+    today_date = date.today()
+    is_closed = getattr(s, 'status', 'draft') == 'closed'
+    is_before_end = bool(s.end_date and today_date < s.end_date)
+    can_enter_grades = not is_closed and not is_before_end
+
+    lock_reason = None
+    if is_closed:
+        lock_reason = "Session clôturée (saisie verrouillée)"
+    elif is_before_end and s.end_date:
+        lock_reason = f"Épreuves en cours jusqu'au {s.end_date.strftime('%d/%m/%Y')} (saisie déverrouillée après cette date)"
+
     return {
         "id": s.id,
         "name": s.name,
@@ -28,9 +39,39 @@ def session_to_dict(s):
         "status": getattr(s, 'status', 'draft'),
         "description": getattr(s, 'description', None),
         "university_id": s.university_id,
+        "is_closed": is_closed,
+        "is_before_end": is_before_end,
+        "can_enter_grades": can_enter_grades,
+        "lock_reason": lock_reason,
         "created_at": s.created_at.isoformat() if getattr(s, 'created_at', None) else None,
         "updated_at": s.updated_at.isoformat() if getattr(s, 'updated_at', None) else None
     }
+
+
+# ✅ CLÔTURER OU ROUVRIR UNE SESSION (Verrouillage des notes)
+@router.put("/{session_id}/toggle-status")
+@router.put("/{session_id}/close")
+def toggle_exam_session_status(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "censeur"))
+):
+    """
+    Permet de fermer (verrouiller la saisie des notes) ou de rouvrir une session d'examen.
+    """
+    session = db.query(ExamSession).filter(
+        ExamSession.id == session_id,
+        ExamSession.university_id == current_user.university_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+    
+    new_status = "open" if session.status == "closed" else "closed"
+    session.status = new_status
+    db.commit()
+    db.refresh(session)
+    
+    return session_to_dict(session)
 
 
 # ✅ LISTER TOUTES LES SESSIONS

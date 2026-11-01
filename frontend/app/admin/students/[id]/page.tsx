@@ -327,11 +327,11 @@ export default function AdminStudentDetailPage() {
   return (
     <div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Header Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-900">{student.first_name} {student.last_name}</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{student.first_name} {student.last_name}</h1>
             <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
               student.status === 'active' ? 'bg-green-100 text-green-700' :
               student.status === 'pending' ? 'bg-orange-100 text-orange-700' :
@@ -342,20 +342,20 @@ export default function AdminStudentDetailPage() {
           </div>
           <p className="text-slate-500 mt-1 font-mono text-sm">{student.matricule} • {student.filiere} ({student.level})</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           <button
             onClick={handleResetPassword}
             disabled={isResetting}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 shadow-sm transition-colors"
+            className="flex-1 sm:flex-none justify-center bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 disabled:opacity-50 shadow-sm transition-colors"
           >
             {isResetting ? <Loader2 size={14} className="animate-spin" /> : <Key size={14} />}
-            Réinitialiser mot de passe
+            <span className="whitespace-nowrap">Réinitialiser MDP</span>
           </button>
-          <Link href={`/admin/students/${params.id}/edit`} className="bg-[#0a1628] hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-            <Pencil size={14} /> Modifier
+          <Link href={`/admin/students/${params.id}/edit`} className="bg-[#0a1628] hover:bg-slate-800 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 transition-colors">
+            <Pencil size={14} /> <span className="whitespace-nowrap">Modifier</span>
           </Link>
-          <button onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-            <Trash2 size={14} /> Supprimer
+          <button onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 transition-colors">
+            <Trash2 size={14} /> <span className="whitespace-nowrap">Supprimer</span>
           </button>
           <div className="relative">
             <button onClick={() => setShowMenu(!showMenu)} className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2 rounded-lg transition-colors">
@@ -433,7 +433,7 @@ export default function AdminStudentDetailPage() {
             <h3 className="text-base font-semibold text-slate-900 mb-5 flex items-center gap-2">
               <User size={18} className="text-[#FF6B00]" /> Informations personnelles
             </h3>
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
               <div><p className="text-xs text-slate-500 mb-1">Prénom</p><p className="text-sm font-medium text-slate-900">{student.first_name}</p></div>
               <div><p className="text-xs text-slate-500 mb-1">Nom</p><p className="text-sm font-medium text-slate-900">{student.last_name}</p></div>
               <div><p className="text-xs text-slate-500 mb-1">Date de naissance</p><p className="text-sm font-medium text-slate-900">{formatDate(student.date_of_birth)}</p></div>
@@ -467,7 +467,7 @@ export default function AdminStudentDetailPage() {
             <h3 className="text-base font-semibold text-slate-900 mb-5 flex items-center gap-2">
               <GraduationCap size={18} className="text-[#FF6B00]" /> Informations académiques
             </h3>
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
               <div><p className="text-xs text-slate-500 mb-1">Matricule</p><p className="text-sm font-medium text-slate-900 font-mono">{student.matricule}</p></div>
               <div><p className="text-xs text-slate-500 mb-1">Niveau</p><p className="text-sm font-medium text-slate-900">{student.level}</p></div>
               <div><p className="text-xs text-slate-500 mb-1">Domaine</p><p className="text-sm font-medium text-slate-900">{student.domaine || student.domain || 'Non renseigné'}</p></div>

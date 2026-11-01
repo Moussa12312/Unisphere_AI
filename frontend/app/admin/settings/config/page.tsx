@@ -668,15 +668,15 @@ export default function AcademicConfigPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Configuration Académique & Financière</h1>
-          <p className="text-slate-500 mt-1">Gérez tous les paramètres de votre université</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-slate-900">Configuration Académique & Financière</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Gérez tous les paramètres de votre université</p>
         </div>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] text-white rounded-xl text-sm font-medium hover:bg-[#e55f00] transition-all shadow-md disabled:opacity-50"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-[#FF6B00] text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-[#e55f00] transition-all shadow-md disabled:opacity-50 w-full sm:w-auto"
         >
           <Save size={16} />
           {saving ? 'Sauvegarde...' : 'Sauvegarder'}
@@ -685,14 +685,14 @@ export default function AcademicConfigPage() {
 
       {/* Onglets */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex border-b border-slate-200 overflow-x-auto">
+        <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar">
           {tabs.map(tab => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                className={`flex items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${
                   activeTab === tab.id
                     ? 'text-[#FF6B00] border-b-2 border-[#FF6B00] bg-orange-50/50'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -705,7 +705,7 @@ export default function AcademicConfigPage() {
           })}
         </div>
 
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
           {/* TAB: FRAIS & TRANCHES */}
           {activeTab === 'frais' && (
             <div className="space-y-8">
@@ -1529,13 +1529,13 @@ export default function AcademicConfigPage() {
                   
                   return (
                     <div key={deadlineType.value} className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200">
+                          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 shrink-0">
                             <Icon className="text-slate-600" size={18} />
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900">{deadlineType.label}</p>
+                            <p className="font-semibold text-slate-900 text-sm sm:text-base">{deadlineType.label}</p>
                             {deadlineType.value === 'exams_s2' && (
                               <p className="text-xs text-red-600 mt-1">
                                 ⚠️ Date limite pour payer les reliquats avant les examens
@@ -1544,13 +1544,13 @@ export default function AcademicConfigPage() {
                           </div>
                         </div>
                         {deadline?.deadline_date && (
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                          <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-medium self-start sm:self-auto">
                             ✓ Configurée
                           </span>
                         )}
                       </div>
                       
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                         <input
                           type="date"
                           value={currentValue}
@@ -1565,25 +1565,27 @@ export default function AcademicConfigPage() {
                           className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
                         />
                         
-                        {hasChanged && (
-                          <button
-                            onClick={handleSaveDeadline}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium transition-colors"
-                          >
-                            <Save size={14} />
-                            Enregistrer
-                          </button>
-                        )}
-                        
-                        {isEditing && hasChanged && (
-                          <button
-                            onClick={() => setEditingDeadline(null)}
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-medium transition-colors"
-                          >
-                            <XCircle size={14} />
-                            Annuler
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {hasChanged && (
+                            <button
+                              onClick={handleSaveDeadline}
+                              className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium transition-colors"
+                            >
+                              <Save size={14} />
+                              Enregistrer
+                            </button>
+                          )}
+                          
+                          {isEditing && hasChanged && (
+                            <button
+                              onClick={() => setEditingDeadline(null)}
+                              className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              <XCircle size={14} />
+                              Annuler
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -1813,7 +1815,7 @@ export default function AcademicConfigPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 ml-13">
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => handleChange('allow_compensation', true)}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -1857,7 +1859,7 @@ export default function AcademicConfigPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 ml-13">
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => handleChange('allow_makeup_exam', true)}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${

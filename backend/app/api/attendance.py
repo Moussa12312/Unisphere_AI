@@ -309,16 +309,79 @@ def get_today_stats(
             target_date = datetime.strptime(date_param, "%Y-%m-%d").date()
         except Exception:
             pass
-    total_students = db.query(Student).filter(Student.university_id == current_user.university_id, Student.status == 'active').count()
-    present = db.query(Attendance).filter(Attendance.university_id == current_user.university_id, Attendance.date == target_date, Attendance.status == 'present', Attendance.attendance_type == 'student').count()
-    late = db.query(Attendance).filter(Attendance.university_id == current_user.university_id, Attendance.date == target_date, Attendance.status == 'late', Attendance.attendance_type == 'student').count()
     
+    total_students = db.query(Student).filter(
+        Student.university_id == current_user.university_id,
+        Student.status == 'active'
+    ).count()
+
+    present = db.query(Attendance).filter(
+        Attendance.university_id == current_user.university_id,
+        Attendance.date == target_date,
+        Attendance.status == 'present',
+        Attendance.attendance_type == 'student'
+    ).count()
+
+    late = db.query(Attendance).filter(
+        Attendance.university_id == current_user.university_id,
+        Attendance.date == target_date,
+        Attendance.status == 'late',
+        Attendance.attendance_type == 'student'
+    ).count()
+
+    # 1. Vérifier si la date est antérieure au démarrage du Semestre 1
+    from app.models.payment_deadline import PaymentDeadline
+    semester_start = db.query(PaymentDeadline).filter(
+        PaymentDeadline.university_id == current_user.university_id,
+        PaymentDeadline.deadline_type.in_(["semester1_start", "semester_1_start", "debut_semestre_1"])
+    ).first()
+
+    is_out_of_term = False
+    out_of_term_msg = None
+    if semester_start and semester_start.deadline_date and target_date < semester_start.deadline_date:
+        is_out_of_term = True
+        out_of_term_msg = f"Le Semestre 1 démarre le {semester_start.deadline_date.strftime('%d/%m/%Y')}. Aucun cours dispensé ce jour."
+
+    # 2. Vérifier si des cours sont programmés dans l'emploi du temps pour ce jour
+    french_days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    day_name = french_days[target_date.weekday()]
+    
+    from app.models.schedule import Schedule
+    scheduled_courses = db.query(Schedule).filter(
+        Schedule.university_id == current_user.university_id,
+        Schedule.day_of_week.ilike(day_name)
+    ).all()
+    courses_count = len(scheduled_courses)
+
+    is_off_day = False
+    off_day_msg = None
+    if target_date.weekday() == 6:  # Dimanche
+        is_off_day = True
+        off_day_msg = f"Dimanche : Jour de repos hebdomadaire. Aucun cours programmé."
+    elif courses_count == 0:
+        is_off_day = True
+        off_day_msg = f"Aucun cours n'est inscrit à l'emploi du temps pour ce {day_name}."
+
+    # Calcul cohérent des absents
+    if is_out_of_term or (is_off_day and present == 0 and late == 0):
+        # Hors semestre ou jour sans cours : 0 absent attendu !
+        absent_count = 0
+        attendance_rate = 100.0 if (present + late > 0) else 0.0
+    else:
+        absent_count = max(0, total_students - present - late)
+        attendance_rate = ((present + late) / total_students * 100) if total_students > 0 else 0.0
+
     return {
         "total": total_students,
         "present": present,
-        "absent": total_students - present - late,
+        "absent": absent_count,
         "late": late,
-        "attendance_rate": ((present + late) / total_students * 100) if total_students > 0 else 0
+        "attendance_rate": attendance_rate,
+        "is_out_of_term": is_out_of_term,
+        "is_off_day": is_off_day,
+        "scheduled_courses_count": courses_count,
+        "day_name": day_name,
+        "message": out_of_term_msg or off_day_msg or None
     }
 
 @router.get("/recent")

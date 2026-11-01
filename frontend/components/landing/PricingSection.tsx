@@ -13,76 +13,52 @@ interface PricingSectionProps {
 export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
   const plans = [
     {
-      id: 'decouverte',
-      name: 'Formule Découverte',
-      periodBadge: 'Mensuel sans engagement',
-      subtitle: 'Idéal pour piloter une filière test ou évaluer l’outil en conditions réelles.',
+      id: 'mensuel',
+      name: 'Offre Mensuelle',
+      periodBadge: '8 mois d’activité + 4 mois vacances offerts',
+      subtitle: 'Idéal pour lisser la trésorerie au rythme des encaissements d’écolage.',
       price: '150 000',
       currency: 'FCFA',
       period: '/ mois',
-      equivalent: 'Sans engagement • Annulable à tout moment en 1 clic',
+      equivalent: 'Facturé sur 8 mois • 4 mois de vacances 100% GRATUITS (Total : 1 200 000 F)',
       popular: false,
-      badgeText: null,
-      ctaText: 'Choisir la Formule Découverte',
-      ctaStyle: 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-300',
+      badgeText: '4 MOIS DE VACANCES OFFERTS',
+      ctaText: 'Choisir l’Offre Mensuelle',
+      ctaStyle: 'bg-slate-900 hover:bg-slate-800 text-white shadow-md',
       features: [
-        'Jusqu’à 350 étudiants enregistrés',
-        'Gestion complète des notes & PV LMD',
-        'Reçus de scolarité électroniques certifiés',
-        'Espace Enseignant & Saisie en ligne',
-        'Support technique par WhatsApp & Email',
-      ],
-      notIncluded: [
-        'Paiements Mobile Money automatisés',
-        'Cartes avec QR Code de sécurité',
-        'Portail Alumni & Insertion pro',
-      ]
-    },
-    {
-      id: 'etablissement',
-      name: 'Formule Établissement',
-      periodBadge: 'Semestriel recommandé',
-      subtitle: 'La formule plébiscitée par les grandes écoles et instituts universitaires.',
-      price: '225 000',
-      currency: 'FCFA',
-      period: '/ mois',
-      equivalent: 'Facturé par semestre (894 000 FCFA) • Soit ~298 FCFA / étudiant / mois',
-      popular: true,
-      badgeText: '★ LE PLUS POPULAIRE',
-      ctaText: 'Démarrer l’Essai Gratuit 7 Jours',
-      ctaStyle: 'bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/30',
-      features: [
-        'Jusqu’à 2 500 étudiants & enseignants illimités',
-        'Paiements Mobile Money intégrés (Wave, Orange, MTN)',
-        'Cartes étudiantes numériques avec QR Code',
-        'Délibérations LMD & PV automatisés 1-clic',
-        'Portails Secrétariat, Censeur & Comptabilité',
-        'Réseau Alumni & suivi de l’insertion des diplômés',
-        'Support prioritaire 6j/7 et formation des équipes',
+        '150 000 FCFA / mois pendant 8 mois d’activité scolaire',
+        'Les 4 mois de vacances académiques sont 100% gratuits',
+        'Gestion complète de la scolarité et dossiers étudiants',
+        'Saisie des notes, délibérations LMD et calcul de PV automatisé',
+        'Portails dédiés : Secrétariat, Censeur, Enseignants, Étudiants',
+        'Contrôle de présence et suivi de ponctualité par QR Code',
+        'Paiements Mobile Money intégrés (Orange Money, Wave, MTN, Moov)',
+        'Support technique dédié par WhatsApp et Téléphone 7j/7',
       ],
       notIncluded: []
     },
     {
-      id: 'campus',
-      name: 'Formule Campus Intégral',
-      periodBadge: 'Annuel sérénité',
-      subtitle: 'Tranquillité totale et personnalisation pour universités multi-campus.',
-      price: '275 000',
+      id: 'annuel',
+      name: 'Offre Annuelle Sérénité',
+      periodBadge: 'Paiement unique • Économie maximale',
+      subtitle: 'La formule plébiscitée par les universités pour une tranquillité administrative absolue.',
+      price: '900 000',
       currency: 'FCFA',
-      period: '/ mois',
-      equivalent: 'Facturé annuellement (2 mois offerts) • Économie de 498 000 FCFA',
-      popular: false,
-      badgeText: 'MEILLEURE OFFRE (2 MOIS OFFERTS)',
-      ctaText: 'Opter pour Campus Intégral',
-      ctaStyle: 'bg-slate-900 hover:bg-slate-800 text-white shadow-md',
+      period: '/ an',
+      equivalent: 'Économie immédiate de 300 000 FCFA (au lieu de 1 200 000 FCFA)',
+      popular: true,
+      badgeText: '★ ÉCONOMISEZ 300 000 FCFA',
+      ctaText: 'Choisir l’Offre Annuelle (900 000 F)',
+      ctaStyle: 'bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/30',
       features: [
-        'Étudiants, campus et filières illimités',
-        'Tous les modules débloqués sans restriction',
-        'Module de contrôle d’accès portique hors-ligne',
-        'Assistant IA d’aide à la décision académique',
-        'Sauvegarde quotidienne cloud & SLA 99.9%',
-        'Formation certifiante sur site pour vos agents',
-        'Gestionnaire de compte dédié disponible 24/7',
+        'Un paiement annuel unique de 900 000 FCFA',
+        'Économie directe de 300 000 FCFA par rapport à l’offre mensuelle',
+        'Tous les modules débloqués sans aucune restriction',
+        'Mise en service prioritaire et paramétrage de vos maquettes LMD',
+        'Formation certifiante de vos équipes administratives et enseignantes',
+        'Bulletins, relevés de notes et attestations certifiés QR illimités',
+        'Réseau Alumni & suivi de l’insertion professionnelle des diplômés',
+        'Support prioritaire VIP avec la direction technique 7j/7',
       ],
       notIncluded: []
     }
@@ -108,8 +84,8 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
           </p>
         </div>
 
-        {/* Grille comparative des 3 formules */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch mb-16">
+        {/* Grille comparative des 2 formules */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 max-w-5xl mx-auto gap-8 items-stretch mb-10">
           {plans.map((plan) => (
             <div
               key={plan.id}
@@ -172,14 +148,6 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                       <span>{feat}</span>
                     </div>
                   ))}
-
-                  {/* Éléments non inclus (uniquement formule découverte pour clarté) */}
-                  {plan.notIncluded.map((feat, idx) => (
-                    <div key={`not-${idx}`} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-400 font-normal">
-                      <span className="w-4 h-4 text-center shrink-0 text-slate-300 font-bold">—</span>
-                      <span className="line-through">{feat}</span>
-                    </div>
-                  ))}
                 </div>
               </div>
 
@@ -195,6 +163,43 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Option Maintenance & Support Dédié */}
+        <div className="max-w-5xl mx-auto mb-16 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-700/80">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 text-[#FF6B00] border border-orange-500/30 text-xs font-bold uppercase tracking-wider">
+                <ShieldCheck size={14} />
+                <span>Option Annuelle • Maintenance de l'Application</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Maintenance & Support Technique Dédié
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Prise en charge intégrale par notre direction technique : sauvegardes externalisées quotidiennes, mises à jour continues du système, optimisation des bases de données et assistance prioritaire 7j/7 avec Moussa Coulibaly.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-3 shrink-0">
+              <div className="text-left md:text-right">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-black text-[#FF6B00]">250 000</span>
+                  <span className="text-sm font-bold text-white">FCFA</span>
+                  <span className="text-xs text-slate-300 font-semibold">/ an</span>
+                </div>
+                <p className="text-[11px] text-slate-400">Sur l'année académique complète</p>
+              </div>
+
+              <button
+                onClick={() => onSelectPlan('maintenance')}
+                className="px-5 py-3 rounded-xl bg-[#FF6B00] hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer"
+              >
+                <span>Ajouter cette option</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Moyens de paiement acceptés (Mobile Money Locaux) */}

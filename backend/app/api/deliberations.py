@@ -35,14 +35,14 @@ class RuleCreate(BaseModel):
 
 
 @router.get("/rules")
-def get_rules(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def get_rules(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     return db.query(DeliberationRule).filter(
         DeliberationRule.university_id == current_user.university_id
     ).order_by(DeliberationRule.created_at.desc()).all()
 
 
 @router.post("/rules")
-def create_rule(data: RuleCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def create_rule(data: RuleCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     rule = DeliberationRule(**data.dict(), university_id=current_user.university_id)
     db.add(rule)
     db.commit()
@@ -51,7 +51,7 @@ def create_rule(data: RuleCreate, db: Session = Depends(get_db), current_user: U
 
 
 @router.get("/rules/{rule_id}")
-def get_rule_detail(rule_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def get_rule_detail(rule_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     rule = db.query(DeliberationRule).filter(
         DeliberationRule.id == rule_id,
         DeliberationRule.university_id == current_user.university_id
@@ -62,7 +62,7 @@ def get_rule_detail(rule_id: int, db: Session = Depends(get_db), current_user: U
 
 
 @router.put("/rules/{rule_id}")
-def update_rule(rule_id: int, data: RuleCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def update_rule(rule_id: int, data: RuleCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     rule = db.query(DeliberationRule).filter(
         DeliberationRule.id == rule_id,
         DeliberationRule.university_id == current_user.university_id
@@ -103,7 +103,7 @@ class SessionCreate(BaseModel):
 
 
 @router.get("/sessions")
-def get_sessions(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def get_sessions(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     sessions = db.query(DeliberationSession).filter(
         DeliberationSession.university_id == current_user.university_id
     ).order_by(DeliberationSession.created_at.desc()).all()
@@ -124,7 +124,7 @@ def get_sessions(db: Session = Depends(get_db), current_user: User = Depends(req
 
 
 @router.post("/sessions")
-def create_session(data: SessionCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def create_session(data: SessionCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     session_date = None
     if data.session_date:
         try:
@@ -150,7 +150,7 @@ def create_session(data: SessionCreate, db: Session = Depends(get_db), current_u
 
 
 @router.get("/sessions/{session_id}")
-def get_session_detail(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def get_session_detail(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     session = db.query(DeliberationSession).filter(
         DeliberationSession.id == session_id,
         DeliberationSession.university_id == current_user.university_id
@@ -190,7 +190,7 @@ def _compute_decision(average: float, failed_count: int, rule: Optional[Delibera
 
 
 @router.get("/sessions/{session_id}/proposals")
-def get_decision_proposals(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def get_decision_proposals(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     """
     ✅ Calcule automatiquement une proposition de décision pour chaque étudiant
     de la filière/niveau de la session, à partir de ses notes réelles.
@@ -244,7 +244,7 @@ class DecisionSave(BaseModel):
 
 
 @router.get("/sessions/{session_id}/decisions")
-def get_session_decisions(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def get_session_decisions(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     session = db.query(DeliberationSession).filter(
         DeliberationSession.id == session_id,
         DeliberationSession.university_id == current_user.university_id
@@ -265,7 +265,7 @@ def get_session_decisions(session_id: int, db: Session = Depends(get_db), curren
 
 
 @router.post("/sessions/{session_id}/decisions")
-def save_decision(session_id: int, data: DecisionSave, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def save_decision(session_id: int, data: DecisionSave, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     session = db.query(DeliberationSession).filter(
         DeliberationSession.id == session_id,
         DeliberationSession.university_id == current_user.university_id
@@ -305,7 +305,7 @@ def save_decision(session_id: int, data: DecisionSave, db: Session = Depends(get
 
 
 @router.post("/sessions/{session_id}/complete")
-def complete_session(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def complete_session(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     """Clôture une session : elle devient consultable dans les procès-verbaux."""
     session = db.query(DeliberationSession).filter(
         DeliberationSession.id == session_id,
@@ -324,7 +324,7 @@ def complete_session(session_id: int, db: Session = Depends(get_db), current_use
 # 📄 PROCÈS-VERBAUX (sessions clôturées)
 # ==========================================
 @router.get("/minutes")
-def get_minutes(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def get_minutes(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     """Liste des sessions clôturées, consultables comme procès-verbaux."""
     sessions = db.query(DeliberationSession).filter(
         DeliberationSession.university_id == current_user.university_id,
@@ -345,7 +345,7 @@ def get_minutes(db: Session = Depends(get_db), current_user: User = Depends(requ
 
 
 @router.get("/minutes/{session_id}")
-def get_minute_detail(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur"))):
+def get_minute_detail(session_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "censeur", "secretary"))):
     """Détail complet d'un procès-verbal : session + toutes les décisions."""
     session = db.query(DeliberationSession).filter(
         DeliberationSession.id == session_id,

@@ -7,6 +7,7 @@ import {
   Building2, User, Clock, ShieldCheck, Send
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/lib/api';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -24,6 +25,8 @@ export default function RegisterModal({
   const [universityName, setUniversityName] = useState('');
   const [contactName, setContactName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('+223 ');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
   const [isSent, setIsSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -36,13 +39,13 @@ export default function RegisterModal({
   if (!isOpen) return null;
 
   const whatsappMessage = encodeURIComponent(
-    "Bonjour Moussa Coulibaly, je souhaite créer un compte et déployer UniSphere AI pour mon établissement universitaire."
+    `Bonjour Moussa Coulibaly, je souhaite déployer UniSphere AI pour mon établissement (${universityName || 'mon université'}). Formule souhaitée : ${initialPlan}.`
   );
   const whatsappUrl = `https://wa.me/22373343493?text=${whatsappMessage}`;
   const phoneCallUrl = "tel:+22373343493";
   const emailUrl = "mailto:chakirunisphereai@gmail.com?subject=Demande%20de%20d%C3%A9ploiement%20UniSphere%20AI";
 
-  const handleCallbackRequest = (e: React.FormEvent) => {
+  const handleCallbackRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!universityName.trim() || !contactName.trim() || !phoneNumber.trim()) {
       toast.error('Veuillez renseigner votre établissement, nom et numéro de téléphone.');
@@ -50,11 +53,23 @@ export default function RegisterModal({
     }
 
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
+    try {
+      const res = await api.post('/api/v1/auth/contact-request', {
+        university_name: universityName.trim(),
+        contact_name: contactName.trim(),
+        phone: phoneNumber.trim(),
+        email: email.trim(),
+        plan: initialPlan,
+        message: message.trim()
+      });
       setIsSent(true);
-      toast.success('Demande enregistrée ! Moussa Coulibaly vous contactera dans les plus brefs délais.');
-    }, 600);
+      toast.success(res.data?.message || 'Demande transmise avec succès !');
+    } catch (err: any) {
+      console.error("Erreur demande contact :", err);
+      toast.error(err.response?.data?.detail || "Erreur lors de l'envoi de la demande. Vous pouvez aussi nous contacter directement sur WhatsApp.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -218,31 +233,58 @@ export default function RegisterModal({
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Numéro Téléphone (WhatsApp) *
+                    </label>
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="+223 ..."
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Adresse Email institutionnelle (optionnel)
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="direction@universite.edu"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Numéro de Téléphone (WhatsApp de préférence)
+                    Message / Besoins particuliers (optionnel)
                   </label>
-                  <input
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="+223 ..."
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                    required
+                  <textarea
+                    rows={2}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Ex: Nombre d'étudiants, filières, besoin d'une démo en direct..."
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] resize-none"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-60"
+                  className="w-full py-3 px-4 bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-60 shadow-md shadow-orange-500/25"
                 >
                   {submitting ? (
-                    <span>Envoi en cours...</span>
+                    <span>Transmission en cours...</span>
                   ) : (
                     <>
                       <Send size={14} />
-                      <span>Être rappelé par la Direction UniSphere AI</span>
+                      <span>Transmettre ma demande à Moussa Coulibaly</span>
                     </>
                   )}
                 </button>

@@ -40,6 +40,11 @@ export const examSessionService = {
   delete: async (id: number): Promise<any> => {
     const response = await api.delete(`/api/v1/exam-sessions/${id}`);
     return response.data;
+  },
+
+  toggleStatus: async (id: number): Promise<any> => {
+    const response = await api.put(`/api/v1/exam-sessions/${id}/toggle-status`);
+    return response.data;
   }
 };
 
