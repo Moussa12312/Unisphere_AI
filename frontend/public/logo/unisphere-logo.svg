@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" width="100%" height="100%">
+  <!-- Open Book & Chip Emblem -->
+  <g transform="translate(10, 10)">
+    <!-- Book Left Page Glow & Body -->
+    <path d="M 50 82 C 30 75 12 78 5 82 L 5 35 C 15 28 35 25 50 32 Z" fill="#0754C7" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M 50 78 C 32 70 18 73 10 77 L 10 38 C 20 32 38 30 50 35 Z" fill="#FF7900" opacity="0.9"/>
+    
+    <!-- Book Right Page Glow & Body -->
+    <path d="M 50 82 C 70 75 88 78 95 82 L 95 35 C 85 28 65 25 50 32 Z" fill="#0754C7" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M 50 78 C 68 70 82 73 90 77 L 90 38 C 80 32 62 30 50 35 Z" fill="#FF7900" opacity="0.9"/>
+    
+    <!-- Open Book Spine & Bottom Stand -->
+    <path d="M 50 85 L 50 32" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+    <path d="M 3 83 C 25 88 45 88 50 92 C 55 88 75 88 97 83" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Integrated Central Microchip / AI Circuit -->
+    <rect x="35" y="16" width="30" height="30" rx="6" fill="#031B63" stroke="#FFFFFF" stroke-width="2.5"/>
+    <circle cx="50" cy="31" r="6" fill="#FF7900"/>
+    <circle cx="50" cy="31" r="2.5" fill="#FFFFFF"/>
+    <!-- Chip Connection Pins -->
+    <line x1="50" y1="9" x2="50" y2="16" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+    <line x1="42" y1="10" x2="42" y2="16" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="58" y1="10" x2="58" y2="16" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+    
+    <line x1="28" y1="31" x2="35" y2="31" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+    <line x1="29" y1="23" x2="35" y2="23" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="29" y1="39" x2="35" y2="39" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+
+    <line x1="65" y1="31" x2="72" y2="31" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+    <line x1="65" y1="23" x2="71" y2="23" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="65" y1="39" x2="71" y2="39" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
+
+  <!-- Typography: UniSphere AI -->
+  <text x="125" y="62" font-family="'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" font-weight="900" font-size="38" fill="#031B63" letter-spacing="-0.5">
+    UniSphere <tspan fill="#FF7900">AI</tspan>
+  </text>
+  <text x="128" y="86" font-family="'Plus Jakarta Sans', 'Inter', system-ui, sans-serif" font-weight="500" font-style="italic" font-size="13.5" fill="#64748B">
+    Ensemble pour une université intelligente
+  </text>
+</svg>
