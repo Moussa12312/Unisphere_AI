@@ -1,5 +1,5 @@
-import ChangeUserEmailModal from '@/components/admin/ChangeUserEmailModal';
 'use client';
+import ChangeUserEmailModal from '@/components/admin/ChangeUserEmailModal';
 
 import { useState, useEffect } from 'react';
 import {
