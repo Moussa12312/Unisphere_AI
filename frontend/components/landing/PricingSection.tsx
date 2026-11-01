@@ -177,7 +177,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                 Maintenance & Support Technique Dédié
               </h3>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Prise en charge intégrale par notre direction technique : sauvegardes externalisées quotidiennes, mises à jour continues du système, optimisation des bases de données et assistance prioritaire 7j/7 avec Moussa Coulibaly.
+                Prise en charge intégrale par notre direction technique : sauvegardes externalisées quotidiennes, mises à jour continues du système, optimisation des bases de données et assistance prioritaire 7j/7 avec Chakir's Entreprise.
               </p>
             </div>
 

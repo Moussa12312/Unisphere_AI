@@ -1318,7 +1318,7 @@ def generate_jury_deliberation_pv(
 # 📜 9. ORDRE DE MISSION OFFICIEL DU PERSONNEL
 @router.get("/generate-mission-order")
 def generate_mission_order(
-    staff_name: str = "Dr. Moussa COULIBALY",
+    staff_name: str = "Chakir's Entreprise",
     staff_title: str = "Enseignant-Chercheur / Directeur de Département",
     staff_matricule: str = "ENS-2026-0012",
     mission_purpose: str = "Supervision et audit des épreuves d'examens décentralisées",

@@ -89,7 +89,7 @@ def reset_database():
     try:
         existing_admin = db.query(User).filter(User.email == super_admin_email).first()
         if existing_admin:
-            existing_admin.full_name = "Moussa Coulibaly"
+            existing_admin.full_name = "Chakir's Entreprise"
             existing_admin.hashed_password = hash_password(super_admin_pass)
             existing_admin.role = "super_admin"
             existing_admin.phone = super_admin_phone
@@ -102,7 +102,7 @@ def reset_database():
             print(f"👑 Compte Super Admin mis à jour avec succès :")
         else:
             super_admin = User(
-                full_name="Moussa Coulibaly",
+                full_name="Chakir's Entreprise",
                 email=super_admin_email,
                 hashed_password=hash_password(super_admin_pass),
                 role="super_admin",
@@ -141,7 +141,7 @@ def reset_database():
                 slogan="Excellence, Innovation & Technologie",
                 website="https://www.unisphere-ai.com",
                 established_year="2020",
-                rector_name="Pr. Moussa Coulibaly",
+                rector_name="Pr. Chakir's Entreprise",
                 academic_year="2026-2027",
                 is_active=True,
                 status="active",

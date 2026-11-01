@@ -144,7 +144,7 @@ export default function NewUniversityPage() {
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="relative">
                 <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={form.admin_full_name} onChange={(e) => set('admin_full_name', e.target.value)} placeholder="Nom complet (ex: Dr. Moussa Coulibaly)" className={inputClass} required />
+                <input value={form.admin_full_name} onChange={(e) => set('admin_full_name', e.target.value)} placeholder="Nom complet (ex: Chakir's Entreprise)" className={inputClass} required />
               </div>
               <div className="relative">
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />

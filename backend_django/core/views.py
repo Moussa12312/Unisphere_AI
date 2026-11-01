@@ -132,7 +132,7 @@ def auth_context(request):
             "rector_name": univ.rector_name if univ else "Joackim Komi BADJOGOUMEY"
         },
         "quick_accounts": [
-            {"role": "super_admin", "label": "Super Admin", "email": "superadmin@unisphere.ai", "name": "Moussa Coulibaly", "department": "Plateforme SaaS", "icon": "👑"},
+            {"role": "super_admin", "label": "Super Admin", "email": "superadmin@unisphere.ai", "name": "Chakir's Entreprise", "department": "Plateforme SaaS", "icon": "👑"},
             {"role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration", "icon": "🏛️"},
             {"role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie", "icon": "👨‍🏫"},
             {"role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD", "icon": "🎓"},

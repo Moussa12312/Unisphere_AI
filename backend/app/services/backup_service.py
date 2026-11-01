@@ -200,7 +200,7 @@ def perform_automated_backup(source: str = "nightly_cron", trigger_user_id: Opti
         <p style="margin: 5px 0 0 0; color: #FF6B00; font-weight: bold;">Rapport d'intégrité système</p>
       </div>
       <div style="padding: 24px; color: #1e293b; line-height: 1.6;">
-        <p>Salam Moussa Coulibaly,</p>
+        <p>Salam Chakir's Entreprise,</p>
         <p>La sauvegarde automatique de votre plateforme SaaS s'est déroulée avec <strong>succès</strong>.</p>
         <table style="width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 14px;">
           <tr><td style="padding: 8px; border-bottom: 1px solid #f1f5f9; font-weight: bold;">Fichier :</td><td style="padding: 8px; border-bottom: 1px solid #f1f5f9; font-family: monospace;">{filename}</td></tr>

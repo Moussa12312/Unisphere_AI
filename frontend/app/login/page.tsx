@@ -63,7 +63,7 @@ function LoginPageContent() {
       {/* ============================================================ */}
       <LoginFooter />
 
-      {/* Modale de contact de l'administration (Moussa Coulibaly • WhatsApp & Appel) */}
+      {/* Modale de contact de l'administration (Chakir's Entreprise • WhatsApp & Appel) */}
       <RegisterModal
         isOpen={contactModalOpen}
         onClose={() => setContactModalOpen(false)}

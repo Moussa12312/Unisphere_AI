@@ -43,7 +43,7 @@ def get_auth_context(db: Session = Depends(get_db)):
             "logo": univ.logo if univ else None
         },
         "quick_accounts": [
-            { "role": "super_admin", "label": "Super Admin", "email": "chakirunisphereai@gmail.com", "name": "Moussa Coulibaly", "department": "SaaS Platform" },
+            { "role": "super_admin", "label": "Super Admin", "email": "chakirunisphereai@gmail.com", "name": "Chakir's Entreprise", "department": "SaaS Platform" },
             { "role": "admin", "label": "Direction", "email": "admin@unisphere.ai", "name": "Direction Université", "department": "Administration" },
             { "role": "teacher", "label": "Professeur", "email": "enseignant@unisphere.ai", "name": "Corps Professoral", "department": "Pédagogie" },
             { "role": "student", "label": "Étudiant", "email": "etudiant@unisphere.ai", "name": "Espace Étudiant", "matricule": "EC-2026-0001", "department": "LMD" },
@@ -599,7 +599,7 @@ def submit_contact_request(
 ):
     """
     Formulaire public de demande d'ouverture de compte, d'essai gratuit ou de devis
-    transmis directement au Super Administrateur (Moussa Coulibaly).
+    transmis directement au Super Administrateur (Chakir's Entreprise).
     """
     university_name = (data.get("university_name") or "").strip()
     contact_name = (data.get("contact_name") or "").strip()
@@ -689,7 +689,7 @@ def submit_contact_request(
                 <h2 style="margin: 0; font-size: 20px;">UniSphere AI • Nouveau Prospect</h2>
             </div>
             <div style="padding: 20px 10px; color: #1e293b; line-height: 1.6;">
-                <p>Salam Moussa Coulibaly,</p>
+                <p>Salam Chakir's Entreprise,</p>
                 <p>Un nouvel établissement vient de soumettre une demande via le site web :</p>
                 <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
                     <tr><td style="padding: 8px; font-weight: bold; width: 140px;">Établissement :</td><td style="padding: 8px;">{university_name}</td></tr>
@@ -713,7 +713,7 @@ def submit_contact_request(
 
     return {
         "success": True,
-        "message": "Votre demande a été transmise avec succès à Moussa Coulibaly (Directeur Technique). Vous serez contacté très rapidement."
+        "message": "Votre demande a été transmise avec succès à Chakir's Entreprise (Direction Technique). Vous serez contacté très rapidement."
     }
 
 # ==========================================

@@ -20,7 +20,7 @@ export const TeacherAttendanceScreen = () => {
         status: idx % 4 === 0 ? 'late' : (idx % 7 === 0 ? 'absent' : 'present'),
       }));
       setStudents(mapped.length > 0 ? mapped : [
-        { id: 1, name: 'Moussa Coulibaly', matricule: 'ETU-2026-0842', status: 'present' },
+        { id: 1, name: "Chakir's Entreprise", matricule: 'ETU-2026-0842', status: 'present' },
         { id: 2, name: 'Aminata Diallo', matricule: 'ETU-2026-0112', status: 'present' },
         { id: 3, name: 'Oumar Diop', matricule: 'ETU-2026-0005', status: 'present' },
       ]);

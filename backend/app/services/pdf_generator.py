@@ -262,7 +262,7 @@ def generate_enrollment_certificate_pdf(
         ],
         [
             Paragraph(f"<font size=7 color='#475569'>{mat_str}</font>", ParagraphStyle('QRSub', alignment=TA_CENTER, fontSize=7)),
-            Paragraph("<b>Prof. Moussa COULIBALY</b><br/><font size=7 color='#64748B'>Direction Générale • Cachet & Signature</font>", ParagraphStyle('SignName', alignment=TA_CENTER, fontSize=8.5, leading=10))
+            Paragraph("<b>Chakir's Entreprise</b><br/><font size=7 color='#64748B'>Direction Générale • Cachet & Signature</font>", ParagraphStyle('SignName', alignment=TA_CENTER, fontSize=8.5, leading=10))
         ]
     ]
     t_sign = Table(sign_data, colWidths=[6.0 * cm, 11.0 * cm])
@@ -446,7 +446,7 @@ def generate_success_certificate_pdf(
         ],
         [
             Paragraph(f"<font size=7 color='#475569'>{mat_str}</font>", ParagraphStyle('QRSub2', alignment=TA_CENTER, fontSize=7)),
-            Paragraph("<b>Prof. Moussa COULIBALY</b><br/><font size=7 color='#64748B'>Direction Générale • Cachet & Signature</font>", ParagraphStyle('SignName2', alignment=TA_CENTER, fontSize=8.5, leading=10))
+            Paragraph("<b>Chakir's Entreprise</b><br/><font size=7 color='#64748B'>Direction Générale • Cachet & Signature</font>", ParagraphStyle('SignName2', alignment=TA_CENTER, fontSize=8.5, leading=10))
         ]
     ]
     t_sign = Table(sign_data, colWidths=[6.0 * cm, 11.0 * cm])
@@ -1140,7 +1140,7 @@ def generate_financial_clearance_pdf(
     """
     Génère un Quitus Financier Officiel ou une Attestation de Règlement de Scolarité.
     Si le solde restant est supérieur à 0, indique clairement un RÈGLEMENT PARTIEL
-    avec le montant restant dû (Audio 1 Moussa Coulibaly).
+    avec le montant restant dû (Audio 1 Chakir's Entreprise).
     """
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -1431,7 +1431,7 @@ def make_official_footer_table(
     university: Any,
     verify_code: str,
     director_title: str = "LE DIRECTEUR GÉNÉRAL",
-    director_name: str = "Prof. Moussa COULIBALY",
+    director_name: str = "Chakir's Entreprise",
     city: str = "Bamako",
     doc_id_label: str = None
 ) -> KeepTogether:
@@ -1544,7 +1544,7 @@ def generate_internship_agreement_pdf(
         [
             Paragraph(f"<font size=6.5 color='#64748B'>{company_name}</font>", ParagraphStyle('C3', alignment=TA_CENTER, fontSize=7)),
             qr_img,
-            Paragraph("<b>Prof. Moussa COULIBALY</b><br/><font size=6.5 color='#64748B'>Direction Générale</font>", ParagraphStyle('C4', alignment=TA_CENTER, fontSize=7.5, leading=9))
+            Paragraph("<b>Chakir's Entreprise</b><br/><font size=6.5 color='#64748B'>Direction Générale</font>", ParagraphStyle('C4', alignment=TA_CENTER, fontSize=7.5, leading=9))
         ]
     ]
     t_tri = Table(tripartite_sign, colWidths=[5.8 * cm, 5.8 * cm, 5.8 * cm])

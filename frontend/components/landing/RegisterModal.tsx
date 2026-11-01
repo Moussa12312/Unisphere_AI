@@ -39,7 +39,7 @@ export default function RegisterModal({
   if (!isOpen) return null;
 
   const whatsappMessage = encodeURIComponent(
-    `Bonjour Moussa Coulibaly, je souhaite déployer UniSphere AI pour mon établissement (${universityName || 'mon université'}). Formule souhaitée : ${initialPlan}.`
+    `Bonjour Chakir's Entreprise, je souhaite déployer UniSphere AI pour mon établissement (${universityName || 'mon université'}). Formule souhaitée : ${initialPlan}.`
   );
   const whatsappUrl = `https://wa.me/22373343493?text=${whatsappMessage}`;
   const phoneCallUrl = "tel:+22373343493";
@@ -126,7 +126,7 @@ export default function RegisterModal({
           {/* Boutons d'Action Directs : WhatsApp & Téléphone */}
           <div className="space-y-3">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
-              Contactez directement Moussa Coulibaly (Directeur Technique) :
+              Contactez directement Chakir's Entreprise (Direction Technique) :
             </p>
 
             {/* Bouton WhatsApp */}
@@ -195,7 +195,7 @@ export default function RegisterModal({
                 <CheckCircle2 size={28} className="text-emerald-600 mx-auto" />
                 <h5 className="text-sm font-bold text-emerald-950">Demande de rappel envoyée avec succès !</h5>
                 <p className="text-xs text-emerald-800 font-medium">
-                  Moussa Coulibaly vous appellera très rapidement au <strong>{phoneNumber}</strong>.
+                  Chakir's Entreprise vous appellera très rapidement au <strong>{phoneNumber}</strong>.
                 </p>
               </div>
             ) : (
@@ -284,7 +284,7 @@ export default function RegisterModal({
                   ) : (
                     <>
                       <Send size={14} />
-                      <span>Transmettre ma demande à Moussa Coulibaly</span>
+                      <span>Transmettre ma demande à Chakir's Entreprise</span>
                     </>
                   )}
                 </button>

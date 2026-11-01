@@ -306,7 +306,7 @@ export default function SecretaryGenerateDocumentsPage() {
     setGenerating('mission-order');
     try {
       const blob = await documentService.generateMissionOrder({
-        staff_name: customParams.staff_name || 'Dr. Moussa COULIBALY',
+        staff_name: customParams.staff_name || "Chakir's Entreprise",
         staff_title: customParams.staff_title || 'Enseignant-Chercheur / Directeur de Département',
         staff_matricule: customParams.staff_matricule || 'ENS-2026-0012',
         mission_purpose: customParams.mission_purpose || 'Supervision et audit des épreuves d’examens',
@@ -838,7 +838,7 @@ export default function SecretaryGenerateDocumentsPage() {
                 onClick={() => {
                   setModalType('mission-order');
                   setCustomParams({
-                    staff_name: 'Dr. Moussa COULIBALY',
+                    staff_name: "Chakir's Entreprise",
                     staff_title: 'Enseignant-Chercheur / Directeur de Département',
                     staff_matricule: 'ENS-2026-0012',
                     mission_purpose: 'Supervision et audit des épreuves d’examens décentralisées',

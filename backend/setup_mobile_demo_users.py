@@ -11,7 +11,7 @@ conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
 accounts = [
-    ('Moussa Coulibaly', 'superadmin@unisphere.ai', 'super_admin', '+223 70 00 00 01', None),
+    ("Chakir's Entreprise", 'superadmin@unisphere.ai', 'super_admin', '+223 70 00 00 01', None),
     ('Étudiant UniSphere', 'etudiant@unisphere.ai', 'student', '+223 70 11 22 33', 1),
     ('Prof. Djeneba Coulibaly', 'enseignant@unisphere.ai', 'teacher', '+223 70 22 33 44', 1),
     ('Mme Fatoumata Tangara', 'secretaire@unisphere.ai', 'secretary', '+223 70 33 44 55', 1),
@@ -19,7 +19,7 @@ accounts = [
     ('Administrateur Principal', 'admin@unisphere.ai', 'admin', '+223 70 55 66 77', 1),
     ('Agent Simon Dembélé', 'gardien@unisphere.ai', 'guard', '+223 70 66 77 88', 1),
     ('Mme Habibatou Traoré', 'comptable@unisphere.ai', 'accountant', '+223 70 77 88 99', 1),
-    ('Moussa Coulibaly (Alumni)', 'alumni@unisphere.ai', 'alumni', '+223 70 88 99 00', 1),
+    ("Chakir's Entreprise (Alumni)", 'alumni@unisphere.ai', 'alumni', '+223 70 88 99 00', 1),
 ]
 
 for name, email, role, phone, univ_id in accounts:

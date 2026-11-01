@@ -110,7 +110,7 @@ def run_simulation():
     # 2. UTILISATEURS ADMINISTRATIFS & STAFF
     # ==========================================
     staff_data = [
-        ("Moussa Coulibaly", "admin@unisphere.ai", "admin", "+223 70 00 00 01"),
+        ("Chakir's Entreprise", "admin@unisphere.ai", "admin", "+223 70 00 00 01"),
         ("Dr. Boubacar TOURE", "censeur@unisphere.ai", "censeur", "+223 70 00 00 02"),
         ("Mme Aminata DIARRA", "secretaire@unisphere.ai", "secretaire", "+223 70 00 00 03"),
         ("M. Ousmane TRAORE", "comptable@unisphere.ai", "accountant", "+223 70 00 00 04"),

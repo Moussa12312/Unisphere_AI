@@ -21,7 +21,7 @@ export const TeacherGradesScreen = () => {
         exam: '15.0',
       }));
       setGrades(mapped.length > 0 ? mapped : [
-        { id: 1, name: 'Moussa Coulibaly', matricule: 'ETU-2026-0842', cc: '16.5', exam: '17.0' },
+        { id: 1, name: "Chakir's Entreprise", matricule: 'ETU-2026-0842', cc: '16.5', exam: '17.0' },
         { id: 2, name: 'Aminata Diallo', matricule: 'ETU-2026-0112', cc: '15.0', exam: '16.0' },
       ]);
     } catch (e) {

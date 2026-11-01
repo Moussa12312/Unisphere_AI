@@ -29,7 +29,7 @@ def keep_only_ecob():
                 slogan="Excellence & Innovation Académique",
                 website="https://ecobmali.com",
                 established_year="2010",
-                rector_name="Pr. Moussa Coulibaly",
+                rector_name="Pr. Chakir's Entreprise",
                 academic_year="2026-2027",
                 is_active=True,
                 status="active",
