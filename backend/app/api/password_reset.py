@@ -43,13 +43,32 @@ def submit_password_reset_request(
     son message de demande à l'administration.
     Sécurité : Le mot de passe N'EST PAS modifié directement ici.
     """
-    clean_email = data.email.strip().lower()
-    if not clean_email:
-        raise HTTPException(status_code=400, detail="Veuillez saisir votre adresse email.")
+    identifier = data.email.strip()
+    if not identifier:
+        raise HTTPException(status_code=400, detail="Veuillez saisir votre identifiant (email ou matricule).")
 
-    user = db.query(User).filter(User.email == clean_email).first()
+    user = db.query(User).filter(User.email.ilike(identifier)).first()
     if not user:
-        raise HTTPException(status_code=404, detail="Aucun compte trouvé avec cet email.")
+        # Recherche par matricule étudiant
+        try:
+            from app.models.student import Student
+            stu = db.query(Student).filter(Student.matricule.ilike(identifier)).first()
+            if stu and stu.user_id:
+                user = db.query(User).filter(User.id == stu.user_id).first()
+        except Exception:
+            pass
+
+    if not user:
+        # Recherche par téléphone
+        user = db.query(User).filter(User.phone == identifier).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Aucun compte correspondant trouvé. Vérifiez votre email ou matricule, ou contactez directement l'administration."
+        )
+
+    clean_email = user.email
 
     user_msg = data.message.strip() if data.message else "J'ai oublié mon mot de passe, veuillez le réinitialiser s'il vous plaît."
 

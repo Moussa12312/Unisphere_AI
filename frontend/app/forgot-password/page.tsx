@@ -103,16 +103,16 @@ export default function ForgotPasswordPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Votre adresse email professionnelle / étudiante *
+                Votre adresse email ou matricule étudiant *
               </label>
               <div className="relative">
                 <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ex: prenom.nom@unisphere.ai"
+                  placeholder="ex: prenom.nom@unisphere.ai ou EC-2026-0001"
                   className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 />
               </div>

@@ -3,8 +3,7 @@
 import React, { useState } from 'react';
 import { 
   X, Mail, Lock, Eye, EyeOff, LogIn, ArrowRight, 
-  Building2, GraduationCap, Users, FileText, 
-  CreditCard, Shield, Award, HelpCircle, CheckCircle2 
+  HelpCircle, CheckCircle2 
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -14,18 +13,6 @@ interface LoginModalProps {
   onClose: () => void;
   onSwitchToRegister: () => void;
 }
-
-// Comptes réels liés à l'Université Démo ECOB (Sans Super Admin)
-const QUICK_ACCOUNTS = [
-  { role: 'admin', label: 'Direction', sub: 'ECOB Admin', email: 'admin@unisphere.ai', icon: Building2, color: 'text-blue-600' },
-  { role: 'teacher', label: 'Professeur', sub: 'Corps Professoral', email: 'enseignant@unisphere.ai', icon: GraduationCap, color: 'text-emerald-600' },
-  { role: 'student', label: 'Étudiant', sub: 'L3 Logistique', email: 'etudiant@unisphere.ai', icon: Users, color: 'text-cyan-600' },
-  { role: 'secretary', label: 'Secrétaire', sub: 'Scolarité Générale', email: 'secretaire@unisphere.ai', icon: FileText, color: 'text-indigo-600' },
-  { role: 'censeur', label: 'Censeur', sub: 'Direction Études', email: 'censeur@unisphere.ai', icon: Shield, color: 'text-purple-600' },
-  { role: 'accountant', label: 'Comptable', sub: 'Finances & Recouvrement', email: 'comptable@unisphere.ai', icon: CreditCard, color: 'text-emerald-600' },
-  { role: 'guard', label: 'Poste Garde', sub: 'Portique & QR Code', email: 'gardien@unisphere.ai', icon: Shield, color: 'text-slate-600' },
-  { role: 'alumni', label: 'Alumni', sub: 'Réseau Diplômés', email: 'alumni@unisphere.ai', icon: Award, color: 'text-orange-500' },
-];
 
 export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: LoginModalProps) {
   const [email, setEmail] = useState('');
@@ -39,7 +26,6 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
   const performLogin = async (loginEmail: string, loginPass: string) => {
     setLoading(true);
     try {
-      // Appel direct de l'API de connexion
       const response = await api.post('/api/v1/auth/login', {
         email: loginEmail.trim().toLowerCase(),
         password: loginPass,
@@ -73,38 +59,36 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
         accountant: '/accountant/dashboard',
         guard: '/guard',
         alumni: '/alumni/dashboard',
+        super_admin: '/superadmin/dashboard',
+        superadmin: '/superadmin/dashboard',
       };
 
-      const targetRoute = routes[userData.role] || '/admin/dashboard';
-      setTimeout(() => {
-        window.location.href = targetRoute;
-      }, 400);
+      const targetRoute = routes[userData.role] || '/login';
+      onClose();
+      window.location.href = targetRoute;
 
-    } catch (err: any) {
+    } catch (error: any) {
       setLoading(false);
-      let errorMsg = 'Identifiants incorrects ou compte inactif.';
-      if (err.response?.data?.detail) {
-        const detail = err.response.data.detail;
-        errorMsg = typeof detail === 'string' ? detail : JSON.stringify(detail);
+      let message = 'Identifiant ou mot de passe incorrect';
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          message = detail.map((err: any) => err.msg).join(', ');
+        } else if (typeof detail === 'string') {
+          message = detail;
+        }
       }
-      toast.error(errorMsg);
+      toast.error(message);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error('Veuillez renseigner votre email et votre mot de passe.');
+    if (!email.trim() || !password) {
+      toast.error('Veuillez saisir votre identifiant et votre mot de passe');
       return;
     }
     performLogin(email, password);
-  };
-
-  const handleQuickLogin = (quickEmail: string) => {
-    if (loading) return;
-    setEmail(quickEmail);
-    setPassword('unisphere2026');
-    performLogin(quickEmail, 'unisphere2026');
   };
 
   return (
@@ -116,107 +100,115 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
         onClick={(e) => e.stopPropagation()}
       >
         {/* En-tête Modale */}
-        <div className="bg-slate-900 text-white px-6 py-5 flex items-center justify-between">
+        <div className="bg-[#031B63] text-white px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#FF6B00] text-white flex items-center justify-center shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-[#FF7900] text-white flex items-center justify-center shadow-xs">
               <LogIn size={18} />
             </div>
             <div>
-              <h3 className="text-base font-extrabold tracking-tight">Espace Connexion • Démo ECOB</h3>
-              <p className="text-xs text-slate-400">Connectez-vous avec vos identifiants ou testez en 1 clic</p>
+              <h3 className="text-base font-extrabold tracking-tight">UniSphere AI • Espace Connexion</h3>
+              <p className="text-xs text-slate-300">Connectez-vous à votre espace personnel sécurisé</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
             aria-label="Fermer la modale"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Corps Modale Déroulant */}
+        {/* Corps Modale */}
         <div className="p-6 overflow-y-auto space-y-6">
           
-          {/* Formulaire de Connexion Standard */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            
-            {/* Champ Email */}
+            {/* Champ Email / Identifiant */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Adresse Email ou Matricule
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Identifiant ou Email professionnel
               </label>
               <div className="relative">
-                <Mail size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Mail size={18} />
+                </div>
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="chakirunisphereai@gmail.com"
+                  placeholder="nom@universite.edu ou matricule"
                   required
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#FF6B00] focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
+                  autoFocus
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF7900] focus:border-transparent transition-all"
                 />
               </div>
             </div>
 
-            {/* Champ Mot de passe */}
+            {/* Champ Mot de Passe */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                   Mot de passe
                 </label>
                 <button
                   type="button"
                   onClick={() => setForgotPasswordNotice(!forgotPasswordNotice)}
-                  className="text-xs font-semibold text-[#FF6B00] hover:underline"
+                  className="text-xs font-semibold text-[#FF7900] hover:underline"
                 >
                   Mot de passe oublié ?
                 </button>
               </div>
               <div className="relative">
-                <Lock size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Lock size={18} />
+                </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   required
-                  className="w-full pl-10 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:border-[#FF6B00] focus:ring-2 focus:ring-orange-500/20 outline-none transition-all"
+                  className="w-full pl-10 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF7900] focus:border-transparent transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-            </div>
 
-            {/* Note pour mot de passe oublié */}
-            {forgotPasswordNotice && (
-              <div className="p-3.5 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-950 space-y-1 animate-in fade-in duration-150">
-                <p className="font-bold flex items-center gap-1.5">
-                  <HelpCircle size={15} className="text-[#FF6B00]" />
-                  Réinitialisation gérée par l&apos;Administration
-                </p>
-                <p className="text-slate-600">
-                  Pour des raisons de sécurité académique, contactez le Secrétariat ou votre Administrateur système pour réinitialiser votre accès.
-                </p>
-              </div>
-            )}
+              {forgotPasswordNotice && (
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <HelpCircle size={14} className="text-amber-600" />
+                    Procédure de réinitialisation sécurisée :
+                  </p>
+                  <p className="text-[11px] leading-relaxed">
+                    Par mesure de sécurité, la réinitialisation directe par email est traitée par le secrétariat ou l&apos;administrateur de votre établissement.
+                  </p>
+                  <a
+                    href="/forgot-password"
+                    className="inline-block text-[#FF7900] font-bold hover:underline mt-1"
+                  >
+                    Envoyer une demande à l&apos;administration &rarr;
+                  </a>
+                </div>
+              )}
+            </div>
 
             {/* Bouton de Soumission */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3 px-4 bg-gradient-to-r from-[#FF7900] to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-xl shadow-md shadow-orange-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 text-sm"
             >
               {loading ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <span>Connexion en cours...</span>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Vérification des accès...</span>
                 </>
               ) : (
                 <>
@@ -226,46 +218,6 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
               )}
             </button>
           </form>
-
-          {/* Section Démo Rapide 1-Clic sur données réelles ECOB */}
-          <div className="pt-5 border-t border-slate-200">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-emerald-600" />
-                Comptes Démo Réels (1-clic) :
-              </span>
-              <span className="text-[11px] font-semibold text-slate-500 font-mono">
-                Données réelles ECOB
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {QUICK_ACCOUNTS.map((acc) => {
-                const IconComponent = acc.icon;
-                return (
-                  <button
-                    key={acc.role}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => handleQuickLogin(acc.email)}
-                    className="p-2.5 rounded-xl bg-slate-50 hover:bg-orange-50/80 border border-slate-200/90 hover:border-orange-300 text-left transition-all flex items-center gap-2.5 group active:scale-95 disabled:opacity-50"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-white shadow-2xs border border-slate-200 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <IconComponent size={15} className={acc.color} />
-                    </div>
-                    <div className="overflow-hidden">
-                      <p className="text-xs font-bold text-slate-800 truncate group-hover:text-[#FF6B00]">
-                        {acc.label}
-                      </p>
-                      <p className="text-[10px] text-slate-500 truncate">
-                        {acc.sub}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
         </div>
 
@@ -278,7 +230,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
               onClose();
               onSwitchToRegister();
             }}
-            className="font-bold text-[#FF6B00] hover:underline ml-1"
+            className="font-bold text-[#FF7900] hover:underline ml-1 cursor-pointer"
           >
             Démarrer l&apos;essai gratuit
           </button>

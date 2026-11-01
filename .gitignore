@@ -69,3 +69,8 @@ front/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Keystores & Certificats
+*.keystore
+*.p12
+*.jks
