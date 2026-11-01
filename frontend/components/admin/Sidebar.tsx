@@ -77,6 +77,8 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'FINANCES',
       items: [
+        { label: 'Supervision des Paiements', href: '/admin/payments', icon: CreditCard },
+        { label: 'Scolarités, Tranches & Pénalités', href: '/admin/settings/config?tab=frais', icon: DollarSign },
         { label: 'Reçus', href: '/accountant/receipts', icon: Printer },
         { label: 'Statistiques financières', href: '/admin/statistics', icon: TrendingUp },
         { label: 'Rapports financiers', href: '/admin/financial-reports', icon: Receipt },
@@ -289,8 +291,8 @@ const MENU_CONFIG: Record<string, Array<{
       items: [
         { label: 'Enregistrer paiement', href: '/accountant/payments/create', icon: Calculator },
         { label: 'Historique paiements', href: '/accountant/payments', icon: Receipt },
-        { label: 'Échéances', href: '/accountant/payments/installments', icon: Calendar },
-        { label: 'Impayés', href: '/accountant/payments/unpaid', icon: AlertCircle },
+        { label: 'Échéances des Tranches', href: '/accountant/payments/installments', icon: Calendar },
+        { label: 'Relance Impayés (SMS/WhatsApp)', href: '/accountant/payments/unpaid', icon: AlertCircle },
       ]
     },
 
@@ -674,139 +676,138 @@ export default function Sidebar({ userRole }: SidebarProps) {
 
   return (
     <>
-    <aside style={{ backgroundColor: sidebarBg }} className="h-screen w-58 text-white flex flex-col overflow-hidden transition-colors duration-200">
+      <aside style={{ backgroundColor: sidebarBg }} className="h-screen w-58 text-white flex flex-col overflow-hidden transition-colors duration-200">
 
-      {/* En-tête de la Sidebar - SaaS Modern Style */}
-      <div className="px-4 py-3.5 border-b border-white/10 bg-white/[0.02]">
-        <div className="flex items-center gap-3">
-          {userRole === 'super_admin' || userRole === 'superadmin' ? (
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0a1628] to-[#1e293b] border border-[#FF6B00]/40 flex items-center justify-center flex-shrink-0 shadow-md">
-              <Shield className="text-[#FF6B00]" size={22} />
+        {/* En-tête de la Sidebar - SaaS Modern Style */}
+        <div className="px-4 py-3.5 border-b border-white/10 bg-white/[0.02]">
+          <div className="flex items-center gap-3">
+            {userRole === 'super_admin' || userRole === 'superadmin' ? (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0a1628] to-[#1e293b] border border-[#FF6B00]/40 flex items-center justify-center flex-shrink-0 shadow-md">
+                <Shield className="text-[#FF6B00]" size={22} />
+              </div>
+            ) : logoUrl ? (
+              <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+                <img
+                  src={logoUrl}
+                  alt="Logo Université"
+                  className="w-full h-full object-contain rounded-lg"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF6B00] to-amber-500 border border-white/20 flex items-center justify-center flex-shrink-0 shadow-md">
+                <span className="text-lg font-extrabold text-white">
+                  {universityName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-sm font-bold text-white truncate leading-snug tracking-wide">
+                {userRole === 'super_admin' || userRole === 'superadmin' ? 'UniSphere AI' : universityName}
+              </h1>
+              <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                {userRole === 'super_admin' || userRole === 'superadmin' ? 'Administration SaaS' : (slogan || 'Plateforme Éducative')}
+              </p>
             </div>
-          ) : logoUrl ? (
-            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
-              <img
-                src={logoUrl}
-                alt="Logo Université"
-                className="w-full h-full object-contain rounded-lg"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            </div>
-          ) : (
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF6B00] to-amber-500 border border-white/20 flex items-center justify-center flex-shrink-0 shadow-md">
-              <span className="text-lg font-extrabold text-white">
-                {universityName.charAt(0).toUpperCase()}
-              </span>
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-bold text-white truncate leading-snug tracking-wide">
-              {userRole === 'super_admin' || userRole === 'superadmin' ? 'UniSphere AI' : universityName}
-            </h1>
-            <p className="text-[11px] text-slate-400 truncate mt-0.5">
-              {userRole === 'super_admin' || userRole === 'superadmin' ? 'Administration SaaS' : (slogan || 'Plateforme Éducative')}
-            </p>
           </div>
         </div>
-      </div>
 
 
-      {/* Menu Scrollable */}
-      <nav className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide">
-        {menu.map((section) => (
-          <div key={section.title}>
-            <button
-              onClick={() => toggleSection(section.title)}
-              className="flex items-center justify-between w-full text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 hover:text-white transition-colors px-3 py-2"
-            >
-              {section.title}
-              {expandedSections.includes(section.title) ? (
-                <ChevronDown size={14} />
-              ) : (
-                <ChevronRight size={14} />
-              )}
-            </button>
+        {/* Menu Scrollable */}
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-hide">
+          {menu.map((section) => (
+            <div key={section.title}>
+              <button
+                onClick={() => toggleSection(section.title)}
+                className="flex items-center justify-between w-full text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 hover:text-white transition-colors px-3 py-2"
+              >
+                {section.title}
+                {expandedSections.includes(section.title) ? (
+                  <ChevronDown size={14} />
+                ) : (
+                  <ChevronRight size={14} />
+                )}
+              </button>
 
-            {expandedSections.includes(section.title) && (
-              <ul className="space-y-1">
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = pathname === item.href;
+              {expandedSections.includes(section.title) && (
+                <ul className="space-y-1">
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = pathname === item.href;
 
-                  if (item.href === '/superadmin/demo' || item.href === '/admin/demo' || item.href === '#univ-demo') {
-                    const isDemoActive = pathname === '/superadmin/demo' || pathname === '/admin/demo';
-                    const targetHref = item.href.startsWith('/') ? item.href : '/admin/demo';
+                    if (item.href === '/superadmin/demo' || item.href === '/admin/demo' || item.href === '#univ-demo') {
+                      const isDemoActive = pathname === '/superadmin/demo' || pathname === '/admin/demo';
+                      const targetHref = item.href.startsWith('/') ? item.href : '/admin/demo';
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={targetHref}
+                            className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border font-bold group shadow-xs ${isDemoActive
+                              ? 'bg-gradient-to-r from-amber-500 to-[#FF6B00] border-amber-300 text-white shadow-md'
+                              : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border-amber-400/40 text-amber-200'
+                              }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Icon size={18} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                              <span>{item.label}</span>
+                            </div>
+                            {item.badge && (
+                              <span className="text-[10px] bg-[#FF6B00] text-white px-2 py-0.5 rounded-full font-black">
+                                {item.badge}
+                              </span>
+                            )}
+                          </Link>
+                        </li>
+                      );
+                    }
+
                     return (
                       <li key={item.href}>
                         <Link
-                          href={targetHref}
-                          className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border font-bold group shadow-xs ${
-                            isDemoActive
-                              ? 'bg-gradient-to-r from-amber-500 to-[#FF6B00] border-amber-300 text-white shadow-md'
-                              : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border-amber-400/40 text-amber-200'
-                          }`}
+                          href={item.href}
+                          className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${isActive
+                            ? 'bg-[#FF6B00] text-white font-medium'
+                            : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                            }`}
                         >
                           <div className="flex items-center gap-3">
-                            <Icon size={18} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                            <Icon size={18} />
                             <span>{item.label}</span>
                           </div>
                           {item.badge && (
-                            <span className="text-[10px] bg-[#FF6B00] text-white px-2 py-0.5 rounded-full font-black">
+                            <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">
                               {item.badge}
                             </span>
                           )}
                         </Link>
                       </li>
                     );
-                  }
+                  })}
+                </ul>
+              )}
+            </div>
+          ))}
+        </nav>
 
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${isActive
-                          ? 'bg-[#FF6B00] text-white font-medium'
-                          : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                          }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon size={18} />
-                          <span>{item.label}</span>
-                        </div>
-                        {item.badge && (
-                          <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">
-                            {item.badge}
-                          </span>
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        ))}
-      </nav>
+        {/* USER PROFILE et Déconnexion */}
+        <div className="border-t border-white/10 bg-[#0a1628] flex-shrink-0 p-3 mb-1 space-y-2">
+          <button
+            type="button"
+            onClick={() => setShowLogoutConfirm(true)}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-600/30 border border-rose-500/20 active:scale-98 transition-all"
+          >
+            <LogOut size={15} />
+            <span>Se déconnecter</span>
+          </button>
+          <p className="text-[11px] text-slate-500 text-center">
+            Propulsé par <span className="text-[#FF6B00] font-semibold">UniSphere AI</span>
+          </p>
+        </div>
+      </aside>
 
-      {/* USER PROFILE et Déconnexion */}
-      <div className="border-t border-white/10 bg-[#0a1628] flex-shrink-0 p-3 mb-1 space-y-2">
-        <button
-          type="button"
-          onClick={() => setShowLogoutConfirm(true)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-600/30 border border-rose-500/20 active:scale-98 transition-all"
-        >
-          <LogOut size={15} />
-          <span>Se déconnecter</span>
-        </button>
-        <p className="text-[11px] text-slate-500 text-center">
-          Propulsé par <span className="text-[#FF6B00] font-semibold">UniSphere AI</span>
-        </p>
-      </div>
-    </aside>
-
-    {/* Modal de confirmation de déconnexion avec Portal (100% viewport) */}
+      {/* Modal de confirmation de déconnexion avec Portal (100% viewport) */}
       <LogoutConfirmModal
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}

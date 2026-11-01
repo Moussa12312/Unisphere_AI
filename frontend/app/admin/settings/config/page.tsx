@@ -126,6 +126,16 @@ export default function AcademicConfigPage() {
 
   // ✅✅✅ HOOKS AU NIVEAU SUPÉRIEUR (CRITIQUE !)
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlTab = new URLSearchParams(window.location.search).get('tab');
+      if (urlTab) {
+        if (['frais', 'scolarite', 'scolarites', 'tranches', 'penalites', 'financial'].includes(urlTab)) {
+          setActiveTab('frais');
+        } else if (['calendrier', 'notation', 'assiduite', 'deliberation'].includes(urlTab)) {
+          setActiveTab(urlTab);
+        }
+      }
+    }
     loadAll();
   }, []);
 
@@ -658,12 +668,21 @@ export default function AcademicConfigPage() {
   ];
 
   const tabs = [
-    { id: 'frais', label: 'Frais & Tranches', icon: DollarSign },
-    { id: 'calendrier', label: 'Calendrier', icon: Calendar },
-    { id: 'notation', label: 'Notation', icon: Calculator },
-    { id: 'assiduite', label: 'Assiduité', icon: Clock },
-    { id: 'deliberation', label: 'Délibération', icon: Award }
+    { id: 'frais', label: 'Scolarités, Tranches & Pénalités', icon: DollarSign },
+    { id: 'calendrier', label: 'Calendrier & Dates', icon: Calendar },
+    { id: 'notation', label: 'Notation LMD', icon: Calculator },
+    { id: 'assiduite', label: 'Seuil d’Assiduité', icon: Clock },
+    { id: 'deliberation', label: 'Règles Délibération', icon: Award }
   ];
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tabId);
+      window.history.replaceState(null, '', url.toString());
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -671,7 +690,7 @@ export default function AcademicConfigPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-3xl font-bold text-slate-900">Configuration Académique & Financière</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">Gérez tous les paramètres de votre université</p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Tour de contrôle unique des scolarités, tranches, calendrier et règles LMD</p>
         </div>
         <button
           onClick={handleSave}
@@ -691,7 +710,7 @@ export default function AcademicConfigPage() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${
                   activeTab === tab.id
                     ? 'text-[#FF6B00] border-b-2 border-[#FF6B00] bg-orange-50/50'
