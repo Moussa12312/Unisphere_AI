@@ -204,8 +204,17 @@ def reset_database():
                 f.write("")
                 
     print("🧹 Répertoires uploads et qr_codes nettoyés et sécurisés.")
+    
+    # 6. Initialiser immédiatement les 8 comptes de démonstration pour ECOB
+    try:
+        from seed_demo_accounts import seed_demo_accounts
+        seed_demo_accounts(db)
+        print("🎭 8 Comptes de démonstration ECOB provisionnés avec succès.")
+    except Exception as e:
+        print(f"⚠️ Erreur initialisation comptes démo: {e}")
+
     db.close()
-    print("✨ Base de données totalement propre et prête !")
+    print("✨ Base de données totalement propre et prête avec comptes démo !")
 
 if __name__ == "__main__":
     reset_database()

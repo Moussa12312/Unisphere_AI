@@ -2,6 +2,9 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(_base_dir, ".env"))
+load_dotenv(os.path.join(_base_dir, "backend", ".env"))
 
 # ✅ Variables existantes
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost/unisphere_ai")

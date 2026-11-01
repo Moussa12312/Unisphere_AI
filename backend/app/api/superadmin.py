@@ -1369,8 +1369,8 @@ def seed_ecob_data(
         backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         if backend_root not in sys.path:
             sys.path.insert(0, backend_root)
-        from seed_ecob_showcase import run_simulation
-        run_simulation()
+        from seed_demo_accounts import seed_demo_accounts
+        seed_demo_accounts(db)
         return {
             "status": "success",
             "message": "Université ECOB et données de démonstration initialisées avec succès !"

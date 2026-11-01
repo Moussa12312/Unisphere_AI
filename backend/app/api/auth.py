@@ -66,7 +66,22 @@ def login(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.email == data.email).first()
+    identifier = (data.email or "").strip()
+    user = db.query(User).filter(User.email.ilike(identifier)).first()
+
+    if not user:
+        # Recherche par matricule étudiant
+        try:
+            from app.models.student import Student
+            stu = db.query(Student).filter(Student.matricule.ilike(identifier)).first()
+            if stu and stu.user_id:
+                user = db.query(User).filter(User.id == stu.user_id).first()
+        except Exception:
+            pass
+
+    if not user:
+        # Recherche par numéro de téléphone
+        user = db.query(User).filter(User.phone == identifier).first()
 
     if not user or not verify_password(data.password, user.hashed_password):
         try:
