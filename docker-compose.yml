@@ -38,7 +38,7 @@ services:
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost,http://169.58.101.183}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost,http://169.58.101.183,http://unisphere-ai.com,https://unisphere-ai.com,http://www.unisphere-ai.com,https://www.unisphere-ai.com}
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -93,7 +93,8 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - certbot_etc:/etc/letsencrypt
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - backend
       - frontend
