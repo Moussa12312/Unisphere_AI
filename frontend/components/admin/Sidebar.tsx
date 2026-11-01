@@ -515,7 +515,7 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'DÉMONSTRATION CLIENT',
       items: [
-        { label: 'Univ_Demo', href: '#univ-demo', icon: Sparkles, badge: '8 Rôles' },
+        { label: 'Univ_Demo', href: '/superadmin/demo', icon: Sparkles, badge: '8 Rôles' },
       ]
     },
     {
@@ -565,7 +565,7 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'DÉMONSTRATION CLIENT',
       items: [
-        { label: 'Univ_Demo', href: '#univ-demo', icon: Sparkles, badge: '8 Rôles' },
+        { label: 'Univ_Demo', href: '/superadmin/demo', icon: Sparkles, badge: '8 Rôles' },
       ]
     },
     {
@@ -730,13 +730,17 @@ export default function Sidebar({ userRole }: SidebarProps) {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
 
-                  if (item.href === '#univ-demo') {
+                  if (item.href === '/superadmin/demo' || item.href === '#univ-demo') {
+                    const isDemoActive = pathname === '/superadmin/demo' || pathname === '/admin/demo';
                     return (
                       <li key={item.href}>
-                        <button
-                          type="button"
-                          onClick={() => setShowUnivDemoModal(true)}
-                          className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm transition-all bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/40 text-amber-200 font-bold group shadow-xs cursor-pointer text-left"
+                        <Link
+                          href="/superadmin/demo"
+                          className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm transition-all border font-bold group shadow-xs ${
+                            isDemoActive
+                              ? 'bg-gradient-to-r from-amber-500 to-[#FF6B00] border-amber-300 text-white shadow-md'
+                              : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border-amber-400/40 text-amber-200'
+                          }`}
                         >
                           <div className="flex items-center gap-3">
                             <Icon size={18} className="text-amber-400 group-hover:scale-110 transition-transform" />
@@ -747,7 +751,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
                               {item.badge}
                             </span>
                           )}
-                        </button>
+                        </Link>
                       </li>
                     );
                   }
