@@ -15,7 +15,22 @@ mkdir -p "$TEMP_DIR"
 
 echo "=== [$(date '+%Y-%m-%d %H:%M:%S')] UniSphere AI Backup Start ==="
 
-# 1. Backup SQLite Database
+# 1. Backup PostgreSQL from Docker container (Production stack)
+if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^unisphere_postgres$"; then
+    echo "[+] Backing up Docker PostgreSQL database (unisphere_postgres)..."
+    docker exec unisphere_postgres pg_dump -U "${POSTGRES_USER:-unisphere_admin}" "${POSTGRES_DB:-unisphere_db}" > "$TEMP_DIR/postgres_dump.sql" 2>/dev/null || {
+        echo "[!] Default user dump failed, trying with postgres user..."
+        docker exec unisphere_postgres pg_dump -U postgres "${POSTGRES_DB:-unisphere_db}" > "$TEMP_DIR/postgres_dump.sql" || true
+    }
+    if [ -s "$TEMP_DIR/postgres_dump.sql" ]; then
+        echo "[+] PostgreSQL dump successfully generated ($(du -h "$TEMP_DIR/postgres_dump.sql" | cut -f1))."
+    fi
+elif command -v pg_dump >/dev/null 2>&1 && [ -n "${DATABASE_URL:-}" ]; then
+    echo "[+] Backing up host PostgreSQL database..."
+    pg_dump "$DATABASE_URL" > "$TEMP_DIR/postgres_dump.sql" || true
+fi
+
+# 2. Backup SQLite Database (if active)
 if [ -f "$PROJECT_DIR/backend/unisphere.db" ]; then
     echo "[+] Backing up SQLite database..."
     if command -v sqlite3 >/dev/null 2>&1; then
@@ -25,22 +40,29 @@ if [ -f "$PROJECT_DIR/backend/unisphere.db" ]; then
     fi
 fi
 
-# 2. Backup PostgreSQL (if active)
-if command -v pg_dump >/dev/null 2>&1 && [ -n "${DATABASE_URL:-}" ]; then
-    echo "[+] Backing up PostgreSQL database..."
-    pg_dump "$DATABASE_URL" > "$TEMP_DIR/postgres_dump.sql" || true
+# 3. Backup Uploaded Files & QR codes (from Docker or Host)
+if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^unisphere_backend$"; then
+    echo "[+] Copying uploads and qr_codes from unisphere_backend container..."
+    docker cp unisphere_backend:/app/uploads "$TEMP_DIR/uploads" 2>/dev/null || true
+    docker cp unisphere_backend:/app/qr_codes "$TEMP_DIR/qr_codes" 2>/dev/null || true
 fi
 
-# 3. Backup Uploaded Files
-if [ -d "$PROJECT_DIR/backend/uploads" ]; then
-    echo "[+] Backing up uploads directory..."
+if [ ! -d "$TEMP_DIR/uploads" ] && [ -d "$PROJECT_DIR/backend/uploads" ]; then
+    echo "[+] Backing up host uploads directory..."
     cp -r "$PROJECT_DIR/backend/uploads" "$TEMP_DIR/uploads"
+fi
+
+if [ -d "$PROJECT_DIR/backend/qr_codes" ] && [ ! -d "$TEMP_DIR/qr_codes" ]; then
+    cp -r "$PROJECT_DIR/backend/qr_codes" "$TEMP_DIR/qr_codes"
 fi
 
 # 4. Backup Environment Config
 if [ -f "$PROJECT_DIR/backend/.env" ]; then
     echo "[+] Backing up backend .env..."
     cp "$PROJECT_DIR/backend/.env" "$TEMP_DIR/backend.env"
+fi
+if [ -f "$PROJECT_DIR/.env" ]; then
+    cp "$PROJECT_DIR/.env" "$TEMP_DIR/root.env"
 fi
 
 # 5. Compress
