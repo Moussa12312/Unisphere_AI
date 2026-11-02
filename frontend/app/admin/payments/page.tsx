@@ -133,7 +133,7 @@ export default function AdminPaymentsPage() {
   const pendingCount = payments.filter(p => p.status === 'pending' || p.status === 'En attente').length;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -141,7 +141,7 @@ export default function AdminPaymentsPage() {
           </h1>
           <p className="text-slate-500 text-sm">Vue d'ensemble des règlements et encaissements de l'université.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/admin/academic-fees"
             className="flex items-center gap-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white px-4 py-2 rounded-lg font-medium shadow transition-colors text-sm"

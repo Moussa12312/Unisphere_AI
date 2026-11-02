@@ -81,11 +81,11 @@ export default function AccountantDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div className="mr-30">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">Tableau de bord financier</h1>
           <p className="text-slate-500 mt-1">Vue d'ensemble des finances de l'université</p>
         </div>
-        <div className="flex items-center gap-1   rounded-lg p-1 ml-30 self-start md:self-auto">
+        <div className="flex items-center gap-1   rounded-lg p-1 ml-0 md:ml-auto self-start md:self-auto">
           <button
             onClick={() => setPeriod('month')}
             title="Ce mois"
@@ -159,7 +159,7 @@ export default function AccountantDashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-2">
           {[
             { href: '/accountant/budget', label: 'Budget' },
             { href: '/accountant/treasury', label: 'Trésorerie' },
@@ -178,7 +178,7 @@ export default function AccountantDashboard() {
       </div>
 
       {/* Stats Cards - 5 cartes maintenant */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
         {/* Total encaissé */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">

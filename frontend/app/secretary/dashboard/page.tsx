@@ -249,7 +249,7 @@ export default function SecretaryDashboardPage() {
           <Activity size={20} />
           Actions rapides
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           <Link
             href="/secretary/documents/generate"
             className="flex items-center gap-2 px-4 py-3 bg-[#FF6B00] text-white hover:bg-[#e05e00] rounded-xl text-sm font-bold transition-all shadow-md shadow-[#FF6B00]/30"

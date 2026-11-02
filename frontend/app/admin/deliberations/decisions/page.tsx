@@ -120,7 +120,7 @@ export default function DeliberationDecisionsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Décisions de délibération</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Décisions de délibération</h1>
           <p className="text-slate-500 mt-1">Choisissez une session pour saisir les décisions</p>
         </div>
         {sessions.length === 0 ? (
@@ -169,7 +169,7 @@ export default function DeliberationDecisionsPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="text-left px-4 py-3 font-medium text-slate-600">Étudiant</th>
@@ -218,7 +218,7 @@ export default function DeliberationDecisionsPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       {proposals.length > 0 && (

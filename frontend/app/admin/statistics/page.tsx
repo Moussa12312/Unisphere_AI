@@ -204,11 +204,11 @@ export default function StatisticsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Tableau de bord</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Tableau de bord</h1>
           <p className="text-slate-500 mt-1">Analyse des performances de votre université</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
             {['month', 'quarter', 'year'].map((p) => (
               <button

@@ -188,7 +188,7 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
         )}
         
         <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full px-2 sm:px-6 lg:px-8 pt-2 pb-24 md:pb-6 print:overflow-visible print:p-0 print:m-0 print:h-auto print:block">
-          <div className="w-full max-w-7xl mx-auto overflow-x-hidden print:max-w-none print:w-full print:m-0 print:p-0">
+          <div className="w-full max-w-7xl mx-auto print:max-w-none print:w-full print:m-0 print:p-0">
             {children}
           </div>
         </main>

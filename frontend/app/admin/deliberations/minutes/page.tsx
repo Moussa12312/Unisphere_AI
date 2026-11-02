@@ -165,7 +165,7 @@ export default function DeliberationMinutesPage() {
                   )}
                 </div>
 
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto"><table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200">
                       <th className="text-left py-2 font-medium text-slate-600">Étudiant</th>
@@ -193,7 +193,7 @@ export default function DeliberationMinutesPage() {
                       );
                     })}
                   </tbody>
-                </table>
+                </table></div>
 
                 <div className="flex gap-3 mt-6 print:hidden">
                   <button onClick={() => setSelected(null)} className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium">

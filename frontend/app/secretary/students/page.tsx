@@ -154,7 +154,7 @@ export default function SecretaryStudentsPage() {
           <p className="text-slate-500">Gérez tous les étudiants de l'université</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Link
             href="/secretary/student-cards"
             className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md"
@@ -281,7 +281,7 @@ export default function SecretaryStudentsPage() {
                   {paginatedStudents.map((student) => (
                     <tr key={student.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                           <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-[#FF6B00]/10 border border-slate-200">
                             <img
                               src={getMediaUrl(student.photo, `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=64`)}

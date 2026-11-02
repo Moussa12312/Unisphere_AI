@@ -262,7 +262,7 @@ const formatTimeAgo = (dateStr: string | null) => {
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900 mb-6">Répartition par filière</h3>
           {filiereData.length > 0 ? (
-            <div className="flex items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-6">
               <ResponsiveContainer width="50%" height={220}>
                 <PieChart>
                   <Pie

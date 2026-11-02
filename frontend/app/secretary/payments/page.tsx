@@ -64,7 +64,7 @@ export default function SecretaryPaymentsPage() {
             <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
           </div>
         ) : (
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-left text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="p-4">N° Reçu</th>
@@ -109,7 +109,7 @@ export default function SecretaryPaymentsPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>
