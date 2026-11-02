@@ -265,39 +265,71 @@ async def create_student(
         qr.save(qr_path)
         new_student.qr_code = qr_filename
 
-        # Photo de profil (lecture directe des octets — jamais getattr(photo, 'size') qui vaut None sous Starlette)
+        # Photo de profil (lecture directe des octets — enregistrement robuste multi-dossiers)
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        upload_dir = base_dir / "uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        (upload_dir / "photos").mkdir(parents=True, exist_ok=True)
+        Path("uploads").mkdir(parents=True, exist_ok=True)
+        Path("uploads/photos").mkdir(parents=True, exist_ok=True)
+
         if photo and photo.filename:
             content = await photo.read()
             if content:
-                os.makedirs("uploads", exist_ok=True)
-                photo_filename = f"STUDENT_{new_student.id}_{int(time_module.time())}.jpg"
-                photo_path = Path("uploads") / photo_filename
+                ext = Path(photo.filename).suffix.lower()
+                if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+                    ext = ".jpg"
+                photo_filename = f"STUDENT_{new_student.id}_{int(time_module.time())}{ext}"
+                photo_path = upload_dir / photo_filename
                 saved_p = compress_and_save_upload(content, photo_path, max_dimension=1200, quality=82)
+                
+                # Duplication de sécurité dans uploads/photos et CWD/uploads
+                try:
+                    shutil.copy2(str(saved_p), str(upload_dir / "photos" / saved_p.name))
+                except Exception:
+                    pass
+                try:
+                    cwd_p = Path("uploads") / saved_p.name
+                    if cwd_p.resolve() != saved_p.resolve():
+                        shutil.copy2(str(saved_p), str(cwd_p))
+                except Exception:
+                    pass
+
                 new_student.photo = saved_p.name
                 new_user.photo = saved_p.name
 
         # Dossier de l'étudiant
-        dossier_dir = Path(f"uploads/dossier_etudiant/{new_student.id}")
+        dossier_dir = upload_dir / "dossier_etudiant" / str(new_student.id)
 
         async def save_dossier_file(file_obj, prefix, doc_title):
             if file_obj and file_obj.filename:
                 c = await file_obj.read()
                 if c:
                     dossier_dir.mkdir(parents=True, exist_ok=True)
+                    Path(f"uploads/dossier_etudiant/{new_student.id}").mkdir(parents=True, exist_ok=True)
                     ext = Path(file_obj.filename).suffix.lower() or ".pdf"
                     fname = f"{prefix}_{new_student.id}_{int(time_module.time())}{ext}"
                     target_path = dossier_dir / fname
                     saved_target = compress_and_save_upload(c, target_path, max_dimension=1600, quality=80)
+                    
+                    try:
+                        cwd_p = Path(f"uploads/dossier_etudiant/{new_student.id}") / saved_target.name
+                        if cwd_p.resolve() != saved_target.resolve():
+                            shutil.copy2(str(saved_target), str(cwd_p))
+                    except Exception:
+                        pass
+
+                    posix_path = f"uploads/dossier_etudiant/{new_student.id}/{saved_target.name}"
                     doc_record = Document(
                         document_type=prefix,
                         title=f"{doc_title} - {first_name} {last_name}",
-                        file_path=str(saved_target),
+                        file_path=posix_path,
                         student_id=new_student.id,
                         generated_by=current_user.id,
                         university_id=current_user.university_id
                     )
                     db.add(doc_record)
-                    return str(saved_target)
+                    return posix_path
             return None
 
         # Gestion des documents scannés via OCR / Scanner
@@ -1334,14 +1366,15 @@ async def upload_dossier_document(
     content = await file.read()
     saved_target = compress_and_save_upload(content, target_path, max_dimension=1600, quality=80)
 
-    # Assigner à l'attribut de l'étudiant
-    setattr(student, resolved_type, str(saved_target))
+    # Assigner à l'attribut de l'étudiant (chemin POSIX universel)
+    posix_path = f"uploads/dossier_etudiant/{student.id}/{saved_target.name}"
+    setattr(student, resolved_type, posix_path)
 
     # Enregistrer dans la table Document
     doc_record = Document(
         document_type=resolved_type,
         title=f"{allowed_types[resolved_type]} - {student.first_name} {student.last_name}",
-        file_path=str(saved_target),
+        file_path=posix_path,
         student_id=student.id,
         generated_by=current_user.id,
         university_id=current_user.university_id
@@ -1420,19 +1453,42 @@ def download_dossier_document(
         raise HTTPException(status_code=403, detail="Accès non autorisé")
 
     file_path_str = getattr(student, doc_type, None)
+    if not file_path_str and doc_type == "photo":
+        file_path_str = student.photo
     if not file_path_str:
         raise HTTPException(status_code=404, detail="Document non encore téléversé")
 
+    clean_p = str(file_path_str).replace("\\", "/").strip().lstrip("/")
+    fname = Path(clean_p).name
+    base_dir = Path(__file__).resolve().parent.parent.parent
+
     candidates = [
-        Path(file_path_str),
-        Path("uploads/student_documents") / os.path.basename(file_path_str),
-        Path(f"uploads/dossier_etudiant/{student.id}") / os.path.basename(file_path_str),
-        Path(f"uploads/dossier_etudiant/{student.id}/validated") / os.path.basename(file_path_str),
+        base_dir / clean_p,
+        Path(clean_p),
+        base_dir / "uploads" / clean_p,
+        base_dir / "uploads" / "dossier_etudiant" / str(student.id) / fname,
+        base_dir / "uploads" / "dossier_etudiant" / str(student.id) / "validated" / fname,
+        base_dir / "uploads" / "photos" / fname,
+        base_dir / "uploads" / "student_documents" / fname,
+        base_dir / "uploads" / fname,
+        Path(f"uploads/dossier_etudiant/{student.id}") / fname,
+        Path(f"uploads/dossier_etudiant/{student.id}/validated") / fname,
+        Path(f"uploads/student_documents") / fname,
+        Path("uploads") / fname,
     ]
     fpath = next((c for c in candidates if c.exists() and c.is_file()), None)
     if not fpath:
         raise HTTPException(status_code=404, detail="Document introuvable sur le serveur")
-    media_type = "application/pdf" if fpath.suffix.lower() == ".pdf" else "image/jpeg"
+    ext = fpath.suffix.lower()
+    media_map = {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".gif": "image/gif"
+    }
+    media_type = media_map.get(ext, "application/octet-stream")
     return FileResponse(
         path=str(fpath),
         filename=f"{doc_type}_{student.matricule or student.id}{fpath.suffix}",

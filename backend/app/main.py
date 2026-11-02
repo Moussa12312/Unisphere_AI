@@ -497,11 +497,13 @@ for name, router in all_routers.items():
 # ============================================
 class SmartStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
-        response = await super().get_response(path, scope)
+        clean_path = path.replace("\\", "/").lstrip("/")
+        response = await super().get_response(clean_path, scope)
         if response.status_code == 404:
-            clean_name = Path(path).name
+            clean_name = Path(clean_path).name
             base_p = Path(self.directory)
-            for sub in ("logos", "avatars", "dossier_etudiant", "photos", "profiles"):
+            # 1. Dossiers standards
+            for sub in ("logos", "avatars", "photos", "profiles", "materials", "documents", "courses", "student_documents"):
                 cand = base_p / sub / clean_name
                 if cand.is_file():
                     try:
@@ -509,6 +511,37 @@ class SmartStaticFiles(StaticFiles):
                         return await super().get_response(rel, scope)
                     except Exception:
                         pass
+            # 2. Dossiers étudiants par ID : dossier_etudiant/*/<clean_name>
+            dossier_base = base_p / "dossier_etudiant"
+            if dossier_base.exists() and dossier_base.is_dir():
+                for sub_d in dossier_base.iterdir():
+                    if sub_d.is_dir():
+                        cand = sub_d / clean_name
+                        if cand.is_file():
+                            try:
+                                rel = str(cand.relative_to(base_p)).replace("\\", "/")
+                                return await super().get_response(rel, scope)
+                            except Exception:
+                                pass
+                        val_cand = sub_d / "validated" / clean_name
+                        if val_cand.is_file():
+                            try:
+                                rel = str(val_cand.relative_to(base_p)).replace("\\", "/")
+                                return await super().get_response(rel, scope)
+                            except Exception:
+                                pass
+            # 3. Fallback dossier uploads à la racine si exécuté hors backend/
+            alt_base = base_p.parent / "uploads"
+            if alt_base.exists() and alt_base != base_p:
+                alt_cand = alt_base / clean_name
+                if alt_cand.is_file():
+                    from fastapi.responses import FileResponse
+                    return FileResponse(str(alt_cand))
+                for sub in ("logos", "avatars", "photos", "dossier_etudiant"):
+                    sub_cand = alt_base / sub / clean_name
+                    if sub_cand.is_file():
+                        from fastapi.responses import FileResponse
+                        return FileResponse(str(sub_cand))
         return response
 
 BASE_DIR = Path(__file__).resolve().parent.parent

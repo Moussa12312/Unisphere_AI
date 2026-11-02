@@ -338,6 +338,9 @@ export default function StudentEditForm({ studentId, role }: StudentEditFormProp
                     src={photoPreview}
                     alt="Aperçu"
                     className="w-24 h-24 rounded-2xl object-cover border-2 border-orange-200 shadow-sm"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.first_name || '')}+${encodeURIComponent(formData.last_name || '')}&background=FF6B00&color=fff&size=128`;
+                    }}
                   />
                   <button
                     type="button"
@@ -765,3 +768,4 @@ export default function StudentEditForm({ studentId, role }: StudentEditFormProp
     </div>
   );
 }
+

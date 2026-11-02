@@ -23,7 +23,7 @@ import {
   Loader2,
   Check
 } from 'lucide-react';
-import api from '@/lib/api';
+import api, { getMediaUrl } from '@/lib/api';
 import { universityService } from '@/services/universityService';
 import { toast } from 'react-hot-toast';
 
@@ -229,11 +229,7 @@ export default function SecretaryStudentCardsPrintPage() {
   // Helper de rendu de photo d'étudiant
   const renderStudentPhoto = (student: Student, isMedaillon: boolean = false) => {
     const initials = `${(student.first_name || '')[0] || ''}${(student.last_name || '')[0] || ''}`.toUpperCase() || 'ET';
-    const photoUrl = student.photo
-      ? student.photo.startsWith('/') || student.photo.startsWith('http')
-        ? student.photo
-        : `/uploads/${student.photo}`
-      : null;
+    const photoUrl = student.photo ? getMediaUrl(student.photo) : null;
 
     if (isMedaillon) {
       return (

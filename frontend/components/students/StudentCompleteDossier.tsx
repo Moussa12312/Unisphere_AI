@@ -350,7 +350,14 @@ export default function StudentCompleteDossier({ studentId, role }: StudentCompl
             <div className="relative group mb-4">
               <div className="w-28 h-28 rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-100 flex items-center justify-center">
                 {student.photo ? (
-                  <img src={getMediaUrl(student.photo)} alt="Photo" className="w-full h-full object-cover" />
+                  <img
+                    src={getMediaUrl(student.photo)}
+                    alt="Photo"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=128`;
+                    }}
+                  />
                 ) : (
                   <User size={48} className="text-slate-400" />
                 )}
