@@ -214,13 +214,13 @@ const formatTimeAgo = (dateStr: string | null) => {
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <Link
-            href="/secretary/documents/generate"
+            href="/admin/documents/generate"
             className="px-4 py-2.5 bg-[#FF6B00] hover:bg-[#e05e00] text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-[#FF6B00]/25 flex items-center gap-1.5"
           >
             🏛️ Centre de Génération (15 Docs)
           </Link>
           <Link
-            href="/secretary/student-cards"
+            href="/admin/student-cards"
             className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all border border-white/20 flex items-center gap-1.5"
           >
             🪪 Cartes Étudiants (4 Styles)
