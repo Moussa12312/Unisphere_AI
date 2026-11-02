@@ -69,9 +69,9 @@ export default function ClassesManager({ userRole = 'admin' }: ClassesManagerPro
   };
 
   const domains = [...new Set(filieres.map(f => f.domain))].filter(Boolean).sort();
-  const filieresOfDomain = formData.level === 'L1'
-    ? filieres.filter(f => f.name === "Tronc commun")
-    : filieres.filter(f => f.domain === formData.domain);
+  const filieresOfDomain = formData.domain
+    ? filieres.filter(f => f.domain === formData.domain)
+    : filieres;
   const teachersOfFiliere = teachers;
 
   const resetForm = () => {
@@ -89,29 +89,11 @@ export default function ClassesManager({ userRole = 'admin' }: ClassesManagerPro
   };
 
   const handleLevelChange = (newLevel: string) => {
-    if (newLevel === 'L1') {
-      const tronc = filieres.find(f => f.name === "Tronc commun");
-      setFormData({
-        ...formData,
-        level: newLevel,
-        filiere_id: tronc ? tronc.id.toString() : ''
-      });
-    } else {
-      setFormData({ ...formData, level: newLevel, filiere_id: '' });
-    }
+    setFormData({ ...formData, level: newLevel });
   };
 
   const handleDomainChange = (newDomain: string) => {
-    if (formData.level === 'L1') {
-      const tronc = filieres.find(f => f.name === "Tronc commun");
-      setFormData({
-        ...formData,
-        domain: newDomain,
-        filiere_id: tronc ? tronc.id.toString() : ''
-      });
-    } else {
-      setFormData({ ...formData, domain: newDomain, filiere_id: '', level: '' });
-    }
+    setFormData({ ...formData, domain: newDomain, filiere_id: '' });
   };
 
   const handleCreate = async () => {
@@ -499,19 +481,11 @@ export default function ClassesManager({ userRole = 'admin' }: ClassesManagerPro
                 <select
                   value={formData.filiere_id}
                   onChange={(e) => setFormData({ ...formData, filiere_id: e.target.value })}
-                  disabled={!formData.domain || formData.level === 'L1'}
+                  disabled={!formData.domain}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white disabled:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 >
-                  {formData.level === 'L1' ? (
-                    <option value={filieres.find(f => f.name === "Tronc commun")?.id || ''}>
-                      Tronc commun (automatique)
-                    </option>
-                  ) : (
-                    <>
-                      <option value="">Sélectionner une filière...</option>
-                      {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                    </>
-                  )}
+                  <option value="">Sélectionner une filière...</option>
+                  {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
               <RoomSelect
@@ -604,19 +578,11 @@ export default function ClassesManager({ userRole = 'admin' }: ClassesManagerPro
                 <select
                   value={formData.filiere_id}
                   onChange={(e) => setFormData({ ...formData, filiere_id: e.target.value })}
-                  disabled={!formData.domain || formData.level === 'L1'}
+                  disabled={!formData.domain}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white disabled:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 >
-                  {formData.level === 'L1' ? (
-                    <option value={filieres.find(f => f.name === "Tronc commun")?.id || ''}>
-                      Tronc commun (automatique)
-                    </option>
-                  ) : (
-                    <>
-                      <option value="">Sélectionner une filière...</option>
-                      {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                    </>
-                  )}
+                  <option value="">Sélectionner une filière...</option>
+                  {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
               <RoomSelect

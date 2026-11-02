@@ -77,9 +77,9 @@ export default function SecretaryCoursesPage() {
   };
 
   const domains = [...new Set(filieres.map(f => f.domain))].sort();
-  const filieresOfDomain = formData.level === 'L1'
-    ? filieres.filter(f => f.name === "Tronc commun")
-    : filieres.filter(f => f.domain === formData.domain);
+  const filieresOfDomain = formData.domain
+    ? filieres.filter(f => f.domain === formData.domain)
+    : filieres;
   const teachersOfFiliere = teachers;
 
   const resetForm = () => {
@@ -95,29 +95,11 @@ export default function SecretaryCoursesPage() {
   };
 
   const handleLevelChange = (newLevel: string) => {
-    if (newLevel === 'L1') {
-      const tronc = filieres.find(f => f.name === "Tronc commun");
-      setFormData({
-        ...formData,
-        level: newLevel,
-        filiere_id: tronc ? tronc.id.toString() : ''
-      });
-    } else {
-      setFormData({ ...formData, level: newLevel, filiere_id: '' });
-    }
+    setFormData({ ...formData, level: newLevel });
   };
 
   const handleDomainChange = (newDomain: string) => {
-    if (formData.level === 'L1') {
-      const tronc = filieres.find(f => f.name === "Tronc commun");
-      setFormData({
-        ...formData,
-        domain: newDomain,
-        filiere_id: tronc ? tronc.id.toString() : ''
-      });
-    } else {
-      setFormData({ ...formData, domain: newDomain, filiere_id: '', level: '', teacher_id: '' });
-    }
+    setFormData({ ...formData, domain: newDomain, filiere_id: '', teacher_id: '' });
   };
 
   const handleCreate = async () => {
@@ -489,19 +471,11 @@ export default function SecretaryCoursesPage() {
                 <select
                   value={formData.filiere_id}
                   onChange={(e) => setFormData({ ...formData, filiere_id: e.target.value })}
-                  disabled={!formData.domain || formData.level === 'L1'}
+                  disabled={!formData.domain}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white disabled:bg-slate-100 text-sm"
                 >
-                  {formData.level === 'L1' ? (
-                    <option value={filieres.find(f => f.name === "Tronc commun")?.id || ''}>
-                      Tronc commun (automatique)
-                    </option>
-                  ) : (
-                    <>
-                      <option value="">Sélectionner une filière...</option>
-                      {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                    </>
-                  )}
+                  <option value="">Sélectionner une filière...</option>
+                  {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
               <div>
@@ -614,19 +588,11 @@ export default function SecretaryCoursesPage() {
                 <select
                   value={formData.filiere_id}
                   onChange={(e) => setFormData({ ...formData, filiere_id: e.target.value })}
-                  disabled={!formData.domain || formData.level === 'L1'}
+                  disabled={!formData.domain}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white disabled:bg-slate-100"
                 >
-                  {formData.level === 'L1' ? (
-                    <option value={filieres.find(f => f.name === "Tronc commun")?.id || ''}>
-                      Tronc commun (automatique)
-                    </option>
-                  ) : (
-                    <>
-                      <option value="">Sélectionner une filière...</option>
-                      {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                    </>
-                  )}
+                  <option value="">Sélectionner une filière...</option>
+                  {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
               <div>

@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  Users, Search, Plus, Eye, Trash2,
+  Users, Search, Plus, Eye, Pencil, Trash2,
   Download, ChevronLeft, ChevronRight, Printer, UploadCloud, CreditCard
 } from 'lucide-react';
-import api from '@/lib/api';
+import api, { getMediaUrl } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
 import PrintQRCodesModal from '@/components/admin/PrintQRCodesModal';
@@ -282,10 +282,15 @@ export default function SecretaryStudentsPage() {
                     <tr key={student.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-[#FF6B00]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-[#FF6B00] font-bold text-sm">
-                              {student.first_name?.charAt(0)}{student.last_name?.charAt(0)}
-                            </span>
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-[#FF6B00]/10 border border-slate-200">
+                            <img
+                              src={getMediaUrl(student.photo, `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=64`)}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=64`;
+                              }}
+                            />
                           </div>
                           <div>
                             <p className="font-semibold text-slate-900 text-sm">
@@ -310,9 +315,16 @@ export default function SecretaryStudentsPage() {
                           <Link
                             href={`/secretary/students/${student.id}`}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Voir"
+                            title="Voir la fiche détaillée"
                           >
                             <Eye size={16} />
+                          </Link>
+                          <Link
+                            href={`/secretary/students/${student.id}/edit`}
+                            className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                            title="Modifier l'étudiant"
+                          >
+                            <Pencil size={16} />
                           </Link>
                           <button
                             onClick={() => handleDelete(student)}

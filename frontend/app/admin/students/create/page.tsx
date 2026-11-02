@@ -79,43 +79,21 @@ export default function AdminCreateStudentPage() {
     }
   };
 
-  // Quand niveau = L1, forcer filière = Tronc commun
   const handleLevelChange = (newLevel: string) => {
-    if (newLevel === 'L1') {
-      setFormData({ 
-        ...formData, 
-        level: newLevel,
-        filiere: "Tronc commun",
-        domain: formData.domain || ''
-      });
-    } else {
-      setFormData({ ...formData, level: newLevel, filiere: '' });
-    }
+    setFormData({ ...formData, level: newLevel });
   };
 
-  // Quand domaine change : si L1, garder Tronc commun
   const handleDomainChange = (newDomain: string) => {
-    if (formData.level === 'L1') {
-      setFormData({ 
-        ...formData, 
-        domain: newDomain,
-        filiere: "Tronc commun"
-      });
-    } else {
-      setFormData({ ...formData, domain: newDomain, filiere: '', level: '' });
-    }
+    setFormData({ ...formData, domain: newDomain, filiere: '' });
   };
 
   useEffect(() => {
-    if (formData.level === 'L1') {
-      const tronc = filieres.filter((f: any) => f.name === "Tronc commun");
-      setFilieresByDomaine(tronc);
-    } else if (formData.domain) {
+    if (formData.domain) {
       setFilieresByDomaine(filieres.filter((f: any) => f.domain === formData.domain));
     } else {
-      setFilieresByDomaine([]);
+      setFilieresByDomaine(filieres);
     }
-  }, [formData.domain, formData.level, filieres]);
+  }, [formData.domain, filieres]);
 
   useEffect(() => {
     if (formData.filiere && formData.domain) {
@@ -384,21 +362,15 @@ export default function AdminCreateStudentPage() {
                 value={formData.filiere} 
                 onChange={handleChange}
                 required 
-                disabled={formData.level === 'L1' || !formData.domain || filieresByDomaine.length === 0}
+                disabled={!formData.domain || filieresByDomaine.length === 0}
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white disabled:bg-slate-100"
               >
-                {formData.level === 'L1' ? (
-                  <option value="Tronc commun">Tronc commun (automatique)</option>
-                ) : (
-                  <>
-                    <option value="">
-                      {!formData.domain 
-                        ? 'Choisissez d\'abord un domaine...' 
-                        : 'Sélectionner une filière...'}
-                    </option>
-                    {filieresByDomaine.map((f: any) => (<option key={f.id} value={f.name}>{f.name}</option>))}
-                  </>
-                )}
+                <option value="">
+                  {!formData.domain 
+                    ? "Choisissez d'abord un domaine..." 
+                    : 'Sélectionner une filière...'}
+                </option>
+                {filieresByDomaine.map((f: any) => (<option key={f.id} value={f.name}>{f.name}</option>))}
               </select>
             </div>
           </div>
