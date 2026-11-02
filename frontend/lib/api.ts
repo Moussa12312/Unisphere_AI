@@ -1,7 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
-// ✅ Proxy Next.js : requêtes envoyées à la même origine
-// Next.js les route automatiquement vers 127.0.0.1:8000 via rewrites()
+// Proxy Next.js : requêtes envoyées à la même origine
 const API_URL = '';
 
 const api: AxiosInstance = axios.create({
@@ -32,12 +31,20 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (typeof window !== 'undefined') {
+      const isOffline = !navigator.onLine || Boolean(error.response?.data?.offline);
+
+      // En mode hors-ligne, ne jamais déconnecter l'utilisateur ni envoyer de rapports d'incidents
+      if (isOffline) {
+        return Promise.reject(error);
+      }
+
       const status = error.response?.status;
       const url = error.config?.url || '';
 
       if (
         status === 401 &&
-        !window.location.pathname.startsWith('/login') && window.location.pathname !== '/'
+        !window.location.pathname.startsWith('/login') &&
+        window.location.pathname !== '/'
       ) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -46,24 +53,26 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      // Signalement silencieux et automatique au Super-Admin en cas de crash
-      if ((!status || status >= 500) && !url.includes('/report-incident')) {
+      // Signalement silencieux au Super-Admin en cas d'erreur serveur réelle (en ligne uniquement)
+      if (status && status >= 500 && status !== 503 && !url.includes('/report-incident')) {
         try {
           const token = localStorage.getItem('token');
           fetch('/api/v1/superadmin/report-incident', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {})
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: JSON.stringify({
               url: window.location.pathname,
               api_url: url,
-              error_code: status || 500,
+              error_code: status,
               error_message: error.message || 'Erreur inattendue',
-              stack_trace: error.response?.data?.detail ? JSON.stringify(error.response.data.detail) : (error.stack || ''),
-              action_attempted: `Requête ${error.config?.method?.toUpperCase() || 'ACTION'} sur ${url}`
-            })
+              stack_trace: error.response?.data?.detail
+                ? JSON.stringify(error.response.data.detail)
+                : error.stack || '',
+              action_attempted: `Requête ${error.config?.method?.toUpperCase() || 'ACTION'} sur ${url}`,
+            }),
           }).catch(() => {});
         } catch {}
       }
@@ -76,7 +85,14 @@ export const API_BASE_URL = API_URL;
 
 export const getMediaUrl = (path?: string | null, fallback?: string): string => {
   if (!path) return fallback || '';
-  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('blob:') || path.startsWith('data:')) return path;
+  if (
+    path.startsWith('http://') ||
+    path.startsWith('https://') ||
+    path.startsWith('blob:') ||
+    path.startsWith('data:')
+  ) {
+    return path;
+  }
   const clean = path.trim();
   if (clean.startsWith('/uploads/')) return clean;
   if (clean.startsWith('uploads/')) return `/${clean}`;

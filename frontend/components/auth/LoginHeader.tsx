@@ -2,70 +2,57 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Smartphone, Sparkles, ShieldCheck } from 'lucide-react';
+import { Smartphone, ShieldCheck } from 'lucide-react';
 import UniSphereLogo from './UniSphereLogo';
 import LoginFeatures from './LoginFeatures';
 
 export default function LoginHeader() {
   return (
-    <div className="relative z-10 flex flex-col justify-between h-full p-8 lg:p-12 xl:p-14 text-white max-w-2xl">
-      {/* 1. Haut : Logo & Slogan */}
-      <div>
-        <UniSphereLogo variant="light" size="md" showSlogan={true} />
+    <div className="relative z-10 flex flex-col justify-between h-full p-8 lg:p-10 xl:p-14 text-white">
+      {/* 1. Haut : Identité Officielle & Badge */}
+      <div className="flex items-center justify-between gap-4">
+        <UniSphereLogo variant="light" size="md" showSlogan={false} />
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.07] border border-white/15 text-[11px] font-bold tracking-wider uppercase text-slate-200 backdrop-blur-md">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B00]" />
+          Système LMD Unifié
+        </span>
       </div>
 
-      {/* 2. Centre : Titre accrocheur, description & 4 fonctionnalités */}
-      <div className="my-auto py-6 space-y-6">
+      {/* 2. Centre : Proposition de valeur & Grille Bento */}
+      <div className="my-auto py-4 space-y-5 max-w-xl">
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-orange-300 text-xs font-semibold">
-            <Sparkles size={14} className="text-[#FF6B00]" />
-            <span>Plateforme Universitaire Intelligente LMD</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#FF6B00]/15 border border-[#FF6B00]/30 text-[#FF6B00] text-xs font-bold tracking-wide">
+            Plateforme Universitaire Nouvelle Génération
           </div>
 
-          <h1 className="text-3xl sm:text-4xl xl:text-[44px] font-black tracking-tight leading-[1.15] text-white">
-            Votre Université <br />
-            à <span className="text-[#FF6B00]">portée</span> de main
+          <h1 className="text-3xl xl:text-[42px] font-black tracking-tight leading-[1.12] text-white">
+            Pilotez l’excellence académique avec{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF6B00] to-amber-400">
+              UniSphere AI
+            </span>
           </h1>
 
-          <p className="text-slate-200 text-sm sm:text-base font-normal leading-relaxed max-w-lg">
-            La solution intégrée de référence pour piloter la scolarité, la pédagogie et la comptabilité universitaire.
+          <p className="text-slate-300 text-sm leading-relaxed max-w-lg">
+            Un environnement numérique souverain reliant direction, secrétariat, comptabilité, corps enseignant et étudiants sur une base unique.
           </p>
         </div>
 
-        {/* 4 Cartes de fonctionnalités en glassmorphism */}
-        <div className="pt-2">
-          <LoginFeatures />
-        </div>
+        <LoginFeatures />
       </div>
 
-      {/* 3. Bas : Slogan calligraphique & trait orange + Accès Mobile APK */}
-      <div className="pt-4 flex items-end justify-between gap-4">
-        <div className="inline-block">
-          <p className="font-serif italic text-2xl sm:text-[26px] text-white tracking-wide select-none drop-shadow-sm">
-            Innover • Gérer • Réussir
-          </p>
-          {/* Trait orange courbe élégant */}
-          <div className="mt-1">
-            <svg
-              viewBox="0 0 220 18"
-              className="w-48 sm:w-56 h-3.5 text-[#FF6B00]"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M 4 14 C 40 4 140 2 216 11 C 150 5 60 7 4 14 Z"
-                fill="#FF6B00"
-              />
-            </svg>
-          </div>
+      {/* 3. Bas : Sécurité & Application Mobile */}
+      <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-4 text-xs text-slate-400">
+        <div className="flex items-center gap-2">
+          <ShieldCheck size={15} className="text-emerald-400 shrink-0" />
+          <span>Connexion chiffrée SSL • UniSphere AI © 2026</span>
         </div>
 
         <Link
           href="/download"
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/20 text-orange-400 hover:text-orange-300 font-bold text-xs transition-colors border border-white/20 backdrop-blur-md shadow-xs shrink-0"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FF6B00]/15 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white font-bold text-xs transition-all border border-[#FF6B00]/30 shrink-0"
         >
-          <Smartphone size={15} className="text-[#FF6B00]" />
-          <span>Application APK</span>
+          <Smartphone size={14} />
+          <span>Application Android (APK)</span>
         </Link>
       </div>
     </div>

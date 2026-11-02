@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: false,
   devIndicators: false,
+  experimental: {
+    staleTimes: {
+      dynamic: 600,
+      static: 3600,
+    },
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -79,6 +85,19 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'Content-Type',
+            value: 'application/javascript; charset=utf-8',
+          },
+        ],
+      },
       {
         source: '/download/unisphereai.apk',
         headers: [

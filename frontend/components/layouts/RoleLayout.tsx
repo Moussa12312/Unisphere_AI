@@ -92,14 +92,16 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
     setUser(currentUser);
     setLoading(false);
 
-    // Rafraîchir les informations de l'utilisateur (dont sa photo) depuis le backend
-    api.get('/api/v1/auth/me').then(res => {
-      if (res.data) {
-        const updated = { ...currentUser, ...res.data };
-        setUser(updated);
-        localStorage.setItem('user', JSON.stringify(updated));
-      }
-    }).catch(() => {});
+    // Rafraîchir les informations de l'utilisateur depuis le backend uniquement si connecté à Internet
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      api.get('/api/v1/auth/me').then(res => {
+        if (res.data && !Array.isArray(res.data) && !res.data.offline && res.data.role) {
+          const updated = { ...currentUser, ...res.data };
+          setUser(updated);
+          localStorage.setItem('user', JSON.stringify(updated));
+        }
+      }).catch(() => {});
+    }
 
     // Écouter les mises à jour locales de profil (ex: upload photo dans paramètres)
     const handleUserUpdate = () => {

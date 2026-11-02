@@ -78,6 +78,8 @@ services:
       PORT: 3000
       BACKEND_INTERNAL_URL: http://backend:8000
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+    volumes:
+      - ./frontend/public:/app/public
     networks:
       - unisphere_network
 

@@ -12,7 +12,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
     body {
-      background: radial-gradient(circle at top, #1e1b4b 0%, #030712 100%);
+      background: radial-gradient(circle at top, #0A1E5C 0%, #031B63 60%, #020F36 100%);
       color: #f8fafc;
       min-height: 100vh;
       display: flex;
@@ -23,29 +23,47 @@
       text-align: center;
     }
     .card {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(16px);
-      border-radius: 24px;
-      padding: 40px 28px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      border-radius: 28px;
+      padding: 40px 32px;
       max-width: 460px;
       width: 100%;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6);
+    }
+    .brand-title {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+    .brand-title span {
+      color: #FF6B00;
+    }
+    .brand-subtitle {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #94a3b8;
+      font-weight: 700;
+      margin-bottom: 24px;
     }
     .icon-box {
-      width: 72px;
-      height: 72px;
+      width: 68px;
+      height: 68px;
       margin: 0 auto 20px;
       background: linear-gradient(135deg, #FF6B00, #ea580c);
       border-radius: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 10px 25px rgba(255, 107, 0, 0.4);
+      box-shadow: 0 10px 30px rgba(255, 107, 0, 0.4);
     }
     .icon-box svg {
-      width: 36px;
-      height: 36px;
+      width: 34px;
+      height: 34px;
       fill: none;
       stroke: #ffffff;
       stroke-width: 2.2;
@@ -53,42 +71,36 @@
       stroke-linejoin: round;
     }
     h1 {
-      font-size: 24px;
-      font-weight: 900;
-      letter-spacing: -0.5px;
-      margin-bottom: 12px;
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 10px;
       color: #ffffff;
     }
     p {
-      font-size: 14px;
-      color: #94a3b8;
+      font-size: 13px;
+      color: #cbd5e1;
       line-height: 1.6;
-      margin-bottom: 28px;
+      margin-bottom: 24px;
     }
     .status-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 14px;
-      background: rgba(251, 146, 60, 0.15);
-      border: 1px solid rgba(251, 146, 60, 0.3);
-      color: #fb923c;
+      padding: 5px 12px;
+      background: rgba(255, 107, 0, 0.15);
+      border: 1px solid rgba(255, 107, 0, 0.35);
+      color: #ff9142;
       border-radius: 9999px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .pulse-dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      background: #fb923c;
-      animation: pulse 1.8s infinite;
-    }
-    @keyframes pulse {
-      0% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(1.3); }
-      100% { opacity: 1; transform: scale(1); }
+      background: #FF6B00;
+      box-shadow: 0 0 8px #FF6B00;
     }
     .btn {
       display: inline-flex;
@@ -96,7 +108,7 @@
       justify-content: center;
       gap: 8px;
       width: 100%;
-      padding: 14px 20px;
+      padding: 13px 20px;
       border-radius: 14px;
       font-size: 14px;
       font-weight: 700;
@@ -108,30 +120,33 @@
     .btn-primary {
       background: #FF6B00;
       color: #ffffff;
-      box-shadow: 0 4px 14px rgba(255, 107, 0, 0.35);
-      margin-bottom: 12px;
+      box-shadow: 0 4px 16px rgba(255, 107, 0, 0.35);
+      margin-bottom: 10px;
     }
     .btn-primary:hover {
-      background: #e55f00;
+      background: #e66000;
       transform: translateY(-1px);
     }
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      color: #e2e8f0;
+      background: rgba(255, 255, 255, 0.1);
+      color: #f1f5f9;
       border: 1px solid rgba(255, 255, 255, 0.15);
     }
     .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.18);
     }
     .footer {
-      margin-top: 32px;
-      font-size: 12px;
+      margin-top: 28px;
+      font-size: 11px;
       color: #64748b;
     }
   </style>
 </head>
 <body>
   <div class="card">
+    <div class="brand-title">UniSphere <span>AI</span></div>
+    <div class="brand-subtitle">Plateforme Universitaire Intelligente</div>
+
     <div class="icon-box">
       <svg viewBox="0 0 24 24">
         <line x1="1" y1="1" x2="23" y2="23"></line>
@@ -149,13 +164,13 @@
       Mode Hors Ligne Actif
     </div>
 
-    <h1>Connexion Internet Interrompue</h1>
+    <h1>Connexion Internet Indisponible</h1>
     <p>
-      Vous êtes actuellement déconnecté d'Internet. UniSphere AI conserve vos scans et vos données locales en mémoire sur cet appareil jusqu'au rétablissement du réseau.
+      Vous pouvez continuer à naviguer entre vos pages consultées. Vos actions locales sont conservées en sécurité dans la mémoire de votre appareil.
     </p>
 
-    <button class="btn btn-primary" onclick="window.location.reload()">
-      🔄 Réessayer la connexion
+    <button class="btn btn-primary" onclick="window.location.href='/'">
+      🏠 Accéder à mon Espace UniSphere
     </button>
 
     <button class="btn btn-secondary" onclick="window.history.back()">
@@ -163,9 +178,8 @@
     </button>
 
     <div class="footer">
-      UniSphere AI • Système Académique et Sécurité Campus
+      UniSphere AI © 2026 • Système Académique et Sécurité Campus
     </div>
   </div>
 </body>
 </html>
-
