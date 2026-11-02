@@ -202,21 +202,10 @@ async def create_student(
         # Calcul du net convenu si une remise est saisie
         computed_net = float(net_tuition_amount) if net_tuition_amount is not None else None
         if computed_net is None and (float(discount_amount or 0.0) > 0 or float(discount_percentage or 0.0) > 0):
-            base_fee = None
-            if domain:
-                base_fee = db.query(AcademicFee).filter(
-                    AcademicFee.university_id == current_user.university_id,
-                    AcademicFee.level == level,
-                    AcademicFee.domain == domain,
-                    AcademicFee.payment_type == "scolarite"
-                ).first()
-            if not base_fee:
-                base_fee = db.query(AcademicFee).filter(
-                    AcademicFee.university_id == current_user.university_id,
-                    AcademicFee.level == level,
-                    AcademicFee.payment_type == "scolarite"
-                ).first()
-            base_val = base_fee.amount if base_fee else 450000.0
+            from app.utils.tuition import find_matching_academic_fee
+            temp_stub = Student(level=level, domain=domain, filiere=filiere)
+            matched_fee = find_matching_academic_fee(db, temp_stub, current_user.university_id, "scolarite")
+            base_val = float(matched_fee.amount) if matched_fee else 0.0
             if float(discount_amount or 0.0) > 0:
                 computed_net = max(0.0, base_val - float(discount_amount))
             elif float(discount_percentage or 0.0) > 0:

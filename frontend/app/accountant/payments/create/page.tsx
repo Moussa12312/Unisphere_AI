@@ -60,20 +60,17 @@ export default function CreatePaymentPage() {
       const response = await api.get(`/api/v1/payments/student/${selectedStudent.id}/summary`);
       setStudentSummary(response.data);
     } catch (error: any) {
-      console.error('Erreur chargement résumé:', error);
-      // Valeurs par défaut si l'endpoint échoue
+      console.error("Erreur chargement resume:", error);
+      const fallbackAmount = Number(selectedStudent?.net_tuition_amount || selectedStudent?.base_tuition_amount || 0);
       setStudentSummary({
-        total_amount: 450000,
+        total_amount: fallbackAmount,
         total_paid: 0,
-        total_remaining: 450000,
+        total_remaining: fallbackAmount,
         paid_percentage: 0,
-        status: 'unpaid',
-        tranches: [
-          { id: 1, name: 'Tranche 1', amount: 150000, status: 'available', due_date: null },
-          { id: 2, name: 'Tranche 2', amount: 150000, status: 'locked', due_date: null },
-          { id: 3, name: 'Tranche 3', amount: 150000, status: 'locked', due_date: null }
-        ]
+        status: "unpaid",
+        tranches: []
       });
+      toast.error("Impossible de charger le detail financier de cet etudiant");
     }
   };
 
