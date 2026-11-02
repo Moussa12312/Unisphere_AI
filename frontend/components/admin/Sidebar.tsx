@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, BookOpen, GraduationCap, UserCheck, UserCog, User, FileText, Calendar, Calculator, CreditCard,
   Bell, BarChart3, Bot, Settings, ChevronDown, ChevronRight,
-  Upload, CheckCircle, Award, TrendingUp, MessageSquare,
+  Upload, CheckCircle, Award, TrendingUp, TrendingDown, MessageSquare,
   ClipboardList, Receipt, AlertCircle, FileCheck, School, Building2, DollarSign, Shield, KeyRound,
   QrCode, Edit3, Clock, AlertTriangle, RotateCcw, FileBarChart,
   BrainCircuit, UserPlus, Folder, Users2, ScrollText, FileSearch, Scale, Lock, HelpCircle,
@@ -53,7 +53,6 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Notes', href: '/admin/grades', icon: FileText },
       ]
     },
-
     {
       title: 'STRUCTURE',
       items: [
@@ -61,17 +60,16 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Filières & Niveaux', href: '/admin/filieres', icon: School },
       ]
     },
-
     {
       title: 'FINANCES',
       items: [
         { label: 'Paiements', href: '/admin/payments', icon: CreditCard },
+        { label: 'Dépenses', href: '/admin/expenses', icon: TrendingDown },
         { label: 'Frais & Tranches', href: '/admin/settings/config?tab=frais', icon: DollarSign },
         { label: 'Reçus', href: '/accountant/receipts', icon: Printer },
         { label: 'Rapports financiers', href: '/admin/financial-reports', icon: Receipt },
       ]
     },
-
     {
       title: 'COMMUNICATION',
       items: [
@@ -80,7 +78,6 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Alumni', href: '/admin/alumni', icon: Award },
       ]
     },
-
     {
       title: 'DOCUMENTS',
       items: [
@@ -90,7 +87,6 @@ const MENU_CONFIG: Record<string, Array<{
         { label: "Demandes d'actes", href: '/secretary/certificate-requests', icon: ScrollText },
       ]
     },
-
     {
       title: 'DÉLIBÉRATIONS',
       items: [
@@ -100,7 +96,6 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Procès-verbaux', href: '/admin/deliberations/minutes', icon: FileText },
       ]
     },
-
     {
       title: 'PARAMÈTRES',
       items: [

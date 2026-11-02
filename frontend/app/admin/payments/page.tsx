@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import paymentService from '@/services/paymentService';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
-import { exportToExcel } from '@/lib/exportExcel';
+import { exportToExcel, exportToCSV } from '@/lib/exportExcel';
 
 export default function AdminPaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,6 +41,44 @@ export default function AdminPaymentsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    if (payments.length === 0) {
+      toast.error('Aucune donnée à exporter');
+      return;
+    }
+    const dataToExport = payments.map(p => ({
+      id: p.id,
+      reference: p.reference || p.receipt_number || `PAY-${p.id}`,
+      student_name: p.student_name || `${p.student?.first_name || ''} ${p.student?.last_name || ''}`.trim() || 'N/A',
+      matricule: p.matricule || p.student?.matricule || 'N/A',
+      filiere: p.student?.filiere || 'N/A',
+      amount: p.amount,
+      currency: p.currency || 'FCFA',
+      payment_type: p.payment_type || 'Scolarité',
+      payment_method: p.payment_method || 'Virement',
+      status: p.status === 'completed' ? 'Validé' : (p.status || 'En attente'),
+      date: p.payment_date || p.created_at || ''
+    }));
+
+    exportToCSV(dataToExport, {
+      filename: `gestion_paiements_${new Date().toISOString().slice(0, 10)}.csv`,
+      headerMapping: {
+        id: 'ID',
+        reference: 'Référence Reçu',
+        student_name: 'Nom de l\'Étudiant',
+        matricule: 'Matricule',
+        filiere: 'Filière',
+        amount: 'Montant (FCFA)',
+        currency: 'Devise',
+        payment_type: 'Type de Frais',
+        payment_method: 'Mode de Paiement',
+        status: 'Statut',
+        date: 'Date'
+      }
+    });
+    toast.success('Fichier CSV (.csv) téléchargé avec succès !');
   };
 
   const handleExportExcel = () => {
@@ -110,11 +148,19 @@ export default function AdminPaymentsPage() {
           >
             <Banknote className="w-4 h-4" /> Configurer Frais & Tranches
           </Link>
-          <button 
+          <button
             onClick={handleExportExcel}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium shadow transition-colors text-sm"
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg font-medium shadow transition-colors text-sm"
+            title="Télécharger au format Excel (.xlsx)"
           >
-            <FileSpreadsheet className="w-4 h-4" /> Exporter (Excel)
+            <FileSpreadsheet className="w-4 h-4" /> Excel (.xlsx)
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg font-medium shadow transition-colors text-sm"
+            title="Télécharger au format CSV (.csv)"
+          >
+            <Download className="w-4 h-4" /> CSV (.csv)
           </button>
         </div>
       </div>
@@ -187,11 +233,10 @@ export default function AdminPaymentsPage() {
                         {p.payment_date || (p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : 'N/A')}
                       </td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          isPaid
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                            : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${isPaid
+                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                          : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                          }`}>
                           {isPaid ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                           {isPaid ? 'Payé' : 'En attente'}
                         </span>

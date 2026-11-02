@@ -54,3 +54,49 @@ export function exportToExcel<T extends Record<string, any>>(
 
   XLSX.writeFile(workbook, filename);
 }
+
+/**
+ * Exports an array of objects to a CSV (.csv) file with UTF-8 BOM
+ * (ensuring proper display of French accents and special characters in Excel)
+ */
+export function exportToCSV<T extends Record<string, any>>(
+  data: T[],
+  options: ExcelExportOptions | string
+) {
+  if (!data || data.length === 0) {
+    console.warn('No data to export to CSV');
+    return;
+  }
+
+  const opts: ExcelExportOptions = typeof options === 'string' ? { filename: options } : options;
+
+  // Transform data if headerMapping is provided
+  const transformedData = data.map((item) => {
+    if (!opts.headerMapping) return item;
+    const mappedItem: Record<string, any> = {};
+    for (const [key, label] of Object.entries(opts.headerMapping)) {
+      mappedItem[label] = item[key] !== undefined && item[key] !== null ? item[key] : '';
+    }
+    return mappedItem;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(transformedData);
+  // French locale uses semicolon separator for CSV so Excel opens columns cleanly
+  const csvContent = XLSX.utils.sheet_to_csv(worksheet, { FS: ';' });
+
+  // Add UTF-8 BOM so Excel opens accents without mojibake
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const filename = opts.filename.endsWith('.csv') ? opts.filename : `${opts.filename}.csv`;
+
+  if (typeof window !== 'undefined') {
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+}

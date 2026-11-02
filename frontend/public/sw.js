@@ -3,7 +3,7 @@
 // Version: 3.1.0
 // ==============================================================================
 
-const CACHE_VERSION = 'unisphere-v3.1.0';
+const CACHE_VERSION = 'unisphere-v3.2.0';
 const STATIC_CACHE = `unisphere-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `unisphere-pages-${CACHE_VERSION}`;
 const API_CACHE = `unisphere-api-${CACHE_VERSION}`;
@@ -16,6 +16,9 @@ const PRECACHE_ASSETS = [
   '/offline.html',
   '/manifest.json',
   '/favicon.ico',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
   '/logo.png',
   '/login'
 ];

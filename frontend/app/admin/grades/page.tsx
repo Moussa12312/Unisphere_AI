@@ -12,7 +12,7 @@ import { classService, ClassRoom } from '@/services/classService';
 import { gradeService, GradeEntry, GradeStats } from '@/services/gradeService';
 import { useToast } from '@/components/ToastProvider';
 import api from '@/lib/api';
-import { exportToExcel } from '@/lib/exportExcel';
+import { exportToExcel, exportToCSV } from '@/lib/exportExcel';
 
 export default function AdminGradesPage() {
   const toast = useToast();
@@ -170,7 +170,7 @@ export default function AdminGradesPage() {
   // Export Excel (.xlsx)
   const handleExportExcel = () => {
     if (!selectedSessionId || !selectedCourseId || grades.length === 0) {
-      toast.error('Aucune note à exporter');
+      toast.error('Veuillez sélectionner une session, une classe et un cours avec des notes');
       return;
     }
     
@@ -186,8 +186,31 @@ export default function AdminGradesPage() {
       };
     });
     
-    exportToExcel(rows, `Notes_${selectedSession?.name || 'export'}_${selectedCourse?.title || 'cours'}`);
+    exportToExcel(rows, `Notes_${selectedSession?.name || 'session'}_${selectedCourse?.title || 'cours'}`);
     toast.success('Export Excel (.xlsx) généré avec succès');
+  };
+
+  // Export CSV (.csv)
+  const handleExportCSV = () => {
+    if (!selectedSessionId || !selectedCourseId || grades.length === 0) {
+      toast.error('Veuillez sélectionner une session, une classe et un cours avec des notes');
+      return;
+    }
+    
+    const rows = filteredGrades.map(g => {
+      const mention = getMention(g.score);
+      return {
+        "Matricule": g.matricule,
+        "Nom": g.student_name,
+        "Note /20": g.score !== null ? g.score : 'N/A',
+        "Mention": mention.label,
+        "Statut": g.status === 'validated' ? 'Validé' : g.status === 'draft' ? 'Brouillon' : 'Rejeté',
+        "Commentaire": g.comment || ''
+      };
+    });
+    
+    exportToCSV(rows, `Notes_${selectedSession?.name || 'session'}_${selectedCourse?.title || 'cours'}`);
+    toast.success('Export CSV (.csv) généré avec succès');
   };
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId);
@@ -239,15 +262,22 @@ export default function AdminGradesPage() {
             )}
           </button>
 
-          {selectedSessionId && selectedCourseId && (
-            <button
-              onClick={handleExportExcel}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-sm font-semibold transition-all shadow-sm"
-            >
-              <Download size={16} />
-              Exporter Excel (.xlsx)
-            </button>
-          )}
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-sm font-semibold transition-all shadow-sm"
+            title="Exporter les notes au format Excel (.xlsx)"
+          >
+            <Download size={16} />
+            Excel (.xlsx)
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-sm font-semibold transition-all shadow-sm"
+            title="Exporter les notes au format CSV (.csv)"
+          >
+            <Download size={16} />
+            CSV (.csv)
+          </button>
         </div>
       </div>
 

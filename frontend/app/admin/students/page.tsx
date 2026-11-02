@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Eye, Pencil, Trash2, Plus, Search, Loader2, ChevronRight, ChevronDown, UploadCloud, Mail } from 'lucide-react';
+import { Eye, Pencil, Trash2, Plus, Search, Loader2, ChevronRight, ChevronDown, UploadCloud, Mail, Download, FileSpreadsheet } from 'lucide-react';
+import { exportToExcel, exportToCSV } from '@/lib/exportExcel';
 import ChangeUserEmailModal from '@/components/admin/ChangeUserEmailModal';
 import Link from 'next/link';
 import { studentService } from '@/services/studentService';
@@ -68,6 +69,46 @@ export default function StudentsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportExcel = () => {
+    if (students.length === 0) {
+      toast.error('Aucun étudiant à exporter');
+      return;
+    }
+    const dataToExport = students.map(s => ({
+      Matricule: s.matricule || 'N/A',
+      Nom: s.last_name,
+      Prénom: s.first_name,
+      Email: s.email || '',
+      Téléphone: s.phone || '',
+      Domaine: s.domain || 'N/A',
+      Filière: s.filiere || 'N/A',
+      Niveau: s.level || 'N/A',
+      Statut: s.status || 'Actif'
+    }));
+    exportToExcel(dataToExport, `Repertoire_Etudiants_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success('Répertoire étudiants exporté en Excel (.xlsx)');
+  };
+
+  const handleExportCSV = () => {
+    if (students.length === 0) {
+      toast.error('Aucun étudiant à exporter');
+      return;
+    }
+    const dataToExport = students.map(s => ({
+      Matricule: s.matricule || 'N/A',
+      Nom: s.last_name,
+      Prénom: s.first_name,
+      Email: s.email || '',
+      Téléphone: s.phone || '',
+      Domaine: s.domain || 'N/A',
+      Filière: s.filiere || 'N/A',
+      Niveau: s.level || 'N/A',
+      Statut: s.status || 'Actif'
+    }));
+    exportToCSV(dataToExport, `Repertoire_Etudiants_${new Date().toISOString().slice(0, 10)}.csv`);
+    toast.success('Répertoire étudiants exporté en CSV (.csv)');
   };
 
   const handleDelete = async (id: number, name: string) => {
