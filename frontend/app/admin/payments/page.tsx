@@ -32,7 +32,11 @@ export default function AdminPaymentsPage() {
       } catch (finalErr: any) {
         console.error('Erreur finale chargement paiements:', finalErr);
         setPayments([]);
-        toast.error(finalErr.response?.data?.detail || 'Impossible de charger les paiements');
+        const errorDetail = finalErr.response?.data?.detail;
+        const msg = typeof errorDetail === 'string'
+          ? errorDetail
+          : (Array.isArray(errorDetail) ? errorDetail.map((e: any) => e.msg).join(', ') : 'Impossible de charger les paiements');
+        toast.error(msg);
       }
     } finally {
       setLoading(false);

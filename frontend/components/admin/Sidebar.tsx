@@ -53,15 +53,15 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Notes', href: '/admin/grades', icon: FileText },
       ]
     },
+
     {
-      title: 'DÉLIBÉRATIONS',
+      title: 'STRUCTURE',
       items: [
-        { label: 'Sessions de jury', href: '/admin/deliberations/sessions', icon: Users },
-        { label: 'Règles', href: '/admin/deliberations/rules', icon: Settings },
-        { label: 'Décisions', href: '/admin/deliberations/decisions', icon: Scale },
-        { label: 'Procès-verbaux', href: '/admin/deliberations/minutes', icon: FileText },
+        { label: 'Personnel', href: '/admin/staff', icon: UserCog },
+        { label: 'Filières & Niveaux', href: '/admin/filieres', icon: School },
       ]
     },
+
     {
       title: 'FINANCES',
       items: [
@@ -71,6 +71,16 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Rapports financiers', href: '/admin/financial-reports', icon: Receipt },
       ]
     },
+
+    {
+      title: 'COMMUNICATION',
+      items: [
+        { label: 'Annonces', href: '/admin/announcements', icon: Bell },
+        { label: 'Messagerie', href: '/admin/messages', icon: MessageSquare },
+        { label: 'Alumni', href: '/admin/alumni', icon: Award },
+      ]
+    },
+
     {
       title: 'DOCUMENTS',
       items: [
@@ -80,21 +90,17 @@ const MENU_CONFIG: Record<string, Array<{
         { label: "Demandes d'actes", href: '/secretary/certificate-requests', icon: ScrollText },
       ]
     },
+
     {
-      title: 'STRUCTURE',
+      title: 'DÉLIBÉRATIONS',
       items: [
-        { label: 'Personnel', href: '/admin/staff', icon: UserCog },
-        { label: 'Filières & Niveaux', href: '/admin/filieres', icon: School },
+        { label: 'Sessions de jury', href: '/admin/deliberations/sessions', icon: Users },
+        { label: 'Règles', href: '/admin/deliberations/rules', icon: Settings },
+        { label: 'Décisions', href: '/admin/deliberations/decisions', icon: Scale },
+        { label: 'Procès-verbaux', href: '/admin/deliberations/minutes', icon: FileText },
       ]
     },
-    {
-      title: 'COMMUNICATION',
-      items: [
-        { label: 'Annonces', href: '/admin/announcements', icon: Bell },
-        { label: 'Messagerie', href: '/admin/messages', icon: MessageSquare },
-        { label: 'Alumni', href: '/admin/alumni', icon: Award },
-      ]
-    },
+
     {
       title: 'PARAMÈTRES',
       items: [
@@ -669,9 +675,8 @@ export default function Sidebar({ userRole }: SidebarProps) {
                             <span>{item.label}</span>
                           </div>
                           {item.badge && (
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                              item.badge === 'urgent' ? 'bg-rose-500 text-white animate-pulse' : 'bg-white/20 text-white'
-                            }`}>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${item.badge === 'urgent' ? 'bg-rose-500 text-white animate-pulse' : 'bg-white/20 text-white'
+                              }`}>
                               {item.badge}
                             </span>
                           )}

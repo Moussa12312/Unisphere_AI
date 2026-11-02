@@ -105,6 +105,10 @@ def require_role(*roles: str):
     Usage: current_user: User = Depends(require_role("admin", "censeur"))
     """
     role_synonyms = {
+        "admin": {"admin", "administrateur", "director", "directeur"},
+        "directeur": {"admin", "administrateur", "director", "directeur"},
+        "administrateur": {"admin", "administrateur", "director", "directeur"},
+        "director": {"admin", "administrateur", "director", "directeur"},
         "secretary": {"secretary", "secretaire"},
         "secretaire": {"secretary", "secretaire"},
         "guard": {"guard", "gardien"},

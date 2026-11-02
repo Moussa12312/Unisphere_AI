@@ -8,7 +8,7 @@ export const paymentService = {
     if (params?.status) queryParams.append('status', params.status);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
-    
+
     const queryStr = queryParams.toString();
     const url = queryStr ? `/api/v1/payments?${queryStr}` : '/api/v1/payments';
     const response = await api.get(url);

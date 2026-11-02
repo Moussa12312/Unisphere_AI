@@ -186,67 +186,78 @@ def get_payments(
     payment_type: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "accountant"))
+    current_user: User = Depends(require_role("admin", "secretary", "accountant", "director", "directeur", "administrateur"))
 ):
-    query = db.query(Payment)
-    if current_user.university_id:
-        query = query.filter(Payment.university_id == current_user.university_id)
-    
-    if student_id:
-        query = query.filter(Payment.student_id == student_id)
-    if payment_type:
-        query = query.filter(Payment.payment_type == payment_type)
-    if status:
-        query = query.filter(Payment.status == status)
+    try:
+        query = db.query(Payment)
+        if current_user.university_id:
+            query = query.filter(Payment.university_id == current_user.university_id)
+        
+        if student_id:
+            query = query.filter(Payment.student_id == student_id)
+        if payment_type:
+            query = query.filter(Payment.payment_type == payment_type)
+        if status:
+            query = query.filter(Payment.status == status)
 
-    total = query.count()
-    total_pages = (total + page_size - 1) // page_size
-    
-    payments = query.order_by(Payment.created_at.desc()) \
-        .offset((page - 1) * page_size) \
-        .limit(page_size) \
-        .all()
+        total = query.count()
+        total_pages = max(1, (total + page_size - 1) // page_size) if page_size > 0 else 1
+        
+        try:
+            payments = query.order_by(Payment.created_at.desc()) \
+                .offset((page - 1) * page_size) \
+                .limit(page_size) \
+                .all()
+        except Exception:
+            payments = query.order_by(Payment.id.desc()) \
+                .offset((page - 1) * page_size) \
+                .limit(page_size) \
+                .all()
 
-    student_ids = list({p.student_id for p in payments if p.student_id})
-    students_map = {s.id: s for s in db.query(Student).filter(Student.id.in_(student_ids)).all()} if student_ids else {}
+        student_ids = list({p.student_id for p in payments if getattr(p, 'student_id', None)})
+        students_map = {s.id: s for s in db.query(Student).filter(Student.id.in_(student_ids)).all()} if student_ids else {}
 
-    payments_data = []
-    for p in payments:
-        st = students_map.get(p.student_id)
-        st_name = f"{st.first_name} {st.last_name}" if st else "N/A"
-        payments_data.append({
-            "id": p.id,
-            "reference": p.reference,
-            "receipt_number": p.receipt_number,
-            "amount": p.amount,
-            "currency": p.currency or "FCFA",
-            "payment_type": p.payment_type,
-            "payment_method": p.payment_method,
-            "status": p.status,
-            "payment_date": str(p.payment_date) if p.payment_date else str(p.created_at),
-            "created_at": str(p.created_at),
-            "paid_by": p.paid_by,
-            "tranche_id": p.tranche_id,
-            "student_id": p.student_id,
-            "student_name": st_name,
-            "matricule": st.matricule if st else "",
-            "student": {
-                "id": st.id,
-                "first_name": st.first_name,
-                "last_name": st.last_name,
-                "matricule": st.matricule,
-                "filiere": st.filiere,
-                "level": st.level,
-            } if st else None
-        })
+        payments_data = []
+        for p in payments:
+            st = students_map.get(getattr(p, 'student_id', None))
+            st_name = f"{getattr(st, 'first_name', '')} {getattr(st, 'last_name', '')}".strip() or "N/A" if st else "N/A"
+            payments_data.append({
+                "id": p.id,
+                "reference": getattr(p, 'reference', None) or getattr(p, 'receipt_number', None) or f"PAY-{p.id}",
+                "receipt_number": getattr(p, 'receipt_number', None) or f"REC-{p.id}",
+                "amount": float(getattr(p, 'amount', 0.0) or 0.0),
+                "currency": getattr(p, 'currency', "FCFA") or "FCFA",
+                "payment_type": getattr(p, 'payment_type', "scolarite") or "scolarite",
+                "payment_method": getattr(p, 'payment_method', "virement") or "virement",
+                "status": getattr(p, 'status', "completed") or "completed",
+                "payment_date": str(p.payment_date) if getattr(p, 'payment_date', None) else (str(p.created_at) if getattr(p, 'created_at', None) else ""),
+                "created_at": str(p.created_at) if getattr(p, 'created_at', None) else "",
+                "paid_by": getattr(p, 'paid_by', None),
+                "tranche_id": getattr(p, 'tranche_id', None),
+                "student_id": getattr(p, 'student_id', None),
+                "student_name": st_name,
+                "matricule": getattr(st, 'matricule', "") if st else "",
+                "student": {
+                    "id": getattr(st, 'id', None),
+                    "first_name": getattr(st, 'first_name', ''),
+                    "last_name": getattr(st, 'last_name', ''),
+                    "matricule": getattr(st, 'matricule', ''),
+                    "filiere": getattr(st, 'filiere', ''),
+                    "level": getattr(st, 'level', ''),
+                } if st else None
+            })
 
-    return {
-        "data": payments_data,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": total_pages
-    }
+        return {
+            "data": payments_data,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages
+        }
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erreur chargement paiements: {str(exc)}")
 
 
 @router.get("/stats")
