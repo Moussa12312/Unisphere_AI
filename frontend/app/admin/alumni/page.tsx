@@ -50,11 +50,59 @@ export default function AdminAlumniPage() {
   const [selectedToken, setSelectedToken] = useState<string>('');
   const [emailData, setEmailData] = useState({ email: '', first_name: '', last_name: '' });
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatingAlumni, setCreatingAlumni] = useState(false);
+  const [newAlumniData, setNewAlumniData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    password: '',
+    phone: '',
+    filiere: '',
+    graduation_year: new Date().getFullYear().toString(),
+    promotion: '',
+    current_position: '',
+    company: ''
+  });
 
 
   useEffect(() => {
     loadAll();
   }, []);
+
+  const handleDirectCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAlumniData.first_name || !newAlumniData.last_name || !newAlumniData.email) {
+      toast.error("Veuillez renseigner au minimum le prénom, le nom et l'email.");
+      return;
+    }
+    setCreatingAlumni(true);
+    try {
+      const res = await api.post('/api/v1/alumni/admin/create', {
+        ...newAlumniData,
+        graduation_year: newAlumniData.graduation_year ? parseInt(newAlumniData.graduation_year) : null
+      });
+      toast.success(res.data?.message || 'Alumni créé et activé avec succès !');
+      setShowCreateModal(false);
+      setNewAlumniData({
+        first_name: '',
+        last_name: '',
+        email: '',
+        password: '',
+        phone: '',
+        filiere: '',
+        graduation_year: new Date().getFullYear().toString(),
+        promotion: '',
+        current_position: '',
+        company: ''
+      });
+      loadAll();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Erreur lors de la création de l'Alumni");
+    } finally {
+      setCreatingAlumni(false);
+    }
+  };
 
   const loadAll = async () => {
     try {
@@ -217,7 +265,35 @@ export default function AdminAlumniPage() {
 
   return (
     <div className="p-6 space-y-6">
-        
+      {/* En-tête Réseau Alumni */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Award className="text-[#FF6B00]" size={26} />
+            Réseau Alumni & Diplômés
+          </h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Gestion des anciens diplômés, mentorat des étudiants et liens d'invitation
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-xs font-bold shadow-sm transition-all"
+          >
+            <Plus size={16} />
+            <span>Ajouter un Alumni</span>
+          </button>
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+          >
+            <Link2 size={16} />
+            <span>Créer un lien</span>
+          </button>
+        </div>
+      </div>
+
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -225,12 +301,7 @@ export default function AdminAlumniPage() {
             <div className="flex items-center gap-2 text-slate-500 text-sm">
               <Users size={16} />
               Total
-              <button
-                onClick={() => setShowInviteModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl font-medium transition-colors"
-              >
-                <Plus size={18} />
-              </button>
+
             </div>
 
             <p className="text-2xl font-bold text-slate-900 mt-1">{stats.total}</p>
@@ -615,6 +686,157 @@ export default function AdminAlumniPage() {
             </div>
         </div>
       )}
+
+      {/* Modale d'ajout direct d'un Alumni */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 text-[#FF6B00] flex items-center justify-center font-bold">
+                  <Award size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Ajouter un compte Alumni</h3>
+                  <p className="text-xs text-slate-500">Création et activation immédiate</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleDirectCreate} className="space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Prénom *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAlumniData.first_name}
+                    onChange={(e) => setNewAlumniData({ ...newAlumniData, first_name: e.target.value })}
+                    placeholder="Jean"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF6B00] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nom *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAlumniData.last_name}
+                    onChange={(e) => setNewAlumniData({ ...newAlumniData, last_name: e.target.value })}
+                    placeholder="Kaboré"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF6B00] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={newAlumniData.email}
+                  onChange={(e) => setNewAlumniData({ ...newAlumniData, email: e.target.value })}
+                  placeholder="alumni@entreprise.com"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF6B00] focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Téléphone</label>
+                  <input
+                    type="text"
+                    value={newAlumniData.phone}
+                    onChange={(e) => setNewAlumniData({ ...newAlumniData, phone: e.target.value })}
+                    placeholder="+223 70 00 00 00"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF6B00] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mot de passe</label>
+                  <input
+                    type="text"
+                    value={newAlumniData.password}
+                    onChange={(e) => setNewAlumniData({ ...newAlumniData, password: e.target.value })}
+                    placeholder="Défaut: Alumni2026@"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF6B00] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Filière suivie</label>
+                  <input
+                    type="text"
+                    value={newAlumniData.filiere}
+                    onChange={(e) => setNewAlumniData({ ...newAlumniData, filiere: e.target.value })}
+                    placeholder="Informatique, Droit, Finance..."
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF6B00] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Année de diplomation</label>
+                  <input
+                    type="number"
+                    value={newAlumniData.graduation_year}
+                    onChange={(e) => setNewAlumniData({ ...newAlumniData, graduation_year: e.target.value })}
+                    placeholder="2024"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF6B00] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Poste actuel</label>
+                  <input
+                    type="text"
+                    value={newAlumniData.current_position}
+                    onChange={(e) => setNewAlumniData({ ...newAlumniData, current_position: e.target.value })}
+                    placeholder="Ingénieur Logiciel, Chef de Projet..."
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF6B00] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Entreprise / Organisation</label>
+                  <input
+                    type="text"
+                    value={newAlumniData.company}
+                    onChange={(e) => setNewAlumniData({ ...newAlumniData, company: e.target.value })}
+                    placeholder="Orange, Banque, Cabinet..."
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#FF6B00] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingAlumni}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#FF6B00] hover:bg-[#e55f00] shadow-sm transition-all disabled:opacity-50"
+                >
+                  {creatingAlumni ? 'Création en cours...' : 'Créer et Activer le compte'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

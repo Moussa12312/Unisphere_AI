@@ -15,6 +15,18 @@ export default function OfflineBanner() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Enregistrement systématique du Service Worker global pour le mode hors-ligne SaaS
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((reg) => {
+          reg.update().catch(() => {});
+        })
+        .catch((err) => {
+          console.warn('Enregistrement Service Worker ignoré:', err);
+        });
+    }
+
     setIsOnline(navigator.onLine);
     setPendingCount(offlineAttendanceService.getPendingCount());
 
@@ -35,7 +47,6 @@ export default function OfflineBanner() {
         setIsSyncing(false);
       }
 
-      // Masquer le badge "reconnecté" après 5 secondes
       setTimeout(() => {
         setJustReconnected(false);
       }, 5000);
@@ -83,7 +94,6 @@ export default function OfflineBanner() {
     }
   };
 
-  // Ne rien afficher si connecté et aucun scan en attente et pas récemment reconnecté
   if (isOnline && pendingCount === 0 && !justReconnected) {
     return null;
   }
@@ -99,7 +109,7 @@ export default function OfflineBanner() {
       className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 max-w-md animate-in slide-in-from-bottom duration-300 pointer-events-auto"
     >
       {!isOnline ? (
-        // BANNIÈRE HORS LIGNE (Orange / Ambre)
+        // BANNIÈRE HORS LIGNE
         <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-white rounded-2xl p-3.5 shadow-2xl border border-white/20 backdrop-blur-md flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0 animate-pulse">
             <WifiOff size={18} className="text-white" />
@@ -107,13 +117,13 @@ export default function OfflineBanner() {
 
           <div className="flex-1 min-w-0 text-xs">
             <div className="flex items-center gap-1.5 font-black text-amber-100">
-              <span>Mode Hors Ligne Activé</span>
+              <span>Mode Hors-Ligne SaaS Actif</span>
               <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping" />
             </div>
             <p className="text-white/90 text-[11px] leading-snug mt-0.5">
               {pendingCount > 0
-                ? `${pendingCount} scan(s) enregistré(s) localement en attente de réseau.`
-                : 'Scans et données locales opérationnels sans Internet.'}
+                ? `${pendingCount} scan(s) en attente. Vos pages et données en cache restent consultables.`
+                : 'Navigation et consultation des données en cache disponibles sans Internet.'}
             </p>
           </div>
 
@@ -124,7 +134,7 @@ export default function OfflineBanner() {
           )}
         </div>
       ) : justReconnected ? (
-        // BANNIÈRE RETOUR EN LIGNE (Émeraude / Vert)
+        // BANNIÈRE RETOUR EN LIGNE
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl p-3.5 shadow-2xl border border-emerald-400/30 backdrop-blur-md flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
             <CheckCircle2 size={18} className="text-white" />
@@ -140,7 +150,7 @@ export default function OfflineBanner() {
           {isSyncing && <RefreshCw size={14} className="animate-spin text-white shrink-0" />}
         </div>
       ) : pendingCount > 0 ? (
-        // BANNIÈRE SCANS EN ATTENTE (Bleu / Orange)
+        // BANNIÈRE SCANS EN ATTENTE
         <div className="bg-slate-900 text-white rounded-2xl p-3.5 shadow-2xl border border-slate-700 backdrop-blur-md flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#FF6B00]/20 text-[#FF6B00] flex items-center justify-center shrink-0">
             <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
@@ -171,4 +181,3 @@ export default function OfflineBanner() {
     </aside>
   );
 }
-

@@ -32,78 +32,78 @@ const MENU_CONFIG: Record<string, Array<{
 }>> = {
 
   // ==========================================
-  // 👨‍💻 1. ADMIN (Direction Générale & Rectorat)
+  // 👨‍💻 1. ADMIN (Direction Générale)
   // ==========================================
   admin: [
     {
       title: 'VUE GÉNÉRALE',
       items: [
         { label: "Vue d'ensemble", href: '/admin/dashboard', icon: LayoutDashboard },
-        { label: 'Statistiques & Audit', href: '/admin/statistics', icon: BarChart3 },
+        { label: 'Statistiques', href: '/admin/statistics', icon: BarChart3 },
       ]
     },
     {
-      title: 'PÉDAGOGIE & SCOLARITÉ',
+      title: 'SCOLARITÉ',
       items: [
         { label: 'Étudiants', href: '/admin/students', icon: Users },
-        { label: 'Inscription en masse', href: '/admin/students/bulk', icon: FileSpreadsheet },
+        { label: 'Import en masse', href: '/admin/students/bulk', icon: FileSpreadsheet },
         { label: 'Enseignants', href: '/admin/teachers', icon: GraduationCap },
-        { label: 'Cours & Programmes', href: '/admin/courses', icon: BookOpen },
-        { label: "Unités d'Enseignement (UEs)", href: '/admin/teaching-units', icon: Layers },
-        { label: 'Notes & Résultats', href: '/admin/grades', icon: FileText },
+        { label: 'Cours', href: '/admin/courses', icon: BookOpen },
+        { label: "Unités (UE)", href: '/admin/teaching-units', icon: Layers },
+        { label: 'Notes', href: '/admin/grades', icon: FileText },
       ]
     },
     {
-      title: 'EXAMENS & DÉLIBÉRATIONS',
+      title: 'DÉLIBÉRATIONS',
       items: [
         { label: 'Sessions de jury', href: '/admin/deliberations/sessions', icon: Users },
-        { label: 'Règles de validation', href: '/admin/deliberations/rules', icon: Settings },
-        { label: 'Décisions de jury', href: '/admin/deliberations/decisions', icon: Scale },
+        { label: 'Règles', href: '/admin/deliberations/rules', icon: Settings },
+        { label: 'Décisions', href: '/admin/deliberations/decisions', icon: Scale },
         { label: 'Procès-verbaux', href: '/admin/deliberations/minutes', icon: FileText },
       ]
     },
     {
-      title: 'FINANCES & TARIFICATION',
+      title: 'FINANCES',
       items: [
-        { label: 'Supervision des Paiements', href: '/admin/payments', icon: CreditCard },
-        { label: 'Scolarités, Tranches & Pénalités', href: '/admin/settings/config?tab=frais', icon: DollarSign },
-        { label: 'Reçus certifiés', href: '/accountant/receipts', icon: Printer },
+        { label: 'Paiements', href: '/admin/payments', icon: CreditCard },
+        { label: 'Frais & Tranches', href: '/admin/settings/config?tab=frais', icon: DollarSign },
+        { label: 'Reçus', href: '/accountant/receipts', icon: Printer },
         { label: 'Rapports financiers', href: '/admin/financial-reports', icon: Receipt },
       ]
     },
     {
-      title: 'REGISTRE & DOCUMENTS',
+      title: 'DOCUMENTS',
       items: [
-        { label: 'Générer documents officiels', href: '/secretary/documents/generate', icon: FileCheck },
-        { label: 'Cartes Étudiants avec QR', href: '/secretary/student-cards', icon: CreditCard },
-        { label: 'Tous les documents & archives', href: '/secretary/documents', icon: FileText },
-        { label: "Demandes d'attestations & relevés", href: '/secretary/certificate-requests', icon: ScrollText },
+        { label: 'Actes officiels', href: '/secretary/documents/generate', icon: FileCheck },
+        { label: 'Cartes Étudiants', href: '/secretary/student-cards', icon: CreditCard },
+        { label: 'Archives', href: '/secretary/documents', icon: FileText },
+        { label: "Demandes d'actes", href: '/secretary/certificate-requests', icon: ScrollText },
       ]
     },
     {
-      title: 'STRUCTURE & RESSOURCES',
+      title: 'STRUCTURE',
       items: [
-        { label: 'Personnel & Staff', href: '/admin/staff', icon: UserCog },
+        { label: 'Personnel', href: '/admin/staff', icon: UserCog },
         { label: 'Filières & Niveaux', href: '/admin/filieres', icon: School },
       ]
     },
     {
-      title: 'COMMUNICATION & RÉSEAU',
+      title: 'COMMUNICATION',
       items: [
-        { label: 'Annonces officielles', href: '/admin/announcements', icon: Bell },
-        { label: 'Messagerie interne', href: '/admin/messages', icon: MessageSquare },
-        { label: 'Réseau Alumni', href: '/admin/alumni', icon: Award },
+        { label: 'Annonces', href: '/admin/announcements', icon: Bell },
+        { label: 'Messagerie', href: '/admin/messages', icon: MessageSquare },
+        { label: 'Alumni', href: '/admin/alumni', icon: Award },
       ]
     },
     {
-      title: 'PARAMÈTRES ÉTABLISSEMENT',
+      title: 'PARAMÈTRES',
       items: [
-        { label: 'Profil Établissement', href: '/admin/settings', icon: Building2 },
-        { label: 'Configuration Générale & LMD', href: '/admin/settings/config', icon: GraduationCap },
-        { label: 'Bascule Année Académique', href: '/admin/academic-year-transition', icon: Calendar },
+        { label: 'Établissement', href: '/admin/settings', icon: Building2 },
+        { label: 'Configuration LMD', href: '/admin/settings/config', icon: GraduationCap },
+        { label: "Bascule d'année", href: '/admin/academic-year-transition', icon: Calendar },
         { label: 'Sécurité & Audit', href: '/admin/settings/security', icon: Shield },
-        { label: 'Mots de passe oubliés', href: '/admin/settings/password-requests', icon: KeyRound },
-        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
+        { label: 'Mots de passe', href: '/admin/settings/password-requests', icon: KeyRound },
+        { label: 'Guide', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
@@ -115,177 +115,177 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'TABLEAU DE BORD',
       items: [
-        { label: 'Activités de la scolarité', href: '/secretary/dashboard', icon: LayoutDashboard },
+        { label: 'Activités', href: '/secretary/dashboard', icon: LayoutDashboard },
       ]
     },
     {
-      title: 'GESTION DES ÉTUDIANTS',
+      title: 'ÉTUDIANTS',
       items: [
-        { label: 'Tous les étudiants', href: '/secretary/students', icon: Users },
+        { label: 'Liste Étudiants', href: '/secretary/students', icon: Users },
         { label: 'Inscriptions', href: '/secretary/students/enrollment', icon: UserPlus },
-        { label: 'Inscription en masse', href: '/secretary/students/bulk', icon: FileSpreadsheet },
-        { label: 'Dossiers scolaires', href: '/secretary/students/files', icon: Folder },
-        { label: 'Cartes Étudiants avec QR', href: '/secretary/student-cards', icon: CreditCard },
-        { label: 'Mots de passe étudiants', href: '/secretary/students/password-requests', icon: KeyRound },
+        { label: 'Import en masse', href: '/secretary/students/bulk', icon: FileSpreadsheet },
+        { label: 'Dossiers', href: '/secretary/students/files', icon: Folder },
+        { label: 'Cartes Étudiants', href: '/secretary/student-cards', icon: CreditCard },
+        { label: 'Mots de passe', href: '/secretary/students/password-requests', icon: KeyRound },
       ]
     },
     {
-      title: 'PÉDAGOGIE & PLANNING',
+      title: 'PÉDAGOGIE',
       items: [
         { label: 'Emploi du temps', href: '/secretary/schedule', icon: Calendar },
         { label: 'Classes & Salles', href: '/secretary/classes', icon: Users2 },
-        { label: 'Cours & Modules', href: '/secretary/courses', icon: BookOpen },
-        { label: 'Corps Enseignant', href: '/secretary/teachers', icon: GraduationCap },
-        { label: "Unités d'Enseignement (UEs)", href: '/secretary/teaching-units', icon: Layers },
-        { label: "Faire l'appel (Présences)", href: '/teacher/attendance', icon: UserCheck },
+        { label: 'Cours', href: '/secretary/courses', icon: BookOpen },
+        { label: 'Enseignants', href: '/secretary/teachers', icon: GraduationCap },
+        { label: "Unités (UE)", href: '/secretary/teaching-units', icon: Layers },
+        { label: 'Présences', href: '/teacher/attendance', icon: UserCheck },
       ]
     },
     {
-      title: 'EXAMENS & NOTES',
+      title: 'EXAMENS',
       items: [
-        { label: "Sessions d'examens", href: '/secretary/exam-sessions', icon: FileText },
+        { label: 'Sessions', href: '/secretary/exam-sessions', icon: FileText },
         { label: 'Saisie des notes', href: '/secretary/grades/entry', icon: Edit3 },
         { label: 'Notes à valider', href: '/secretary/grades/pending', icon: CheckCircle, badge: 'urgent' },
-        { label: 'Bulletins de notes', href: '/secretary/grades/report-cards', icon: FileCheck },
+        { label: 'Bulletins', href: '/secretary/grades/report-cards', icon: FileCheck },
         { label: 'Rattrapages', href: '/secretary/exams/makeup', icon: RotateCcw },
-        { label: 'Anomalies de notes', href: '/secretary/grades/anomalies', icon: AlertTriangle },
+        { label: 'Anomalies', href: '/secretary/grades/anomalies', icon: AlertTriangle },
       ]
     },
     {
-      title: 'REGISTRE DOCUMENTAIRE',
+      title: 'DOCUMENTS',
       items: [
-        { label: 'Générer documents officiels', href: '/secretary/documents/generate', icon: FileCheck },
-        { label: "Demandes d'attestations & relevés", href: '/secretary/certificate-requests', icon: ScrollText },
-        { label: 'Tous les documents & archives', href: '/secretary/documents', icon: FileText },
-        { label: 'Upload Cours PDF', href: '/secretary/upload-materials', icon: Upload },
+        { label: 'Actes officiels', href: '/secretary/documents/generate', icon: FileCheck },
+        { label: "Demandes d'actes", href: '/secretary/certificate-requests', icon: ScrollText },
+        { label: 'Archives', href: '/secretary/documents', icon: FileText },
+        { label: 'Supports PDF', href: '/secretary/upload-materials', icon: Upload },
       ]
     },
     {
-      title: 'SUIVI & STATISTIQUES',
+      title: 'STATISTIQUES',
       items: [
-        { label: 'Statistiques académiques', href: '/secretary/academic/statistics', icon: BarChart3 },
-        { label: 'Rapports de scolarité', href: '/secretary/academic/reports', icon: FileBarChart },
-        { label: 'Indicateurs de performance', href: '/secretary/academic/performance', icon: TrendingUp },
+        { label: 'Statistiques', href: '/secretary/academic/statistics', icon: BarChart3 },
+        { label: 'Rapports', href: '/secretary/academic/reports', icon: FileBarChart },
+        { label: 'Indicateurs', href: '/secretary/academic/performance', icon: TrendingUp },
       ]
     },
     {
-      title: 'COMMUNICATION & COMPTE',
+      title: 'COMMUNICATION',
       items: [
-        { label: 'Annonces officielles', href: '/secretary/announcements', icon: Bell },
-        { label: 'Messagerie interne', href: '/secretary/messages', icon: MessageSquare },
-        { label: 'Mon Profil & Paramètres', href: '/secretary/settings', icon: Settings },
-        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
+        { label: 'Annonces', href: '/secretary/announcements', icon: Bell },
+        { label: 'Messagerie', href: '/secretary/messages', icon: MessageSquare },
+        { label: 'Paramètres', href: '/secretary/settings', icon: Settings },
+        { label: 'Guide', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
 
   // ==========================================
-  // 👨‍⚖️ 3. CENSEUR (Direction des Études & Examens)
+  // 👨‍⚖️ 3. CENSEUR (Direction des Études)
   // ==========================================
   censeur: [
     {
-      title: 'DIRECTION DES ÉTUDES',
+      title: 'DIRECTION ÉTUDES',
       items: [
-        { label: 'Tableau de bord pédagogique', href: '/censeur/dashboard', icon: LayoutDashboard },
+        { label: 'Tableau de bord', href: '/censeur/dashboard', icon: LayoutDashboard },
       ]
     },
     {
-      title: 'ÉVALUATIONS & NOTES',
+      title: 'ÉVALUATIONS',
       items: [
         { label: 'Saisie des notes', href: '/censeur/grades/entry', icon: Edit3 },
         { label: 'Notes à valider', href: '/censeur/grades/pending', icon: CheckCircle, badge: 'urgent' },
-        { label: 'Anomalies de saisie', href: '/censeur/grades/anomalies', icon: AlertTriangle },
-        { label: 'Historique des notes', href: '/censeur/grades/history', icon: Clock },
+        { label: 'Anomalies', href: '/censeur/grades/anomalies', icon: AlertTriangle },
+        { label: 'Historique', href: '/censeur/grades/history', icon: Clock },
       ]
     },
     {
-      title: "SESSIONS D'EXAMENS",
+      title: 'EXAMENS',
       items: [
-        { label: 'Calendrier des examens', href: '/censeur/exams/calendar', icon: Calendar },
-        { label: "Sessions d'examens", href: '/censeur/exams/sessions', icon: FileText },
-        { label: 'Épreuves de rattrapage', href: '/censeur/exams/makeup', icon: RotateCcw },
+        { label: 'Calendrier', href: '/censeur/exams/calendar', icon: Calendar },
+        { label: 'Sessions', href: '/censeur/exams/sessions', icon: FileText },
+        { label: 'Rattrapages', href: '/censeur/exams/makeup', icon: RotateCcw },
       ]
     },
     {
-      title: 'DÉLIBÉRATIONS & BULLETINS',
+      title: 'DÉLIBÉRATIONS',
       items: [
-        { label: 'Bulletins certifiés', href: '/censeur/bulletins', icon: FileCheck },
-        { label: 'Relevés de notes officiels', href: '/censeur/documents/transcripts', icon: ScrollText },
-        { label: 'Procès-verbaux & Décisions', href: '/censeur/documents/report-cards', icon: FileCheck },
+        { label: 'Bulletins', href: '/censeur/bulletins', icon: FileCheck },
+        { label: 'Relevés de notes', href: '/censeur/documents/transcripts', icon: ScrollText },
+        { label: 'Procès-verbaux', href: '/censeur/documents/report-cards', icon: FileCheck },
       ]
     },
     {
-      title: 'PERFORMANCE & RAPPORTS',
+      title: 'ANALYSE',
       items: [
-        { label: "Unités d'Enseignement (UEs)", href: '/censeur/teaching-units', icon: Layers },
-        { label: 'Indicateurs de performance', href: '/censeur/academic/performance', icon: TrendingUp },
-        { label: 'Statistiques pédagogiques', href: '/censeur/academic/statistics', icon: BarChart3 },
-        { label: 'Rapports académiques', href: '/censeur/academic/reports', icon: FileBarChart },
+        { label: "Unités (UE)", href: '/censeur/teaching-units', icon: Layers },
+        { label: 'Indicateurs', href: '/censeur/academic/performance', icon: TrendingUp },
+        { label: 'Statistiques', href: '/censeur/academic/statistics', icon: BarChart3 },
+        { label: 'Rapports', href: '/censeur/academic/reports', icon: FileBarChart },
       ]
     },
     {
-      title: 'PARAMÈTRES & OUTILS',
+      title: 'PARAMÈTRES',
       items: [
-        { label: "Règles d'anomalies", href: '/censeur/settings/anomalies', icon: AlertTriangle },
-        { label: 'Paramètres du compte', href: '/censeur/settings', icon: Settings },
-        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
+        { label: 'Règles', href: '/censeur/settings/anomalies', icon: AlertTriangle },
+        { label: 'Paramètres', href: '/censeur/settings', icon: Settings },
+        { label: 'Guide', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
 
   // ==========================================
-  // 👨‍💼 4. COMPTABLE (Service Financier & Recouvrement)
+  // 👨‍💼 4. COMPTABLE (Service Financier)
   // ==========================================
   accountant: [
     {
       title: 'DIRECTION FINANCIÈRE',
       items: [
-        { label: 'Vue financière & Trésorerie', href: '/accountant/dashboard', icon: LayoutDashboard },
+        { label: 'Vue financière', href: '/accountant/dashboard', icon: LayoutDashboard },
       ]
     },
     {
-      title: 'RECOUVREMENT & SCOLARITÉ',
+      title: 'RECOUVREMENT',
       items: [
-        { label: 'Enregistrer un paiement', href: '/accountant/payments/create', icon: Calculator },
-        { label: 'Journal des encaissements', href: '/accountant/payments', icon: Receipt },
-        { label: 'Émission de Reçus', href: '/accountant/receipts', icon: Printer },
-        { label: 'Relance Impayés (SMS/WhatsApp)', href: '/accountant/payments/unpaid', icon: AlertCircle },
-        { label: 'Échéances des Tranches', href: '/accountant/payments/installments', icon: Calendar },
+        { label: 'Nouveau paiement', href: '/accountant/payments/create', icon: Calculator },
+        { label: 'Encaissements', href: '/accountant/payments', icon: Receipt },
+        { label: 'Reçus', href: '/accountant/receipts', icon: Printer },
+        { label: 'Relances impayés', href: '/accountant/payments/unpaid', icon: AlertCircle },
+        { label: 'Échéanciers', href: '/accountant/payments/installments', icon: Calendar },
       ]
     },
     {
       title: 'TRÉSORERIE & DÉPENSES',
       items: [
-        { label: 'Trésorerie & Caisses', href: '/accountant/treasury', icon: DollarSign },
-        { label: 'Dépenses & Décaissements', href: '/accountant/expenses', icon: TrendingUp },
-        { label: 'Gestion Fournisseurs', href: '/accountant/suppliers', icon: Building2 },
-        { label: 'Salaires & Paie', href: '/accountant/payroll', icon: Users },
-        { label: 'Suivi Budgétaire', href: '/accountant/budget', icon: BarChart3 },
-        { label: 'Immobilisations & Actifs', href: '/accountant/fixed-assets', icon: School },
+        { label: 'Trésorerie', href: '/accountant/treasury', icon: DollarSign },
+        { label: 'Dépenses', href: '/accountant/expenses', icon: TrendingUp },
+        { label: 'Fournisseurs', href: '/accountant/suppliers', icon: Building2 },
+        { label: 'Salaires', href: '/accountant/payroll', icon: Users },
+        { label: 'Budget', href: '/accountant/budget', icon: BarChart3 },
+        { label: 'Immobilisations', href: '/accountant/fixed-assets', icon: School },
       ]
     },
     {
-      title: 'COMPTABILITÉ GÉNÉRALE',
+      title: 'COMPTABILITÉ',
       items: [
-        { label: 'Journal comptable', href: '/accountant/ledger', icon: BookOpen },
-        { label: 'Balance & Grand Livre', href: '/accountant/trial-balance', icon: Scale },
-        { label: 'Clôture & Rapprochement bancaire', href: '/accountant/closing', icon: Lock },
+        { label: 'Journal', href: '/accountant/ledger', icon: BookOpen },
+        { label: 'Grand Livre', href: '/accountant/trial-balance', icon: Scale },
+        { label: 'Clôture', href: '/accountant/closing', icon: Lock },
       ]
     },
     {
-      title: 'RAPPORTS & ÉTATS',
+      title: 'RAPPORTS',
       items: [
-        { label: 'États financiers officiels', href: '/accountant/financial-statements', icon: FileBarChart },
-        { label: 'Rapport journalier de caisse', href: '/accountant/reports/daily', icon: FileText },
-        { label: "Rapport mensuel d'activité", href: '/accountant/reports/monthly', icon: BarChart3 },
-        { label: 'Statistiques financières', href: '/accountant/statistics', icon: TrendingUp },
+        { label: 'États financiers', href: '/accountant/financial-statements', icon: FileBarChart },
+        { label: 'Caisse journalière', href: '/accountant/reports/daily', icon: FileText },
+        { label: 'Bilan mensuel', href: '/accountant/reports/monthly', icon: BarChart3 },
+        { label: 'Statistiques', href: '/accountant/statistics', icon: TrendingUp },
       ]
     },
     {
       title: 'MON COMPTE',
       items: [
-        { label: 'Paramètres financiers', href: '/accountant/settings', icon: Settings },
-        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
+        { label: 'Paramètres', href: '/accountant/settings', icon: Settings },
+        { label: 'Guide', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
@@ -295,41 +295,41 @@ const MENU_CONFIG: Record<string, Array<{
   // ==========================================
   teacher: [
     {
-      title: 'MON ESPACE PÉDAGOGIQUE',
+      title: 'ESPACE COURS',
       items: [
-        { label: 'Mes cours du jour', href: '/teacher/dashboard', icon: LayoutDashboard },
+        { label: 'Cours du jour', href: '/teacher/dashboard', icon: LayoutDashboard },
         { label: 'Emploi du temps', href: '/teacher/schedule', icon: Calendar },
       ]
     },
     {
-      title: 'GESTION DES CLASSES',
+      title: 'CLASSES',
       items: [
-        { label: 'Liste de mes cours', href: '/teacher/courses', icon: BookOpen },
-        { label: 'Mes étudiants inscrits', href: '/teacher/students', icon: Users },
-        { label: 'Supports & Devoirs déposés', href: '/teacher/materials', icon: FileText },
-        { label: "Faire l'appel (Présences)", href: '/teacher/attendance', icon: UserCheck },
+        { label: 'Mes cours', href: '/teacher/courses', icon: BookOpen },
+        { label: 'Mes étudiants', href: '/teacher/students', icon: Users },
+        { label: 'Supports déposés', href: '/teacher/materials', icon: FileText },
+        { label: 'Présences', href: '/teacher/attendance', icon: UserCheck },
       ]
     },
     {
-      title: 'ÉVALUATIONS & NOTES',
+      title: 'ÉVALUATIONS',
       items: [
-        { label: 'Saisie des notes CC & Examens', href: '/teacher/grades/entry', icon: Edit3 },
-        { label: "Documents & Feuilles d'examen", href: '/teacher/documents', icon: FileText },
+        { label: 'Saisie des notes', href: '/teacher/grades/entry', icon: Edit3 },
+        { label: 'Examens', href: '/teacher/documents', icon: FileText },
       ]
     },
     {
-      title: 'ASSISTANT & OUTILS',
+      title: 'OUTILS',
       items: [
-        { label: 'Assistant Pédagogique IA', href: '/teacher/ai-assistant', icon: BrainCircuit },
-        { label: 'Messagerie interne', href: '/teacher/messages', icon: MessageSquare },
+        { label: 'Assistant IA', href: '/teacher/ai-assistant', icon: BrainCircuit },
+        { label: 'Messagerie', href: '/teacher/messages', icon: MessageSquare },
       ]
     },
     {
       title: 'MON COMPTE',
       items: [
-        { label: 'Mon Profil Enseignant', href: '/teacher/profile', icon: User },
+        { label: 'Mon profil', href: '/teacher/profile', icon: User },
         { label: 'Paramètres', href: '/teacher/settings', icon: Settings },
-        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
+        { label: 'Guide', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
@@ -339,50 +339,50 @@ const MENU_CONFIG: Record<string, Array<{
   // ==========================================
   student: [
     {
-      title: 'MON ESPACE ÉTUDIANT',
+      title: 'MON ESPACE',
       items: [
         { label: 'Tableau de bord', href: '/student/dashboard', icon: LayoutDashboard },
         { label: 'Mon profil', href: '/student/profile', icon: User },
-        { label: 'Ma Carte Étudiante QR', href: '/student/card', icon: CreditCard },
+        { label: 'Ma carte QR', href: '/student/card', icon: CreditCard },
       ]
     },
     {
-      title: 'SUIVI PÉDAGOGIQUE',
+      title: 'PÉDAGOGIE',
       items: [
-        { label: 'Mes cours & Supports PDF', href: '/student/courses', icon: BookOpen },
-        { label: 'Mon emploi du temps', href: '/student/schedule', icon: Calendar },
-        { label: 'Présences & Pointages', href: '/student/attendance', icon: ClipboardList },
+        { label: 'Mes cours & PDF', href: '/student/courses', icon: BookOpen },
+        { label: 'Emploi du temps', href: '/student/schedule', icon: Calendar },
+        { label: 'Présences', href: '/student/attendance', icon: ClipboardList },
       ]
     },
     {
-      title: 'RÉSULTATS & DOCUMENTS',
+      title: 'RÉSULTATS',
       items: [
-        { label: 'Mes notes semestrielles', href: '/student/grades', icon: FileText },
-        { label: 'Mes attestations officielles', href: '/student/certificates', icon: FileCheck },
-        { label: 'Demandes administratives', href: '/student/requests', icon: FileSearch },
-        { label: 'Dossier administratif', href: '/student/files', icon: Folder },
+        { label: 'Mes notes', href: '/student/grades', icon: FileText },
+        { label: 'Attestations', href: '/student/certificates', icon: FileCheck },
+        { label: 'Demandes', href: '/student/requests', icon: FileSearch },
+        { label: 'Mon dossier', href: '/student/files', icon: Folder },
       ]
     },
     {
-      title: 'FINANCES & SCOLARITÉ',
+      title: 'SCOLARITÉ',
       items: [
-        { label: 'Mes paiements scolarité', href: '/student/payments', icon: Calculator },
-        { label: 'Mes reçus certifiés', href: '/student/receipts', icon: Receipt },
+        { label: 'Mes paiements', href: '/student/payments', icon: Calculator },
+        { label: 'Mes reçus', href: '/student/receipts', icon: Receipt },
       ]
     },
     {
-      title: 'COMMUNAUTÉ & RÉSEAU',
+      title: 'RÉSEAU',
       items: [
-        { label: 'Annonces officielles', href: '/student/announcements', icon: Megaphone },
-        { label: 'Messagerie interne', href: '/student/messages', icon: MessageSquare },
-        { label: 'Réseau Alumni & Mentorat', href: '/student/alumni', icon: GraduationCap },
+        { label: 'Annonces', href: '/student/announcements', icon: Megaphone },
+        { label: 'Messagerie', href: '/student/messages', icon: MessageSquare },
+        { label: 'Alumni', href: '/student/alumni', icon: GraduationCap },
       ]
     },
     {
       title: 'PARAMÈTRES',
       items: [
-        { label: 'Paramètres du compte', href: '/student/settings', icon: Settings },
-        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
+        { label: 'Paramètres', href: '/student/settings', icon: Settings },
+        { label: 'Guide', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
@@ -392,66 +392,66 @@ const MENU_CONFIG: Record<string, Array<{
   // ==========================================
   guard: [
     {
-      title: 'POSTE DE CONTRÔLE',
+      title: 'CONTRÔLE',
       items: [
-        { label: 'Accueil & Portique', href: '/guard/dashboard', icon: LayoutDashboard },
-        { label: 'Scanner QR Code officiel', href: '/guard/scanner', icon: QrCode },
+        { label: 'Accueil portique', href: '/guard/dashboard', icon: LayoutDashboard },
+        { label: 'Scanner QR', href: '/guard/scanner', icon: QrCode },
       ]
     },
     {
-      title: 'SUIVI DES ENTRÉES',
+      title: 'PASSAGES',
       items: [
         { label: 'Pointages du jour', href: '/guard/attendance/today', icon: CheckCircle },
-        { label: 'Historique des passages', href: '/guard/attendance/history', icon: FileText },
+        { label: 'Historique', href: '/guard/attendance/history', icon: FileText },
       ]
     },
     {
-      title: 'SÉCURITÉ & RAPPORTS',
+      title: 'SÉCURITÉ',
       items: [
-        { label: 'Registre des incidents', href: '/guard/incidents', icon: AlertTriangle },
-        { label: 'Statistiques de fréquentation', href: '/guard/statistics', icon: BarChart3 },
+        { label: 'Incidents', href: '/guard/incidents', icon: AlertTriangle },
+        { label: 'Fréquentation', href: '/guard/statistics', icon: BarChart3 },
       ]
     },
     {
       title: 'MON COMPTE',
       items: [
-        { label: 'Profil de poste', href: '/guard/profile', icon: UserCog },
+        { label: 'Profil', href: '/guard/profile', icon: UserCog },
         { label: 'Paramètres', href: '/guard/settings', icon: Settings },
-        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
+        { label: 'Guide', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
 
   // ==========================================
-  // 🎓 8. ALUMNI (Réseau des Anciens & Mentorat)
+  // 🎓 8. ALUMNI (Réseau des Anciens)
   // ==========================================
   alumni: [
     {
       title: 'ESPACE DIPLÔMÉ',
       items: [
         { label: 'Tableau de bord', href: '/alumni/dashboard', icon: LayoutDashboard },
-        { label: 'Mon profil certifié', href: '/alumni/profile', icon: Award },
+        { label: 'Mon profil', href: '/alumni/profile', icon: Award },
       ]
     },
     {
-      title: 'MENTORAT & PARTAGE',
+      title: 'MENTORAT',
       items: [
         { label: 'Étudiants mentorés', href: '/alumni/students', icon: GraduationCap },
-        { label: 'Demandes de mentorat', href: '/alumni/requests', icon: Bell },
+        { label: 'Demandes', href: '/alumni/requests', icon: Bell },
       ]
     },
     {
-      title: 'COMMUNICATION & RÉSEAU',
+      title: 'RÉSEAU',
       items: [
-        { label: 'Messagerie privée', href: '/alumni/messages', icon: MessageSquare },
+        { label: 'Messagerie', href: '/alumni/messages', icon: MessageSquare },
         { label: 'Paramètres', href: '/alumni/settings', icon: Settings },
-        { label: 'Guide & Manuel', href: '/guide', icon: HelpCircle },
+        { label: 'Guide', href: '/guide', icon: HelpCircle },
       ]
     }
   ],
 
   // ==========================================
-  // 🛡️ 9. SUPER ADMIN (Gestionnaire Plateforme SaaS)
+  // 🛡️ 9. SUPER ADMIN (Plateforme SaaS)
   // ==========================================
   superadmin: [
     {
@@ -461,46 +461,46 @@ const MENU_CONFIG: Record<string, Array<{
       ]
     },
     {
-      title: 'DÉMONSTRATION COMMERCIALE',
+      title: 'DÉMONSTRATION',
       items: [
         { label: 'Univ_Demo', href: '/superadmin/demo', icon: Sparkles, badge: '8 Rôles' },
       ]
     },
     {
-      title: 'FLOTTE DES UNIVERSITÉS',
+      title: 'FLOTTE CLIENTS',
       items: [
-        { label: 'Universités clientes', href: '/superadmin/universities', icon: Building2 },
-        { label: 'Créer un établissement', href: '/superadmin/universities/new', icon: UserPlus },
+        { label: 'Universités', href: '/superadmin/universities', icon: Building2 },
+        { label: 'Nouvelle université', href: '/superadmin/universities/new', icon: UserPlus },
       ]
     },
     {
-      title: 'FACTURATION & LICENCES',
+      title: 'FACTURATION',
       items: [
-        { label: 'Tarifs & Abonnements SaaS', href: '/superadmin/plans', icon: DollarSign },
-        { label: 'Factures clients', href: '/superadmin/invoices', icon: FileText },
-        { label: 'Encaissements reçus', href: '/superadmin/payments', icon: Receipt },
+        { label: 'Tarifs & Plans', href: '/superadmin/plans', icon: DollarSign },
+        { label: 'Factures', href: '/superadmin/invoices', icon: FileText },
+        { label: 'Encaissements', href: '/superadmin/payments', icon: Receipt },
       ]
     },
     {
-      title: 'INFRASTRUCTURE & SÉCURITÉ',
+      title: 'INFRASTRUCTURE',
       items: [
-        { label: 'Centre Sauvegarde Cloud Nocturne', href: '/superadmin/database', icon: Database },
-        { label: 'Pannes & Incidents système', href: '/superadmin/incidents', icon: AlertTriangle },
-        { label: 'Sécurité & Audit Global', href: '/superadmin/audit', icon: Shield },
+        { label: 'Sauvegardes Cloud', href: '/superadmin/database', icon: Database },
+        { label: 'Incidents', href: '/superadmin/incidents', icon: AlertTriangle },
+        { label: 'Sécurité & Audit', href: '/superadmin/audit', icon: Shield },
       ]
     },
     {
-      title: 'RELATION CLIENT & SUPPORT',
+      title: 'RELATION CLIENT',
       items: [
-        { label: 'Support & Messagerie client', href: '/superadmin/messages', icon: MessageSquare },
-        { label: 'Centre de notifications', href: '/superadmin/notifications', icon: Bell },
+        { label: 'Support', href: '/superadmin/messages', icon: MessageSquare },
+        { label: 'Notifications', href: '/superadmin/notifications', icon: Bell },
       ]
     },
     {
-      title: 'PARAMÈTRES SAAS',
+      title: 'PARAMÈTRES',
       items: [
-        { label: 'Mon Profil SuperAdmin', href: '/superadmin/profile', icon: User },
-        { label: 'Configuration SaaS', href: '/superadmin/settings', icon: Settings },
+        { label: 'Profil SaaS', href: '/superadmin/profile', icon: User },
+        { label: 'Configuration', href: '/superadmin/settings', icon: Settings },
       ]
     }
   ]
@@ -567,7 +567,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
     <>
       <aside style={{ backgroundColor: sidebarBg }} className="h-screen w-58 text-white flex flex-col overflow-hidden transition-colors duration-200">
 
-        {/* En-tête de la Sidebar - SaaS Modern Style */}
+        {/* En-tête de la Sidebar */}
         <div className="px-4 py-3.5 border-b border-white/10 bg-white/[0.02]">
           <div className="flex items-center gap-3">
             {isSuperAdmin ? (
@@ -627,7 +627,6 @@ export default function Sidebar({ userRole }: SidebarProps) {
                     const isActive = pathname === item.href || (item.href.includes('?') && pathname === item.href.split('?')[0]);
 
                     if (item.href === '/superadmin/demo' || item.href === '/admin/demo' || item.href === '#univ-demo') {
-                      // 🛑 SÉCURITÉ ABSOLUE : Seul le Super Admin est autorisé à voir l'espace démo
                       if (!isSuperAdmin) {
                         return null;
                       }
@@ -686,7 +685,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
           ))}
         </nav>
 
-        {/* USER PROFILE et Déconnexion */}
+        {/* Profil utilisateur et Déconnexion */}
         <div className="border-t border-white/10 bg-[#0a1628] flex-shrink-0 p-3 mb-1 space-y-2">
           <button
             type="button"
@@ -702,7 +701,7 @@ export default function Sidebar({ userRole }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Modal de confirmation de déconnexion avec Portal (100% viewport) */}
+      {/* Modal de confirmation de déconnexion */}
       <LogoutConfirmModal
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}

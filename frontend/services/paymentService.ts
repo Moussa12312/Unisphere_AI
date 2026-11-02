@@ -9,7 +9,9 @@ export const paymentService = {
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
     
-    const response = await api.get(`/api/v1/payments/?${queryParams.toString()}`);
+    const queryStr = queryParams.toString();
+    const url = queryStr ? `/api/v1/payments?${queryStr}` : '/api/v1/payments';
+    const response = await api.get(url);
     return response.data;
   },
 
@@ -27,7 +29,7 @@ export const paymentService = {
     description?: string;
     payment_date?: string;
   }) => {
-    const response = await api.post('/api/v1/payments/', data);
+    const response = await api.post('/api/v1/payments', data);
     return response.data;
   },
 

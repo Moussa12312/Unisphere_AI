@@ -287,26 +287,30 @@ def validate_invitation(
 @router.post("/register")
 def register_alumni(
     data: AlumniRegister,
-    token: str,
+    token: Optional[str] = "direct",
     db: Session = Depends(get_db)
 ):
-    """Inscription d'un alumni via lien d'invitation"""
+    """Inscription d'un alumni (via lien ou inscription directe)"""
     from app.core.security import hash_password
 
-    # 1. Valider le token
-    invitation = db.query(AlumniInvitation).filter(
-        AlumniInvitation.token == token,
-        AlumniInvitation.is_active == True
-    ).first()
-
-    if not invitation:
-        raise HTTPException(status_code=404, detail="Lien d'invitation invalide")
-
-    if is_invitation_expired(invitation):
-        raise HTTPException(status_code=410, detail="Ce lien d'invitation a expiré")
-
-    if invitation.used_count >= invitation.max_uses:
-        raise HTTPException(status_code=403, detail="Limite d'utilisations atteinte")
+    # 1. Valider ou déterminer l'université
+    univ_id = 1
+    if token and token != "direct":
+        invitation = db.query(AlumniInvitation).filter(
+            AlumniInvitation.token == token,
+            AlumniInvitation.is_active == True
+        ).first()
+        if invitation:
+            if is_invitation_expired(invitation):
+                raise HTTPException(status_code=410, detail="Ce lien d'invitation a expiré")
+            if invitation.used_count >= invitation.max_uses:
+                raise HTTPException(status_code=403, detail="Limite d'utilisations atteinte")
+            univ_id = invitation.university_id
+            invitation.used_count += 1
+    else:
+        univ = db.query(University).filter(University.is_active == True).first()
+        if univ:
+            univ_id = univ.id
 
     # 2. Vérifier conditions acceptées
     if not data.accepted_conditions:
@@ -323,7 +327,10 @@ def register_alumni(
         hashed_password=hash_password(data.password),
         full_name=f"{data.first_name} {data.last_name}",
         role="alumni",
-        university_id=invitation.university_id
+        phone=data.phone,
+        is_active=True,
+        is_email_verified=True,
+        university_id=univ_id
     )
     db.add(new_user)
     db.flush()
@@ -332,7 +339,7 @@ def register_alumni(
     # 5. Créer le profil alumni (statut pending)
     new_alumni = AlumniProfile(
         user_id=new_user.id,
-        university_id=invitation.university_id,
+        university_id=univ_id,
         first_name=data.first_name,
         last_name=data.last_name,
         email=data.email,
@@ -354,7 +361,9 @@ def register_alumni(
         is_open_to_mentoring=data.is_open_to_mentoring,
         is_open_to_internship=data.is_open_to_internship,
         accepted_conditions=True,
-        status="pending"
+        is_visible=True,
+        is_verified=True,
+        status="active"
     )
     db.add(new_alumni)
 
@@ -374,7 +383,7 @@ def register_alumni(
             notification_type="alumni_registration",
             recipient_id=admin.id,
             created_by=new_user.id,
-            university_id=invitation.university_id,
+            university_id=univ_id,
             is_read=False
         )
         db.add(notification)
@@ -421,6 +430,77 @@ def admin_list_alumni(
         }
         for a in alumni_list
     ]
+
+
+
+class AlumniAdminCreate(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    password: str = "Alumni2026@"
+    phone: Optional[str] = None
+    filiere: Optional[str] = None
+    graduation_year: Optional[int] = None
+    promotion: Optional[str] = None
+    current_position: Optional[str] = None
+    company: Optional[str] = None
+    is_open_to_mentoring: bool = True
+
+
+@router.post("/admin/create")
+def admin_create_alumni(
+    data: AlumniAdminCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary"))
+):
+    from app.core.security import hash_password
+
+    univ_id = current_user.university_id or 1
+
+    existing = db.query(User).filter(User.email.ilike(data.email)).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Un compte utilisateur existe déjà avec cet email")
+
+    new_user = User(
+        email=data.email,
+        hashed_password=hash_password(data.password),
+        full_name=f"{data.first_name} {data.last_name}",
+        phone=data.phone,
+        role="alumni",
+        is_active=True,
+        is_email_verified=True,
+        university_id=univ_id
+    )
+    db.add(new_user)
+    db.flush()
+    db.refresh(new_user)
+
+    new_alumni = AlumniProfile(
+        user_id=new_user.id,
+        university_id=univ_id,
+        first_name=data.first_name,
+        last_name=data.last_name,
+        email=data.email,
+        phone=data.phone,
+        filiere=data.filiere,
+        graduation_year=data.graduation_year,
+        promotion=data.promotion,
+        current_position=data.current_position,
+        company=data.company,
+        is_open_to_mentoring=data.is_open_to_mentoring,
+        accepted_conditions=True,
+        is_visible=True,
+        is_verified=True,
+        status="active"
+    )
+    db.add(new_alumni)
+    db.commit()
+    db.refresh(new_alumni)
+
+    return {
+        "id": new_alumni.id,
+        "message": f"Compte Alumni pour {data.first_name} {data.last_name} créé et activé avec succès !"
+    }
 
 
 @router.put("/admin/{alumni_id}/activate")
@@ -540,7 +620,7 @@ def get_alumni_community(
     """Liste des alumni actifs et visibles"""
     query = db.query(AlumniProfile).filter(
         AlumniProfile.university_id == current_user.university_id,
-        AlumniProfile.status == "active",
+        AlumniProfile.status.in_(["active", "approved"]),
         AlumniProfile.is_visible == True
     )
 
@@ -636,7 +716,7 @@ def get_promotions(
         func.count(AlumniProfile.id).label('count')
     ).filter(
         AlumniProfile.university_id == current_user.university_id,
-        AlumniProfile.status == "active",
+        AlumniProfile.status.in_(["active", "approved"]),
         AlumniProfile.is_visible == True
     ).group_by(
         AlumniProfile.promotion,
@@ -663,7 +743,7 @@ def get_alumni_profile(
     alumni = db.query(AlumniProfile).filter(
         AlumniProfile.id == alumni_id,
         AlumniProfile.university_id == current_user.university_id,
-        AlumniProfile.status == "active",
+        AlumniProfile.status.in_(["active", "approved"]),
         AlumniProfile.is_visible == True
     ).first()
 

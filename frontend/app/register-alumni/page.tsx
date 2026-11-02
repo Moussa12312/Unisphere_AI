@@ -62,7 +62,8 @@ function AlumniRegisterContent() {
 
   const validateToken = async () => {
     if (!token) {
-      toast.error('Lien d\'invitation invalide');
+      // Inscription directe autorisée pour tous les diplômés
+      setTokenValid(true);
       setLoading(false);
       return;
     }
@@ -125,7 +126,7 @@ function AlumniRegisterContent() {
 
     setSubmitting(true);
     try {
-      await api.post(`/api/v1/alumni/register?token=${token}`, {
+      await api.post(`/api/v1/alumni/register?token=${token || "direct"}`, {
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
@@ -150,7 +151,7 @@ function AlumniRegisterContent() {
         accepted_conditions: true,
       });
 
-      toast.success('🎉 Inscription réussie ! Votre profil est en attente de validation.');
+      toast.success('Inscription réussie ! Votre compte Alumni est actif. Vous pouvez vous connecter.');
       setTimeout(() => router.push('/login'), 2000);
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Erreur lors de l\'inscription');

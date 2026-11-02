@@ -45,6 +45,7 @@ def generate_reference(prefix: str = "PAY") -> str:
     return f"{prefix}-{timestamp}-{random_str}"
 
 
+@router.post("")
 @router.post("/")
 def create_payment(
     data: PaymentCreate,
@@ -176,6 +177,7 @@ def create_payment(
     }
 
 
+@router.get("")
 @router.get("/")
 def get_payments(
     page: int = Query(1, ge=1),
@@ -186,9 +188,9 @@ def get_payments(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary", "accountant"))
 ):
-    query = db.query(Payment).filter(
-        Payment.university_id == current_user.university_id
-    )
+    query = db.query(Payment)
+    if current_user.university_id:
+        query = query.filter(Payment.university_id == current_user.university_id)
     
     if student_id:
         query = query.filter(Payment.student_id == student_id)

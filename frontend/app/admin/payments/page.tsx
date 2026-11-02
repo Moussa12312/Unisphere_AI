@@ -23,9 +23,17 @@ export default function AdminPaymentsPage() {
       const res = await paymentService.getAll({ page_size: 100 });
       const data = Array.isArray(res) ? res : (res.data || res.items || []);
       setPayments(data);
-    } catch (err) {
-      console.error('Erreur chargement paiements:', err);
-      toast.error('Impossible de charger les paiements');
+    } catch (err: any) {
+      console.warn('Tentative fallback directe pour les paiements...', err);
+      try {
+        const directRes = await api.get('/api/v1/payments');
+        const fallbackData = Array.isArray(directRes.data) ? directRes.data : (directRes.data?.data || directRes.data?.items || []);
+        setPayments(fallbackData);
+      } catch (finalErr: any) {
+        console.error('Erreur finale chargement paiements:', finalErr);
+        setPayments([]);
+        toast.error(finalErr.response?.data?.detail || 'Impossible de charger les paiements');
+      }
     } finally {
       setLoading(false);
     }
