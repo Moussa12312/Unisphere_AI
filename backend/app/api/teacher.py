@@ -1,3 +1,4 @@
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header, Query
 from fastapi.responses import FileResponse
 import qrcode

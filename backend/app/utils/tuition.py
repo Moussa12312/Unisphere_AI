@@ -202,7 +202,8 @@ def infer_student_domain(
         norm_f = normalize_text_key(raw_filiere)
         for f in univ_filieres:
             if f.domain and str(f.domain).strip():
-                if normalize_text_key(f.name) == norm_f or (f.code and normalize_text_key(f.code) == norm_f):
+                f_code = getattr(f, "code", None)
+                if normalize_text_key(f.name) == norm_f or (f_code and normalize_text_key(f_code) == norm_f):
                     return str(f.domain).strip()
 
         for f in univ_filieres:
