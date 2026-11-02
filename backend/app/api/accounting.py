@@ -243,21 +243,25 @@ class BankAccountCreate(BaseModel):
 
 @router.get("/bank-accounts")
 def get_bank_accounts(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "accountant"))):
-    accounts = db.query(BankAccount).filter(BankAccount.university_id == current_user.university_id).all()
+    accounts = db.query(BankAccount).filter(BankAccount.university_id == current_user.university_id).order_by(BankAccount.id.asc()).all()
     result = []
     for acc in accounts:
-        income = db.query(Payment).filter(Payment.university_id == current_user.university_id).with_entities(Payment.amount).all()
-        total_income = sum(p[0] for p in income) if acc.account_type == "bank" else 0
         expenses = db.query(Expense).filter(Expense.bank_account_id == acc.id, Expense.status == "paid").with_entities(Expense.amount).all()
-        total_expenses = sum(e[0] for e in expenses)
+        total_expenses = sum(float(e[0] or 0.0) for e in expenses)
         cash_in = db.query(CashTransaction).filter(CashTransaction.bank_account_id == acc.id, CashTransaction.transaction_type == "in").with_entities(CashTransaction.amount).all()
         cash_out = db.query(CashTransaction).filter(CashTransaction.bank_account_id == acc.id, CashTransaction.transaction_type == "out").with_entities(CashTransaction.amount).all()
 
-        balance = acc.initial_balance - total_expenses + sum(c[0] for c in cash_in) - sum(c[0] for c in cash_out)
+        in_sum = sum(float(c[0] or 0.0) for c in cash_in)
+        out_sum = sum(float(c[0] or 0.0) for c in cash_out)
+        balance = float(acc.initial_balance or 0.0) - total_expenses + in_sum - out_sum
         result.append({
-            "id": acc.id, "name": acc.name, "account_type": acc.account_type,
-            "bank_name": acc.bank_name, "account_number": acc.account_number,
-            "initial_balance": acc.initial_balance, "balance": round(balance, 2)
+            "id": acc.id,
+            "name": acc.name,
+            "account_type": acc.account_type,
+            "bank_name": acc.bank_name,
+            "account_number": acc.account_number,
+            "initial_balance": round(float(acc.initial_balance or 0.0), 2),
+            "balance": round(balance, 2),
         })
     return result
 
@@ -271,14 +275,54 @@ def create_bank_account(data: BankAccountCreate, db: Session = Depends(get_db), 
     return account
 
 
-@router.delete("/bank-accounts/{account_id}")
-def delete_bank_account(account_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
-    account = db.query(BankAccount).filter(BankAccount.id == account_id, BankAccount.university_id == current_user.university_id).first()
+@router.put("/bank-accounts/{account_id}")
+def update_bank_account(
+    account_id: int,
+    data: BankAccountCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant"))
+):
+    account = db.query(BankAccount).filter(
+        BankAccount.id == account_id,
+        BankAccount.university_id == current_user.university_id
+    ).first()
     if not account:
-        raise HTTPException(status_code=404, detail="Compte non trouvé")
+        raise HTTPException(status_code=404, detail="Compte de trésorerie introuvable")
+
+    account.name = data.name.strip()
+    account.account_type = data.account_type
+    account.bank_name = data.bank_name.strip() if data.bank_name else None
+    account.account_number = data.account_number.strip() if data.account_number else None
+    account.initial_balance = float(data.initial_balance or 0.0)
+
+    db.commit()
+    db.refresh(account)
+    return account
+
+
+@router.delete("/bank-accounts/{account_id}")
+def delete_bank_account(
+    account_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant"))
+):
+    account = db.query(BankAccount).filter(
+        BankAccount.id == account_id,
+        BankAccount.university_id == current_user.university_id
+    ).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Compte de trésorerie introuvable")
+
+    # Détacher les dépenses liées et purger les mouvements manuels liés pour préserver l'intégrité SQL
+    db.query(Expense).filter(Expense.bank_account_id == account_id).update(
+        {Expense.bank_account_id: None}, synchronize_session=False
+    )
+    db.query(CashTransaction).filter(CashTransaction.bank_account_id == account_id).delete(
+        synchronize_session=False
+    )
     db.delete(account)
     db.commit()
-    return {"message": "Compte supprimé"}
+    return {"message": "Compte de trésorerie supprimé avec succès"}
 
 
 class CashTransactionCreate(BaseModel):
@@ -543,7 +587,10 @@ def get_income_statement(
     current_user: User = Depends(require_role("admin", "accountant"))
 ):
     """Compte de résultat simplifié : recettes (paiements étudiants) - dépenses."""
-    income_query = db.query(Payment).filter(Payment.university_id == current_user.university_id, Payment.status == "completed")
+    income_query = db.query(Payment).filter(
+        Payment.university_id == current_user.university_id,
+        Payment.status.in_(["completed", "partial", "validated"])
+    )
     expense_query = db.query(Expense).filter(Expense.university_id == current_user.university_id, Expense.status == "paid")
 
     if start_date:
@@ -577,14 +624,32 @@ def get_income_statement(
 
 @router.get("/dashboard")
 def get_accounting_dashboard(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "accountant"))):
-    """Vue d'ensemble pour le tableau de bord comptable."""
+    """Vue d'ensemble consolidée pour le tableau de bord comptable et la trésorerie."""
     current_year = get_current_academic_year(db, current_user.university_id)
 
-    total_income = sum(p.amount for p in db.query(Payment).filter(Payment.university_id == current_user.university_id, Payment.status == "completed").all())
-    total_expenses = sum(e.amount for e in db.query(Expense).filter(Expense.university_id == current_user.university_id, Expense.status == "paid").all())
+    total_income = sum(
+        float(p.amount or 0.0)
+        for p in db.query(Payment).filter(
+            Payment.university_id == current_user.university_id,
+            Payment.status.in_(["completed", "partial", "validated"])
+        ).all()
+    )
+    total_expenses = sum(
+        float(e.amount or 0.0)
+        for e in db.query(Expense).filter(
+            Expense.university_id == current_user.university_id,
+            Expense.status == "paid"
+        ).all()
+    )
 
     accounts = db.query(BankAccount).filter(BankAccount.university_id == current_user.university_id).all()
-    treasury_balance = sum(acc.initial_balance for acc in accounts) + total_income - total_expenses
+    initial_treasury = sum(float(acc.initial_balance or 0.0) for acc in accounts)
+
+    cash_txs = db.query(CashTransaction).filter(CashTransaction.university_id == current_user.university_id).all()
+    cash_in_total = sum(float(t.amount or 0.0) for t in cash_txs if t.transaction_type == "in")
+    cash_out_total = sum(float(t.amount or 0.0) for t in cash_txs if t.transaction_type == "out")
+
+    treasury_balance = initial_treasury + total_income - total_expenses + cash_in_total - cash_out_total
 
     pending_expenses = db.query(Expense).filter(Expense.university_id == current_user.university_id, Expense.status == "pending").count()
     pending_payroll = db.query(PayrollEntry).filter(PayrollEntry.university_id == current_user.university_id, PayrollEntry.status == "pending").count()
@@ -594,6 +659,9 @@ def get_accounting_dashboard(db: Session = Depends(get_db), current_user: User =
         "total_income": round(total_income, 2),
         "total_expenses": round(total_expenses, 2),
         "net_result": round(total_income - total_expenses, 2),
+        "initial_treasury": round(initial_treasury, 2),
+        "cash_in_total": round(cash_in_total, 2),
+        "cash_out_total": round(cash_out_total, 2),
         "treasury_balance": round(treasury_balance, 2),
         "pending_expenses": pending_expenses,
         "pending_payroll": pending_payroll,

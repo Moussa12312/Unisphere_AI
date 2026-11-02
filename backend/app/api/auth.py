@@ -201,6 +201,22 @@ def login(
                     user_photo = teacher.photo
             except Exception:
                 pass
+        elif user.role == "censeur":
+            try:
+                from app.models.censor import Censor
+                censor = db.query(Censor).filter(Censor.user_id == user.id).first()
+                if censor and censor.photo:
+                    user_photo = censor.photo
+            except Exception:
+                pass
+        elif user.role == "alumni":
+            try:
+                from app.models.alumni import AlumniProfile
+                alumni = db.query(AlumniProfile).filter(AlumniProfile.user_id == user.id).first()
+                if alumni and alumni.photo:
+                    user_photo = alumni.photo
+            except Exception:
+                pass
 
     return {
         "access_token": token,
@@ -235,6 +251,22 @@ def get_current_user_info(db: Session = Depends(get_db), current_user: User = De
                 teacher = db.query(Teacher).filter(Teacher.user_id == current_user.id).first()
                 if teacher and teacher.photo:
                     user_photo = teacher.photo
+            except Exception:
+                pass
+        elif current_user.role == "censeur":
+            try:
+                from app.models.censor import Censor
+                censor = db.query(Censor).filter(Censor.user_id == current_user.id).first()
+                if censor and censor.photo:
+                    user_photo = censor.photo
+            except Exception:
+                pass
+        elif current_user.role == "alumni":
+            try:
+                from app.models.alumni import AlumniProfile
+                alumni = db.query(AlumniProfile).filter(AlumniProfile.user_id == current_user.id).first()
+                if alumni and alumni.photo:
+                    user_photo = alumni.photo
             except Exception:
                 pass
 

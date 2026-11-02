@@ -183,31 +183,50 @@ export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Set
     }
   };
 
-  // 2. Upload de l'Avatar Photo
+  // 2. Upload de l'Avatar Photo (compatible iOS Safari, Android, Desktop & tous les rôles)
   const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
+    const isImageMime = file.type ? file.type.startsWith('image/') : false;
+    const isImageExt = /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name || '');
+    if (!isImageMime && !isImageExt) {
       toast.error('Veuillez sélectionner un fichier image valide (JPG, PNG, WebP)');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('L\'image ne doit pas dépasser 5 Mo');
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("L'image ne doit pas dépasser 8 Mo");
       return;
     }
 
     setUploadingAvatar(true);
-    const formData = new FormData();
-    formData.append('photo', file);
 
-    try {
-      const res = await api.post('/api/v1/users/profile/photo', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+    const fileToBase64 = (f: File): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(f);
       });
 
-      const newPhoto = res.data?.photo_url || '';
-      setProfile(prev => ({ ...prev, photo: newPhoto }));
+    try {
+      let res;
+      try {
+        const formData = new FormData();
+        formData.append('photo', file, file.name || 'avatar.jpg');
+        // Ne jamais forcer manuellement Content-Type: multipart/form-data sans boundary
+        res = await api.post('/api/v1/users/profile/photo', formData);
+      } catch {
+        // Secours automatique Base64 JSON (garantit le fonctionnement sur iOS Safari / WebView mobile)
+        const b64 = await fileToBase64(file);
+        res = await api.post('/api/v1/users/profile/photo', {
+          photo_base64: b64,
+          filename: file.name || 'avatar.jpg',
+        });
+      }
+
+      const newPhoto = res.data?.photo_url || res.data?.photo || '';
+      setProfile((prev) => ({ ...prev, photo: newPhoto }));
 
       if (typeof window !== 'undefined') {
         const localUser = localStorage.getItem('user');
@@ -223,7 +242,7 @@ export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Set
 
       toast.success('Photo de profil mise à jour avec succès');
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erreur lors du téléversement de la photo');
+      toast.error(error?.response?.data?.detail || 'Erreur lors du téléversement de la photo');
     } finally {
       setUploadingAvatar(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -371,7 +390,7 @@ export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Set
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
+                accept="image/*"
                 className="hidden"
                 onChange={handleAvatarSelect}
               />
@@ -452,9 +471,34 @@ export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Set
               <User size={20} className="text-[#FF6B00]" />
               Informations Personnelles
             </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
               Mettez à jour vos coordonnées réelles utilisées pour la messagerie et les alertes.
             </p>
+
+            <div className="flex items-center justify-between gap-4 p-3.5 mb-5 rounded-xl bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-xl overflow-hidden bg-orange-100 dark:bg-orange-950/50 text-[#FF6B00] flex items-center justify-center font-bold shrink-0 border border-orange-200 dark:border-orange-800/40">
+                  {profile.photo ? (
+                    <img src={getMediaUrl(profile.photo)} alt="Profil" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{initials}</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">Photo de profil</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">JPG, PNG ou WebP (max 8 Mo)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={uploadingAvatar}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-slate-700 text-[#FF6B00] border border-orange-200 dark:border-slate-600 rounded-xl text-xs font-semibold transition-colors shrink-0 disabled:opacity-50"
+              >
+                {uploadingAvatar ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                <span>{profile.photo ? 'Changer' : 'Ajouter'}</span>
+              </button>
+            </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div>

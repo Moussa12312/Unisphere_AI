@@ -141,8 +141,9 @@ export default function AccountantDashboard() {
               <p className={`text-lg font-bold ${accountingData.net_result >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>{formatAmount(accountingData.net_result)}</p>
             </div>
             <div className="bg-slate-50 rounded-xl p-4">
-              <p className="text-xs text-slate-500 mb-1">Trésorerie</p>
+              <p className="text-xs text-slate-500 mb-1">Trésorerie nette</p>
               <p className="text-lg font-bold text-slate-900">{formatAmount(accountingData.treasury_balance)}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Soldes initiaux + flux nets</p>
             </div>
           </div>
         )}

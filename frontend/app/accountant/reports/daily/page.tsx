@@ -1,15 +1,19 @@
 'use client';
+
 import { useState, useEffect } from 'react';
-import { FileText, Printer, Download, Calendar, DollarSign, Receipt, TrendingUp } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Printer, DollarSign, Receipt, TrendingUp, ArrowDownCircle } from 'lucide-react';
 import api from '@/lib/api';
+import { useToast } from '@/components/ToastProvider';
 
 export default function DailyReportPage() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<any>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toLocaleDateString('en-CA'));
 
-  useEffect(() => { loadReport(); }, [selectedDate]);
+  useEffect(() => {
+    loadReport();
+  }, [selectedDate]);
 
   const loadReport = async () => {
     try {
@@ -18,12 +22,15 @@ export default function DailyReportPage() {
       setReport(response.data);
     } catch (error) {
       console.error(error);
+      toast.error('Impossible de charger le rapport journalier');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePrint = () => { window.print(); };
+  const handlePrint = () => {
+    window.print();
+  };
 
   if (loading) {
     return (
@@ -58,7 +65,7 @@ export default function DailyReportPage() {
       </div>
 
       {/* Résumé */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -67,10 +74,24 @@ export default function DailyReportPage() {
           </div>
           <p className="text-sm text-slate-500">Recettes du jour</p>
           <p className="text-2xl font-bold text-green-600">
-            {report?.daily_revenue?.toLocaleString('fr-FR') || 0} XOF
+            {(report?.daily_revenue || 0).toLocaleString('fr-FR')} FCFA
           </p>
           <p className="text-xs text-slate-400 mt-1">{report?.daily_transactions || 0} transaction(s)</p>
         </div>
+
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
+              <ArrowDownCircle size={20} className="text-rose-600" />
+            </div>
+          </div>
+          <p className="text-sm text-slate-500">Dépenses du jour</p>
+          <p className="text-2xl font-bold text-rose-600">
+            {(report?.daily_expenses || 0).toLocaleString('fr-FR')} FCFA
+          </p>
+          <p className="text-xs text-slate-400 mt-1">Sorties décaissements</p>
+        </div>
+
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -81,25 +102,26 @@ export default function DailyReportPage() {
           <p className="text-2xl font-bold text-blue-600">{report?.payments_count || 0}</p>
           <p className="text-xs text-slate-400 mt-1">Paiements enregistrés</p>
         </div>
+
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
               <TrendingUp size={20} className="text-red-600" />
             </div>
           </div>
-          <p className="text-sm text-slate-500">Impayés du jour</p>
+          <p className="text-sm text-slate-500">Dossiers avec impayés</p>
           <p className="text-2xl font-bold text-red-600">{report?.new_overdue || 0}</p>
-          <p className="text-xs text-slate-400 mt-1">Nouvelles échéances en retard</p>
+          <p className="text-xs text-slate-400 mt-1">Étudiants avec solde restant dû</p>
         </div>
       </div>
 
-      {/* Transactions récentes */}
+      {/* Transactions du jour */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
         <div className="p-6 border-b border-slate-100">
           <h3 className="text-lg font-bold text-slate-900">Transactions du jour</h3>
         </div>
-        {report?.transactions?.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">Aucune transaction aujourd'hui</div>
+        {!report?.transactions || report.transactions.length === 0 ? (
+          <div className="text-center py-12 text-slate-500">Aucune transaction enregistrée à cette date</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200">
@@ -114,10 +136,10 @@ export default function DailyReportPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
-                {report?.transactions?.map((tx: any) => (
+                {report.transactions.map((tx: any) => (
                   <tr key={tx.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {new Date(tx.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                      {tx.created_at ? new Date(tx.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—'}
                     </td>
                     <td className="px-6 py-4 text-sm font-mono text-slate-900">{tx.reference}</td>
                     <td className="px-6 py-4 text-sm font-medium text-slate-900">{tx.student_name}</td>
@@ -127,7 +149,7 @@ export default function DailyReportPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm font-bold text-green-600">
-                      +{tx.amount?.toLocaleString('fr-FR')} {tx.currency}
+                      +{tx.amount?.toLocaleString('fr-FR')} {tx.currency || 'FCFA'}
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">{tx.payment_method}</td>
                   </tr>

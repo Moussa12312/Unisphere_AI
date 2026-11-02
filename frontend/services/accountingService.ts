@@ -100,6 +100,7 @@ export const accountingService = {
   // Trésorerie
   getBankAccounts: async (): Promise<BankAccount[]> => (await api.get('/api/v1/accounting/bank-accounts')).data,
   createBankAccount: async (data: Partial<BankAccount>) => (await api.post('/api/v1/accounting/bank-accounts', data)).data,
+  updateBankAccount: async (id: number, data: Partial<BankAccount>) => (await api.put(`/api/v1/accounting/bank-accounts/${id}`, data)).data,
   deleteBankAccount: async (id: number) => (await api.delete(`/api/v1/accounting/bank-accounts/${id}`)).data,
   getCashTransactions: async (bank_account_id?: number) =>
     (await api.get('/api/v1/accounting/cash-transactions', { params: { bank_account_id } })).data,

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from pathlib import Path
@@ -40,14 +40,46 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+def _resolve_user_photo(user: User, db: Session) -> str:
+    if user.photo:
+        return user.photo
+    try:
+        if user.role == "student":
+            from app.models.student import Student
+            st = db.query(Student).filter(Student.user_id == user.id).first()
+            if st and st.photo:
+                return st.photo
+        elif user.role == "teacher":
+            from app.models.teacher import Teacher
+            tc = db.query(Teacher).filter(Teacher.user_id == user.id).first()
+            if tc and tc.photo:
+                return tc.photo
+        elif user.role == "censeur":
+            from app.models.censor import Censor
+            cs = db.query(Censor).filter(Censor.user_id == user.id).first()
+            if cs and cs.photo:
+                return cs.photo
+        elif user.role == "alumni":
+            from app.models.alumni import AlumniProfile
+            al = db.query(AlumniProfile).filter(AlumniProfile.user_id == user.id).first()
+            if al and al.photo:
+                return al.photo
+    except Exception:
+        pass
+    return ""
+
+
 @router.get("/profile")
-def get_user_profile(current_user: User = Depends(get_current_user)):
+def get_user_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     return {
         "full_name": current_user.full_name,
         "email": current_user.email,
         "phone": current_user.phone or "",
         "role": current_user.role,
-        "photo": current_user.photo or ""
+        "photo": _resolve_user_photo(current_user, db)
     }
 
 @router.put("/profile")
@@ -116,32 +148,76 @@ def update_profile(
 
 
 @router.post("/profile/photo")
-def upload_profile_photo(
-    photo: UploadFile = File(...),
+async def upload_profile_photo(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     import time
+    import base64
+
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-        
-    file_extension = photo.filename.split(".")[-1].lower() if "." in photo.filename else "jpg"
-    filename = f"user_{user.id}_{int(time.time())}.{file_extension}"
-    content = photo.file.read()
-    
-    # Écrire dans uploads/profiles et uploads/
+
+    content: Optional[bytes] = None
+    orig_filename: str = "avatar.jpg"
+    content_type = (request.headers.get("content-type") or "").lower()
+
+    if "application/json" in content_type:
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+        b64_data = payload.get("photo_base64") or payload.get("photo") or payload.get("image")
+        orig_filename = payload.get("filename") or "avatar.jpg"
+        if isinstance(b64_data, str) and b64_data.strip():
+            raw_b64 = b64_data.split(",", 1)[1] if "," in b64_data else b64_data
+            try:
+                content = base64.b64decode(raw_b64)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Format d'image encodée invalide.")
+    else:
+        try:
+            form = await request.form()
+            uploaded = form.get("photo") or form.get("file") or form.get("avatar")
+            if uploaded is None:
+                for val in form.values():
+                    if hasattr(val, "read"):
+                        uploaded = val
+                        break
+            if uploaded is not None and hasattr(uploaded, "read"):
+                orig_filename = getattr(uploaded, "filename", None) or "avatar.jpg"
+                content = await uploaded.read()
+        except Exception:
+            content = None
+
+    if not content:
+        raise HTTPException(
+            status_code=400,
+            detail="Aucune image reçue. Veuillez sélectionner une photo valide (JPG, PNG ou WebP)."
+        )
+
+    ext = orig_filename.rsplit(".", 1)[-1].lower() if "." in orig_filename else "jpg"
+    if ext not in ("jpg", "jpeg", "png", "webp", "gif", "heic", "heif"):
+        ext = "jpg"
+
+    filename = f"user_{user.id}_{int(time.time())}.{ext}"
+
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    (BASE_DIR / "uploads").mkdir(parents=True, exist_ok=True)
+
     file_path = UPLOAD_DIR / filename
     with open(file_path, "wb") as buffer:
         buffer.write(content)
-        
+
     main_upload_path = BASE_DIR / "uploads" / filename
     with open(main_upload_path, "wb") as buffer:
         buffer.write(content)
-    
+
     user.photo = filename
-    
-    # Synchroniser la photo avec la table spécifique du rôle (étudiant, enseignant)
+
+    # Synchroniser la photo avec toutes les tables de profils métiers éventuelles
     try:
         from app.models.student import Student
         student = db.query(Student).filter(Student.user_id == user.id).first()
@@ -152,15 +228,31 @@ def upload_profile_photo(
 
     try:
         from app.models.teacher import Teacher
-        teacher = db.query(Teacher).filter(Teacher.user_id == user.id).first()
-        if teacher:
-            teacher.photo = filename
+        teachers = db.query(Teacher).filter(Teacher.user_id == user.id).all()
+        for t in teachers:
+            t.photo = filename
+    except Exception:
+        pass
+
+    try:
+        from app.models.censor import Censor
+        censor = db.query(Censor).filter(Censor.user_id == user.id).first()
+        if censor:
+            censor.photo = filename
+    except Exception:
+        pass
+
+    try:
+        from app.models.alumni import AlumniProfile
+        alumni = db.query(AlumniProfile).filter(AlumniProfile.user_id == user.id).first()
+        if alumni:
+            alumni.photo = filename
     except Exception:
         pass
 
     db.commit()
     db.refresh(user)
-    return {"message": "Photo mise à jour", "photo_url": filename, "photo": filename}
+    return {"message": "Photo mise à jour avec succès", "photo_url": filename, "photo": filename}
 
 @router.put("/password")
 def change_password(

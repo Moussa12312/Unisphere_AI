@@ -16,9 +16,19 @@ api.interceptors.request.use(
       }
     }
 
-    if (config.data instanceof FormData) {
-      delete config.headers['Content-Type'];
-    } else if (!config.headers['Content-Type']) {
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (config.headers) {
+        if (typeof (config.headers as any).setContentType === 'function') {
+          (config.headers as any).setContentType(false);
+        }
+        if (typeof (config.headers as any).delete === 'function') {
+          (config.headers as any).delete('Content-Type');
+          (config.headers as any).delete('content-type');
+        }
+        delete (config.headers as any)['Content-Type'];
+        delete (config.headers as any)['content-type'];
+      }
+    } else if (config.headers && !config.headers['Content-Type']) {
       config.headers['Content-Type'] = 'application/json';
     }
 

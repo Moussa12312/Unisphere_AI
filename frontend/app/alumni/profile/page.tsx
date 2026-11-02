@@ -1,23 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
-  Award, Briefcase, GraduationCap, Building2, MapPin, Share2,
-  Globe, Lightbulb, CheckCircle2, Save, Loader2, Star, Sparkles,
-  ArrowRight, ShieldCheck, HeartHandshake, Settings
+  Award, Briefcase, GraduationCap, Lightbulb, Save, Loader2,
+  HeartHandshake, Settings, Camera
 } from 'lucide-react';
-import api from '@/lib/api';
-import { toast } from 'react-hot-toast';
+import api, { getMediaUrl } from '@/lib/api';
+import { useToast } from '@/components/ToastProvider';
 
 export default function AlumniProfilePage() {
+  const toast = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profile, setProfile] = useState<any>({
     first_name: '',
     last_name: '',
     email: '',
     phone: '',
+    photo: '',
     filiere: '',
     domain: '',
     level: '',
@@ -56,6 +59,69 @@ export default function AlumniProfilePage() {
       toast.error('Erreur lors du chargement de votre profil alumni');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isImageMime = file.type ? file.type.startsWith('image/') : false;
+    const isImageExt = /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name || '');
+    if (!isImageMime && !isImageExt) {
+      toast.error('Veuillez sélectionner un fichier image valide (JPG, PNG, WebP)');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("L'image ne doit pas dépasser 8 Mo");
+      return;
+    }
+
+    setUploadingAvatar(true);
+
+    const fileToBase64 = (f: File): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(f);
+      });
+
+    try {
+      let res;
+      try {
+        const formData = new FormData();
+        formData.append('photo', file, file.name || 'avatar.jpg');
+        res = await api.post('/api/v1/users/profile/photo', formData);
+      } catch {
+        const b64 = await fileToBase64(file);
+        res = await api.post('/api/v1/users/profile/photo', {
+          photo_base64: b64,
+          filename: file.name || 'avatar.jpg',
+        });
+      }
+
+      const newPhoto = res.data?.photo_url || res.data?.photo || '';
+      setProfile((prev: any) => ({ ...prev, photo: newPhoto }));
+
+      if (typeof window !== 'undefined') {
+        const localUser = localStorage.getItem('user');
+        if (localUser) {
+          try {
+            const parsed = JSON.parse(localUser);
+            parsed.photo = newPhoto;
+            localStorage.setItem('user', JSON.stringify(parsed));
+          } catch {}
+        }
+        window.dispatchEvent(new CustomEvent('unisphere:user_updated'));
+      }
+
+      toast.success('Photo de profil mise à jour avec succès');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Erreur lors du téléversement de la photo');
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -104,11 +170,38 @@ export default function AlumniProfilePage() {
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-orange-400 flex items-center justify-center font-black text-2xl shadow-lg shadow-orange-500/30">
-              {profile.first_name?.[0]}{profile.last_name?.[0]}
+            <div className="relative shrink-0">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-orange-400 flex items-center justify-center font-black text-2xl shadow-lg shadow-orange-500/30 overflow-hidden">
+                {profile.photo ? (
+                  <img src={getMediaUrl(profile.photo)} alt="Photo Alumni" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{profile.first_name?.[0]}{profile.last_name?.[0]}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                disabled={uploadingAvatar}
+                onClick={() => fileInputRef.current?.click()}
+                title="Changer ma photo de profil"
+                className="absolute -bottom-2 -right-2 p-1.5 bg-white text-slate-900 rounded-lg shadow-md hover:bg-orange-50 transition-colors border border-slate-200"
+              >
+                {uploadingAvatar ? (
+                  <Loader2 size={14} className="animate-spin text-[#FF6B00]" />
+                ) : (
+                  <Camera size={14} className="text-[#FF6B00]" />
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarSelect}
+              />
             </div>
+
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold">{profile.first_name} {profile.last_name}</h1>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   Alumni Certifié
@@ -123,7 +216,16 @@ export default function AlumniProfilePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              disabled={uploadingAvatar}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-md transition-all disabled:opacity-50"
+            >
+              {uploadingAvatar ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} />}
+              <span>{profile.photo ? 'Changer photo' : 'Ajouter photo'}</span>
+            </button>
             <Link
               href="/alumni/settings"
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-slate-200 text-xs sm:text-sm font-semibold rounded-xl border border-white/10 transition-all"
@@ -141,7 +243,7 @@ export default function AlumniProfilePage() {
             <h2 className="font-bold text-slate-900 text-base sm:text-lg flex items-center gap-2">
               <Briefcase size={20} className="text-[#FF6B00]" /> Situation Professionnelle
             </h2>
-            <span className="text-xs text-slate-400">Visible par les étudiants et l'université</span>
+            <span className="text-xs text-slate-400">Visible par les étudiants et l&apos;université</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -173,7 +275,7 @@ export default function AlumniProfilePage() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                Secteur d'activité
+                Secteur d&apos;activité
               </label>
               <input
                 type="text"
@@ -250,7 +352,7 @@ export default function AlumniProfilePage() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                Votre parcours depuis l'obtention du diplôme
+                Votre parcours depuis l&apos;obtention du diplôme
               </label>
               <textarea
                 rows={3}
@@ -263,7 +365,7 @@ export default function AlumniProfilePage() {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                Vos conseils d'or pour les étudiants actuels
+                Vos conseils d&apos;or pour les étudiants actuels
               </label>
               <textarea
                 rows={3}
@@ -285,7 +387,7 @@ export default function AlumniProfilePage() {
           <div className="space-y-3">
             <label className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
               <div>
-                <p className="font-semibold text-slate-900 text-sm">Disponible pour le mentorat d'étudiants</p>
+                <p className="font-semibold text-slate-900 text-sm">Disponible pour le mentorat d&apos;étudiants</p>
                 <p className="text-xs text-slate-500">Permet aux étudiants de vous envoyer des demandes de mentorat (max 5)</p>
               </div>
               <input

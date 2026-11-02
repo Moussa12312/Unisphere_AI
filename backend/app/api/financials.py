@@ -42,20 +42,165 @@ class InstallmentPaymentRequest(BaseModel):
     description: Optional[str] = None
 
 # ==========================================
-# DASHBOARD - Vue d'ensemble
+# CALCUL UNIFIÉ DES CRÉANCES, RELIQUATS & IMPAYÉS
+# ==========================================
+def _compute_university_receivables(db: Session, university_id: int) -> dict:
+    from app.utils.tuition import resolve_student_tuition_breakdown, get_configured_tranches_for_student
+
+    students = db.query(Student).filter(Student.university_id == university_id).all()
+    if not students:
+        return {
+            "total_expected": 0.0,
+            "total_paid_students": 0.0,
+            "total_balance": 0.0,
+            "overdue_amount": 0.0,
+            "students_with_balance": 0,
+            "overdue_students_count": 0,
+        }
+
+    paid_rows = db.query(
+        Payment.student_id,
+        func.coalesce(func.sum(Payment.amount), 0.0)
+    ).filter(
+        Payment.university_id == university_id,
+        Payment.status.in_(["completed", "partial", "validated"])
+    ).group_by(Payment.student_id).all()
+    paid_by_student = {row[0]: float(row[1] or 0.0) for row in paid_rows}
+
+    today = date.today()
+    total_expected = 0.0
+    total_paid_students = 0.0
+    total_balance = 0.0
+    overdue_amount = 0.0
+    students_with_balance = 0
+    overdue_students_count = 0
+
+    for student in students:
+        breakdown = resolve_student_tuition_breakdown(db, student, university_id, "scolarite")
+        net_due = float(breakdown.get("net_amount") or 0.0)
+        if net_due <= 0:
+            continue
+
+        paid = paid_by_student.get(student.id, 0.0)
+        bal = max(0.0, net_due - paid)
+
+        total_expected += net_due
+        total_paid_students += min(net_due, paid)
+        total_balance += bal
+
+        if bal > 0:
+            students_with_balance += 1
+            tranches = get_configured_tranches_for_student(db, student, university_id, net_due)
+            dated_tranches = [t for t in tranches if getattr(t, "due_date", None)]
+
+            if dated_tranches:
+                rem_paid = paid
+                student_overdue = 0.0
+                for t in tranches:
+                    t_amt = float(t.amount or 0.0)
+                    covered = min(t_amt, rem_paid)
+                    rem_paid = max(0.0, rem_paid - covered)
+                    unpaid_tranche = max(0.0, t_amt - covered)
+                    t_due = t.due_date.date() if hasattr(t.due_date, "date") else t.due_date
+                    if unpaid_tranche > 0 and t_due and t_due < today:
+                        student_overdue += unpaid_tranche
+                if student_overdue > 0:
+                    overdue_amount += student_overdue
+                    overdue_students_count += 1
+            else:
+                if paid <= 0:
+                    overdue_amount += bal
+                    overdue_students_count += 1
+
+    return {
+        "total_expected": round(total_expected, 2),
+        "total_paid_students": round(total_paid_students, 2),
+        "total_balance": round(total_balance, 2),
+        "overdue_amount": round(overdue_amount, 2),
+        "students_with_balance": students_with_balance,
+        "overdue_students_count": overdue_students_count,
+    }
+
+
+# ==========================================
+# DASHBOARD - Vue d'ensemble & Rapport Journalier
 # ==========================================
 @router.get("/summary")
 @router.get("/overview")
 def get_financial_overview(
     period: str = "year",
+    target_date: Optional[str] = Query(None, alias="date"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "accountant"))
 ):
-    from app.models.payment_installment import PaymentInstallment
-    
+    from sqlalchemy import or_, and_
+    from app.models.accounting import Expense
+
     university_id = current_user.university_id
     now = datetime.now()
-    
+    receivables = _compute_university_receivables(db, university_id)
+
+    if target_date:
+        try:
+            parsed_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+        except ValueError:
+            parsed_date = now.date()
+
+        day_payments = db.query(Payment).filter(
+            Payment.university_id == university_id,
+            Payment.status.in_(["completed", "partial", "validated"]),
+            or_(
+                Payment.payment_date == parsed_date,
+                and_(Payment.payment_date == None, func.date(Payment.created_at) == parsed_date)
+            )
+        ).order_by(desc(Payment.created_at)).all()
+
+        student_ids = list({p.student_id for p in day_payments if p.student_id})
+        students_map = {
+            s.id: s for s in db.query(Student).filter(Student.id.in_(student_ids)).all()
+        } if student_ids else {}
+
+        day_expenses_sum = db.query(func.coalesce(func.sum(Expense.amount), 0.0)).filter(
+            Expense.university_id == university_id,
+            Expense.status == "paid",
+            Expense.expense_date == parsed_date
+        ).scalar() or 0.0
+
+        daily_revenue = round(sum(float(p.amount or 0.0) for p in day_payments), 2)
+        tx_list = []
+        for p in day_payments:
+            st = students_map.get(p.student_id)
+            st_name = f"{st.first_name} {st.last_name}".strip() if st else "Étudiant"
+            tx_list.append({
+                "id": p.id,
+                "created_at": p.created_at.isoformat() if p.created_at else datetime.combine(parsed_date, datetime.min.time()).isoformat(),
+                "reference": p.reference or p.receipt_number or f"PAY-{p.id}",
+                "receipt_number": p.receipt_number or f"REC-{p.id}",
+                "student_name": st_name,
+                "matricule": st.matricule if st else "",
+                "payment_type": p.payment_type or "scolarite",
+                "amount": float(p.amount or 0.0),
+                "currency": p.currency or "FCFA",
+                "payment_method": p.payment_method or "especes",
+                "status": p.status,
+            })
+
+        return {
+            "date": parsed_date.isoformat(),
+            "daily_revenue": daily_revenue,
+            "daily_expenses": round(float(day_expenses_sum), 2),
+            "daily_transactions": len(tx_list),
+            "payments_count": len(tx_list),
+            "new_overdue": receivables["overdue_students_count"] or receivables["students_with_balance"],
+            "transactions": tx_list,
+            "total_revenue": daily_revenue,
+            "unpaid": receivables["overdue_amount"],
+            "late": receivables["total_balance"],
+            "collection_rate": round((receivables["total_paid_students"] / receivables["total_expected"] * 100), 1) if receivables["total_expected"] > 0 else 0.0,
+            "total_payments": len(tx_list),
+            "period": "day",
+        }
+
     if period == "month":
         start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     elif period == "quarter":
@@ -63,43 +208,52 @@ def get_financial_overview(
     else:
         start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    total_revenue = db.query(
-        func.coalesce(func.sum(Payment.amount), 0)
+    total_revenue = float(db.query(
+        func.coalesce(func.sum(Payment.amount), 0.0)
     ).filter(
         Payment.university_id == university_id,
-        Payment.status.in_(["completed", "partial"]),
-        Payment.created_at >= start_date
-    ).scalar()
+        Payment.status.in_(["completed", "partial", "validated"]),
+        or_(
+            Payment.created_at >= start_date,
+            Payment.payment_date >= start_date.date()
+        )
+    ).scalar() or 0.0)
 
-    unpaid = db.query(
-        func.coalesce(func.sum(Payment.amount), 0)
+    failed_payments = float(db.query(
+        func.coalesce(func.sum(Payment.amount), 0.0)
     ).filter(
         Payment.university_id == university_id,
         Payment.status == "failed"
-    ).scalar()
+    ).scalar() or 0.0)
 
-    late = db.query(
-        func.coalesce(func.sum(PaymentInstallment.balance), 0)
-    ).filter(
-        PaymentInstallment.university_id == university_id,
-        PaymentInstallment.status.in_(["pending", "partial"])
-    ).scalar()
+    late = receivables["total_balance"]
+    unpaid = receivables["overdue_amount"] + failed_payments
+    if unpaid <= 0 and late > 0:
+        unpaid = late
 
-    total_expected = total_revenue + late
-    collection_rate = (total_revenue / total_expected * 100) if total_expected > 0 else 100.0
+    total_expected = receivables["total_expected"]
+    if total_expected > 0:
+        collection_rate = min(100.0, (receivables["total_paid_students"] / total_expected) * 100.0)
+    else:
+        collection_rate = 100.0 if total_revenue > 0 else 0.0
 
     total_payments = db.query(
         func.count(Payment.id)
     ).filter(
         Payment.university_id == university_id,
-        Payment.status.in_(["completed", "partial"]),
-        Payment.created_at >= start_date
-    ).scalar()
+        Payment.status.in_(["completed", "partial", "validated"]),
+        or_(
+            Payment.created_at >= start_date,
+            Payment.payment_date >= start_date.date()
+        )
+    ).scalar() or 0
 
     return {
-        "total_revenue": total_revenue,
-        "unpaid": unpaid,
-        "late": late,
+        "total_revenue": round(total_revenue, 2),
+        "unpaid": round(unpaid, 2),
+        "late": round(late, 2),
+        "total_expected": round(total_expected, 2),
+        "students_with_balance": receivables["students_with_balance"],
         "collection_rate": round(collection_rate, 1),
         "total_payments": total_payments,
         "period": period
@@ -415,55 +569,58 @@ def get_monthly_financials(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "accountant"))
 ):
+    from sqlalchemy import or_
+
     university_id = current_user.university_id
     now = datetime.now()
-    
-    if period == "month":
-        cutoff_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    elif period == "quarter":
-        cutoff_date = now - timedelta(days=90)
-    else:
-        cutoff_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-    
-    results = db.query(
-        extract('year', Payment.created_at).label('year'),
-        extract('month', Payment.created_at).label('month'),
-        Payment.status,
-        func.sum(Payment.amount).label('total')
-    ).filter(
-        Payment.university_id == university_id,
-        Payment.created_at >= cutoff_date
-    ).group_by('year', 'month', Payment.status).order_by('year', 'month').all()
+    months_count = 1 if period == "month" else (3 if period == "quarter" else max(1, min(months, 12)))
 
+    # Construire la séquence chronologique exacte des mois demandés
     month_names = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
-    
-    monthly_data = {}
-    for year, month, status, total in results:
-        m = int(month)
-        key = month_names[m - 1]
-        if key not in monthly_data:
-            monthly_data[key] = {"revenus": 0, "impayes": 0}
-        
-        if status in ["completed", "partial"]:
-            monthly_data[key]["revenus"] += total
-        elif status in ["pending", "failed"]:
-            monthly_data[key]["impayes"] += total
+    buckets = []
+    seen_ym = {}
+    for i in range(months_count - 1, -1, -1):
+        y = now.year
+        m = now.month - i
+        while m <= 0:
+            m += 12
+            y -= 1
+        label = month_names[m - 1]
+        entry = {"month": label, "revenus": 0.0, "impayes": 0.0}
+        buckets.append(entry)
+        seen_ym[(y, m)] = entry
 
-    data = [{"month": k, **v} for k, v in monthly_data.items()]
-    
-    if not data:
-        if period == "month":
-            data.append({"month": month_names[now.month - 1], "revenus": 0, "impayes": 0})
-        elif period == "quarter":
-            for i in range(3):
-                idx = (now.month - 3 + i) % 12
-                data.append({"month": month_names[idx], "revenus": 0, "impayes": 0})
-        else:
-            for i in range(min(months, 12)):
-                idx = (now.month - months + i) % 12
-                data.append({"month": month_names[idx], "revenus": 0, "impayes": 0})
-            
-    return data
+    first_year, first_month = min(seen_ym.keys())
+    cutoff_date = datetime(first_year, first_month, 1)
+
+    payments = db.query(Payment).filter(
+        Payment.university_id == university_id,
+        or_(
+            Payment.created_at >= cutoff_date,
+            Payment.payment_date >= cutoff_date.date()
+        )
+    ).all()
+
+    for p in payments:
+        dt = p.payment_date or (p.created_at.date() if p.created_at else None)
+        if not dt:
+            continue
+        bucket = seen_ym.get((dt.year, dt.month))
+        if not bucket:
+            continue
+        amt = float(p.amount or 0.0)
+        if p.status in ("completed", "partial", "validated"):
+            bucket["revenus"] = round(bucket["revenus"] + amt, 2)
+        elif p.status in ("pending", "failed"):
+            bucket["impayes"] = round(bucket["impayes"] + amt, 2)
+
+    # Exposer le reliquat/impayé réel sur le mois courant pour cohérence avec les KPIs
+    receivables = _compute_university_receivables(db, university_id)
+    curr_bucket = seen_ym.get((now.year, now.month))
+    if curr_bucket and curr_bucket["impayes"] <= 0 and receivables["total_balance"] > 0:
+        curr_bucket["impayes"] = receivables["overdue_amount"] if receivables["overdue_amount"] > 0 else receivables["total_balance"]
+
+    return buckets
 
 # ==========================================
 # RÉPARTITION PAR TYPE
@@ -775,34 +932,22 @@ def get_installments_stats(
     current_user: User = Depends(require_role("admin", "accountant"))
 ):
     from app.models.payment_installment import PaymentInstallment
-    
+
     university_id = current_user.university_id
-    
-    total_balance = db.query(
-        func.coalesce(func.sum(PaymentInstallment.balance), 0)
-    ).filter(
-        PaymentInstallment.university_id == university_id,
-        PaymentInstallment.status.in_(["pending", "partial"])
-    ).scalar()
-    
-    students_with_balance = db.query(
+    receivables = _compute_university_receivables(db, university_id)
+
+    legacy_blocked = db.query(
         func.count(func.distinct(PaymentInstallment.student_id))
     ).filter(
         PaymentInstallment.university_id == university_id,
-        PaymentInstallment.status.in_(["pending", "partial"])
-    ).scalar()
-    
-    blocked_count = db.query(
-        func.count(PaymentInstallment.id)
-    ).filter(
-        PaymentInstallment.university_id == university_id,
         PaymentInstallment.is_exam_blocked == True
-    ).scalar()
-    
+    ).scalar() or 0
+
     return {
-        "total_balance": total_balance,
-        "students_with_balance": students_with_balance,
-        "blocked_count": blocked_count
+        "total_balance": receivables["total_balance"],
+        "students_with_balance": receivables["students_with_balance"],
+        "overdue_amount": receivables["overdue_amount"],
+        "blocked_count": legacy_blocked
     }
 
 # ==========================================
@@ -1543,4 +1688,4 @@ def get_financial_payment_detail(
         },
         "created_at": payment.created_at.isoformat() if payment.created_at else None
     }
-
+

@@ -32,6 +32,7 @@ from app.models.filiere import Filiere
 from app.models.notification import Notification
 from app.models.message import Message
 from app.models.payment import Payment
+from app.models.payment_reminder import PaymentReminder
 from app.models.academic_fee import AcademicFee
 from app.models.payment_deadline import PaymentDeadline
 from app.models.payment_installment import PaymentInstallment

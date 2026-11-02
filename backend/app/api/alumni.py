@@ -991,6 +991,11 @@ def get_my_profile(
     if not alumni:
         raise HTTPException(status_code=404, detail="Profil non trouvé")
 
+    if not getattr(alumni, "photo", None) and getattr(current_user, "photo", None):
+        alumni.photo = current_user.photo
+        db.commit()
+        db.refresh(alumni)
+
     return alumni
 
 

@@ -4,7 +4,7 @@ from sqlalchemy import func, or_
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
-from app.database.connection import get_db
+from app.database.connection import get_db, engine
 from app.models.user import User
 from app.models.student import Student
 from app.models.university import University
@@ -12,6 +12,7 @@ from app.models.payment_reminder import PaymentReminder
 from app.models.payment import Payment
 from app.models.payment_tranche import PaymentTranche
 from app.core.dependencies import get_current_user, require_role
+from app.utils.tuition import resolve_student_tuition_breakdown
 from app.utils.sms_service import (
     send_sms,
     generate_whatsapp_url,
@@ -19,9 +20,25 @@ from app.utils.sms_service import (
     normalize_phone_number
 )
 
+_REMINDER_TABLE_READY = False
+
+
+def _ensure_reminder_table() -> None:
+    global _REMINDER_TABLE_READY
+    if _REMINDER_TABLE_READY:
+        return
+    try:
+        PaymentReminder.__table__.create(bind=engine, checkfirst=True)
+        _REMINDER_TABLE_READY = True
+    except Exception as _table_err:
+        print(f"[WARNING] Initialisation table payment_reminders: {_table_err}")
+
+
+_ensure_reminder_table()
+
 router = APIRouter(prefix="/reminders", tags=["Reminders"])
 
-ALLOWED_ROLES = ["admin", "accountant", "super_admin", "secretary"]
+ALLOWED_ROLES = ["admin", "accountant", "super_admin", "superadmin", "secretary", "censeur"]
 
 
 class SingleReminderRequest(BaseModel):
@@ -39,25 +56,21 @@ class BulkReminderRequest(BaseModel):
 
 
 def compute_student_balance(student: Student, db: Session) -> Dict[str, float]:
-    """Calcule le montant total dû, déjà payé et le reliquat restant."""
-    total_tuition = float(student.net_tuition_amount or 0.0)
-    if total_tuition <= 0:
-        tranche_sum = db.query(func.coalesce(func.sum(PaymentTranche.amount), 0.0)).filter(
-            PaymentTranche.university_id == student.university_id,
-            PaymentTranche.is_active == True
-        ).scalar() or 0.0
-        total_tuition = float(tranche_sum)
-    
+    """Calcule le montant total net dû (selon tarif niveau/domaine + remises), le payé réel et le reliquat restant."""
+    univ_id = student.university_id or 1
+    breakdown = resolve_student_tuition_breakdown(db, student, univ_id, "scolarite")
+    total_tuition = float(breakdown.get("net_amount") or 0.0)
+
     paid_sum = db.query(func.coalesce(func.sum(Payment.amount), 0.0)).filter(
         Payment.student_id == student.id,
-        Payment.status.in_(["validated", "completed"])
+        Payment.status.in_(["validated", "completed", "partial"])
     ).scalar() or 0.0
-    
+
     balance = max(0.0, total_tuition - float(paid_sum))
     return {
-        "total_tuition": total_tuition,
-        "total_paid": float(paid_sum),
-        "balance": balance
+        "total_tuition": round(total_tuition, 2),
+        "total_paid": round(float(paid_sum), 2),
+        "balance": round(balance, 2)
     }
 
 
@@ -72,6 +85,7 @@ def get_unpaid_students(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(*ALLOWED_ROLES))
 ):
+    _ensure_reminder_table()
     univ_id = current_user.university_id or 1
     univ = db.query(University).filter(University.id == univ_id).first()
     univ_name = univ.name if univ else "UniSphere"
@@ -407,6 +421,7 @@ def get_reminders_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(*ALLOWED_ROLES))
 ):
+    _ensure_reminder_table()
     query = db.query(PaymentReminder)
     if current_user.role not in ["super_admin", "superadmin"] and current_user.university_id:
         query = query.filter(PaymentReminder.university_id == current_user.university_id)
