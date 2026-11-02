@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from pathlib import Path
 from pydantic import BaseModel
 from typing import Optional
 from app.database.connection import SessionLocal
@@ -9,8 +10,9 @@ from app.models.filiere import Filiere
 from app.models.user import User
 from app.core.dependencies import require_role
 from app.core.security import hash_password
+from app.services.image_compressor import compress_and_save_upload
 from app.utils.email_service import send_credentials_email, send_password_reset_email, send_affiliation_email
-from app.utils.email_validator import validate_email_exists
+from app.utils.email_validator import validate_email_format
 
 import time
 import os
@@ -169,13 +171,14 @@ def get_teacher(
 # ==========================================
 @router.post("/")
 async def create_teacher(
+    background_tasks: BackgroundTasks,
     first_name: str = Form(...),
     last_name: str = Form(...),
     email: str = Form(...),
     department: str = Form(None),
     speciality: str = Form(None),
     phone: str = Form(None),
-    filiere_id: int = Form(None),
+    filiere_id: Optional[str] = Form(None),
     photo: UploadFile = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary"))
@@ -185,13 +188,19 @@ async def create_teacher(
     clean_email = email.strip().lower()
     clean_phone = phone.strip() if phone and phone.strip() else None
 
-    if filiere_id:
+    parsed_filiere_id: Optional[int] = None
+    if filiere_id is not None and str(filiere_id).strip().isdigit():
+        parsed_filiere_id = int(str(filiere_id).strip())
+
+    if parsed_filiere_id:
         filiere = db.query(Filiere).filter(
-            Filiere.id == filiere_id,
+            Filiere.id == parsed_filiere_id,
             Filiere.university_id == current_user.university_id
         ).first()
         if filiere:
             department = filiere.name
+        else:
+            parsed_filiere_id = None
     
     if not department:
         department = "Enseignement Général"
@@ -209,6 +218,13 @@ async def create_teacher(
                     detail="Ce numéro de téléphone est déjà associé à un autre compte utilisateur."
                 )
 
+    # Lecture sécurisée de la photo en amont (sans se fier à photo.size qui peut valoir None sous Starlette)
+    photo_bytes = b""
+    if photo and photo.filename:
+        photo_bytes = await photo.read()
+        if len(photo_bytes) > 8 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="L'image ne doit pas dépasser 8 Mo.")
+
     # 2. Gestion de l'existence de l'utilisateur (Option B : Rattachement multi-universités)
     existing_user = db.query(User).filter(User.email == clean_email).first()
     univ_name = current_user.university.name if current_user.university else "UniSphere AI"
@@ -220,7 +236,6 @@ async def create_teacher(
                 detail=f"Cet email est déjà associé à un compte ({existing_user.role}). Impossible de l'enregistrer comme enseignant."
             )
         
-        # Vérifier si cet enseignant est déjà affilié à cette université
         existing_affiliation = db.query(Teacher).filter(
             Teacher.user_id == existing_user.id,
             Teacher.university_id == current_user.university_id
@@ -231,7 +246,6 @@ async def create_teacher(
                 detail="Cet enseignant est déjà rattaché à votre université."
             )
 
-        # Créer le nouveau profil enseignant rattaché à l'université active
         new_teacher = Teacher(
             first_name=first_name,
             last_name=last_name,
@@ -242,13 +256,11 @@ async def create_teacher(
             user_id=existing_user.id,
             university_id=current_user.university_id,
             university_name=univ_name,
-            filiere_id=filiere_id
+            filiere_id=parsed_filiere_id
         )
         db.add(new_teacher)
-        db.commit()
-        db.refresh(new_teacher)
+        db.flush()
 
-        # Génération QR Code
         os.makedirs("qr_codes", exist_ok=True)
         qr_filename = f"TEACHER_{new_teacher.id}.png"
         qr_path = os.path.join("qr_codes", qr_filename)
@@ -256,21 +268,21 @@ async def create_teacher(
         qr.save(qr_path)
         new_teacher.qr_code = qr_filename
 
-        # Photo
-        if photo and photo.filename and photo.size > 0:
+        if photo_bytes:
             os.makedirs("uploads", exist_ok=True)
-            photo_filename = f"TEACHER_{new_teacher.id}_{int(time.time())}.png"
-            photo_path = os.path.join("uploads", photo_filename)
-            content = await photo.read()
-            with open(photo_path, "wb") as buffer:
-                buffer.write(content)
-            new_teacher.photo = photo_filename
+            ext = Path(photo.filename).suffix.lower() or ".jpg"
+            if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+                ext = ".jpg"
+            target_path = Path("uploads") / f"TEACHER_{new_teacher.id}_{int(time.time())}{ext}"
+            saved_p = compress_and_save_upload(photo_bytes, target_path, max_dimension=1200, quality=82)
+            new_teacher.photo = saved_p.name
+            existing_user.photo = saved_p.name
 
         db.commit()
         db.refresh(new_teacher)
 
-        # Envoi d'un email de notification de nouveau rattachement
-        send_affiliation_email(
+        background_tasks.add_task(
+            send_affiliation_email,
             to_email=clean_email,
             full_name=f"{first_name} {last_name}",
             university_name=univ_name
@@ -282,62 +294,68 @@ async def create_teacher(
             "message": f"L'enseignant {first_name} {last_name} a été rattaché avec succès à votre établissement."
         }
 
-    # 3. Nouvel utilisateur enseignant
-    is_valid, error_msg = validate_email_exists(clean_email)
+    # 3. Nouvel utilisateur enseignant (transaction atomique User + Teacher)
+    is_valid, error_msg = validate_email_format(clean_email)
     if not is_valid:
         raise HTTPException(status_code=400, detail=error_msg)
 
     temp_password = secrets.token_urlsafe(8)
 
-    new_user = User(
-        full_name=f"{first_name} {last_name}",
-        email=clean_email,
-        phone=clean_phone,
-        hashed_password=hash_password(temp_password),
-        role="teacher",
-        university_id=current_user.university_id
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    try:
+        new_user = User(
+            full_name=f"{first_name} {last_name}",
+            email=clean_email,
+            phone=clean_phone,
+            hashed_password=hash_password(temp_password),
+            role="teacher",
+            university_id=current_user.university_id
+        )
+        db.add(new_user)
+        db.flush()
 
-    new_teacher = Teacher(
-        first_name=first_name,
-        last_name=last_name,
-        email=clean_email,
-        department=department,
-        speciality=speciality,
-        phone=clean_phone,
-        user_id=new_user.id,
-        university_id=current_user.university_id,
-        university_name=univ_name,
-        filiere_id=filiere_id
-    )
-    db.add(new_teacher)
-    db.commit()
-    db.refresh(new_teacher)
+        new_teacher = Teacher(
+            first_name=first_name,
+            last_name=last_name,
+            email=clean_email,
+            department=department,
+            speciality=speciality,
+            phone=clean_phone,
+            user_id=new_user.id,
+            university_id=current_user.university_id,
+            university_name=univ_name,
+            filiere_id=parsed_filiere_id
+        )
+        db.add(new_teacher)
+        db.flush()
 
-    os.makedirs("qr_codes", exist_ok=True)
-    qr_filename = f"TEACHER_{new_teacher.id}.png"
-    qr_path = os.path.join("qr_codes", qr_filename)
-    qr = qrcode.make(f"TEACHER-{new_teacher.id}")
-    qr.save(qr_path)
-    new_teacher.qr_code = qr_filename
+        os.makedirs("qr_codes", exist_ok=True)
+        qr_filename = f"TEACHER_{new_teacher.id}.png"
+        qr_path = os.path.join("qr_codes", qr_filename)
+        qr = qrcode.make(f"TEACHER-{new_teacher.id}")
+        qr.save(qr_path)
+        new_teacher.qr_code = qr_filename
 
-    if photo and photo.filename and photo.size > 0:
-        os.makedirs("uploads", exist_ok=True)
-        photo_filename = f"TEACHER_{new_teacher.id}_{int(time.time())}.png"
-        photo_path = os.path.join("uploads", photo_filename)
-        content = await photo.read()
-        with open(photo_path, "wb") as buffer:
-            buffer.write(content)
-        new_teacher.photo = photo_filename
+        if photo_bytes:
+            os.makedirs("uploads", exist_ok=True)
+            ext = Path(photo.filename).suffix.lower() or ".jpg"
+            if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+                ext = ".jpg"
+            target_path = Path("uploads") / f"TEACHER_{new_teacher.id}_{int(time.time())}{ext}"
+            saved_p = compress_and_save_upload(photo_bytes, target_path, max_dimension=1200, quality=82)
+            new_teacher.photo = saved_p.name
+            new_user.photo = saved_p.name
 
-    db.commit()
-    db.refresh(new_teacher)
+        db.commit()
+        db.refresh(new_teacher)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la création de l'enseignant : {str(e)}")
 
-    # Envoi des identifiants par email
-    send_credentials_email(
+    background_tasks.add_task(
+        send_credentials_email,
         to_email=clean_email,
         full_name=f"{first_name} {last_name}",
         password=temp_password,
@@ -480,18 +498,22 @@ async def upload_teacher_photo(
     if not teacher:
         raise HTTPException(status_code=404, detail="Enseignant non trouvé")
     
-    # Vérifier que c'est bien une image
-    if not photo.content_type.startswith('image/'):
-        raise HTTPException(status_code=400, detail="Le fichier doit être une image")
+    # Vérifier que c'est bien une image (tolérant si content_type est None sur mobile)
+    ctype = (photo.content_type or "").lower()
+    ext_check = Path(photo.filename or "").suffix.lower()
+    if not ctype.startswith("image/") and ext_check not in (".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif"):
+        raise HTTPException(status_code=400, detail="Le fichier doit être une image (JPG, PNG, WebP)")
     
-    # Vérifier la taille (max 5 Mo)
+    # Vérifier la taille (max 8 Mo)
     content = await photo.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="L'image ne doit pas dépasser 5 Mo")
+    if not content:
+        raise HTTPException(status_code=400, detail="Le fichier image envoyé est vide")
+    if len(content) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="L'image ne doit pas dépasser 8 Mo")
     
     # Supprimer l'ancienne photo si elle existe
     if teacher.photo:
-        old_photo_path = os.path.join("uploads", teacher.photo)
+        old_photo_path = os.path.join("uploads", os.path.basename(teacher.photo))
         if os.path.exists(old_photo_path):
             try:
                 os.remove(old_photo_path)
@@ -500,17 +522,17 @@ async def upload_teacher_photo(
     
     # Sauvegarder la nouvelle photo
     os.makedirs("uploads", exist_ok=True)
+    ext = ext_check if ext_check in (".jpg", ".jpeg", ".png", ".webp", ".gif") else ".jpg"
+    target_path = Path("uploads") / f"TEACHER_{teacher_id}_{int(time.time())}{ext}"
+    saved_p = compress_and_save_upload(content, target_path, max_dimension=1200, quality=82)
+    photo_filename = saved_p.name
     
-    # Générer un nom unique
-    ext = os.path.splitext(photo.filename)[1] if photo.filename else ".png"
-    photo_filename = f"TEACHER_{teacher_id}_{int(time.time())}{ext}"
-    photo_path = os.path.join("uploads", photo_filename)
-    
-    with open(photo_path, "wb") as buffer:
-        buffer.write(content)
-    
-    # Mettre à jour la base de données
+    # Mettre à jour la base de données (Teacher + User synchronisés)
     teacher.photo = photo_filename
+    if teacher.user_id:
+        u_obj = db.query(User).filter(User.id == teacher.user_id).first()
+        if u_obj:
+            u_obj.photo = photo_filename
     db.commit()
     db.refresh(teacher)
     
@@ -530,7 +552,7 @@ def delete_teacher(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary"))
 ):
-    """Supprimer un enseignant"""
+    """Supprimer un enseignant proprement avec nettoyage des clés étrangères"""
     teacher = db.query(Teacher).filter(
         Teacher.id == teacher_id,
         Teacher.university_id == current_user.university_id
@@ -540,23 +562,70 @@ def delete_teacher(
         raise HTTPException(status_code=404, detail="Enseignant non trouvé")
     
     if teacher.qr_code:
-        qr_path = os.path.join("qr_codes", teacher.qr_code)
+        qr_path = os.path.join("qr_codes", os.path.basename(teacher.qr_code))
         if os.path.exists(qr_path):
-            os.remove(qr_path)
+            try:
+                os.remove(qr_path)
+            except Exception:
+                pass
     
     if teacher.photo:
-        photo_path = os.path.join("uploads", teacher.photo)
+        photo_path = os.path.join("uploads", os.path.basename(teacher.photo))
         if os.path.exists(photo_path):
-            os.remove(photo_path)
+            try:
+                os.remove(photo_path)
+            except Exception:
+                pass
             
     user_id = teacher.user_id
-    db.delete(teacher)
-    db.commit()
-    
-    user = db.query(User).filter(User.id == user_id).first()
-    if user:
-        db.delete(user)
+
+    try:
+        from app.models.course import Course
+        from app.models.material import Material
+        from app.models.schedule import Schedule
+        from app.models.attendance import Attendance
+        from app.models.class_room import ClassRoom
+        from app.models.exam_schedule import ExamSchedule
+
+        db.query(Course).filter(Course.teacher_id == teacher.id).update({Course.teacher_id: None}, synchronize_session=False)
+        db.query(Material).filter(Material.teacher_id == teacher.id).delete(synchronize_session=False)
+        db.query(Schedule).filter(Schedule.teacher_id == teacher.id).update({Schedule.teacher_id: None}, synchronize_session=False)
+        db.query(Attendance).filter(Attendance.teacher_id == teacher.id).update({Attendance.teacher_id: None}, synchronize_session=False)
+        db.query(ClassRoom).filter(ClassRoom.main_teacher_id == teacher.id).update({ClassRoom.main_teacher_id: None}, synchronize_session=False)
+        db.query(ExamSchedule).filter(ExamSchedule.supervisor_id == teacher.id).update({ExamSchedule.supervisor_id: None}, synchronize_session=False)
+
+        db.delete(teacher)
+        db.flush()
+
+        # Supprimer le User uniquement s'il n'est affilié à aucune autre université
+        if user_id:
+            other_affiliations = db.query(Teacher).filter(Teacher.user_id == user_id).count()
+            if other_affiliations == 0:
+                from app.models.message import Message
+                from app.models.notification import Notification
+                from app.models.audit_log import AuditLog
+                from app.models.grade import Grade
+                from app.models.password_reset_otp import PasswordResetOTP
+                from app.models.password_reset_request import PasswordResetRequest
+
+                db.query(Message).filter((Message.sender_id == user_id) | (Message.recipient_id == user_id)).update({Message.parent_id: None}, synchronize_session=False)
+                db.query(Message).filter((Message.sender_id == user_id) | (Message.recipient_id == user_id)).delete(synchronize_session=False)
+                db.query(Notification).filter((Notification.recipient_id == user_id) | (Notification.created_by == user_id)).delete(synchronize_session=False)
+                db.query(PasswordResetOTP).filter(PasswordResetOTP.user_id == user_id).delete(synchronize_session=False)
+                db.query(PasswordResetRequest).filter((PasswordResetRequest.user_id == user_id) | (PasswordResetRequest.handled_by == user_id)).delete(synchronize_session=False)
+                db.query(AuditLog).filter(AuditLog.user_id == user_id).update({AuditLog.user_id: None}, synchronize_session=False)
+                db.query(Grade).filter(Grade.graded_by == user_id).update({Grade.graded_by: None}, synchronize_session=False)
+                db.query(Grade).filter(Grade.validated_by == user_id).update({Grade.validated_by: None}, synchronize_session=False)
+                db.query(Grade).filter(Grade.rejected_by == user_id).update({Grade.rejected_by: None}, synchronize_session=False)
+
+                user = db.query(User).filter(User.id == user_id).first()
+                if user:
+                    db.delete(user)
+
         db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la suppression de l'enseignant : {str(e)}")
         
     return {"message": "Enseignant supprimé avec succès"}
 

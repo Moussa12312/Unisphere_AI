@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Building2, FileText, Plus, X, Save, Loader2, Users, CheckCircle2, AlertTriangle, Mail, Phone, MapPin, Ban, Check } from 'lucide-react';
+import { Building2, FileText, Plus, X, Save, Loader2, Users, CheckCircle2, AlertTriangle, Mail, Phone, MapPin, Ban, Check, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
@@ -18,6 +18,7 @@ export default function SuperAdminUniversitiesPage() {
   const [universities, setUniversities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [selectedUniv, setSelectedUniv] = useState<any>(null);
   const [invoiceForm, setInvoiceForm] = useState({
@@ -41,6 +42,28 @@ export default function SuperAdminUniversitiesPage() {
       toast.error('Erreur lors du chargement des universités');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteUniversity = async (item: any) => {
+    const ok = await confirm({
+      title: `Supprimer DÉFINITIVEMENT ${item.university.name} ?`,
+      message: `Attention : cette action est IRRÉVERSIBLE. Toutes les données associées (étudiants, enseignants, notes, paiements, cours, fichiers) seront supprimées définitivement de la base de données.`,
+      confirmText: 'Supprimer définitivement',
+      variant: 'danger'
+    });
+
+    if (!ok) return;
+
+    setDeletingId(item.university.id);
+    try {
+      await api.delete(`/api/v1/superadmin/universities/${item.university.id}`);
+      toast.success(`Université ${item.university.name} supprimée avec succès`);
+      load();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Erreur lors de la suppression');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -118,9 +141,17 @@ export default function SuperAdminUniversitiesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Universités Clients</h1>
-        <p className="text-slate-500 mt-1">Vue consolidée des institutions partenaires, gestion d'accès et facturation</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Universités Clients</h1>
+          <p className="text-slate-500 mt-1">Vue consolidée des institutions partenaires, gestion d'accès et facturation</p>
+        </div>
+        <button
+          onClick={() => router.push('/superadmin/universities/new')}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#FF6B00] to-orange-500 hover:from-[#e55f00] hover:to-orange-600 text-white rounded-xl text-sm font-semibold transition-all shadow-md self-start sm:self-auto"
+        >
+          <Plus size={18} /> Nouvelle université
+        </button>
       </div>
 
       <div className="space-y-4">
@@ -231,6 +262,19 @@ export default function SuperAdminUniversitiesPage() {
                     className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all whitespace-nowrap"
                   >
                     Historique
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteUniversity(item)}
+                    disabled={deletingId === item.university.id}
+                    title="Supprimer définitivement l'université"
+                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-semibold transition-all border border-red-200"
+                  >
+                    {deletingId === item.university.id ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={15} />
+                    )}
                   </button>
                 </div>
               </div>

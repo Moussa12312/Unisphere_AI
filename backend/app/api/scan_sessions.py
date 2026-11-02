@@ -375,8 +375,8 @@ async def upload_scanned_document(
             print(f"⚠️ Erreur OCR : {e}")
             ocr_data = {"error": str(e)}
     
-    # Ajouter au tableau documents
-    documents = session.documents or []
+    from sqlalchemy.orm.attributes import flag_modified
+    documents = list(session.documents or [])
     documents.append({
         "type": document_type,
         "filename": filename,
@@ -387,15 +387,51 @@ async def upload_scanned_document(
         "ocr_data": ocr_data
     })
     
-    # Mettre à jour les données OCR globales (fusionner)
     if ocr_data and "error" not in ocr_data:
-        existing_ocr = session.ocr_extracted_data or {}
+        existing_ocr = dict(session.ocr_extracted_data or {})
         for key, value in ocr_data.items():
             if value and key not in ["raw_text", "error"]:
                 existing_ocr[key] = value
         session.ocr_extracted_data = existing_ocr
+        flag_modified(session, "ocr_extracted_data")
     
     session.documents = documents
+    flag_modified(session, "documents")
+
+    # Synchroniser automatiquement la pièce sur la fiche Student si student_id est connu
+    if session.student_id:
+        from app.models.student import Student
+        st_obj = db.query(Student).filter(Student.id == session.student_id).first()
+        if st_obj:
+            slot_map = {
+                "cni": "id_document",
+                "id_document": "id_document",
+                "birth_certificate": "birth_certificate",
+                "bac": "bac_diploma",
+                "bac_diploma": "bac_diploma",
+                "bac_transcript": "bac_transcript",
+                "medical_certificate": "medical_certificate",
+                "previous_transcript": "previous_transcript",
+                "success_certificate": "success_certificate",
+                "financial_clearance": "financial_clearance",
+                "reenrollment_form": "reenrollment_form",
+                "photo": "photo",
+            }
+            mapped_col = slot_map.get(document_type)
+            if mapped_col == "photo":
+                os.makedirs("uploads", exist_ok=True)
+                p_name = f"STUDENT_{st_obj.id}_{timestamp}{ext}"
+                shutil.copyfile(str(file_path), os.path.join("uploads", p_name))
+                st_obj.photo = p_name
+            elif mapped_col and hasattr(st_obj, mapped_col):
+                setattr(st_obj, mapped_col, str(file_path))
+            req_cols = (
+                [st_obj.birth_certificate, st_obj.bac_diploma, st_obj.bac_transcript, st_obj.id_document]
+                if (st_obj.student_type or "new") == "new"
+                else [st_obj.previous_transcript, st_obj.success_certificate, st_obj.financial_clearance]
+            )
+            st_obj.file_status = "complete" if all(req_cols) else "incomplete"
+
     db.commit()
     
     return {
@@ -469,9 +505,11 @@ def delete_document(
     except Exception as e:
         print(f"⚠️ Erreur suppression fichier : {e}")
     
-    # Retirer de la liste
+    from sqlalchemy.orm.attributes import flag_modified
+    documents = list(documents)
     documents.pop(doc_index)
     session.documents = documents
+    flag_modified(session, "documents")
     db.commit()
     
     return {"message": "Document supprimé", "total_documents": len(documents)}

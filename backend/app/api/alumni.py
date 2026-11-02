@@ -295,6 +295,7 @@ def register_alumni(
 
     # 1. Valider ou déterminer l'université
     univ_id = 1
+    invitation = None
     if token and token != "direct":
         invitation = db.query(AlumniInvitation).filter(
             AlumniInvitation.token == token,
@@ -367,12 +368,9 @@ def register_alumni(
     )
     db.add(new_alumni)
 
-    # 6. Incrémenter le compteur d'utilisations
-    invitation.used_count += 1
-
-    # 7. Notifier l'admin
+    # 6. Notifier l'admin
     admins = db.query(User).filter(
-        User.university_id == invitation.university_id,
+        User.university_id == univ_id,
         User.role == "admin"
     ).all()
     for admin in admins:

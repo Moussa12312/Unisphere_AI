@@ -128,6 +128,31 @@ def update_profile(
         else:
             user.phone = None
     
+    # Synchroniser les coordonnées avec la table métier si liée
+    try:
+        if user.role == "student":
+            from app.models.student import Student
+            st = db.query(Student).filter(Student.user_id == user.id).first()
+            if st:
+                st.email = user.email
+                if user.phone:
+                    st.phone = user.phone
+        elif user.role == "teacher":
+            from app.models.teacher import Teacher
+            for tc in db.query(Teacher).filter(Teacher.user_id == user.id).all():
+                tc.email = user.email
+                if user.phone is not None:
+                    tc.phone = user.phone or ""
+        elif user.role == "censeur":
+            from app.models.censor import Censor
+            cs = db.query(Censor).filter(Censor.user_id == user.id).first()
+            if cs:
+                cs.email = user.email
+                if user.phone is not None:
+                    cs.phone = user.phone
+    except Exception:
+        pass
+
     db.commit()
     db.refresh(user)
     
@@ -139,7 +164,7 @@ def update_profile(
             "email": user.email,
             "phone": user.phone or "",
             "role": user.role,
-            "photo": user.photo or ""
+            "photo": _resolve_user_photo(user, db)
         }
     }
     if new_token:
@@ -379,26 +404,31 @@ def create_user(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Seul un administrateur peut créer des comptes")
     
-    if db.query(User).filter(User.email == data.email).first():
+    clean_email = data.email.strip().lower()
+    clean_phone = data.phone.strip() if data.phone and data.phone.strip() else None
+
+    if db.query(User).filter(User.email == clean_email).first():
         raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
+    if clean_phone and db.query(User).filter(User.phone == clean_phone).first():
+        raise HTTPException(status_code=400, detail="Ce numéro de téléphone est déjà utilisé")
     
-    # Vérification que le rôle est valide selon ton Enum
     valid_roles = ["admin", "teacher", "censeur", "secretary", "accountant", "guard", "student"]
     if data.role not in valid_roles:
         raise HTTPException(status_code=400, detail=f"Rôle invalide. Choisir parmi: {', '.join(valid_roles)}")
     
     new_user = User(
         full_name=data.full_name,
-        email=data.email,
-        phone=data.phone,
+        email=clean_email,
+        phone=clean_phone,
         role=data.role,
+        university_id=current_user.university_id,
         hashed_password=pwd_context.hash(data.password),
         is_active=True
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return {"message": "Compte créé avec succès"}
+    return {"message": "Compte créé avec succès", "id": new_user.id}
 
 
 class UserStatusUpdate(BaseModel):
@@ -455,6 +485,26 @@ def delete_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-    db.delete(user)
-    db.commit()
-    return {"message": "Compte supprimé avec succès"}
+    try:
+        from app.models.message import Message
+        from app.models.notification import Notification
+        from app.models.audit_log import AuditLog
+        from app.models.censor import Censor
+        from app.models.password_reset_otp import PasswordResetOTP
+        from app.models.password_reset_request import PasswordResetRequest
+        from app.models.accounting import PayrollEntry
+
+        db.query(Censor).filter(Censor.user_id == user_id).delete(synchronize_session=False)
+        db.query(PayrollEntry).filter(PayrollEntry.user_id == user_id).delete(synchronize_session=False)
+        db.query(Message).filter((Message.sender_id == user_id) | (Message.recipient_id == user_id)).update({Message.parent_id: None}, synchronize_session=False)
+        db.query(Message).filter((Message.sender_id == user_id) | (Message.recipient_id == user_id)).delete(synchronize_session=False)
+        db.query(Notification).filter((Notification.recipient_id == user_id) | (Notification.created_by == user_id)).delete(synchronize_session=False)
+        db.query(PasswordResetOTP).filter(PasswordResetOTP.user_id == user_id).delete(synchronize_session=False)
+        db.query(PasswordResetRequest).filter((PasswordResetRequest.user_id == user_id) | (PasswordResetRequest.handled_by == user_id)).delete(synchronize_session=False)
+        db.query(AuditLog).filter(AuditLog.user_id == user_id).update({AuditLog.user_id: None}, synchronize_session=False)
+        db.delete(user)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Impossible de supprimer ce compte : {str(e)}")
+    return {"message": "Compte supprimé avec succès"}

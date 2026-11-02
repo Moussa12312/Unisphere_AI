@@ -6,6 +6,7 @@ import { Award } from 'lucide-react';
 export default function AlumniSettingsPage() {
   return (
     <SettingsPage 
+      defaultTab="appearance"
       role="alumni" 
       roleLabel="Alumni"
       roleIcon={Award}

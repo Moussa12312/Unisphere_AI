@@ -220,11 +220,86 @@ def create_expense(data: ExpenseCreate, db: Session = Depends(get_db), current_u
     return expense
 
 
+@router.put("/expenses/{expense_id}")
+def update_expense(
+    expense_id: int,
+    data: ExpenseCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant"))
+):
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id,
+        Expense.university_id == current_user.university_id
+    ).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Dépense non trouvée")
+
+    try:
+        expense_date = datetime.strptime(data.expense_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Format de date invalide (attendu AAAA-MM-JJ)")
+
+    prev_status = expense.status
+    expense.category_id = data.category_id
+    expense.supplier_id = data.supplier_id
+    expense.bank_account_id = data.bank_account_id
+    expense.title = data.title
+    expense.description = data.description
+    expense.amount = data.amount
+    expense.expense_date = expense_date
+    expense.payment_method = data.payment_method
+    expense.status = data.status
+    db.commit()
+    db.refresh(expense)
+
+    # Synchroniser l'écriture au Grand Livre
+    try:
+        from app.models.ledger import JournalEntry, JournalEntryLine
+        je_ids = [
+            r[0] for r in db.query(JournalEntry.id).filter(
+                JournalEntry.university_id == current_user.university_id,
+                JournalEntry.source == "expense",
+                JournalEntry.source_id == expense.id,
+            ).all()
+        ]
+        if je_ids:
+            db.query(JournalEntryLine).filter(JournalEntryLine.journal_entry_id.in_(je_ids)).delete(synchronize_session=False)
+            db.query(JournalEntry).filter(JournalEntry.id.in_(je_ids)).delete(synchronize_session=False)
+            db.commit()
+        if expense.status == "paid":
+            _try_create_expense_journal_entry(db, current_user.university_id, expense)
+    except Exception as _je_err:
+        print(f"[WARN] Sync écriture dépense {expense.id}: {_je_err}")
+
+    return expense
+
+
 @router.delete("/expenses/{expense_id}")
 def delete_expense(expense_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "accountant"))):
     expense = db.query(Expense).filter(Expense.id == expense_id, Expense.university_id == current_user.university_id).first()
     if not expense:
         raise HTTPException(status_code=404, detail="Dépense non trouvée")
+
+    # Détacher d'éventuelles fiches de paie liées et supprimer les écritures comptables associées
+    try:
+        from app.models.ledger import JournalEntry, JournalEntryLine
+        db.query(PayrollEntry).filter(PayrollEntry.expense_id == expense.id).update(
+            {PayrollEntry.expense_id: None, PayrollEntry.status: "pending", PayrollEntry.paid_date: None},
+            synchronize_session=False,
+        )
+        je_ids = [
+            r[0] for r in db.query(JournalEntry.id).filter(
+                JournalEntry.university_id == current_user.university_id,
+                JournalEntry.source == "expense",
+                JournalEntry.source_id == expense.id,
+            ).all()
+        ]
+        if je_ids:
+            db.query(JournalEntryLine).filter(JournalEntryLine.journal_entry_id.in_(je_ids)).delete(synchronize_session=False)
+            db.query(JournalEntry).filter(JournalEntry.id.in_(je_ids)).delete(synchronize_session=False)
+    except Exception as _cleanup_err:
+        print(f"[WARN] Nettoyage écriture dépense {expense_id}: {_cleanup_err}")
+
     db.delete(expense)
     db.commit()
     return {"message": "Dépense supprimée"}
@@ -389,11 +464,18 @@ def get_budgets(period: Optional[str] = None, db: Session = Depends(get_db), cur
 
     result = []
     for b in budgets:
-        spent = db.query(Expense).filter(
+        exp_q = db.query(Expense).filter(
             Expense.category_id == b.category_id,
             Expense.university_id == current_user.university_id,
             Expense.status == "paid"
-        ).with_entities(Expense.amount).all()
+        )
+        if b.period and len(str(b.period)) >= 4 and str(b.period)[:4].isdigit():
+            yr_num = int(str(b.period)[:4])
+            exp_q = exp_q.filter(
+                Expense.expense_date >= date(yr_num, 1, 1),
+                Expense.expense_date <= date(yr_num, 12, 31),
+            )
+        spent = exp_q.with_entities(Expense.amount).all()
         total_spent = sum(s[0] for s in spent)
         result.append({
             "id": b.id,
@@ -446,7 +528,7 @@ def get_assets(db: Session = Depends(get_db), current_user: User = Depends(requi
     result = []
     today = date.today()
     for a in assets:
-        years_elapsed = (today - a.purchase_date).days / 365.25
+        years_elapsed = max(0.0, (today - a.purchase_date).days / 365.25)
         depreciation_rate = min(years_elapsed / a.depreciation_years, 1.0) if a.depreciation_years > 0 else 1.0
         current_value = round(a.purchase_value * (1 - depreciation_rate), 2)
         result.append({
@@ -593,11 +675,12 @@ def get_income_statement(
     )
     expense_query = db.query(Expense).filter(Expense.university_id == current_user.university_id, Expense.status == "paid")
 
+    eff_pay_date = func.coalesce(Payment.payment_date, func.date(Payment.created_at))
     if start_date:
-        income_query = income_query.filter(Payment.payment_date >= start_date)
+        income_query = income_query.filter(eff_pay_date >= start_date)
         expense_query = expense_query.filter(Expense.expense_date >= start_date)
     if end_date:
-        income_query = income_query.filter(Payment.payment_date <= end_date)
+        income_query = income_query.filter(eff_pay_date <= end_date)
         expense_query = expense_query.filter(Expense.expense_date <= end_date)
 
     payments = income_query.all()

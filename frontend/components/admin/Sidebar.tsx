@@ -50,7 +50,7 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Enseignants', href: '/admin/teachers', icon: GraduationCap },
         { label: 'Cours', href: '/admin/courses', icon: BookOpen },
         { label: "Unités (UE)", href: '/admin/teaching-units', icon: Layers },
-        { label: 'Notes', href: '/admin/grades', icon: FileText },
+
       ]
     },
     {
@@ -76,15 +76,6 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Annonces', href: '/admin/announcements', icon: Bell },
         { label: 'Messagerie', href: '/admin/messages', icon: MessageSquare },
         { label: 'Alumni', href: '/admin/alumni', icon: Award },
-      ]
-    },
-    {
-      title: 'DOCUMENTS',
-      items: [
-        { label: 'Actes officiels', href: '/secretary/documents/generate', icon: FileCheck },
-        { label: 'Cartes Étudiants', href: '/secretary/student-cards', icon: CreditCard },
-        { label: 'Archives', href: '/secretary/documents', icon: FileText },
-        { label: "Demandes d'actes", href: '/secretary/certificate-requests', icon: ScrollText },
       ]
     },
     {
@@ -125,8 +116,7 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Liste Étudiants', href: '/secretary/students', icon: Users },
         { label: 'Inscriptions', href: '/secretary/students/enrollment', icon: UserPlus },
         { label: 'Import en masse', href: '/secretary/students/bulk', icon: FileSpreadsheet },
-        { label: 'Dossiers', href: '/secretary/students/files', icon: Folder },
-        { label: 'Cartes Étudiants', href: '/secretary/student-cards', icon: CreditCard },
+
         { label: 'Mots de passe', href: '/secretary/students/password-requests', icon: KeyRound },
       ]
     },

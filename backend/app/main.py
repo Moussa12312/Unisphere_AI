@@ -42,7 +42,7 @@ from app.models.censor import Censor
 from app.models import certificate_request
 from app.models.accounting import Supplier, ExpenseCategory, Expense, BankAccount, CashTransaction, Budget, FixedAsset, PayrollEntry
 from app.models.ledger import Account, JournalEntry, JournalEntryLine, FiscalYear, BankReconciliation
-from app.models.client_billing import ClientInvoice, ClientPayment
+from app.models.client_billing import ClientInvoice, ClientPayment, UniversityBillingConfig, FeatureRequest
 from app.models.password_reset_request import PasswordResetRequest
 
 _optional_models = [
@@ -51,6 +51,7 @@ _optional_models = [
     ('app.models.scan_session', 'ScanSession'),
     ('app.models.document', 'Document'),
     ('app.models.exam_session', 'ExamSession'),
+    ('app.models.exam_schedule', 'ExamSchedule'),
     ('app.models.report_card', 'ReportCard'),
     ('app.models.class_room', 'ClassRoom'),
     ('app.models.schedule', 'Schedule'),
@@ -60,6 +61,10 @@ _optional_models = [
     ('app.models.academic_config', 'AcademicConfig'),
     ('app.models.course_history', 'CourseHistory'),
     ('app.models.anomaly_config', 'AnomalyConfig'),
+    ('app.models.teaching_unit', 'TeachingUnit'),
+    ('app.models.room', 'Room'),
+    ('app.models.password_reset_otp', 'PasswordResetOTP'),
+    ('app.models.student_academic_history', 'StudentAcademicHistory'),
 ]
 
 for module_path, _ in _optional_models:
@@ -68,21 +73,46 @@ for module_path, _ in _optional_models:
     except ImportError:
         pass
 
-# ✅ Enregistrer automatiquement toutes les tables SQLAlchemy
+# Importer dynamiquement tout autre modèle présent dans app/models/
 try:
-    Base.metadata.create_all(bind=engine)
+    import pkgutil
+    import app.models as _models_pkg
+    for _, _mod_name, _ in pkgutil.iter_modules(_models_pkg.__path__):
+        if not _mod_name.startswith("_"):
+            try:
+                __import__(f"app.models.{_mod_name}")
+            except Exception:
+                pass
+except Exception:
+    pass
+
+# ✅ S'assurer que le dossier de travail relatif pointe bien sur backend/
+BASE_DIR_BOOT = Path(__file__).resolve().parent.parent
+try:
+    os.chdir(str(BASE_DIR_BOOT))
+except Exception:
+    pass
+
+# ✅ Créer les tables ET synchroniser automatiquement toutes les colonnes manquantes (PostgreSQL & SQLite)
+try:
+    from app.database.auto_migrate import run_auto_migrations
+    _added_cols = run_auto_migrations(engine)
+    if _added_cols:
+        print(f"[STARTUP] ✅ Auto-migration : {_added_cols} colonne(s) ajoutée(s) avec succès.")
 except Exception as e:
-    print(f"[WARNING] Erreur creation tables: {e}")
-
-
+    print(f"[WARNING] Erreur auto-migration / creation tables: {e}")
 
 # ============================================
-# CRÉER LES DOSSIERS
+# CRÉER TOUS LES DOSSIERS DE STOCKAGE
 # ============================================
-for folder in ["qr_codes", "uploads", "uploads/logos", "uploads/courses", "uploads/documents",
-               "uploads/profiles", "uploads/messages", "uploads/incidents", "uploads/certificates",
-               "uploads/materials", "uploads/student_documents", "uploads/temp_scans", "uploads/dossier_etudiant"]:
-    Path(folder).mkdir(parents=True, exist_ok=True)
+for folder in [
+    "qr_codes", "uploads", "uploads/avatars", "uploads/logos", "uploads/courses",
+    "uploads/documents", "uploads/profiles", "uploads/messages", "uploads/incidents",
+    "uploads/certificates", "uploads/materials", "uploads/student_documents",
+    "uploads/temp_scans", "uploads/dossier_etudiant", "uploads/dossiers",
+    "uploads/photos", "uploads/qrcodes"
+]:
+    (BASE_DIR_BOOT / folder).mkdir(parents=True, exist_ok=True)
 
 # ============================================
 # APP FASTAPI
@@ -97,6 +127,7 @@ app = FastAPI(
 @app.on_event("startup")
 def ensure_alumni_demo():
     try:
+        from sqlalchemy import text
         from app.models.university import University
         from app.models.user import User
         from app.models.student import Student
@@ -105,9 +136,17 @@ def ensure_alumni_demo():
         from datetime import datetime, timezone
 
         db = SessionLocal()
+        got_lock = True
         try:
-            univ = db.query(University).first()
-            univ_id = univ.id if univ else None
+            if engine.dialect.name == "postgresql":
+                got_lock = bool(db.execute(text("SELECT pg_try_advisory_lock(84920174);")).scalar())
+                if not got_lock:
+                    return
+
+            univ = db.query(University).order_by(University.id.asc()).first()
+            if not univ:
+                return
+            univ_id = univ.id
 
             user = db.query(User).filter(User.email == "alumni@unisphere.ai").first()
             if not user:
@@ -125,17 +164,18 @@ def ensure_alumni_demo():
                 db.refresh(user)
                 print(f"[STARTUP] Compte alumni cree: {user.email}")
             else:
-                user.hashed_password = hash_password("unisphere2026")
                 user.role = "alumni"
                 user.is_active = True
                 user.is_email_verified = True
+                if not user.university_id:
+                    user.university_id = univ_id
                 db.commit()
 
             profile = db.query(AlumniProfile).filter(AlumniProfile.user_id == user.id).first()
             if not profile:
                 profile = AlumniProfile(
                     user_id=user.id,
-                    university_id=univ_id or 1,
+                    university_id=univ_id,
                     first_name="Moussa",
                     last_name="Fofana",
                     email=user.email,
@@ -169,7 +209,14 @@ def ensure_alumni_demo():
                 profile.is_open_to_internship = True
                 db.commit()
 
-            students = db.query(Student).limit(4).all()
+            # ✅ Filtrer strictement par la même université pour ne jamais créer de liens inter-universités
+            students = (
+                db.query(Student)
+                .filter(Student.university_id == profile.university_id)
+                .order_by(Student.id.asc())
+                .limit(4)
+                .all()
+            )
             if len(students) >= 2:
                 c1 = db.query(AlumniConnection).filter(
                     AlumniConnection.alumni_id == profile.id,
@@ -202,8 +249,13 @@ def ensure_alumni_demo():
                     )
                     db.add(c2)
                 db.commit()
-                print("[STARTUP] Connexions Alumni assurees avec succes.")
         finally:
+            if got_lock and engine.dialect.name == "postgresql":
+                try:
+                    db.execute(text("SELECT pg_advisory_unlock(84920174);"))
+                    db.commit()
+                except Exception:
+                    pass
             db.close()
     except Exception as e:
         print(f"[STARTUP] Erreur initialisation alumni demo: {e}")

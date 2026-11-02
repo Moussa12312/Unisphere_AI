@@ -142,6 +142,21 @@ export default function StudentPaymentDetailPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+      {/* Alerte si filière non configurée */}
+      {summary?.is_configured === false && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl shadow-xs">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="text-amber-600 shrink-0" size={24} />
+            <div>
+              <h3 className="font-bold text-amber-900 text-sm">Frais de scolarité non configurés</h3>
+              <p className="text-xs text-amber-700 mt-0.5">
+                La scolarité pour le niveau <strong>{student?.level}</strong> et la filière <strong>{student?.filiere}</strong> n'a pas encore été définie par l'administration. Aucun tarif fictif ne lui est attribué.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <div className="flex items-center text-sm text-slate-500">
         <Link href="/accountant/payments" className="hover:text-[#FF6B00] flex items-center gap-1">
@@ -407,20 +422,20 @@ export default function StudentPaymentDetailPage() {
           <button 
             disabled={downloading}
             onClick={() => {
-              if (paidTranches.length > 0) {
-                const targetTranche = paidTranches[0];
+              const targetPaymentId = paidTranches[0]?.payment_id || summary?.payments?.[0]?.id;
+              if (targetPaymentId) {
                 downloadDocument(
-                  `/api/v1/documents/generate-receipt/${targetTranche.id || studentId}`,
-                  `recu_tranche_1_${studentId}.pdf`
+                  `/api/v1/documents/generate-receipt/${targetPaymentId}`,
+                  `recu_paiement_${studentId}_${targetPaymentId}.pdf`
                 );
               } else {
-                toast.info('Aucune tranche payée pour le moment');
+                toast.info('Aucun paiement enregistré pour générer un reçu');
               }
             }}
             className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 text-blue-700 rounded-xl text-sm font-medium transition-colors border border-blue-200 cursor-pointer"
           >
             <Download size={16} />
-            Télécharger reçu tranche 1
+            Télécharger reçu officiel (PDF)
           </button>
           <button 
             disabled={downloading}

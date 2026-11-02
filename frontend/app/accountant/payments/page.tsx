@@ -33,57 +33,30 @@ export default function PaymentsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [studentsRes, paymentsRes] = await Promise.all([
-        api.get('/api/v1/students/').catch(() => ({ data: [] })),
-        api.get('/api/v1/payments/summary').catch(() => ({ data: null }))
-      ]);
-      
-      const studentsData = Array.isArray(studentsRes.data) 
-        ? studentsRes.data 
-        : (studentsRes.data?.data || []);
-      
-      // Charger les détails de paiement pour chaque étudiant
-      const studentsWithPayments = await Promise.all(
-        studentsData.map(async (student: any) => {
-          try {
-            const paymentRes = await api.get(`/api/v1/payments/student/${student.id}/summary`);
-            return {
-              ...student,
-              payment_summary: paymentRes.data
-            };
-          } catch (error) {
-            // Si pas de paiements, retourner des valeurs par défaut
-            return {
-              ...student,
-              payment_summary: {
-                total_amount: 0,
-                total_paid: 0,
-                total_remaining: 0,
-                paid_percentage: 0,
-                status: 'unpaid',
-                tranches: []
-              }
-            };
-          }
-        })
-      );
-      
-      setStudents(studentsWithPayments);
-      
-      // Calculer les stats globales
-      const totalDue = studentsWithPayments.reduce((sum, s) => sum + (s.payment_summary?.total_amount || 0), 0);
-      const totalPaid = studentsWithPayments.reduce((sum, s) => sum + (s.payment_summary?.total_paid || 0), 0);
-      const totalRemaining = studentsWithPayments.reduce((sum, s) => sum + (s.payment_summary?.total_remaining || 0), 0);
-      const paidStudents = studentsWithPayments.filter(s => s.payment_summary?.status === 'paid').length;
-      const lateStudents = studentsWithPayments.filter(s => 
-        s.payment_summary?.status === 'partial' && s.payment_summary?.has_late
-      ).length;
-      
+      // 🚀 Requête groupée zéro N+1
+      const res = await api.get('/api/v1/payments/students-overview').catch(async () => {
+        // Fallback rétrocompatible
+        const fallbackRes = await api.get('/api/v1/students/').catch(() => ({ data: [] }));
+        const list = Array.isArray(fallbackRes.data) ? fallbackRes.data : (fallbackRes.data?.data || []);
+        return { data: { students: list.map((st: any) => ({ ...st, payment_summary: { total_amount: 0, total_paid: 0, total_remaining: 0, paid_percentage: 0, status: 'unpaid', tranches: [] } })) } };
+      });
+
+      const overviewData = res.data;
+      const studentsList = Array.isArray(overviewData) ? overviewData : (overviewData.students || []);
+
+      setStudents(studentsList);
+
+      const totalDue = overviewData.stats?.total_due ?? studentsList.reduce((sum: number, s: any) => sum + (s.payment_summary?.total_amount || 0), 0);
+      const totalPaid = overviewData.stats?.total_paid ?? studentsList.reduce((sum: number, s: any) => sum + (s.payment_summary?.total_paid || 0), 0);
+      const totalRemaining = overviewData.stats?.total_remaining ?? studentsList.reduce((sum: number, s: any) => sum + (s.payment_summary?.total_remaining || 0), 0);
+      const paidStudents = overviewData.stats?.paid_students ?? studentsList.filter((s: any) => s.payment_summary?.status === 'paid').length;
+      const lateStudents = overviewData.stats?.late_students ?? studentsList.filter((s: any) => s.payment_summary?.status === 'partial' && s.payment_summary?.has_late).length;
+
       setStats({
         total_due: totalDue,
         total_paid: totalPaid,
         total_remaining: totalRemaining,
-        students_count: studentsWithPayments.length,
+        students_count: studentsList.length,
         paid_students: paidStudents,
         late_students: lateStudents
       });
@@ -100,7 +73,15 @@ export default function PaymentsPage() {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
   };
 
-  const getStatusBadge = (status: string, percentage: number) => {
+  const getStatusBadge = (status: string, percentage: number, isConfigured?: boolean) => {
+    if (isConfigured === false || status === 'unconfigured') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-amber-100 text-amber-800 rounded-full border border-amber-300">
+          <AlertCircle size={10} />
+          NON CONFIGURÉ
+        </span>
+      );
+    }
     if (status === 'paid' || percentage >= 100) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-full border border-green-200">
@@ -261,6 +242,7 @@ export default function PaymentsPage() {
             <option value="paid">✅ Soldés</option>
             <option value="partial">🟠 Reliquats</option>
             <option value="unpaid">🔴 Non payés</option>
+            <option value="unconfigured">⚠️ Non configurés</option>
           </select>
         </div>
       </div>
@@ -310,7 +292,7 @@ export default function PaymentsPage() {
                         <h3 className="text-base sm:text-lg font-bold text-slate-900">
                           {student.first_name} {student.last_name}
                         </h3>
-                        {getStatusBadge(summary.status, summary.paid_percentage)}
+                        {getStatusBadge(summary.status, summary.paid_percentage, summary.is_configured)}
                       </div>
                       <p className="text-sm text-slate-500 mb-3">
                         🎓 {student.matricule} • {student.filiere} {student.level}

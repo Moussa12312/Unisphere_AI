@@ -146,7 +146,7 @@ export default function ReceiptTemplate({ receipt, showBackButton = false, backU
 
             <div className="flex flex-col items-center order-1 sm:order-2">
               {u.logo ? (
-                <img src={`${API_BASE_URL}/uploads/logos/${u.logo}`} alt="Logo" className="w-12 h-12 sm:w-14 sm:h-14 object-contain mb-1" />
+                <img src={getMediaUrl(u.logo)} alt="Logo" className="w-12 h-12 sm:w-14 sm:h-14 object-contain mb-1" />
               ) : (
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-slate-800 flex items-center justify-center font-black text-xs sm:text-sm text-[#FF6B00] mb-1">
                   UNI

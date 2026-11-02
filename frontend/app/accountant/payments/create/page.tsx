@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft, Save, Loader2, CheckCircle, AlertCircle,
   Calendar, DollarSign, User, CreditCard, Receipt,
@@ -11,9 +11,12 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 
-export default function CreatePaymentPage() {
+function CreatePaymentContent() {
   const toast = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedStudentId = searchParams.get('student') || searchParams.get('student_id');
+  const preselectedTrancheId = searchParams.get('tranche') || searchParams.get('tranche_id');
   
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
@@ -48,6 +51,17 @@ export default function CreatePaymentPage() {
       const response = await api.get('/api/v1/students/');
       const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
       setStudents(data);
+      if (preselectedStudentId && data.length > 0) {
+        const found = data.find((s: any) => String(s.id) === String(preselectedStudentId));
+        if (found) {
+          setSelectedStudent(found);
+          setFormData((prev: any) => ({
+            ...prev,
+            student_id: String(found.id),
+            tranche_id: preselectedTrancheId ? String(preselectedTrancheId) : prev.tranche_id
+          }));
+        }
+      }
     } catch (error) {
       toast.error('Impossible de charger les étudiants');
     }
@@ -107,6 +121,10 @@ export default function CreatePaymentPage() {
     
     if (!formData.student_id) {
       toast.error('Veuillez sélectionner un étudiant');
+      return;
+    }
+    if (formData.payment_type === 'scolarite' && studentSummary?.is_configured === false) {
+      toast.error("La scolarité pour cette filière n'est pas encore configurée. Veuillez d'abord la configurer dans Paramètres > Frais.");
       return;
     }
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
@@ -659,5 +677,17 @@ export default function CreatePaymentPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CreatePaymentPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="animate-spin text-[#FF6B00]" size={32} />
+      </div>
+    }>
+      <CreatePaymentContent />
+    </Suspense>
   );
 }

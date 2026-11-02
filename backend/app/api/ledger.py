@@ -82,14 +82,24 @@ EXPENSE_CATEGORY_TO_ACCOUNT = {
 }
 
 
+def _resolve_treasury_account_code(payment_method: Optional[str]) -> str:
+    pm = (payment_method or "").strip().lower()
+    if pm in ("cash", "especes", "espèces", "caisse"):
+        return "571000"
+    return "512000"
+
+
 def create_journal_entry_for_expense(db: Session, university_id: int, expense) -> Optional[JournalEntry]:
-    """Débit : compte de charge concerné — Crédit : Banque/Caisse."""
+    """Débit : compte de charge concerné — Crédit : Banque (512000) ou Caisse (571000)."""
+    if getattr(expense, "status", "paid") != "paid":
+        return None
     ensure_default_accounts(db, university_id)
 
     category_name = expense.category.name.lower() if expense.category else ""
     charge_code = EXPENSE_CATEGORY_TO_ACCOUNT.get(category_name, "601000")
     charge_account = get_account_by_code(db, university_id, charge_code)
-    treasury_account = get_account_by_code(db, university_id, "512000")
+    t_code = _resolve_treasury_account_code(getattr(expense, "payment_method", None))
+    treasury_account = get_account_by_code(db, university_id, t_code) or get_account_by_code(db, university_id, "512000")
 
     if not charge_account or not treasury_account:
         return None
@@ -105,10 +115,11 @@ def create_journal_entry_for_expense(db: Session, university_id: int, expense) -
 
 
 def create_journal_entry_for_payment(db: Session, university_id: int, payment) -> Optional[JournalEntry]:
-    """Débit : Banque/Caisse — Crédit : Frais de scolarité (produit)."""
+    """Débit : Banque (512000) ou Caisse (571000) — Crédit : Frais de scolarité (706000)."""
     ensure_default_accounts(db, university_id)
 
-    treasury_account = get_account_by_code(db, university_id, "512000")
+    t_code = _resolve_treasury_account_code(getattr(payment, "payment_method", None))
+    treasury_account = get_account_by_code(db, university_id, t_code) or get_account_by_code(db, university_id, "512000")
     revenue_account = get_account_by_code(db, university_id, "706000")
 
     if not treasury_account or not revenue_account:
@@ -217,9 +228,9 @@ def get_journal(
     if end_date:
         query = query.filter(JournalEntry.entry_date <= end_date)
     if account_id:
-        query = query.join(JournalEntryLine).filter(JournalEntryLine.account_id == account_id)
+        query = query.join(JournalEntryLine).filter(JournalEntryLine.account_id == account_id).distinct()
 
-    entries = query.order_by(JournalEntry.entry_date.desc()).all()
+    entries = query.order_by(JournalEntry.entry_date.desc(), JournalEntry.id.desc()).all()
     return [{
         "id": e.id, "reference": e.reference,
         "entry_date": e.entry_date.isoformat(), "description": e.description, "source": e.source,

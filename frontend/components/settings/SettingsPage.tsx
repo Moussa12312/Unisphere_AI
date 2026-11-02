@@ -17,6 +17,7 @@ interface SettingsPageProps {
   role: string;
   roleLabel: string;
   roleIcon?: any;
+  defaultTab?: 'profile' | 'notifications' | 'appearance' | 'sound' | 'security' | 'data';
 }
 
 interface UserProfile {
@@ -36,12 +37,12 @@ interface SessionEntry {
   date: string;
 }
 
-export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Settings }: SettingsPageProps) {
+export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Settings, defaultTab = 'profile' }: SettingsPageProps) {
   const toast = useToast();
   const { settings, updateSetting, updateSettings, resetSettings, saveSettingsToServer, isDarkMode } = useSettings();
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'appearance' | 'sound' | 'security' | 'data'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'appearance' | 'sound' | 'security' | 'data'>(defaultTab);
 
   // Profile State
   const [profile, setProfile] = useState<UserProfile>({
@@ -481,7 +482,7 @@ export default function SettingsPage({ role, roleLabel, roleIcon: RoleIcon = Set
                   {profile.photo ? (
                     <img src={getMediaUrl(profile.photo)} alt="Profil" className="w-full h-full object-cover" />
                   ) : (
-                    <span>{initials}</span>
+                    <span>{initial}</span>
                   )}
                 </div>
                 <div className="min-w-0">

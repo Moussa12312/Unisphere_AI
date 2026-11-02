@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   AlertCircle, Phone, MessageSquare, Send, CheckCircle2,
   RefreshCw, Search, Filter, Users, DollarSign, ExternalLink,
@@ -67,12 +67,15 @@ export default function AccountantUnpaidPage() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [historyItems, setHistoryItems] = useState<ReminderHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [allFilieres, setAllFilieres] = useState<string[]>([]);
+  const reqIdRef = useRef(0);
 
   useEffect(() => {
     loadUnpaidStudents();
   }, [selectedFiliere]);
 
   const loadUnpaidStudents = async () => {
+    const curId = ++reqIdRef.current;
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -80,16 +83,27 @@ export default function AccountantUnpaidPage() {
       if (search.trim()) params.append('search', search.trim());
 
       const res = await api.get(`/api/v1/reminders/unpaid-students?${params.toString()}`);
+      if (curId !== reqIdRef.current) return; // Discard stale response
       const data = res.data;
       setStudents(data.students || []);
       setTotalUnpaidAmount(data.total_unpaid_amount || 0);
       setWithPhoneCount(data.with_student_phone_count || 0);
       setWithParentPhoneCount(data.with_parent_phone_count || 0);
+      if (Array.isArray(data.all_filieres) && data.all_filieres.length > 0) {
+        setAllFilieres(data.all_filieres);
+      } else if (allFilieres.length === 0 && Array.isArray(data.students)) {
+        const discovered = Array.from(new Set(data.students.map((s: any) => s.filiere).filter(Boolean)));
+        if (discovered.length > 0) setAllFilieres(discovered as string[]);
+      }
     } catch (err: any) {
-      toast.error('Erreur lors du chargement des impayés');
-      setStudents([]);
+      if (curId === reqIdRef.current) {
+        toast.error('Erreur lors du chargement des impayés');
+        setStudents([]);
+      }
     } finally {
-      setLoading(false);
+      if (curId === reqIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -162,7 +176,9 @@ export default function AccountantUnpaidPage() {
     return new Intl.NumberFormat('fr-FR').format(Math.round(val)) + ' FCFA';
   };
 
-  const filieres = Array.from(new Set(students.map((s) => s.filiere).filter(Boolean)));
+  const filieres = allFilieres.length > 0 
+    ? allFilieres 
+    : Array.from(new Set(students.map((s) => s.filiere).filter(Boolean)));
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">

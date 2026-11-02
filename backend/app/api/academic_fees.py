@@ -117,7 +117,35 @@ def create_or_update_fee(
     else:
         query_existing = query_existing.filter((AcademicFee.domain == None) | (AcademicFee.domain == ""))
 
-    existing = query_existing.first()
+    existing = query_existing.order_by(AcademicFee.is_locked.asc(), AcademicFee.id.desc()).first()
+
+    def _sync_level_domain_tranches(lvl: str, dom: Optional[str], yr: str, total_amt: float):
+        if data.payment_type != "scolarite":
+            return
+        from app.models.payment_tranche import PaymentTranche
+        tq = db.query(PaymentTranche).filter(
+            PaymentTranche.university_id == university_id,
+            PaymentTranche.level == lvl,
+            PaymentTranche.payment_type == "scolarite",
+            PaymentTranche.academic_year == yr,
+        )
+        if dom:
+            tq = tq.filter(PaymentTranche.domain == dom)
+        else:
+            tq = tq.filter((PaymentTranche.domain == None) | (PaymentTranche.domain == ""))
+        t_rows = tq.order_by(PaymentTranche.tranche_number.asc(), PaymentTranche.id.asc()).all()
+        if not t_rows:
+            return
+        target_int = max(0, int(round(float(total_amt or 0.0))))
+        allocated = 0
+        for idx_t, tr in enumerate(t_rows):
+            if idx_t == len(t_rows) - 1:
+                tr.amount = float(max(0, target_int - allocated))
+            else:
+                part = int(round((target_int * float(tr.percentage or 0.0)) / 100.0))
+                part = min(part, max(0, target_int - allocated))
+                tr.amount = float(part)
+                allocated += part
     
     # Calcul des modalités mensuelles
     has_monthly = data.has_monthly_option if data.has_monthly_option is not None else True
@@ -149,6 +177,7 @@ def create_or_update_fee(
                 created_by=current_user.id
             )
             db.add(new_fee)
+            _sync_level_domain_tranches(data.level, data.domain, data.academic_year, data.amount)
             db.commit()
             db.refresh(new_fee)
             
@@ -158,7 +187,6 @@ def create_or_update_fee(
                 "is_new_version": True
             }
         else:
-            # Modifier directement
             existing.amount = data.amount
             if data.domain is not None:
                 existing.domain = data.domain
@@ -166,9 +194,9 @@ def create_or_update_fee(
             existing.monthly_deposit = m_dep
             existing.monthly_installment = m_inst
             existing.monthly_months_count = m_months
+            _sync_level_domain_tranches(data.level, data.domain, data.academic_year, data.amount)
             db.commit()
 
-            # ✅ Propagation aux autres pôles associés si demandé
             if data.sync_associated_domains and data.domain in ASSOCIATED_DOMAINS:
                 for other_dom in ASSOCIATED_DOMAINS:
                     if other_dom != data.domain:
@@ -178,8 +206,8 @@ def create_or_update_fee(
                             AcademicFee.domain == other_dom,
                             AcademicFee.payment_type == data.payment_type,
                             AcademicFee.academic_year == data.academic_year
-                        ).first()
-                        if q_other:
+                        ).order_by(AcademicFee.is_locked.asc(), AcademicFee.id.desc()).first()
+                        if q_other and not q_other.is_locked:
                             q_other.amount = data.amount
                             q_other.has_monthly_option = has_monthly
                             q_other.monthly_deposit = m_dep
@@ -203,6 +231,7 @@ def create_or_update_fee(
                                 created_by=current_user.id
                             )
                             db.add(new_other)
+                        _sync_level_domain_tranches(data.level, other_dom, data.academic_year, data.amount)
                 db.commit()
             
             return {
@@ -211,7 +240,6 @@ def create_or_update_fee(
                 "is_new_version": False
             }
     else:
-        # Créer un nouveau frais
         new_fee = AcademicFee(
             university_id=university_id,
             level=data.level,
@@ -228,10 +256,10 @@ def create_or_update_fee(
             created_by=current_user.id
         )
         db.add(new_fee)
+        _sync_level_domain_tranches(data.level, data.domain, data.academic_year, data.amount)
         db.commit()
         db.refresh(new_fee)
 
-        # ✅ Propagation aux autres pôles associés si demandé
         if data.sync_associated_domains and data.domain in ASSOCIATED_DOMAINS:
             for other_dom in ASSOCIATED_DOMAINS:
                 if other_dom != data.domain:
@@ -241,8 +269,8 @@ def create_or_update_fee(
                         AcademicFee.domain == other_dom,
                         AcademicFee.payment_type == data.payment_type,
                         AcademicFee.academic_year == data.academic_year
-                    ).first()
-                    if q_other:
+                    ).order_by(AcademicFee.is_locked.asc(), AcademicFee.id.desc()).first()
+                    if q_other and not q_other.is_locked:
                         q_other.amount = data.amount
                         q_other.has_monthly_option = has_monthly
                         q_other.monthly_deposit = m_dep
@@ -266,6 +294,7 @@ def create_or_update_fee(
                             created_by=current_user.id
                         )
                         db.add(new_other)
+                    _sync_level_domain_tranches(data.level, other_dom, data.academic_year, data.amount)
             db.commit()
         
         return {
@@ -439,67 +468,59 @@ def get_student_fees(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "accountant", "secretary", "student"))
 ):
-    """Récupérer les frais configurés pour un étudiant (verrouillés ou actifs)"""
-    student = db.query(Student).filter(Student.id == student_id).first()
+    """Récupérer les frais configurés pour un étudiant (strictement isolés par filière/domaine)"""
+    student = db.query(Student).filter(
+        Student.id == student_id,
+        Student.university_id == current_user.university_id,
+    ).first()
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
-    
-    # Si l'étudiant a des frais verrouillés
+    if current_user.role == "student" and student.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
+
+    from app.utils.tuition import find_matching_academic_fee, resolve_student_tuition_breakdown
+
+    scol_breakdown = resolve_student_tuition_breakdown(db, student, student.university_id, "scolarite")
+
     if student.locked_fee_id:
-        locked_fee = db.query(AcademicFee).filter(AcademicFee.id == student.locked_fee_id).first()
+        locked_fee = db.query(AcademicFee).filter(
+            AcademicFee.id == student.locked_fee_id,
+            AcademicFee.university_id == student.university_id,
+        ).first()
         if locked_fee:
-            base_amt = locked_fee.amount
-            net_amt = student.net_tuition_amount if student.net_tuition_amount is not None else max(0.0, base_amt - (student.discount_amount or 0.0))
             return {
                 "locked": True,
+                "is_configured": True,
                 "fee": {
                     "id": locked_fee.id,
                     "level": locked_fee.level,
                     "domain": locked_fee.domain,
                     "payment_type": locked_fee.payment_type,
-                    "amount": base_amt,
-                    "discount_amount": student.discount_amount or 0.0,
-                    "discount_percentage": student.discount_percentage or 0.0,
+                    "amount": scol_breakdown["base_amount"],
+                    "discount_amount": scol_breakdown["discount_amount"],
+                    "discount_percentage": scol_breakdown["discount_percentage"],
                     "discount_reason": student.discount_reason,
                     "discount_approved_by": student.discount_approved_by,
-                    "net_tuition_amount": net_amt,
-                    "academic_year": locked_fee.academic_year
-                }
+                    "net_tuition_amount": scol_breakdown["net_amount"],
+                    "academic_year": locked_fee.academic_year,
+                },
             }
-    
-    # Sinon, récupérer les frais actifs pour son niveau et domaine (priorité au domaine spécifique)
-    active_fees = []
-    if student.domain:
-        active_fees = db.query(AcademicFee).filter(
-            AcademicFee.university_id == student.university_id,
-            AcademicFee.level == student.level,
-            AcademicFee.domain == student.domain,
-            AcademicFee.is_locked == False
-        ).all()
-    
-    if not active_fees:
-        active_fees = db.query(AcademicFee).filter(
-            AcademicFee.university_id == student.university_id,
-            AcademicFee.level == student.level,
-            (AcademicFee.domain == None) | (AcademicFee.domain == ""),
-            AcademicFee.is_locked == False
-        ).all()
 
-    if not active_fees:
-        active_fees = db.query(AcademicFee).filter(
-            AcademicFee.university_id == student.university_id,
-            AcademicFee.level == student.level,
-            AcademicFee.is_locked == False
-        ).all()
-    
+    active_fees = []
+    for p_type in ("scolarite", "inscription", "autre"):
+        matched = find_matching_academic_fee(db, student, student.university_id, p_type)
+        if matched:
+            active_fees.append(matched)
+
     return {
         "locked": False,
+        "is_configured": scol_breakdown["is_configured"],
         "discount_info": {
-            "discount_amount": student.discount_amount or 0.0,
-            "discount_percentage": student.discount_percentage or 0.0,
+            "discount_amount": scol_breakdown["discount_amount"],
+            "discount_percentage": scol_breakdown["discount_percentage"],
             "discount_reason": student.discount_reason,
             "discount_approved_by": student.discount_approved_by,
-            "net_tuition_amount": student.net_tuition_amount
+            "net_tuition_amount": scol_breakdown["net_amount"] if scol_breakdown["is_configured"] else None,
         },
         "fees": [
             {
@@ -509,14 +530,14 @@ def get_student_fees(
                 "payment_type": f.payment_type,
                 "amount": f.amount,
                 "net_amount": (
-                    student.net_tuition_amount if (f.payment_type == 'scolarite' and student.net_tuition_amount is not None)
-                    else max(0.0, f.amount - (student.discount_amount or 0.0)) if f.payment_type == 'scolarite'
+                    scol_breakdown["net_amount"]
+                    if f.payment_type == "scolarite"
                     else f.amount
                 ),
-                "academic_year": f.academic_year
+                "academic_year": f.academic_year,
             }
             for f in active_fees
-        ]
+        ],
     }
 
 # ==========================================
@@ -654,4 +675,4 @@ def get_academic_fee_by_id(
         "is_locked": fee.is_locked,
         "locked_count": fee.locked_count,
         "created_at": fee.created_at.strftime("%Y-%m-%d %H:%M") if fee.created_at else ""
-    }
+    }

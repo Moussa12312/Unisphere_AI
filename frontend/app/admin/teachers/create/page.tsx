@@ -90,13 +90,20 @@ export default function CreateTeacherPage() {
   
       const response = await teacherService.create(formDataToSend);
       
-      toast.success(
-        `Enseignant créé ! Mot de passe : ${response.temp_password}`,
-        { duration: 8000 }
-      );
-      
-      navigator.clipboard.writeText(response.temp_password);
-      toast.success('Mot de passe copié dans le presse-papier !');
+      if (response.temp_password) {
+        toast.success(
+          `Enseignant créé ! Mot de passe : ${response.temp_password}`,
+          { duration: 8000 }
+        );
+        try {
+          if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            await navigator.clipboard.writeText(response.temp_password);
+            toast.success('Mot de passe copié dans le presse-papier !');
+          }
+        } catch {}
+      } else {
+        toast.success(response.message || 'Enseignant rattaché avec succès !');
+      }
       
       router.push('/admin/teachers');
       

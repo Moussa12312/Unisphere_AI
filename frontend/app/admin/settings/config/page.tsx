@@ -101,7 +101,7 @@ export default function AcademicConfigPage() {
   const [editingDeadline, setEditingDeadline] = useState<{type: string, date: string, description: string} | null>(null);
 
   // ✅ Synchronisation groupée des 3 pôles associés
-  const [autoSyncGroup, setAutoSyncGroup] = useState<boolean>(true);
+  const [autoSyncGroup, setAutoSyncGroup] = useState<boolean>(false);
   const [syncingDomains, setSyncingDomains] = useState<boolean>(false);
   
   // ✅ Pénalités

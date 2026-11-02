@@ -118,7 +118,7 @@ export default function InstallmentsPage() {
         </Link>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs exacts */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
@@ -127,8 +127,10 @@ export default function InstallmentsPage() {
                 <Users size={16} className="text-blue-600" />
               </div>
             </div>
-            <p className="text-xs text-slate-500">Total échéances</p>
-            <p className="text-xl font-bold text-slate-900">{stats.total || 0}</p>
+            <p className="text-xs text-slate-500">Reliquat total</p>
+            <p className="text-xl font-bold text-slate-900 truncate" title={formatFCFA(stats.total_balance ?? stats.total ?? 0)}>
+              {formatFCFA(stats.total_balance ?? stats.total ?? 0)}
+            </p>
           </div>
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
@@ -136,8 +138,8 @@ export default function InstallmentsPage() {
                 <CheckCircle size={16} className="text-green-600" />
               </div>
             </div>
-            <p className="text-xs text-slate-500">Payées</p>
-            <p className="text-xl font-bold text-green-600">{stats.paid || 0}</p>
+            <p className="text-xs text-slate-500">Étudiants débiteurs</p>
+            <p className="text-xl font-bold text-green-600">{stats.students_with_balance ?? installments.length ?? 0}</p>
           </div>
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
@@ -145,8 +147,8 @@ export default function InstallmentsPage() {
                 <Clock size={16} className="text-orange-600" />
               </div>
             </div>
-            <p className="text-xs text-slate-500">En attente</p>
-            <p className="text-xl font-bold text-orange-600">{stats.pending || 0}</p>
+            <p className="text-xs text-slate-500">Dossiers bloqués</p>
+            <p className="text-xl font-bold text-orange-600">{stats.blocked_count ?? 0}</p>
           </div>
           <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
@@ -154,8 +156,10 @@ export default function InstallmentsPage() {
                 <AlertCircle size={16} className="text-red-600" />
               </div>
             </div>
-            <p className="text-xs text-slate-500">En retard</p>
-            <p className="text-xl font-bold text-red-600">{stats.overdue || 0}</p>
+            <p className="text-xs text-slate-500">Montant en retard</p>
+            <p className="text-xl font-bold text-red-600 truncate" title={formatFCFA(stats.overdue_amount ?? stats.overdue ?? 0)}>
+              {formatFCFA(stats.overdue_amount ?? stats.overdue ?? 0)}
+            </p>
           </div>
         </div>
       )}

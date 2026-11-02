@@ -1,5 +1,7 @@
 import shutil
 import os
+import json
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func, text
@@ -100,7 +102,7 @@ def generate_invoice_number(db: Session) -> str:
 @router.get("/dashboard-stats")
 def get_dashboard_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     total_universities = db.query(University).count()
     total_students = db.query(Student).count()
@@ -171,7 +173,7 @@ def get_dashboard_stats(
 @router.get("/universities")
 def get_universities_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     universities = db.query(University).order_by(University.name.asc()).all()
     result = []
@@ -224,7 +226,7 @@ def toggle_university_status(
     university_id: int,
     data: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     univ = db.query(University).filter(University.id == university_id).first()
     if not univ:
@@ -259,7 +261,7 @@ def get_invoices(
     university_id: Optional[int] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     query = db.query(ClientInvoice)
 
@@ -320,7 +322,7 @@ def get_invoices(
 def create_invoice(
     data: InvoiceCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     univ = db.query(University).filter(University.id == data.university_id).first()
     if not univ:
@@ -373,7 +375,7 @@ def update_invoice(
     invoice_id: int,
     data: InvoiceUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     invoice = db.query(ClientInvoice).filter(ClientInvoice.id == invoice_id).first()
     if not invoice:
@@ -415,7 +417,7 @@ def mark_invoice_as_paid(
     invoice_id: int,
     data: MarkInvoicePaidRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     """
     Permet au Super-Admin de marquer une facture comme soldée directement
@@ -464,7 +466,7 @@ def mark_invoice_as_paid(
 def cancel_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     invoice = db.query(ClientInvoice).filter(ClientInvoice.id == invoice_id).first()
     if not invoice:
@@ -482,7 +484,7 @@ def cancel_invoice(
 @router.get("/payments")
 def get_payments(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     payments = db.query(ClientPayment).order_by(ClientPayment.created_at.desc()).all()
     result = []
@@ -511,7 +513,7 @@ def get_payments(
 def record_payment(
     data: PaymentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     invoice = db.query(ClientInvoice).filter(ClientInvoice.id == data.invoice_id).first()
     if not invoice:
@@ -571,7 +573,7 @@ class UniversityCreate(BaseModel):
 def create_university(
     data: UniversityCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     if not data.university_name.strip():
         raise HTTPException(status_code=400, detail="Nom de l'université requis")
@@ -636,7 +638,7 @@ def get_superadmin_audit_logs(
     status: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     from app.models.audit_log import AuditLog
     query = db.query(AuditLog, University.name.label("university_name"))\
@@ -801,7 +803,7 @@ def get_superadmin_incidents(
     university_id: Optional[int] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     from app.models.incident import Incident
     query = db.query(Incident, University.name.label("university_name"))\
@@ -842,7 +844,7 @@ def update_incident_status(
     incident_id: int,
     data: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     from app.models.incident import Incident
     inc = db.query(Incident).filter(Incident.id == incident_id).first()
@@ -857,7 +859,7 @@ def update_incident_status(
 @router.get("/universities-list")
 def get_all_universities_detailed(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     from app.models.student import Student
     from app.models.user import User
@@ -890,7 +892,7 @@ def get_all_universities_detailed(
 def toggle_university_status(
     university_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     univ = db.query(University).filter(University.id == university_id).first()
     if not univ:
@@ -904,13 +906,223 @@ def toggle_university_status(
     return {"message": f"Université {univ.name} {state} avec succès", "is_active": univ.is_active, "status": univ.status}
 
 
+@router.delete("/universities/{university_id}")
+def delete_university_completely(
+    university_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
+):
+    """
+    Supprime définitivement une université et TOUTES ses données dépendantes
+    dans l'ordre topologique inverse des clés étrangères (Zéro erreur 500 d'intégrité référentielle).
+    Les comptes Super-Admin sont systématiquement préservés.
+    """
+    from app.database.connection import Base
+
+    univ = db.query(University).filter(University.id == university_id).first()
+    if not univ:
+        raise HTTPException(status_code=404, detail="Université introuvable")
+
+    univ_name = univ.name
+    univ_logo = getattr(univ, "logo", None)
+
+    # 1. Détacher immédiatement tout compte super_admin/superadmin qui pointerait sur cette université
+    db.query(User).filter(
+        User.university_id == university_id,
+        User.role.in_(["super_admin", "superadmin"]),
+    ).update({User.university_id: None}, synchronize_session=False)
+    db.flush()
+
+    # Collecter les IDs utilisateurs et étudiants appartenant à cette université pour nettoyer les tables enfants sans university_id
+    univ_user_ids = [
+        r[0] for r in db.query(User.id).filter(
+            User.university_id == university_id,
+            ~User.role.in_(["super_admin", "superadmin"]),
+        ).all()
+    ]
+    univ_student_ids = [
+        r[0] for r in db.query(Student.id).filter(Student.university_id == university_id).all()
+    ]
+
+    try:
+        # 2. Nettoyage explicite des tables enfants et auto-références qui n'ont pas forcément university_id direct
+        # 2a. Facturation SaaS client_payments -> feature_requests.invoice_id -> client_invoices
+        inv_ids = [r[0] for r in db.query(ClientInvoice.id).filter(ClientInvoice.university_id == university_id).all()]
+        db.query(FeatureRequest).filter(FeatureRequest.university_id == university_id).update(
+            {FeatureRequest.invoice_id: None}, synchronize_session=False
+        )
+        if inv_ids:
+            db.query(ClientPayment).filter(ClientPayment.invoice_id.in_(inv_ids)).delete(synchronize_session=False)
+        db.query(FeatureRequest).filter(FeatureRequest.university_id == university_id).delete(synchronize_session=False)
+        db.query(ClientInvoice).filter(ClientInvoice.university_id == university_id).delete(synchronize_session=False)
+        db.query(UniversityBillingConfig).filter(UniversityBillingConfig.university_id == university_id).delete(synchronize_session=False)
+
+        # 2b. Lignes d'écritures comptables (journal_entry_lines -> journal_entries)
+        try:
+            from app.models.ledger import JournalEntry, JournalEntryLine
+            je_ids = [r[0] for r in db.query(JournalEntry.id).filter(JournalEntry.university_id == university_id).all()]
+            if je_ids:
+                db.query(JournalEntryLine).filter(JournalEntryLine.journal_entry_id.in_(je_ids)).delete(synchronize_session=False)
+        except Exception:
+            pass
+
+        # 2c. Décisions de délibération (deliberation_decisions -> deliberation_sessions / students)
+        try:
+            from app.models.deliberation import DeliberationSession, DeliberationDecision
+            ds_ids = [r[0] for r in db.query(DeliberationSession.id).filter(DeliberationSession.university_id == university_id).all()]
+            if ds_ids:
+                db.query(DeliberationDecision).filter(DeliberationDecision.session_id.in_(ds_ids)).delete(synchronize_session=False)
+            if univ_student_ids:
+                db.query(DeliberationDecision).filter(DeliberationDecision.student_id.in_(univ_student_ids)).delete(synchronize_session=False)
+        except Exception:
+            pass
+
+        # 2d. Historique des cours (course_history -> courses)
+        try:
+            from app.models.course import Course
+            from app.models.course_history import CourseHistory
+            c_ids = [r[0] for r in db.query(Course.id).filter(Course.university_id == university_id).all()]
+            if c_ids:
+                db.query(CourseHistory).filter(CourseHistory.course_id.in_(c_ids)).delete(synchronize_session=False)
+        except Exception:
+            pass
+
+        # 2e. Alumni, OTPs, Demandes de mot de passe, Messages (parent_id auto-référencé)
+        if univ_student_ids or univ_user_ids:
+            try:
+                from app.models.alumni import AlumniConnection, AlumniMessage
+                from app.models.alumni_profile import AlumniProfile
+                if univ_student_ids:
+                    conn_ids = [r[0] for r in db.query(AlumniConnection.id).filter(AlumniConnection.student_id.in_(univ_student_ids)).all()]
+                    if conn_ids:
+                        db.query(AlumniMessage).filter(AlumniMessage.connection_id.in_(conn_ids)).delete(synchronize_session=False)
+                    db.query(AlumniConnection).filter(AlumniConnection.student_id.in_(univ_student_ids)).delete(synchronize_session=False)
+                    db.query(AlumniProfile).filter(AlumniProfile.student_id.in_(univ_student_ids)).delete(synchronize_session=False)
+                if univ_user_ids:
+                    db.query(AlumniMessage).filter(
+                        (AlumniMessage.sender_id.in_(univ_user_ids)) | (AlumniMessage.receiver_id.in_(univ_user_ids))
+                    ).delete(synchronize_session=False)
+                    db.query(AlumniConnection).filter(
+                        (AlumniConnection.requester_id.in_(univ_user_ids)) | (AlumniConnection.receiver_id.in_(univ_user_ids))
+                    ).delete(synchronize_session=False)
+                    db.query(AlumniProfile).filter(AlumniProfile.user_id.in_(univ_user_ids)).delete(synchronize_session=False)
+            except Exception:
+                pass
+
+            try:
+                from app.models.password_reset_otp import PasswordResetOTP
+                from app.models.password_reset_request import PasswordResetRequest
+                if univ_user_ids:
+                    db.query(PasswordResetOTP).filter(PasswordResetOTP.user_id.in_(univ_user_ids)).delete(synchronize_session=False)
+                    db.query(PasswordResetRequest).filter(
+                        (PasswordResetRequest.user_id.in_(univ_user_ids)) | (PasswordResetRequest.handled_by.in_(univ_user_ids))
+                    ).delete(synchronize_session=False)
+            except Exception:
+                pass
+
+            try:
+                from app.models.message import Message
+                from app.models.notification import Notification
+                db.query(Message).filter(Message.university_id == university_id).update({Message.parent_id: None}, synchronize_session=False)
+                if univ_user_ids:
+                    db.query(Message).filter(
+                        (Message.sender_id.in_(univ_user_ids)) | (Message.recipient_id.in_(univ_user_ids))
+                    ).update({Message.parent_id: None}, synchronize_session=False)
+                    db.query(Message).filter(
+                        (Message.sender_id.in_(univ_user_ids)) | (Message.recipient_id.in_(univ_user_ids))
+                    ).delete(synchronize_session=False)
+                    db.query(Notification).filter(
+                        (Notification.recipient_id.in_(univ_user_ids)) | (Notification.created_by.in_(univ_user_ids))
+                    ).delete(synchronize_session=False)
+            except Exception:
+                pass
+
+            try:
+                from app.models.payment_installment import PaymentInstallment
+                from app.models.payment_reminder import PaymentReminder
+                from app.models.certificate_request import CertificateRequest
+                if univ_student_ids:
+                    db.query(PaymentInstallment).filter(PaymentInstallment.student_id.in_(univ_student_ids)).delete(synchronize_session=False)
+                    db.query(PaymentReminder).filter(PaymentReminder.student_id.in_(univ_student_ids)).delete(synchronize_session=False)
+                    db.query(CertificateRequest).filter(CertificateRequest.student_id.in_(univ_student_ids)).delete(synchronize_session=False)
+            except Exception:
+                pass
+
+        # 2f. Casser les références circulaires éventuelles (Student.user_id, Teacher.user_id, PayrollEntry.expense_id)
+        db.query(Student).filter(Student.university_id == university_id).update(
+            {Student.user_id: None, Student.locked_fee_id: None, Student.class_room_id: None},
+            synchronize_session=False,
+        )
+        try:
+            from app.models.teacher import Teacher
+            db.query(Teacher).filter(Teacher.university_id == university_id).update(
+                {Teacher.user_id: None}, synchronize_session=False
+            )
+        except Exception:
+            pass
+        try:
+            from app.models.accounting import PayrollEntry
+            db.query(PayrollEntry).filter(PayrollEntry.university_id == university_id).update(
+                {PayrollEntry.expense_id: None}, synchronize_session=False
+            )
+        except Exception:
+            pass
+        db.flush()
+
+        # 3. Balayage topologique inverse sur TOUTES les tables SQLAlchemy possédant `university_id`
+        for tbl in reversed(Base.metadata.sorted_tables):
+            if tbl.name == "universities":
+                continue
+            if "university_id" in tbl.c:
+                if tbl.name == "users":
+                    db.execute(
+                        tbl.delete().where(
+                            (tbl.c.university_id == university_id)
+                            & (~tbl.c.role.in_(["super_admin", "superadmin"]))
+                        )
+                    )
+                else:
+                    db.execute(tbl.delete().where(tbl.c.university_id == university_id))
+
+        # 4. Supprimer l'université elle-même
+        db.delete(univ)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de la suppression complète de l'université : {str(exc)}",
+        )
+
+    # 5. Nettoyage non bloquant des fichiers physiques (logo & dossiers étudiants)
+    try:
+        if univ_logo:
+            clean_l = os.path.basename(str(univ_logo))
+            for candidate in (Path("uploads/logos") / clean_l, Path("uploads") / clean_l):
+                if candidate.exists() and candidate.is_file():
+                    candidate.unlink()
+        for sid in univ_student_ids:
+            for folder in (Path("uploads/dossier_etudiant") / str(sid), Path("uploads/dossiers") / str(sid)):
+                if folder.exists() and folder.is_dir():
+                    shutil.rmtree(str(folder), ignore_errors=True)
+    except Exception:
+        pass
+
+    return {
+        "message": f"L'université « {univ_name} » et toutes ses données associées ont été supprimées définitivement.",
+        "deleted_university_id": university_id,
+        "deleted_students_count": len(univ_student_ids),
+        "deleted_users_count": len(univ_user_ids),
+    }
+
+
 # ==========================================
 # BILLING CONFIGURATIONS (SaaS Universités)
 # ==========================================
 @router.get("/billing-configs")
 def get_all_billing_configs(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     univs = db.query(University).order_by(University.name.asc()).all()
     today = date.today()
@@ -970,7 +1182,7 @@ def update_billing_config(
     university_id: int,
     data: BillingConfigUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     univ = db.query(University).filter(University.id == university_id).first()
     if not univ:
@@ -1013,7 +1225,7 @@ def generate_config_invoice(
     university_id: int,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     univ = db.query(University).filter(University.id == university_id).first()
     if not univ:
@@ -1082,7 +1294,7 @@ def get_feature_requests(
     university_id: Optional[int] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     query = db.query(FeatureRequest)
     if university_id:
@@ -1120,7 +1332,7 @@ def get_feature_requests(
 def create_feature_request(
     data: FeatureRequestCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     univ = db.query(University).filter(University.id == data.university_id).first()
     if not univ:
@@ -1149,7 +1361,7 @@ def update_feature_request(
     feature_id: int,
     data: FeatureRequestUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     feat = db.query(FeatureRequest).filter(FeatureRequest.id == feature_id).first()
     if not feat:
@@ -1179,7 +1391,7 @@ def generate_feature_invoice(
     feature_id: int,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     feat = db.query(FeatureRequest).filter(FeatureRequest.id == feature_id).first()
     if not feat:
@@ -1225,7 +1437,7 @@ def generate_feature_invoice(
 def delete_feature_request(
     feature_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     feat = db.query(FeatureRequest).filter(FeatureRequest.id == feature_id).first()
     if not feat:
@@ -1242,7 +1454,7 @@ def delete_feature_request(
 @router.get("/system/health")
 def get_system_health(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     # Disk usage
     total, used, free = shutil.disk_usage(".")
@@ -1302,7 +1514,7 @@ def get_system_health(
 @router.post("/system/vacuum")
 def optimize_database(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     db_file = os.path.join(os.path.dirname(__file__), "..", "..", "unisphere.db")
     before_size = os.path.getsize(db_file) if os.path.exists(db_file) else 0
@@ -1333,7 +1545,7 @@ def optimize_database(
 @router.post("/system/clean-logs")
 def clean_system_logs(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     cutoff = datetime.now() - timedelta(days=90)
     try:
@@ -1363,7 +1575,7 @@ def clean_system_logs(
 @router.post("/seed-ecob")
 def seed_ecob_data(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     """Initialise ou réinitialise la maquette complète de démonstration de l'Université ECOB"""
     try:
@@ -1387,7 +1599,7 @@ def seed_ecob_data(
 @router.get("/settings")
 def get_saas_settings(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     univ = db.query(University).filter(University.id == 1).first() or db.query(University).first()
     default_config = {
@@ -1428,7 +1640,7 @@ def get_saas_settings(
 def update_saas_settings(
     config: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     from sqlalchemy.orm.attributes import flag_modified
 
@@ -1458,7 +1670,7 @@ def update_saas_settings(
 # ==========================================
 @router.get("/database/backups")
 def get_database_backups(
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     from app.services.backup_service import list_backups, BACKUP_DIR
     backups = list_backups()
@@ -1474,7 +1686,7 @@ def get_database_backups(
 
 @router.post("/database/trigger-backup")
 def trigger_immediate_backup(
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     from app.services.backup_service import perform_automated_backup
     try:
@@ -1491,7 +1703,7 @@ def trigger_immediate_backup(
 @router.get("/database/download-backup/{filename}")
 def download_backup_archive(
     filename: str,
-    current_user: User = Depends(require_role("super_admin"))
+    current_user: User = Depends(require_role("super_admin", "superadmin"))
 ):
     from fastapi.responses import FileResponse
     from app.services.backup_service import BACKUP_DIR

@@ -26,6 +26,12 @@ def is_valid_email_format(email: str) -> bool:
     return bool(EMAIL_REGEX.match(email or ""))
 
 
+def validate_email_format(email: str) -> tuple[bool, str]:
+    if not is_valid_email_format(email):
+        return False, "Format d'email invalide."
+    return True, ""
+
+
 def domain_has_mail_server(email: str) -> bool:
     """Vérifie que le domaine de l'email a bien des serveurs mail (MX) configurés sans bloquer le dev/test."""
     try:

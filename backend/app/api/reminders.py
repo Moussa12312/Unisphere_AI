@@ -55,27 +55,37 @@ class BulkReminderRequest(BaseModel):
     custom_message: Optional[str] = None
 
 
-def compute_student_balance(student: Student, db: Session) -> Dict[str, float]:
-    """Calcule le montant total net dû (selon tarif niveau/domaine + remises), le payé réel et le reliquat restant."""
-    univ_id = student.university_id or 1
+def compute_student_balance(student: Student, db: Session) -> Dict[str, Any]:
+    """Calcule de manière 100 % déterministe le net scolarité dû, le payé scolarité réel et le reliquat."""
+    from app.utils.tuition import is_valid_payment_status, is_scolarite_payment_type
+
+    univ_id = student.university_id
+    if not univ_id:
+        return {"is_configured": False, "total_tuition": 0.0, "total_paid": 0.0, "balance": 0.0}
+
     breakdown = resolve_student_tuition_breakdown(db, student, univ_id, "scolarite")
+    if not breakdown.get("is_configured", False):
+        return {"is_configured": False, "total_tuition": 0.0, "total_paid": 0.0, "balance": 0.0}
+
     total_tuition = float(breakdown.get("net_amount") or 0.0)
+    st_payments = db.query(Payment).filter(Payment.student_id == student.id).all()
+    paid_sum = sum(
+        float(p.amount or 0.0)
+        for p in st_payments
+        if is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type)
+    )
 
-    paid_sum = db.query(func.coalesce(func.sum(Payment.amount), 0.0)).filter(
-        Payment.student_id == student.id,
-        Payment.status.in_(["validated", "completed", "partial"])
-    ).scalar() or 0.0
-
-    balance = max(0.0, total_tuition - float(paid_sum))
+    balance = max(0.0, total_tuition - paid_sum)
     return {
-        "total_tuition": round(total_tuition, 2),
-        "total_paid": round(float(paid_sum), 2),
-        "balance": round(balance, 2)
+        "is_configured": True,
+        "total_tuition": round(total_tuition),
+        "total_paid": round(paid_sum),
+        "balance": round(balance),
     }
 
 
 # ==========================================
-# 0. LISTE DES ÉTUDIANTS AVEC IMPAYÉS (POUR LE COMPTABLE)
+# 0. LISTE DES ÉTUDIANTS AVEC IMPAYÉS (100 % DÉTERMINISTE, ZÉRO N+1)
 # ==========================================
 @router.get("/unpaid-students")
 def get_unpaid_students(
@@ -85,36 +95,82 @@ def get_unpaid_students(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(*ALLOWED_ROLES))
 ):
+    from app.utils.tuition import is_valid_payment_status, is_scolarite_payment_type
+
     _ensure_reminder_table()
-    univ_id = current_user.university_id or 1
-    univ = db.query(University).filter(University.id == univ_id).first()
+    univ_id = current_user.university_id
+    univ = db.query(University).filter(University.id == univ_id).first() if univ_id else None
     univ_name = univ.name if univ else "UniSphere"
 
-    query = db.query(Student)
-    if current_user.role not in ["super_admin", "superadmin"] and current_user.university_id:
-        query = query.filter(Student.university_id == current_user.university_id)
+    base_student_query = db.query(Student)
+    if current_user.role not in ["super_admin", "superadmin"] and univ_id:
+        base_student_query = base_student_query.filter(Student.university_id == univ_id)
 
+    # Liste complète des filières de l'établissement (ne rétrécit jamais quand on filtre)
+    all_filieres = sorted({
+        str(r[0]).strip()
+        for r in base_student_query.with_entities(Student.filiere).all()
+        if r[0] and str(r[0]).strip()
+    })
+
+    query = base_student_query
     if filiere:
         query = query.filter(Student.filiere == filiere)
     if level:
         query = query.filter(Student.level == level)
 
-    students = query.all()
+    students = query.order_by(Student.id.asc()).all()
+    student_ids = [s.id for s in students]
+
+    # Chargement groupé des paiements et relances (Zéro N+1, ordre 100 % stable)
+    paid_by_student: Dict[int, float] = {}
+    reminders_by_student: Dict[int, List[PaymentReminder]] = {}
+
+    if student_ids:
+        all_payments = (
+            db.query(Payment)
+            .filter(Payment.student_id.in_(student_ids))
+            .order_by(Payment.id.asc())
+            .all()
+        )
+        for p in all_payments:
+            if p.student_id and is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type):
+                paid_by_student[p.student_id] = paid_by_student.get(p.student_id, 0.0) + float(p.amount or 0.0)
+
+        all_rems = (
+            db.query(PaymentReminder)
+            .filter(PaymentReminder.student_id.in_(student_ids))
+            .order_by(PaymentReminder.created_at.desc(), PaymentReminder.id.desc())
+            .all()
+        )
+        for rem in all_rems:
+            if rem.student_id:
+                reminders_by_student.setdefault(rem.student_id, []).append(rem)
 
     unpaid_list = []
-    total_unpaid_amount = 0.0
+    total_unpaid_amount = 0
     with_phone_count = 0
     with_parent_phone_count = 0
 
     for s in students:
-        full_name = f"{s.first_name} {s.last_name}"
+        full_name = f"{s.first_name} {s.last_name}".strip()
         if search:
-            s_low = search.lower()
+            s_low = search.strip().lower()
             if s_low not in full_name.lower() and s_low not in (s.matricule or "").lower():
                 continue
 
-        finances = compute_student_balance(s, db)
-        bal = finances["balance"]
+        s_univ = s.university_id or univ_id
+        if not s_univ:
+            continue
+
+        breakdown = resolve_student_tuition_breakdown(db, s, s_univ, "scolarite")
+        if not breakdown.get("is_configured", False):
+            # Filière non configurée : ne JAMAIS générer d'impayé fictif !
+            continue
+
+        total_due = round(float(breakdown.get("net_amount") or 0.0))
+        total_paid = round(paid_by_student.get(s.id, 0.0))
+        bal = max(0, total_due - total_paid)
         if bal <= 0:
             continue
 
@@ -124,14 +180,9 @@ def get_unpaid_students(
         if s.parent_phone:
             with_parent_phone_count += 1
 
-        # Historique des relances pour cet étudiant
-        reminders = db.query(PaymentReminder).filter(
-            PaymentReminder.student_id == s.id
-        ).order_by(PaymentReminder.created_at.desc()).all()
-        
-        last_reminder = reminders[0].created_at.isoformat() if reminders else None
+        reminders = reminders_by_student.get(s.id, [])
+        last_reminder = reminders[0].created_at.isoformat() if reminders and reminders[0].created_at else None
 
-        # Template de message pour WhatsApp étudiant
         wa_text_student = build_tuition_reminder_template(
             university_name=univ_name,
             recipient_name=full_name,
@@ -141,7 +192,6 @@ def get_unpaid_students(
         )
         wa_url_student = generate_whatsapp_url(s.phone, wa_text_student) if s.phone else None
 
-        # Template de message pour WhatsApp parent
         wa_text_parent = build_tuition_reminder_template(
             university_name=univ_name,
             recipient_name=s.parent_name or f"Parent de {s.first_name}",
@@ -155,13 +205,13 @@ def get_unpaid_students(
             "student_id": s.id,
             "student_name": full_name,
             "matricule": s.matricule or f"STU-{s.id:04d}",
-            "filiere": s.filiere or "Tronc Commun",
+            "filiere": s.filiere or "Non renseignée",
             "level": s.level or "L1",
             "phone": s.phone,
             "parent_name": s.parent_name,
             "parent_phone": s.parent_phone,
-            "total_due": finances["total_tuition"],
-            "total_paid": finances["total_paid"],
+            "total_due": total_due,
+            "total_paid": total_paid,
             "balance": bal,
             "reminder_count": len(reminders),
             "last_reminder_at": last_reminder,
@@ -169,14 +219,15 @@ def get_unpaid_students(
             "whatsapp_parent_url": wa_url_parent
         })
 
-    # Trier par reliquat décroissant
-    unpaid_list.sort(key=lambda x: x["balance"], reverse=True)
+    # Tri déterministe (reliquat décroissant, puis ID croissant)
+    unpaid_list.sort(key=lambda x: (-x["balance"], x["student_id"]))
 
     return {
         "total_unpaid_students": len(unpaid_list),
-        "total_unpaid_amount": total_unpaid_amount,
+        "total_unpaid_amount": round(total_unpaid_amount),
         "with_student_phone_count": with_phone_count,
         "with_parent_phone_count": with_parent_phone_count,
+        "all_filieres": all_filieres,
         "students": unpaid_list
     }
 

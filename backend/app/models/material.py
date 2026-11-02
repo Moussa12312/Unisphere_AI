@@ -17,7 +17,7 @@ class Material(Base):
     
     # Relations
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)
-    teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=False)
+    teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True)
     university_id = Column(Integer, ForeignKey("universities.id"), nullable=False)
     
     # Metadata

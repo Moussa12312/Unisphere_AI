@@ -123,15 +123,28 @@ def configure_three_tranches(
 
         saved_tranches.append(t_obj)
 
-    # ✅ Synchronisation automatique sur les 3 pôles associés si demandé
+    # ✅ Synchronisation sur les pôles associés UNIQUEMENT si explicitement demandé
+    # et en calculant le montant de chaque tranche sur le tarif PROPRE du pôle cible
     ASSOCIATED_DOMAINS = [
         "Gestion & Economie",
         "Communication & Medias",
         "Informatique & Technologies"
     ]
     if getattr(data, 'sync_associated_domains', False) and data.domain in ASSOCIATED_DOMAINS:
+        from app.models.academic_fee import AcademicFee
         for other_domain in ASSOCIATED_DOMAINS:
             if other_domain != data.domain:
+                other_fee = db.query(AcademicFee).filter(
+                    AcademicFee.university_id == university_id,
+                    AcademicFee.level == data.level,
+                    AcademicFee.domain == other_domain,
+                    AcademicFee.payment_type == data.payment_type,
+                    AcademicFee.academic_year == data.academic_year,
+                ).order_by(AcademicFee.is_locked.asc(), AcademicFee.id.desc()).first()
+                if not other_fee or not other_fee.amount:
+                    continue
+
+                other_total = max(0, int(round(float(other_fee.amount))))
                 q_other = db.query(PaymentTranche).filter(
                     PaymentTranche.university_id == university_id,
                     PaymentTranche.level == data.level,
@@ -145,7 +158,9 @@ def configure_three_tranches(
                         other_by_num[t.tranche_number] = t
                     else:
                         db.delete(t)
-                for item in sorted(data.tranches, key=lambda x: x.tranche_number):
+                sorted_items = sorted(data.tranches, key=lambda x: x.tranche_number)
+                allocated_other = 0
+                for idx_o, item in enumerate(sorted_items):
                     parsed_due_date = None
                     if item.due_date:
                         try:
@@ -155,11 +170,17 @@ def configure_three_tranches(
                                 parsed_due_date = datetime.strptime(item.due_date[:10], "%Y-%m-%d")
                             except Exception:
                                 pass
+                    if idx_o == len(sorted_items) - 1:
+                        calc_amt = max(0, other_total - allocated_other)
+                    else:
+                        calc_amt = int(round((other_total * float(item.percentage)) / 100.0))
+                        calc_amt = min(calc_amt, max(0, other_total - allocated_other))
+                        allocated_other += calc_amt
                     if item.tranche_number in other_by_num:
                         o_obj = other_by_num[item.tranche_number]
                         o_obj.tranche_name = item.tranche_name
                         o_obj.percentage = round(item.percentage, 2)
-                        o_obj.amount = round(item.amount)
+                        o_obj.amount = calc_amt
                         o_obj.due_date = parsed_due_date
                     else:
                         o_obj = PaymentTranche(
@@ -171,7 +192,7 @@ def configure_three_tranches(
                             tranche_number=item.tranche_number,
                             tranche_name=item.tranche_name,
                             percentage=round(item.percentage, 2),
-                            amount=round(item.amount),
+                            amount=calc_amt,
                             due_date=parsed_due_date
                         )
                         db.add(o_obj)

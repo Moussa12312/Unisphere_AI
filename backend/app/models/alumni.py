@@ -28,6 +28,7 @@ class AlumniProfile(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     university_id = Column(Integer, ForeignKey("universities.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=True)
 
     # Identité
     first_name = Column(String, nullable=False)
@@ -72,6 +73,7 @@ class AlumniProfile(Base):
 
     user = relationship("User", backref="alumni_profile")
     university = relationship("University")
+    student = relationship("Student")
 
 
 class AlumniConnection(Base):

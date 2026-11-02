@@ -6,33 +6,30 @@ from app.database.connection import Base
 
 class Payment(Base):
     __tablename__ = "payments"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
-    university_id = Column(Integer, ForeignKey("universities.id"), nullable=False)
-    
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False, index=True)
+    university_id = Column(Integer, ForeignKey("universities.id"), nullable=False, index=True)
+
     amount = Column(Float, nullable=False)
     currency = Column(String, default="FCFA")
     payment_type = Column(String, nullable=False)
     payment_method = Column(String, nullable=False)
-    
+    academic_year = Column(String(20), nullable=True, index=True)
+
     reference = Column(String, unique=True, nullable=False)
     receipt_number = Column(String, nullable=True)
-    status = Column(String, default="completed")
+    status = Column(String, default="completed", index=True)
     description = Column(String, nullable=True)
-    
-    # ✅ NOUVEAUX CHAMPS
+
     payment_date = Column(Date, nullable=True)
     paid_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     tranche_id = Column(Integer, ForeignKey("payment_tranches.id"), nullable=True)
-    
-    # ✅ LIEN VERS TRANCHE (optionnel)
-    tranche_id = Column(Integer, ForeignKey("payment_tranches.id"), nullable=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
     # Relationships
     student = relationship("Student", back_populates="payments")
     university = relationship("University")

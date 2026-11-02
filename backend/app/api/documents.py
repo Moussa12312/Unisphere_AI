@@ -568,42 +568,72 @@ def generate_receipt_pdf(
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
 
+    if current_user.role == "student" and student.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
+    if current_user.role != "student" and current_user.university_id and student.university_id != current_user.university_id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
+
     university = db.query(University).filter(University.id == student.university_id).first()
 
-    # Tranches configurées et calcul du reste
-    from app.utils.tuition import get_configured_tranches_for_student
-    configured_tranches = get_configured_tranches_for_student(db, student, student.university_id, 0)
-    total_due = sum(float(t.amount) for t in configured_tranches) if configured_tranches else float(payment.amount)
+    from app.utils.tuition import (
+        resolve_student_tuition_breakdown,
+        get_configured_tranches_for_student,
+        scale_tranches_to_amount,
+        is_valid_payment_status,
+        is_scolarite_payment_type,
+    )
 
-    all_payments = db.query(Payment).filter(
-        Payment.student_id == student.id,
-        Payment.status == "completed"
-    ).order_by(Payment.payment_date.asc(), Payment.id.asc()).all()
-    total_paid_all = sum(float(p.amount) for p in all_payments if p.amount)
+    p_type_norm = (payment.payment_type or "scolarite").strip().lower()
+    is_scol_type = is_scolarite_payment_type(p_type_norm)
+    breakdown = resolve_student_tuition_breakdown(
+        db, student, student.university_id, "scolarite" if is_scol_type else p_type_norm
+    )
+
+    all_valid = [
+        p for p in db.query(Payment)
+        .filter(Payment.student_id == student.id)
+        .order_by(Payment.payment_date.asc(), Payment.id.asc())
+        .all()
+        if is_valid_payment_status(p.status)
+    ]
+
+    if is_scol_type:
+        all_payments = [p for p in all_valid if is_scolarite_payment_type(p.payment_type)]
+        total_paid_all = sum(float(p.amount or 0.0) for p in all_payments)
+        total_due = float(breakdown["net_amount"] or 0.0) if breakdown.get("is_configured") else max(total_paid_all, float(payment.amount or 0.0))
+        configured_tranches = get_configured_tranches_for_student(db, student, student.university_id, total_due)
+        scaled_tranches = scale_tranches_to_amount(configured_tranches, total_due)
+    else:
+        all_payments = [p for p in all_valid if (p.payment_type or "").strip().lower() == p_type_norm]
+        total_paid_all = sum(float(p.amount or 0.0) for p in all_payments)
+        total_due = float(breakdown["net_amount"] or 0.0) if breakdown.get("is_configured") else max(total_paid_all, float(payment.amount or 0.0))
+        configured_tranches = []
+        scaled_tranches = []
 
     rem_alloc = float(total_paid_all)
     tranches_rows = []
-    for t in configured_tranches:
-        t_amt = float(t.amount)
+    for t in scaled_tranches:
+        t_amt = float(t["amount"] or 0.0)
         if rem_alloc >= t_amt and t_amt > 0:
             p_amt = t_amt
             rem_alloc -= t_amt
             status_txt = "Soldée"
         elif rem_alloc > 0:
             p_amt = rem_alloc
-            rem_alloc = 0
+            rem_alloc = 0.0
             status_txt = "Partielle"
         else:
             p_amt = 0.0
             status_txt = "En attente"
         r_amt = max(0.0, t_amt - p_amt)
-        due_str = t.due_date.strftime("%d/%m/%Y") if t.due_date else "—"
+        due_dt = t["due_date"]
+        due_str = due_dt.strftime("%d/%m/%Y") if due_dt else "—"
         tranches_rows.append([
-            f"Tranche {t.tranche_number} : {t.tranche_name or ''}",
+            f"Tranche {t['tranche_number']} : {t['tranche_name'] or ''}",
             due_str,
-            f"{int(t_amt):,} FCFA".replace(",", " "),
-            f"{int(p_amt):,} FCFA".replace(",", " "),
-            f"{int(r_amt):,} FCFA".replace(",", " "),
+            f"{int(round(t_amt)):,} FCFA".replace(",", " "),
+            f"{int(round(p_amt)):,} FCFA".replace(",", " "),
+            f"{int(round(r_amt)):,} FCFA".replace(",", " "),
             status_txt
         ])
 
@@ -785,20 +815,31 @@ def generate_financial_statement_pdf(
 
     university = db.query(University).filter(University.id == student.university_id).first()
 
-    # Get payments
-    payments = db.query(Payment).filter(
-        Payment.student_id == student_id,
-        Payment.status == "completed"
-    ).order_by(Payment.payment_date.asc()).all()
+    if current_user.role == "student" and student.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
+    if current_user.role != "student" and current_user.university_id and student.university_id != current_user.university_id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
 
-    # Get fee (Domaine + Remise négociée déduite)
-    from app.utils.tuition import resolve_student_tuition_breakdown
+    from app.utils.tuition import (
+        resolve_student_tuition_breakdown,
+        is_valid_payment_status,
+        is_scolarite_payment_type,
+    )
+
+    payments = [
+        p for p in db.query(Payment)
+        .filter(Payment.student_id == student_id)
+        .order_by(Payment.payment_date.asc(), Payment.id.asc())
+        .all()
+        if is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type)
+    ]
+
     breakdown = resolve_student_tuition_breakdown(db, student, student.university_id, "scolarite")
-    total_fee = breakdown["net_amount"]
-    base_fee = breakdown["base_amount"]
-    discount_fee = breakdown["discount_amount"]
-    total_paid = sum(p.amount for p in payments)
-    balance = max(0, total_fee - total_paid)
+    total_fee = float(breakdown["net_amount"] or 0.0)
+    base_fee = float(breakdown["base_amount"] or 0.0)
+    discount_fee = float(breakdown["discount_amount"] or 0.0)
+    total_paid = sum(float(p.amount or 0.0) for p in payments)
+    balance = max(0.0, total_fee - total_paid) if breakdown.get("is_configured") else 0.0
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=1.5*cm, bottomMargin=2*cm)
@@ -889,11 +930,17 @@ def generate_payment_certificate_pdf(
 
     university = db.query(University).filter(University.id == student.university_id).first()
 
-    payments = db.query(Payment).filter(
-        Payment.student_id == student_id,
-        Payment.status == "completed"
-    ).all()
-    total_paid = sum(p.amount for p in payments)
+    if current_user.role == "student" and student.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
+    if current_user.role != "student" and current_user.university_id and student.university_id != current_user.university_id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
+
+    from app.utils.tuition import is_valid_payment_status
+    payments = [
+        p for p in db.query(Payment).filter(Payment.student_id == student_id).order_by(Payment.id.asc()).all()
+        if is_valid_payment_status(p.status)
+    ]
+    total_paid = sum(float(p.amount or 0.0) for p in payments)
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=1.5*cm, bottomMargin=2*cm)

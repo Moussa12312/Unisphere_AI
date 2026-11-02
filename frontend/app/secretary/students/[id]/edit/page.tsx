@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, User, Mail, GraduationCap, Upload, X, Loader2 } from 'lucide-react';
-import api, { API_BASE_URL } from '@/lib/api';
+import api, { API_BASE_URL, getMediaUrl } from '@/lib/api';
 import { filiereService } from '@/services/filiereService';
 import { toast } from 'react-hot-toast';
 
@@ -83,8 +83,7 @@ export default function SecretaryEditStudentPage() {
       });
 
       if (data.photo) {
-        const photoUrl = data.photo.startsWith('http') ? data.photo : `${API_BASE_URL}/uploads/${data.photo}`;
-        setPhotoPreview(photoUrl);
+        setPhotoPreview(getMediaUrl(data.photo));
       }
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');

@@ -136,9 +136,10 @@ def get_university_profile(
 def update_university_profile(
     request: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "super_admin"))
+    current_user: User = Depends(require_role("admin", "super_admin", "superadmin"))
 ):
     from app.models.university import University
+    from sqlalchemy.orm.attributes import flag_modified
     target_id = request.get("university_id") or getattr(current_user, "university_id", None)
     if not target_id:
         first_univ = db.query(University).first()
@@ -157,10 +158,24 @@ def update_university_profile(
         card_cfg["language"] = request["language"]
     
     university.card_config = card_cfg
+    flag_modified(university, "card_config")
     
+    skip_fields = {"id", "created_at", "updated_at", "card_config"}
     for key, value in request.items():
-        if hasattr(university, key):
-            setattr(university, key, value)
+        if key in skip_fields or not hasattr(university, key):
+            continue
+        if key == "logo" and not value:
+            continue
+        if key == "established_year":
+            if value is None or str(value).strip() == "":
+                university.established_year = None
+            else:
+                try:
+                    university.established_year = int(str(value).strip())
+                except ValueError:
+                    pass
+            continue
+        setattr(university, key, value)
             
     db.commit()
     db.refresh(university)
@@ -168,45 +183,58 @@ def update_university_profile(
 
 
 @router.post("/university/logo")
-def upload_university_logo(
+async def upload_university_logo(
     logo: UploadFile = File(...),
     remove_bg: str = Form("false"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    current_user: User = Depends(require_role("admin", "secretary", "super_admin", "superadmin"))
 ):
     from app.models.university import University
+    import time
     
-    print(f"📥 Réception upload logo: {logo.filename}, remove_bg={remove_bg}")
-    
+    target_id = getattr(current_user, "university_id", None)
+    if not target_id:
+        first_univ = db.query(University).first()
+        target_id = first_univ.id if first_univ else None
+
+    university = db.query(University).filter(University.id == target_id).first()
+    if not university:
+        raise HTTPException(status_code=404, detail="Université non trouvée")
+
     try:
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        content = logo.file.read()
-        file_extension = logo.filename.split(".")[-1].lower()
-        filename = f"university_{current_user.university_id}"
-        
-        if remove_bg.lower() == "true" and file_extension in ['jpg', 'jpeg', 'png', 'webp']:
-            print("🎨 Suppression de l'arrière-plan...")
+        os.makedirs("uploads/logos", exist_ok=True)
+        content = await logo.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Fichier image vide")
+
+        raw_name = logo.filename or "logo.png"
+        file_extension = raw_name.rsplit(".", 1)[-1].lower() if "." in raw_name else "png"
+        if file_extension not in ("jpg", "jpeg", "png", "webp", "svg", "gif"):
+            file_extension = "png"
+
+        base_name = f"university_{university.id}_{int(time.time())}"
+        if str(remove_bg).lower() == "true" and file_extension in ("jpg", "jpeg", "png", "webp"):
             content = remove_background(content)
-            filename = f"{filename}.png"
+            filename = f"{base_name}.png"
         else:
-            filename = f"{filename}.{file_extension}"
+            filename = f"{base_name}.{file_extension}"
             
         file_path = UPLOAD_DIR / filename
-        
         with open(file_path, "wb") as buffer:
             buffer.write(content)
+        rel_logo_path = Path("uploads/logos") / filename
+        if rel_logo_path.resolve() != file_path.resolve():
+            with open(rel_logo_path, "wb") as buffer:
+                buffer.write(content)
         
-        university = db.query(University).filter(University.id == current_user.university_id).first()
-        if university:
-            university.logo = filename
-            db.commit()
-            return {"message": "Logo uploadé avec succès", "logo_url": filename}
-            
-        raise HTTPException(status_code=500, detail="Université non trouvée")
-        
+        university.logo = filename
+        db.commit()
+        return {"message": "Logo uploadé avec succès", "logo_url": filename}
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"❌ ERREUR UPLOAD: {e}")
-        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erreur lors du téléversement du logo: {str(e)}")
 
 
 # ==========================================

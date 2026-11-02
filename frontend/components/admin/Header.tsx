@@ -110,7 +110,8 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
   // Chargement de l'utilisateur
   // ==========================================
   useEffect(() => {
-    if (!user && !propUser) {
+    const syncLocalUser = () => {
+      if (typeof window === 'undefined') return;
       const userStr = localStorage.getItem('user');
       if (userStr) {
         try {
@@ -119,7 +120,27 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
           console.error('Erreur parsing user:', e);
         }
       }
+    };
+    if (propUser) {
+      setUser(propUser);
+    } else {
+      syncLocalUser();
     }
+    if (isAuthenticated()) {
+      api.get('/api/v1/users/profile').then((res) => {
+        if (res.data) {
+          setUser((prev: any) => {
+            const merged = { ...(prev || {}), ...res.data };
+            try {
+              localStorage.setItem('user', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+        }
+      }).catch(() => {});
+    }
+    window.addEventListener('unisphere:user_updated', syncLocalUser);
+    return () => window.removeEventListener('unisphere:user_updated', syncLocalUser);
   }, [propUser]);
 
   // ==========================================

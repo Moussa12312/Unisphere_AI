@@ -181,7 +181,7 @@ def update_university_profile(
 @router.post("/logo")
 async def upload_university_logo(
     logo: UploadFile = File(...),
-    remove_bg: str = "false",
+    remove_bg: str = Form("false"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary", "super_admin"))
 ):
@@ -194,14 +194,19 @@ async def upload_university_logo(
     if not university:
         raise HTTPException(status_code=404, detail="Université non trouvée")
     
-    if not logo.content_type.startswith('image/'):
+    ctype = (logo.content_type or "").lower()
+    ext_check = os.path.splitext(logo.filename or "")[1].lower()
+    if not ctype.startswith('image/') and ext_check not in (".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif"):
         raise HTTPException(status_code=400, detail="Le fichier doit être une image")
     
     os.makedirs("uploads/logos", exist_ok=True)
-    logo_filename = f"university_{university.id}_{int(time.time())}.png"
+    ext = ext_check if ext_check in (".png", ".jpg", ".jpeg", ".webp", ".svg") else ".png"
+    logo_filename = f"university_{university.id}_{int(time.time())}{ext}"
     logo_path = os.path.join("uploads/logos", logo_filename)
     
     content = await logo.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Fichier logo vide")
     with open(logo_path, "wb") as buffer:
         buffer.write(content)
     

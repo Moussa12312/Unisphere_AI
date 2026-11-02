@@ -45,9 +45,21 @@ class InstallmentPaymentRequest(BaseModel):
 # CALCUL UNIFIÉ DES CRÉANCES, RELIQUATS & IMPAYÉS
 # ==========================================
 def _compute_university_receivables(db: Session, university_id: int) -> dict:
-    from app.utils.tuition import resolve_student_tuition_breakdown, get_configured_tranches_for_student
+    from app.utils.tuition import (
+        resolve_student_tuition_breakdown,
+        get_configured_tranches_for_student,
+        scale_tranches_to_amount,
+        is_valid_payment_status,
+        is_scolarite_payment_type,
+    )
+    from app.models.payment_installment import PaymentInstallment
 
-    students = db.query(Student).filter(Student.university_id == university_id).all()
+    students = (
+        db.query(Student)
+        .filter(Student.university_id == university_id)
+        .order_by(Student.id.asc())
+        .all()
+    )
     if not students:
         return {
             "total_expected": 0.0,
@@ -58,16 +70,27 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
             "overdue_students_count": 0,
         }
 
-    paid_rows = db.query(
-        Payment.student_id,
-        func.coalesce(func.sum(Payment.amount), 0.0)
-    ).filter(
-        Payment.university_id == university_id,
-        Payment.status.in_(["completed", "partial", "validated"])
-    ).group_by(Payment.student_id).all()
-    paid_by_student = {row[0]: float(row[1] or 0.0) for row in paid_rows}
+    all_payments = (
+        db.query(Payment)
+        .filter(Payment.university_id == university_id)
+        .order_by(Payment.id.asc())
+        .all()
+    )
+    paid_by_student: dict[int, float] = {}
+    for p in all_payments:
+        if p.student_id and is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type):
+            paid_by_student[p.student_id] = paid_by_student.get(p.student_id, 0.0) + float(p.amount or 0.0)
 
     today = date.today()
+    overdue_inst_by_student: dict[int, float] = {}
+    for inst in db.query(PaymentInstallment).filter(
+        PaymentInstallment.university_id == university_id,
+        PaymentInstallment.status.in_(["pending", "partial", "overdue"]),
+    ).all():
+        inst_due = inst.due_date.date() if hasattr(inst.due_date, "date") else inst.due_date
+        if inst_due and inst_due < today and float(inst.balance or 0.0) > 0:
+            overdue_inst_by_student[inst.student_id] = overdue_inst_by_student.get(inst.student_id, 0.0) + float(inst.balance or 0.0)
+
     total_expected = 0.0
     total_paid_students = 0.0
     total_balance = 0.0
@@ -77,6 +100,8 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
 
     for student in students:
         breakdown = resolve_student_tuition_breakdown(db, student, university_id, "scolarite")
+        if not breakdown.get("is_configured", False):
+            continue
         net_due = float(breakdown.get("net_amount") or 0.0)
         if net_due <= 0:
             continue
@@ -91,26 +116,26 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
         if bal > 0:
             students_with_balance += 1
             tranches = get_configured_tranches_for_student(db, student, university_id, net_due)
-            dated_tranches = [t for t in tranches if getattr(t, "due_date", None)]
+            scaled_tranches = scale_tranches_to_amount(tranches, net_due)
+            dated_tranches = [t for t in scaled_tranches if t.get("due_date")]
 
+            student_overdue = 0.0
             if dated_tranches:
                 rem_paid = paid
-                student_overdue = 0.0
-                for t in tranches:
-                    t_amt = float(t.amount or 0.0)
+                for t in scaled_tranches:
+                    t_amt = float(t["amount"] or 0.0)
                     covered = min(t_amt, rem_paid)
                     rem_paid = max(0.0, rem_paid - covered)
                     unpaid_tranche = max(0.0, t_amt - covered)
-                    t_due = t.due_date.date() if hasattr(t.due_date, "date") else t.due_date
+                    t_due = t["due_date"].date() if hasattr(t["due_date"], "date") else t["due_date"]
                     if unpaid_tranche > 0 and t_due and t_due < today:
                         student_overdue += unpaid_tranche
-                if student_overdue > 0:
-                    overdue_amount += student_overdue
-                    overdue_students_count += 1
-            else:
-                if paid <= 0:
-                    overdue_amount += bal
-                    overdue_students_count += 1
+            elif student.id in overdue_inst_by_student:
+                student_overdue = min(bal, overdue_inst_by_student[student.id])
+
+            if student_overdue > 0:
+                overdue_amount += student_overdue
+                overdue_students_count += 1
 
     return {
         "total_expected": round(total_expected, 2),
@@ -228,8 +253,6 @@ def get_financial_overview(
 
     late = receivables["total_balance"]
     unpaid = receivables["overdue_amount"] + failed_payments
-    if unpaid <= 0 and late > 0:
-        unpaid = late
 
     total_expected = receivables["total_expected"]
     if total_expected > 0:
@@ -316,48 +339,69 @@ def create_payment(
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
     
-    # ✅ 2. VÉRIFICATION CRITIQUE : Empêcher les doubles paiements
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Le montant du paiement doit être supérieur à 0 FCFA")
+
     academic_year = data.academic_year or get_current_academic_year(db, current_user.university_id)
-    
-    if data.payment_type in ["inscription", "scolarite"]:
-        # Vérifier si l'étudiant a déjà payé ce type pour cette année
-        existing_payment = db.query(Payment).filter(
-            Payment.student_id == data.student_id,
-            Payment.payment_type == data.payment_type,
-            Payment.academic_year == academic_year,
-            Payment.university_id == current_user.university_id,
-            Payment.status == "completed"
-        ).first()
-        
-        if existing_payment:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cet étudiant a déjà payé sa {data.payment_type} pour l'année {academic_year}. "
-                       f"Référence : {existing_payment.reference}"
-            )
-    
-    # 3. Récupérer le montant total configuré (en prenant en compte Domaine + Remise négociée)
-    from app.utils.tuition import resolve_student_tuition_breakdown
-    breakdown = resolve_student_tuition_breakdown(db, student, current_user.university_id, data.payment_type)
-    total_amount = breakdown["net_amount"]
-    
-    # 4. Vérifier que le montant ne dépasse pas le total
-    if data.amount > total_amount:
+    from app.utils.tuition import (
+        resolve_student_tuition_breakdown,
+        is_valid_payment_status,
+        is_scolarite_payment_type,
+    )
+
+    p_type_norm = (data.payment_type or "scolarite").strip().lower()
+    is_scol_type = is_scolarite_payment_type(p_type_norm)
+    breakdown = resolve_student_tuition_breakdown(
+        db, student, current_user.university_id, "scolarite" if is_scol_type else p_type_norm
+    )
+
+    if is_scol_type and not breakdown.get("is_configured", False):
         raise HTTPException(
             status_code=400,
-            detail=f"Le montant ({data.amount} FCFA) dépasse le total dû ({total_amount} FCFA)"
+            detail=f"Les frais de scolarité ne sont pas encore configurés pour la filière « {student.filiere or 'N/A'} » ({student.level})."
         )
-    
-    # 5. Calculer le reliquat
-    balance = total_amount - data.amount
-    
-    # 6. Générer référence et numéro de reçu
+
+    total_amount = float(breakdown["net_amount"] or 0.0)
+    st_payments = db.query(Payment).filter(
+        Payment.student_id == data.student_id,
+        Payment.university_id == current_user.university_id,
+    ).all()
+
+    if is_scol_type:
+        already_paid = sum(
+            float(p.amount or 0.0)
+            for p in st_payments
+            if is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type)
+        )
+    else:
+        already_paid = sum(
+            float(p.amount or 0.0)
+            for p in st_payments
+            if is_valid_payment_status(p.status) and (p.payment_type or "").strip().lower() == p_type_norm
+        )
+
+    if is_scol_type or breakdown.get("is_configured", False):
+        remaining_before = max(0.0, total_amount - already_paid)
+        if remaining_before <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cet étudiant a déjà intégralement soldé sa {data.payment_type} ({total_amount:,.0f} FCFA)."
+            )
+        if data.amount > remaining_before:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Le montant ({data.amount:,.0f} FCFA) dépasse le reste à payer ({remaining_before:,.0f} FCFA)"
+            )
+        balance = max(0.0, remaining_before - data.amount)
+    else:
+        total_amount = already_paid + float(data.amount)
+        balance = 0.0
+
     import secrets
     reference = f"PAY-{datetime.now().strftime('%Y%m%d')}-{secrets.token_hex(4).upper()}"
     receipt_number = f"REC-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     status = "completed" if balance <= 0 else "partial"
-    
-    # 7. Créer le paiement
+
     payment = Payment(
         student_id=data.student_id,
         amount=data.amount,
@@ -371,14 +415,23 @@ def create_payment(
         reference=reference,
         receipt_number=receipt_number,
         status=status,
+        payment_date=date.today(),
+        paid_by=current_user.id,
+        tranche_id=data.tranche_id,
         university_id=current_user.university_id,
         created_by=current_user.id,
         payment_plan="single"
     )
-    
+
     db.add(payment)
     db.commit()
     db.refresh(payment)
+
+    try:
+        from app.api.ledger import create_journal_entry_for_payment
+        create_journal_entry_for_payment(db, current_user.university_id, payment)
+    except Exception as _je_err:
+        print(f"[WARN] Écriture comptable paiement {payment.id}: {_je_err}")
     
     # 8. Créer un échéancier si reliquat
     if balance > 0:
@@ -472,69 +525,72 @@ def get_unpaid_students(
     from app.models.payment_tranche import PaymentTranche
     from datetime import datetime, date
     
-    students = db.query(Student).filter(
-        Student.university_id == current_user.university_id
-    ).all()
-    
+    from app.utils.tuition import (
+        resolve_student_tuition_breakdown,
+        get_configured_tranches_for_student,
+        scale_tranches_to_amount,
+        is_valid_payment_status,
+        is_scolarite_payment_type,
+    )
+
+    students = (
+        db.query(Student)
+        .filter(Student.university_id == current_user.university_id)
+        .order_by(Student.id.asc())
+        .all()
+    )
+    ac_config = db.query(AcademicConfig).filter(
+        AcademicConfig.university_id == current_user.university_id
+    ).first()
+    penalty_rate = float(getattr(ac_config, "penalty_amount", 5000.0) or 0.0) if ac_config else 5000.0
+    penalty_auto = bool(getattr(ac_config, "penalty_auto_apply", True)) if ac_config else True
+
     unpaid_students = []
     today = date.today()
-    
+
     for student in students:
-        # Récupérer les tranches configurées (dédoublonnées et adaptées à l'année courante et au domaine)
-        from app.utils.tuition import get_configured_tranches_for_student
-        configured_tranches = get_configured_tranches_for_student(db, student, current_user.university_id, 0)
-        
-        if not configured_tranches:
+        breakdown = resolve_student_tuition_breakdown(db, student, current_user.university_id, "scolarite")
+        if not breakdown.get("is_configured", False):
             continue
-        
-        # Récupérer tous les paiements (triés par date)
-        payments = db.query(Payment).filter(
-            Payment.student_id == student.id
-        ).order_by(Payment.created_at.asc()).all()
-        
-        total_paid = sum(float(p.amount) for p in payments if p.amount)
-        
-        # ✅✅✅ LOGIQUE CORRIGÉE : Associer les paiements aux tranches
-        # Une tranche est "payée" si le cumul des paiements >= cumul des tranches
-        paid_tranche_ids = set()
-        cumulative_paid = 0.0
-        cumulative_tranches = 0.0
-        
-        for tranche in configured_tranches:
-            tranche_amount = float(tranche.amount)
-            cumulative_tranches += tranche_amount
-            
-            # Si le total payé >= cumul des tranches jusqu'ici → tranche payée
-            if total_paid >= cumulative_tranches:
-                paid_tranche_ids.add(tranche.id)
-        
-        # ✅ Chercher les tranches EN RETARD
+        total_due = float(breakdown["net_amount"] or 0.0)
+        if total_due <= 0:
+            continue
+
+        configured_tranches = get_configured_tranches_for_student(db, student, current_user.university_id, total_due)
+        scaled_tranches = scale_tranches_to_amount(configured_tranches, total_due)
+        if not scaled_tranches:
+            continue
+
+        payments = [
+            p for p in db.query(Payment)
+            .filter(Payment.student_id == student.id)
+            .order_by(Payment.created_at.asc(), Payment.id.asc())
+            .all()
+            if is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type)
+        ]
+        total_paid = sum(float(p.amount or 0.0) for p in payments)
+
         overdue_tranches = []
-        total_overdue = 0
-        
-        for tranche in configured_tranches:
-            # Échéance dépassée ET tranche non payée
-            if tranche.due_date and tranche.due_date.date() < today:
-                if tranche.id not in paid_tranche_ids:
-                    overdue_tranches.append({
-                        "tranche_id": tranche.id,
-                        "tranche_name": tranche.tranche_name,
-                        "amount": float(tranche.amount),
-                        "due_date": tranche.due_date.date().isoformat()
-                    })
-                    total_overdue += float(tranche.amount)
-        
-        # ✅ Si au moins une tranche en retard → étudiant avec impayé
+        total_overdue = 0.0
+        rem_paid = total_paid
+
+        for tr in scaled_tranches:
+            t_amt = float(tr["amount"] or 0.0)
+            covered = min(t_amt, rem_paid)
+            rem_paid = max(0.0, rem_paid - covered)
+            unpaid_part = max(0.0, t_amt - covered)
+            due_dt = tr["due_date"]
+            due_d = due_dt.date() if hasattr(due_dt, "date") else due_dt
+            if due_d and due_d < today and unpaid_part > 0:
+                overdue_tranches.append({
+                    "tranche_id": tr["id"],
+                    "tranche_name": tr["tranche_name"],
+                    "amount": round(unpaid_part),
+                    "due_date": due_d.isoformat()
+                })
+                total_overdue += unpaid_part
+
         if overdue_tranches:
-            total_due = sum(float(t.amount) for t in configured_tranches)
-            
-            # Récupérer la configuration de pénalité de l'établissement
-            from app.models.academic_config import AcademicConfig
-            ac_config = db.query(AcademicConfig).filter(
-                AcademicConfig.university_id == current_user.university_id
-            ).first()
-            penalty_rate = getattr(ac_config, "penalty_amount", 5000.0) if ac_config else 5000.0
-            penalty_auto = getattr(ac_config, "penalty_auto_apply", True) if ac_config else True
             penalty_total = (len(overdue_tranches) * penalty_rate) if penalty_auto else 0.0
             
             unpaid_students.append({
@@ -889,23 +945,32 @@ def pay_installment(
     
     new_payment = Payment(
         student_id=installment.student_id,
-        amount=data.amount,  # ✅ Seulement le montant du reliquat payé
+        amount=data.amount,
         total_amount=data.amount,
-        balance=0,
+        balance=installment.balance,
         level=student.level if student else None,
-        payment_type="reliquat",  # ✅ Type spécial pour distinguer
+        payment_type="reliquat",
         payment_method=data.payment_method,
         description=data.description or f"Reliquat - {student.level if student else ''}",
         academic_year=payment.academic_year if payment else get_current_academic_year(db, university_id),
         reference=reference,
         receipt_number=receipt_number,
         status="completed",
+        payment_date=date.today(),
+        paid_by=current_user.id,
         university_id=university_id,
         created_by=current_user.id,
         payment_plan="single"
     )
     db.add(new_payment)
     db.commit()
+    db.refresh(new_payment)
+
+    try:
+        from app.api.ledger import create_journal_entry_for_payment
+        create_journal_entry_for_payment(db, university_id, new_payment)
+    except Exception as _je_err:
+        print(f"[WARN] Écriture comptable reliquat {new_payment.id}: {_je_err}")
     
     return {
         "message": "Paiement du reliquat enregistré avec succès",
@@ -1084,42 +1149,69 @@ def get_payment_receipt(
     payment = db.query(Payment).filter(Payment.id == payment_id).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Paiement non trouvé")
-    
+
     student = db.query(Student).filter(Student.id == payment.student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
-    
-    university = db.query(University).filter(University.id == current_user.university_id).first()
-    
-    # ✅ Récupérer le créateur
+
+    # Sécurité multi-tenant et IDOR étudiant
+    if current_user.role == "student":
+        if student.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Accès non autorisé à ce reçu")
+    elif current_user.university_id and student.university_id != current_user.university_id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé à ce reçu")
+
+    univ_id = student.university_id or current_user.university_id
+    university = db.query(University).filter(University.id == univ_id).first()
+
     creator = None
-    created_by_id = getattr(payment, 'created_by', None)
+    created_by_id = getattr(payment, "created_by", None) or getattr(payment, "paid_by", None)
     if created_by_id:
         creator = db.query(User).filter(User.id == created_by_id).first()
     if not creator:
         creator = current_user
-    
-    # ✅ RÉCUPÉRER LES TRANCHES CONFIGURÉES DÉDOUBLONNÉES
-    from app.utils.tuition import get_configured_tranches_for_student
-    configured_tranches = get_configured_tranches_for_student(db, student, current_user.university_id, 0)
-    
-    # ✅ Total dû = somme des tranches
-    total_amount = sum(float(t.amount) for t in configured_tranches) if configured_tranches else 0
-    
-    # ✅ RÉCUPÉRER TOUS LES PAIEMENTS
-    all_payments = db.query(Payment).filter(
-        Payment.student_id == payment.student_id
-    ).order_by(Payment.created_at.asc()).all()
-    
-    total_paid_real = sum(float(p.amount) for p in all_payments if p.amount)
-    
-    # ✅✅✅ LOGIQUE : Déterminer la ventilation exacte des paiements sur les tranches
+
+    from app.utils.tuition import (
+        resolve_student_tuition_breakdown,
+        get_configured_tranches_for_student,
+        scale_tranches_to_amount,
+        is_valid_payment_status,
+        is_scolarite_payment_type,
+    )
+
+    p_type_norm = (payment.payment_type or "scolarite").strip().lower()
+    is_scol_type = is_scolarite_payment_type(p_type_norm)
+    breakdown = resolve_student_tuition_breakdown(
+        db, student, univ_id, "scolarite" if is_scol_type else p_type_norm
+    )
+
+    all_valid_payments = [
+        p for p in db.query(Payment)
+        .filter(Payment.student_id == payment.student_id)
+        .order_by(Payment.created_at.asc(), Payment.id.asc())
+        .all()
+        if is_valid_payment_status(p.status)
+    ]
+
+    if is_scol_type:
+        all_payments = [p for p in all_valid_payments if is_scolarite_payment_type(p.payment_type)]
+        total_paid_real = sum(float(p.amount or 0.0) for p in all_payments)
+        total_amount = float(breakdown["net_amount"] or 0.0) if breakdown.get("is_configured") else total_paid_real
+        configured_tranches = get_configured_tranches_for_student(db, student, univ_id, total_amount)
+        scaled_tranches = scale_tranches_to_amount(configured_tranches, total_amount)
+    else:
+        all_payments = [p for p in all_valid_payments if (p.payment_type or "").strip().lower() == p_type_norm]
+        total_paid_real = sum(float(p.amount or 0.0) for p in all_payments)
+        total_amount = float(breakdown["net_amount"] or 0.0) if breakdown.get("is_configured") else total_paid_real
+        configured_tranches = []
+        scaled_tranches = []
+
     paid_tranches = []
     remaining_tranches = []
     rem_alloc = float(total_paid_real)
 
-    for tranche in configured_tranches:
-        tranche_amount = float(tranche.amount)
+    for tr in scaled_tranches:
+        tranche_amount = float(tr["amount"] or 0.0)
         if rem_alloc >= tranche_amount and tranche_amount > 0:
             tranche_paid = tranche_amount
             st = "paid"
@@ -1127,19 +1219,20 @@ def get_payment_receipt(
         elif rem_alloc > 0:
             tranche_paid = rem_alloc
             st = "partial"
-            rem_alloc = 0
+            rem_alloc = 0.0
         else:
             tranche_paid = 0.0
             st = "pending"
 
+        due_dt = tr["due_date"]
         tr_data = {
-            "tranche_number": tranche.tranche_number,
-            "tranche_name": tranche.tranche_name,
+            "tranche_number": tr["tranche_number"],
+            "tranche_name": tr["tranche_name"],
             "amount": round(tranche_amount),
             "paid_amount": round(tranche_paid),
-            "remaining": round(max(0, tranche_amount - tranche_paid)),
-            "due_date": tranche.due_date.isoformat() if tranche.due_date else None,
-            "status": st
+            "remaining": round(max(0.0, tranche_amount - tranche_paid)),
+            "due_date": due_dt.isoformat() if due_dt else None,
+            "status": st,
         }
         if st == "paid":
             paid_tranches.append(tr_data)
@@ -1225,14 +1318,21 @@ def get_my_quitus_pdf(
     university = db.query(University).filter(University.id == student.university_id).first()
     year = academic_year or get_current_academic_year(db, student.university_id)
 
-    payments = db.query(Payment).filter(
-        Payment.student_id == student.id,
-        Payment.university_id == student.university_id,
-        Payment.status.in_(["completed", "partial"])
-    ).order_by(Payment.created_at.asc()).all()
-
     from app.services.pdf_generator import generate_financial_clearance_pdf
-    from app.utils.tuition import resolve_student_tuition_breakdown
+    from app.utils.tuition import (
+        resolve_student_tuition_breakdown,
+        is_valid_payment_status,
+        is_scolarite_payment_type,
+    )
+
+    payments = [
+        p for p in db.query(Payment)
+        .filter(Payment.student_id == student.id, Payment.university_id == student.university_id)
+        .order_by(Payment.created_at.asc(), Payment.id.asc())
+        .all()
+        if is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type)
+    ]
+
     breakdown = resolve_student_tuition_breakdown(db, student, student.university_id, "scolarite")
     net_due = float(breakdown.get("net_amount", 0.0) or 0.0)
     total_paid = sum(float(p.amount or 0.0) for p in payments)
@@ -1269,18 +1369,27 @@ def get_student_quitus_pdf(
 
     if current_user.role == "student" and student.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Accès non autorisé")
+    if current_user.role != "student" and current_user.university_id and student.university_id != current_user.university_id:
+        raise HTTPException(status_code=403, detail="Accès non autorisé")
 
     university = db.query(University).filter(University.id == student.university_id).first()
     year = academic_year or get_current_academic_year(db, student.university_id)
 
-    payments = db.query(Payment).filter(
-        Payment.student_id == student_id,
-        Payment.university_id == student.university_id,
-        Payment.status.in_(["completed", "partial"])
-    ).order_by(Payment.created_at.asc()).all()
-
     from app.services.pdf_generator import generate_financial_clearance_pdf
-    from app.utils.tuition import resolve_student_tuition_breakdown
+    from app.utils.tuition import (
+        resolve_student_tuition_breakdown,
+        is_valid_payment_status,
+        is_scolarite_payment_type,
+    )
+
+    payments = [
+        p for p in db.query(Payment)
+        .filter(Payment.student_id == student_id, Payment.university_id == student.university_id)
+        .order_by(Payment.created_at.asc(), Payment.id.asc())
+        .all()
+        if is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type)
+    ]
+
     breakdown = resolve_student_tuition_breakdown(db, student, student.university_id, "scolarite")
     net_due = float(breakdown.get("net_amount", 0.0) or 0.0)
     total_paid = sum(float(p.amount or 0.0) for p in payments)

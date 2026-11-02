@@ -769,8 +769,8 @@ def get_teacher_materials(
 @router.post("/materials")
 async def upload_material(
     title: str = Form(...),
-    description: str = Form(None),
-    course_id: int = Form(None),
+    description: Optional[str] = Form(None),
+    course_id: Optional[str] = Form(None),
     visibility: str = Form("students"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -786,10 +786,17 @@ async def upload_material(
     if not teacher:
         raise HTTPException(status_code=404, detail="Profil enseignant non trouvé")
     
+    parsed_course_id: Optional[int] = None
+    if course_id is not None and str(course_id).strip() != "":
+        try:
+            parsed_course_id = int(str(course_id).strip())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Identifiant de cours invalide")
+
     # Vérifier le cours si fourni
-    if course_id:
+    if parsed_course_id:
         course = db.query(Course).filter(
-            Course.id == course_id,
+            Course.id == parsed_course_id,
             Course.teacher_id == teacher.id
         ).first()
         if not course:
@@ -838,7 +845,7 @@ async def upload_material(
         file_type=file_type,
         file_size=file_size,
         original_name=file.filename,
-        course_id=course_id,
+        course_id=parsed_course_id,
         teacher_id=teacher.id,
         university_id=current_user.university_id,
         visibility=visibility
@@ -886,12 +893,17 @@ def delete_material(
     
     # Supprimer le fichier physique
     if material.file_path:
-        filepath = os.path.join("uploads/materials", material.file_path)
-        if os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-            except Exception as e:
-                print(f"⚠️ Erreur suppression fichier: {e}")
+        candidates = [
+            material.file_path,
+            os.path.join("uploads/materials", os.path.basename(material.file_path)),
+            os.path.join("uploads/courses", os.path.basename(material.file_path)),
+        ]
+        for fp in candidates:
+            if fp and os.path.exists(fp) and os.path.isfile(fp):
+                try:
+                    os.remove(fp)
+                except Exception:
+                    pass
     
     db.delete(material)
     db.commit()

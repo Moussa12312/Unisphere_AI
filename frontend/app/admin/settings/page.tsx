@@ -82,9 +82,7 @@ export default function UniversitySettingsPage() {
         const fd = new FormData();
         fd.append('logo', newLogoFile);
         fd.append('remove_bg', removeBackground ? "true" : "false");
-        const logoRes = await api.post('/api/v1/settings/university/logo', fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        const logoRes = await api.post('/api/v1/settings/university/logo', fd);
         setFormData(prev => ({ ...prev, logo: logoRes.data.logo_url }));
       }
 
@@ -123,7 +121,16 @@ export default function UniversitySettingsPage() {
     setHasChanges(true);
   };
 
-  const displayLogoUrl = previewLogo || (formData.logo ? `${API_BASE_URL}/uploads/logos/${formData.logo}?t=${Date.now()}` : '');
+  const cleanLogoPath = formData.logo
+    ? formData.logo.startsWith('http')
+      ? formData.logo
+      : formData.logo.startsWith('/uploads/')
+        ? formData.logo
+        : formData.logo.startsWith('uploads/')
+          ? `/${formData.logo}`
+          : `/uploads/logos/${formData.logo}`
+    : '';
+  const displayLogoUrl = previewLogo || (cleanLogoPath ? `${cleanLogoPath}${cleanLogoPath.includes('?') ? '&' : '?'}t=${Date.now()}` : '');
 
   // Couleurs de statut
   const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
@@ -166,7 +173,7 @@ export default function UniversitySettingsPage() {
       </div>
 
       {settingsTab === 'personal' ? (
-        <SettingsPage role="admin" roleLabel="Administrateur" roleIcon={Building2} />
+        <SettingsPage role="admin" roleLabel="Administrateur" roleIcon={Building2} defaultTab="appearance" />
       ) : (
         <>
           {/* Header */}
