@@ -12,7 +12,6 @@ from app.models.payment import Payment
 from app.models.payment_tranche import PaymentTranche  
 from app.models.student import Student
 from app.models.user import User
-from dateutil.relativedelta import relativedelta
 
 
 from app.core.dependencies import require_role
