@@ -103,9 +103,16 @@ export const getMediaUrl = (path?: string | null, fallback?: string): string => 
   ) {
     return path;
   }
-  const clean = path.trim();
+  const clean = path.trim().replace(/\\/g, '/');
   if (clean.startsWith('/uploads/')) return clean;
   if (clean.startsWith('uploads/')) return `/${clean}`;
+  if (clean.startsWith('logos/')) return `/uploads/${clean}`;
+  if (clean.startsWith('/logos/')) return `/uploads${clean}`;
+
+  if (clean.startsWith('university_') || clean.startsWith('logo_')) {
+    return `/uploads/logos/${clean.replace(/^\//, '')}`;
+  }
+
   const leadingSlash = clean.startsWith('/') ? clean : `/${clean}`;
   return `/uploads${leadingSlash}`;
 };

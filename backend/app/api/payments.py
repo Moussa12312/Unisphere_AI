@@ -405,19 +405,45 @@ def get_students_payments_overview(
             paid_pct = min(99, round((st_paid / net_due) * 100)) if net_due > 0 else 0
             st_status = "partial" if st_paid > 0 else "unpaid"
             has_late = False
-            conf_tr = get_configured_tranches_for_student(db, student, univ_id, net_due)
-            scaled_tr = scale_tranches_to_amount(conf_tr, net_due)
-            rem_alloc = st_paid
-            for tr in scaled_tr:
-                t_amt = float(tr["amount"] or 0.0)
-                cov = min(t_amt, rem_alloc)
-                rem_alloc = max(0.0, rem_alloc - cov)
-                due_dt = tr["due_date"]
-                if due_dt:
-                    d_only = due_dt.date() if hasattr(due_dt, "date") else due_dt
-                    if (t_amt - cov) > 0 and d_only < today:
-                        has_late = True
-                        break
+
+        conf_tr = get_configured_tranches_for_student(db, student, univ_id, net_due) if is_configured else []
+        scaled_tr = scale_tranches_to_amount(conf_tr, net_due) if is_configured else []
+        rem_alloc = st_paid
+        formatted_tranches = []
+        for idx_tr, tr in enumerate(scaled_tr, start=1):
+            t_amt = float(tr.get("amount") or 0.0)
+            cov = min(t_amt, rem_alloc)
+            rem_alloc = max(0.0, rem_alloc - cov)
+            due_dt = tr.get("due_date")
+            is_overdue = False
+            if due_dt:
+                d_only = due_dt.date() if hasattr(due_dt, "date") else due_dt
+                if (t_amt - cov) > 0 and d_only < today:
+                    is_overdue = True
+                    has_late = True
+            tr_status = "paid" if cov >= t_amt and t_amt > 0 else ("available" if (cov > 0 or idx_tr == 1) else "locked")
+            formatted_tranches.append({
+                "id": tr.get("id") or idx_tr,
+                "number": tr.get("number") or idx_tr,
+                "name": tr.get("name") or f"Tranche {idx_tr}",
+                "amount": round(t_amt),
+                "paid_amount": round(cov),
+                "remaining_amount": round(max(0.0, t_amt - cov)),
+                "status": tr_status,
+                "is_overdue": is_overdue,
+                "due_date": due_dt.isoformat() if hasattr(due_dt, "isoformat") else (str(due_dt) if due_dt else None),
+            })
+
+        summary_obj = {
+            "total_amount": round(net_due),
+            "total_paid": round(st_paid),
+            "total_remaining": round(st_rem),
+            "paid_percentage": paid_pct,
+            "status": st_status,
+            "has_late": has_late,
+            "is_configured": is_configured,
+            "tranches": formatted_tranches,
+        }
 
         items.append({
             "id": student.id,
@@ -431,6 +457,7 @@ def get_students_payments_overview(
             "level": student.level,
             "filiere": student.filiere,
             "domain": breakdown.get("domain") or student.domain,
+            "photo": student.photo,
             "is_configured": is_configured,
             "base_amount": round(float(breakdown["base_amount"] or 0.0)),
             "discount_amount": round(float(breakdown["discount_amount"] or 0.0)),
@@ -443,9 +470,20 @@ def get_students_payments_overview(
             "has_late": has_late,
             "payments_count": len(st_payments),
             "payment_plan": breakdown.get("payment_plan", "tranches"),
+            "payment_summary": summary_obj,
+            "tranches": formatted_tranches,
         })
 
-    return {"students": items, "total": len(items)}
+    stats = {
+        "total_due": sum(it["total_amount"] for it in items),
+        "total_paid": sum(it["total_paid"] for it in items),
+        "total_remaining": sum(it["total_remaining"] for it in items),
+        "students_count": len(items),
+        "paid_students": sum(1 for it in items if it["status"] == "paid"),
+        "late_students": sum(1 for it in items if it["has_late"]),
+    }
+
+    return {"students": items, "total": len(items), "stats": stats}
 
 
 # ✅ STATISTIQUES GLOBALES DES PAIEMENTS

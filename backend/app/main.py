@@ -493,13 +493,34 @@ for name, router in all_routers.items():
 
 
 # ============================================
-# MOUNTS STATIQUES
+# MOUNTS STATIQUES AVEC FALLBACK MULTI-DOSSIERS (LOGOS, AVATARS, SCANS)
 # ============================================
+class SmartStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 404:
+            clean_name = Path(path).name
+            base_p = Path(self.directory)
+            for sub in ("logos", "avatars", "dossier_etudiant", "photos", "profiles"):
+                cand = base_p / sub / clean_name
+                if cand.is_file():
+                    try:
+                        rel = str(cand.relative_to(base_p)).replace("\\", "/")
+                        return await super().get_response(rel, scope)
+                    except Exception:
+                        pass
+        return response
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 (BASE_DIR / "qr_codes").mkdir(parents=True, exist_ok=True)
 (BASE_DIR / "uploads").mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "uploads" / "logos").mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "uploads" / "avatars").mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "uploads" / "photos").mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "uploads" / "dossier_etudiant").mkdir(parents=True, exist_ok=True)
+
 app.mount("/qr_codes", StaticFiles(directory=str(BASE_DIR / "qr_codes")), name="qr_codes")
-app.mount("/uploads", StaticFiles(directory=str(BASE_DIR / "uploads")), name="uploads")
+app.mount("/uploads", SmartStaticFiles(directory=str(BASE_DIR / "uploads")), name="uploads")
 
 
 # ============================================

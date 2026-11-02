@@ -348,7 +348,8 @@ def get_trial_balance(db: Session = Depends(get_db), current_user: User = Depend
 # 📅 EXERCICES COMPTABLES
 # ==========================================
 class FiscalYearCreate(BaseModel):
-    period: str
+    period: Optional[str] = None
+    name: Optional[str] = None
     start_date: str
     end_date: str
 
@@ -359,14 +360,25 @@ def get_fiscal_years(db: Session = Depends(get_db), current_user: User = Depends
 
 
 @router.post("/fiscal-years")
-def create_fiscal_year(data: FiscalYearCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+def create_fiscal_year(data: FiscalYearCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "accountant"))):
     try:
         start = datetime.strptime(data.start_date, "%Y-%m-%d").date()
         end = datetime.strptime(data.end_date, "%Y-%m-%d").date()
     except ValueError:
-        raise HTTPException(status_code=400, detail="Format de date invalide")
+        raise HTTPException(status_code=400, detail="Format de date invalide (AAAA-MM-JJ attendu)")
 
-    fy = FiscalYear(period=data.period, start_date=start, end_date=end, university_id=current_user.university_id)
+    period_val = (data.period or data.name or f"{start.year}-{end.year}").strip()
+    if not period_val:
+        period_val = f"{start.year}-{end.year}"
+
+    existing = db.query(FiscalYear).filter(
+        FiscalYear.university_id == current_user.university_id,
+        FiscalYear.period == period_val
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Un exercice comptable pour la période '{period_val}' existe déjà.")
+
+    fy = FiscalYear(period=period_val, start_date=start, end_date=end, university_id=current_user.university_id)
     db.add(fy)
     db.commit()
     db.refresh(fy)
@@ -374,7 +386,7 @@ def create_fiscal_year(data: FiscalYearCreate, db: Session = Depends(get_db), cu
 
 
 @router.post("/fiscal-years/{fy_id}/close")
-def close_fiscal_year(fy_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+def close_fiscal_year(fy_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "accountant"))):
     """Clôture un exercice : empêche toute nouvelle écriture ou modification sur cette période."""
     fy = db.query(FiscalYear).filter(FiscalYear.id == fy_id, FiscalYear.university_id == current_user.university_id).first()
     if not fy:

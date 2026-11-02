@@ -158,7 +158,7 @@ export default function StaffPage() {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+          className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-4 sm:px-6 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors w-full sm:w-auto justify-center"
         >
           <Plus size={18} />
           Ajouter un membre

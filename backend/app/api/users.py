@@ -240,14 +240,17 @@ async def upload_profile_photo(
     with open(main_upload_path, "wb") as buffer:
         buffer.write(content)
 
-    user.photo = filename
+    # On stocke le chemin relatif depuis /uploads/ (ex: "profiles/user_7_xxx.jpg")
+    # Cela garantit que getMediaUrl('/uploads/' + photo) fonctionne sans double /uploads/
+    rel_photo = f"profiles/{filename}"
+    user.photo = rel_photo
 
     # Synchroniser la photo avec toutes les tables de profils métiers éventuelles
     try:
         from app.models.student import Student
         student = db.query(Student).filter(Student.user_id == user.id).first()
         if student:
-            student.photo = filename
+            student.photo = rel_photo
     except Exception:
         pass
 
@@ -255,7 +258,7 @@ async def upload_profile_photo(
         from app.models.teacher import Teacher
         teachers = db.query(Teacher).filter(Teacher.user_id == user.id).all()
         for t in teachers:
-            t.photo = filename
+            t.photo = rel_photo
     except Exception:
         pass
 
@@ -263,7 +266,7 @@ async def upload_profile_photo(
         from app.models.censor import Censor
         censor = db.query(Censor).filter(Censor.user_id == user.id).first()
         if censor:
-            censor.photo = filename
+            censor.photo = rel_photo
     except Exception:
         pass
 
@@ -271,13 +274,13 @@ async def upload_profile_photo(
         from app.models.alumni import AlumniProfile
         alumni = db.query(AlumniProfile).filter(AlumniProfile.user_id == user.id).first()
         if alumni:
-            alumni.photo = filename
+            alumni.photo = rel_photo
     except Exception:
         pass
 
     db.commit()
     db.refresh(user)
-    return {"message": "Photo mise à jour avec succès", "photo_url": filename, "photo": filename}
+    return {"message": "Photo mise à jour avec succès", "photo_url": rel_photo, "photo": rel_photo}
 
 @router.put("/password")
 def change_password(

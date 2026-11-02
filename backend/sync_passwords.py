@@ -43,3 +43,4 @@ try:
     print("\n🎉 Tous les comptes démo et SuperAdmin sont 100% opérationnels avec le mot de passe : unisphere2026 !")
 finally:
     db.close()
+
