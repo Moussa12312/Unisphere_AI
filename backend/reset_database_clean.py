@@ -13,12 +13,14 @@ from app.core.security import hash_password
 from app.models.user import User
 
 def reset_database():
-    print("🔄 Début du nettoyage complet de la base de données...")
+    print("==========================================================")
+    print("🔄 Remise à zéro totale de la base de données (Zero Mock)")
+    print("==========================================================")
     db = SessionLocal()
     insp = inspect(engine)
     tables = insp.get_table_names()
     
-    print(f"📋 Tables détectées ({len(tables)}) : {tables}")
+    print(f"📋 Tables détectées ({len(tables)})")
     
     # 1. Vider toutes les tables sauf 'subscription_plans'
     is_postgres = "postgres" in str(engine.url) or "postgresql" in str(engine.url)
@@ -30,7 +32,7 @@ def reset_database():
                 db.rollback()
                 db.execute(text(f"TRUNCATE TABLE {joined} RESTART IDENTITY CASCADE;"))
                 db.commit()
-                print(f"   🗑️ Tables PostgreSQL vidées avec TRUNCATE CASCADE et RESTART IDENTITY.")
+                print("   🗑️ Toutes les tables PostgreSQL vidées (TRUNCATE CASCADE).")
             except Exception as e:
                 db.rollback()
                 print(f"   ⚠️ Erreur TRUNCATE PostgreSQL: {e}")
@@ -42,16 +44,18 @@ def reset_database():
                 continue
             try:
                 db.execute(text(f'DELETE FROM "{table}";'))
-                print(f"   🗑️ Table vidée : {table}")
             except Exception as e:
                 print(f"   ⚠️ Erreur vidage table {table}: {e}")
+        try:
+            db.execute(text("DELETE FROM sqlite_sequence WHERE name != 'subscription_plans';"))
+        except Exception:
+            pass
         if "sqlite" in str(engine.url):
             db.execute(text("PRAGMA foreign_keys = ON;"))
         db.commit()
-        
-    print("✅ Toutes les tables ont été réinitialisées.")
-    
-    # 2. Vérifier / insérer les plans d'abonnement SaaS standard si la table existe
+        print("   🗑️ Toutes les tables SQLite vidées.")
+
+    # 2. Vérifier / insérer les plans d'abonnement SaaS standard
     if "subscription_plans" in tables:
         try:
             existing_plans = db.execute(text("SELECT COUNT(*) FROM subscription_plans;")).scalar()
@@ -74,109 +78,40 @@ def reset_database():
                         "description": desc
                     })
                 db.commit()
-                print("✅ Plans d'abonnement SaaS standard initialisés.")
-            else:
-                print(f"ℹ️ {existing_plans} plans d'abonnement présents.")
+                print("   ✅ Plans d'abonnement SaaS initialisés.")
         except Exception as e:
             db.rollback()
-            print(f"⚠️ Erreur vérification subscription_plans: {e}")
+            print(f"   ⚠️ Erreur subscription_plans: {e}")
         
-    # 3. Créer ou mettre à jour le compte SUPER ADMIN unique et propre
+    # 3. Créer le compte SUPER ADMIN unique (aucun autre compte)
     super_admin_email = os.getenv("SUPER_ADMIN_EMAIL", "chakirunisphereai@gmail.com")
     super_admin_pass = os.getenv("SUPER_ADMIN_PASSWORD", "f7@x4-Dx5K6xe")
-    super_admin_phone = "+223 73343493"
     
     try:
-        existing_admin = db.query(User).filter(User.email == super_admin_email).first()
-        if existing_admin:
-            existing_admin.full_name = "Chakir's Entreprise"
-            existing_admin.hashed_password = hash_password(super_admin_pass)
-            existing_admin.role = "super_admin"
-            existing_admin.phone = super_admin_phone
-            existing_admin.is_active = True
-            existing_admin.is_email_verified = True
-            existing_admin.university_id = None
-            db.commit()
-            db.refresh(existing_admin)
-            super_admin = existing_admin
-            print(f"👑 Compte Super Admin mis à jour avec succès :")
-        else:
-            super_admin = User(
-                full_name="Chakir's Entreprise",
-                email=super_admin_email,
-                hashed_password=hash_password(super_admin_pass),
-                role="super_admin",
-                phone=super_admin_phone,
-                is_active=True,
-                is_email_verified=True,
-                university_id=None
-            )
-            db.add(super_admin)
-            db.commit()
-            db.refresh(super_admin)
-            print(f"👑 Compte Super Admin créé avec succès :")
-            
-        print(f"   - ID : {super_admin.id}")
-        print(f"   - Nom : {super_admin.full_name}")
-        print(f"   - Email : {super_admin.email}")
-        print(f"   - Rôle : {super_admin.role}")
-        print(f"   - Mot de passe : {super_admin_pass}")
+        super_admin = User(
+            full_name="Super Admin UniSphere",
+            email=super_admin_email,
+            hashed_password=hash_password(super_admin_pass),
+            role="super_admin",
+            phone="+223 73343493",
+            is_active=True,
+            is_email_verified=True,
+            university_id=None
+        )
+        db.add(super_admin)
+        db.commit()
+        db.refresh(super_admin)
+        print(f"   👑 Super Admin unique configuré :")
+        print(f"      - Email       : {super_admin.email}")
+        print(f"      - Rôle        : {super_admin.role}")
+        print(f"      - Mot de passe: {super_admin_pass}")
     except Exception as e:
         db.rollback()
-        print(f"⚠️ Erreur création Super Admin: {e}")
+        print(f"   ⚠️ Erreur création Super Admin: {e}")
     
-    # 4. Assurer l'existence exclusive de l'Université Pilote (ID: 1)
-    try:
-        from app.models.university import University
-        univ = db.query(University).filter(
-            (University.id == 1) | (University.name.ilike("%unisphere%")) | (University.name.ilike("%ecob%"))
-        ).first()
-        if not univ:
-            univ = University(
-                id=1,
-                name="Université Pilote UniSphere",
-                email="contact@unisphere-ai.com",
-                phone="+223 70 00 00 00",
-                address="Hamdallaye ACI 2000, Bamako, Mali",
-                slogan="Excellence, Innovation & Technologie",
-                website="https://www.unisphere-ai.com",
-                established_year="2020",
-                rector_name="Pr. Chakir's Entreprise",
-                academic_year="2026-2027",
-                is_active=True,
-                status="active",
-                country="Mali",
-                institution_type="university"
-            )
-            db.add(univ)
-            db.commit()
-            db.refresh(univ)
-            print(f"🏛️ Université Pilote UniSphere (ID: {univ.id}) initialisée avec succès.")
-        else:
-            univ.name = "Université Pilote UniSphere"
-            univ.email = univ.email or "contact@unisphere-ai.com"
-            univ.slogan = "Excellence, Innovation & Technologie"
-            univ.academic_year = "2026-2027"
-            univ.is_active = True
-            univ.status = "active"
-            db.commit()
-            print(f"🏛️ Université Pilote UniSphere (ID: {univ.id}) confirmée.")
-
-        # Supprimer toute autre université de test
-        other_unis = db.query(University).filter(University.id != univ.id).all()
-        for u in other_unis:
-            db.delete(u)
-        if other_unis:
-            db.commit()
-            print(f"🗑️ {len(other_unis)} universités de test résiduelles supprimées.")
-    except Exception as e:
-        db.rollback()
-        print(f"⚠️ Erreur initialisation ECOB: {e}")
-    
-    # 5. Nettoyer les fichiers téléversés résiduels dans uploads et qr_codes
-    base_dir = backend_dir
+    # 4. Nettoyer les fichiers téléversés de test
     for folder_name in ["uploads", "qr_codes"]:
-        target_dir = os.path.join(base_dir, folder_name)
+        target_dir = os.path.join(backend_dir, folder_name)
         if os.path.exists(target_dir):
             for item in os.listdir(target_dir):
                 item_path = os.path.join(target_dir, item)
@@ -187,30 +122,42 @@ def reset_database():
                         os.remove(item_path)
                     elif os.path.isdir(item_path):
                         shutil.rmtree(item_path)
-                except Exception as e:
+                except Exception:
                     pass
         os.makedirs(target_dir, exist_ok=True)
         gitkeep = os.path.join(target_dir, ".gitkeep")
         if not os.path.exists(gitkeep):
             with open(gitkeep, "w") as f:
                 f.write("")
-                
-    for sub in ["logos", "courses", "documents", "materials", "student_documents", "temp_scans", "dossier_etudiant"]:
-        sdir = os.path.join(base_dir, "uploads", sub)
-        os.makedirs(sdir, exist_ok=True)
-        gkeep = os.path.join(sdir, ".gitkeep")
-        if not os.path.exists(gkeep):
-            with open(gkeep, "w") as f:
-                f.write("")
-                
-    print("🧹 Répertoires uploads et qr_codes nettoyés et sécurisés.")
+
+    print("   🧹 Dossiers uploads et qr_codes nettoyés.")
     
-    # 6. Base de données vierge (Zero Mock Data)
-    # Les utilisateurs et enseignants seront créés manuellement ou par inscription
-    print("✨ Base de données totalement vierge et prête (Super Admin + Université ECOB prête).")
+    # Synchronisation des fichiers db locaux si SQLite
+    if "sqlite" in str(engine.url):
+        root_db = os.path.join(os.path.dirname(backend_dir), "unisphere.db")
+        backend_db = os.path.join(backend_dir, "unisphere.db")
+        try:
+            if os.path.exists(backend_db):
+                shutil.copy2(backend_db, root_db)
+        except Exception:
+            pass
+
+    # 5. Rapport de vérification finale
+    print("==========================================================")
+    print("📊 ÉTAT DE LA BASE APRÈS REMISE À ZÉRO :")
+    try:
+        users_count = db.execute(text("SELECT COUNT(*) FROM users;")).scalar()
+        students_count = db.execute(text("SELECT COUNT(*) FROM students;")).scalar() if "students" in tables else 0
+        universities_count = db.execute(text("SELECT COUNT(*) FROM universities;")).scalar() if "universities" in tables else 0
+        print(f"   • Universités : {universities_count}")
+        print(f"   • Étudiants   : {students_count}")
+        print(f"   • Utilisateurs: {users_count} (SuperAdmin unique)")
+        print("✅ Base vierge prête à l'emploi.")
+    except Exception as e:
+        print(f"   ⚠️ Erreur comptage: {e}")
+    print("==========================================================")
 
     db.close()
-
 
 if __name__ == "__main__":
     reset_database()
