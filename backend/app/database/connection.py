@@ -17,6 +17,9 @@ def _is_pg_reachable(url: str) -> bool:
     except Exception:
         return False
 
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sqlite_path = os.path.join(backend_dir, "unisphere.db").replace("\\", "/")
+
 try:
     if "postgresql" in DATABASE_URL and _is_pg_reachable(DATABASE_URL):
         engine = create_engine(
@@ -33,14 +36,12 @@ try:
             pass
     elif "sqlite" in DATABASE_URL:
         engine = create_engine(
-            DATABASE_URL,
+            f"sqlite:///{sqlite_path}",
             connect_args={"check_same_thread": False}
         )
     else:
         raise ConnectionError("PostgreSQL indisponible")
 except Exception:
-    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    sqlite_path = os.path.join(backend_dir, "unisphere.db").replace("\\", "/")
     print(f"[INFO] Utilisation de la base SQLite locale ({sqlite_path})")
     engine = create_engine(
         f"sqlite:///{sqlite_path}",

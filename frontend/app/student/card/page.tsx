@@ -100,7 +100,8 @@ export default function StudentCardPage() {
     );
   }
 
-  const { student, university } = data;
+  const { student, university, config } = data;
+  const cardCustomization = config || university?.card_config;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8">
@@ -186,6 +187,7 @@ export default function StudentCardPage() {
               <OfficialStudentCard
                 student={student}
                 university={university}
+                customization={cardCustomization}
                 side="recto"
                 mode="responsive"
               />
@@ -203,6 +205,7 @@ export default function StudentCardPage() {
               <OfficialStudentCard
                 student={student}
                 university={university}
+                customization={cardCustomization}
                 side="verso"
                 mode="responsive"
               />
@@ -326,6 +329,7 @@ export default function StudentCardPage() {
                   <OfficialStudentCard
                     student={student}
                     university={university}
+                    customization={cardCustomization}
                     side="recto"
                     mode="responsive"
                   />
