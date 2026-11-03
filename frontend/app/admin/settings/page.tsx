@@ -92,7 +92,16 @@ export default function UniversitySettingsPage() {
       setPreviewLogo(null);
       setHasChanges(false);
     } catch (error: any) {
-      toast.error('Erreur lors de la sauvegarde');
+      // Afficher la vraie cause (message serveur, code HTTP ou réseau) plutôt qu'un message générique
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail;
+      toast.error(
+        typeof detail === 'string' && detail
+          ? detail
+          : status
+            ? `Erreur lors de la sauvegarde (code ${status})`
+            : 'Serveur injoignable : vérifiez votre connexion et réessayez'
+      );
     } finally {
       setSaving(false);
     }

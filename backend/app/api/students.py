@@ -2650,30 +2650,16 @@ def get_student(
 @router.put("/{student_id}")
 async def update_student(
     student_id: int,
-    first_name: str = Form(...),
-    last_name: str = Form(...),
-    email: str = Form(...),
-    filiere: str = Form(...),
-    level: str = Form(...),
-    date_of_birth: Optional[str] = Form(None),
-    place_of_birth: Optional[str] = Form(None),
-    gender: Optional[str] = Form(None),
-    nationality: Optional[str] = Form(None),
-    phone: Optional[str] = Form(None),
-    address: Optional[str] = Form(None),
-    domain: Optional[str] = Form(None),
-    parent_name: Optional[str] = Form(None),
-    parent_phone: Optional[str] = Form(None),
-    parent_email: Optional[str] = Form(None),
-    payment_plan: Optional[str] = Form(None),
-    monthly_deposit: Optional[str] = Form(None),
-    monthly_installment: Optional[str] = Form(None),
-    monthly_months_count: Optional[str] = Form(None),
-    photo: UploadFile = File(None),
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary"))
 ):
-    """Met à jour un étudiant"""
+    """Met à jour un étudiant.
+
+    Accepte multipart/form-data (formulaire d'édition, avec photo optionnelle) ET
+    application/json (mise à jour partielle). Un corps JSON ne doit jamais provoquer
+    de 422 « Field required » : les champs absents conservent leur valeur actuelle.
+    """
     existing_student = db.query(Student).filter(
         Student.id == student_id,
         Student.university_id == current_user.university_id
@@ -2681,6 +2667,56 @@ async def update_student(
 
     if not existing_student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
+
+    is_json = "application/json" in (request.headers.get("content-type") or "").lower()
+    photo = None
+    payload: dict = {}
+    if is_json:
+        try:
+            body = await request.json()
+            payload = body if isinstance(body, dict) else {}
+        except Exception:
+            payload = {}
+    else:
+        form = await request.form()
+        payload = {k: v for k, v in form.items() if isinstance(v, str)}
+        upload = form.get("photo")
+        if upload is not None and getattr(upload, "filename", None):
+            photo = upload
+
+    def _txt(key, current=None):
+        """Formulaire : champ absent = vidé (comportement historique). JSON : absent = inchangé."""
+        if key in payload:
+            val = payload[key]
+            return None if val is None else str(val)
+        return current if is_json else None
+
+    def _required(key, current):
+        val = payload.get(key)
+        val = (str(val).strip() if val is not None else "") or (current or "")
+        if not val:
+            raise HTTPException(status_code=422, detail=f"Le champ '{key}' est obligatoire")
+        return val
+
+    first_name = _required("first_name", existing_student.first_name)
+    last_name = _required("last_name", existing_student.last_name)
+    email = _required("email", existing_student.email)
+    filiere = _required("filiere", existing_student.filiere)
+    level = _required("level", existing_student.level)
+    domain = _txt("domain", existing_student.domain)
+    date_of_birth = _txt("date_of_birth", existing_student.date_of_birth.isoformat() if getattr(existing_student, "date_of_birth", None) else None)
+    place_of_birth = _txt("place_of_birth", existing_student.place_of_birth)
+    gender = _txt("gender", existing_student.gender)
+    nationality = _txt("nationality", existing_student.nationality)
+    phone = _txt("phone", existing_student.phone)
+    address = _txt("address", existing_student.address)
+    parent_name = _txt("parent_name", existing_student.parent_name)
+    parent_phone = _txt("parent_phone", existing_student.parent_phone)
+    parent_email = _txt("parent_email", existing_student.parent_email)
+    payment_plan = payload.get("payment_plan") or None
+    monthly_deposit = payload.get("monthly_deposit")
+    monthly_installment = payload.get("monthly_installment")
+    monthly_months_count = payload.get("monthly_months_count")
 
     email = (email or "").strip().lower()
     if email != (existing_student.email or "").lower():
@@ -2730,11 +2766,12 @@ async def update_student(
     if photo and photo.filename:
         content = await photo.read()
         if content:
-            os.makedirs("uploads", exist_ok=True)
+            uploads_dir = Path(__file__).resolve().parent.parent.parent / "uploads"
+            os.makedirs(uploads_dir, exist_ok=True)
             ext = Path(photo.filename).suffix.lower() or ".jpg"
             if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
                 ext = ".jpg"
-            photo_path = Path("uploads") / f"STUDENT_{existing_student.id}_{int(time_module.time())}{ext}"
+            photo_path = uploads_dir / f"STUDENT_{existing_student.id}_{int(time_module.time())}{ext}"
             saved_p = compress_and_save_upload(content, photo_path, max_dimension=1200, quality=82)
             new_photo_name = saved_p.name
             existing_student.photo = new_photo_name
