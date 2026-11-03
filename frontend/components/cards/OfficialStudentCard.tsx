@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { getMediaUrl } from '@/lib/api';
-import { GraduationCap, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 export interface OfficialCardStudent {
   id: number;
@@ -29,12 +29,12 @@ export interface OfficialCardUniversity {
 }
 
 export interface CardCustomizationOptions {
-  primaryColor?: string;        // Vague supérieure & titres (ex: #072146)
-  accentColor?: string;         // Vague inférieure & badges (ex: #FF7300)
-  slogan?: string;              // Devise au pied de carte (ex: "Ensemble pour l'excellence")
+  primaryColor?: string;        // Vague principale & textes titres (ex: #072146)
+  accentColor?: string;         // Vague inférieure & finitions (ex: #FF7300)
+  slogan?: string;              // Devise au bas de la carte (ex: "Ensemble pour l'excellence")
   subtitle?: string;            // Sous-titre en-tête (ex: "Université Intelligente")
-  showWatermark?: boolean;      // Afficher les courbes topographiques de sécurité
-  showQrCode?: boolean;         // Afficher le QR Code officiel
+  showWatermark?: boolean;      // Filigrane topographique de sécurité
+  showQrCode?: boolean;         // QR Code officiel
 }
 
 interface OfficialStudentCardProps {
@@ -56,8 +56,9 @@ export default function OfficialStudentCard({
 }: OfficialStudentCardProps) {
   const [photoError, setPhotoError] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [qrError, setQrError] = useState(false);
 
-  // Configuration dynamique avec cascade de priorité (customization > university.card_config > valeurs officielles par défaut)
+  // Configuration dynamique : customization > university.card_config > valeurs de référence par défaut
   const savedCfg = university.card_config || {};
   const primaryColor = customization?.primaryColor || savedCfg.primary_color || savedCfg.header_background_color || '#072146';
   const accentColor = customization?.accentColor || savedCfg.accent_color || savedCfg.matricule_background_color || '#FF7300';
@@ -75,7 +76,7 @@ export default function OfficialStudentCard({
 
   const initials = `${(student.first_name || '')[0] || ''}${(student.last_name || '')[0] || ''}`.toUpperCase() || 'ET';
 
-  // Rendu du titre de l'université avec coloration dynamique de "AI" en accentColor
+  // Rendu du titre avec coloration dynamique de "AI" en accentColor
   const renderUniversityTitle = () => {
     if (univName.toLowerCase().includes('unisphere')) {
       return (
@@ -88,7 +89,7 @@ export default function OfficialStudentCard({
   };
 
   /* -------------------------------------------------------------------------- */
-  /* RECTO : DESIGN DOUBLE VAGUE PERSONNALISABLE                                 */
+  /* RECTO : DESIGN OFFICIEL EXACT DE RÉFÉRENCE (DOUBLE VAGUE + FILIGRANE)      */
   /* -------------------------------------------------------------------------- */
   if (side === 'recto') {
     return (
@@ -104,87 +105,38 @@ export default function OfficialStudentCard({
           containerType: 'inline-size'
         }}
       >
-        {/* FILIGRANE DE SÉCURITÉ : VAGUES TOPOGRAPHIQUES SOUPLES (SI ACTIVÉ) */}
-        {showWatermark && (
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none z-0"
-            viewBox="0 0 856 540"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M -80 370 C 140 430 350 310 600 450 C 740 520 940 410 940 410"
-              stroke={accentColor}
-              strokeWidth="1.6"
-              strokeOpacity="0.16"
-            />
-            <path
-              d="M -80 405 C 140 465 350 345 600 485 C 740 555 940 445 940 445"
-              stroke={primaryColor}
-              strokeWidth="1.6"
-              strokeOpacity="0.14"
-            />
-            <path
-              d="M -80 440 C 140 500 350 380 600 520 C 740 590 940 480 940 480"
-              stroke={accentColor}
-              strokeWidth="1.6"
-              strokeOpacity="0.12"
-            />
-            <path
-              d="M -80 475 C 140 535 350 415 600 555 C 740 625 940 515 940 515"
-              stroke={primaryColor}
-              strokeWidth="1.6"
-              strokeOpacity="0.10"
-            />
-            <path
-              d="M -80 335 C 140 395 350 275 600 415 C 740 485 940 375 940 375"
-              stroke={accentColor}
-              strokeWidth="1.6"
-              strokeOpacity="0.12"
-            />
-            <path
-              d="M -80 300 C 140 360 350 240 600 380 C 740 450 940 340 940 340"
-              stroke={primaryColor}
-              strokeWidth="1.6"
-              strokeOpacity="0.09"
-            />
-            {/* Ondulations concentriques douces en bas à gauche */}
-            <circle cx="60" cy="520" r="130" stroke={accentColor} strokeWidth="1.2" strokeOpacity="0.10" />
-            <circle cx="60" cy="520" r="180" stroke={primaryColor} strokeWidth="1.2" strokeOpacity="0.08" />
-            <circle cx="60" cy="520" r="230" stroke={accentColor} strokeWidth="1.2" strokeOpacity="0.06" />
-          </svg>
-        )}
-
-        {/* EN-TÊTE VECTORIEL : DOUBLE VAGUE (COULEURS PERSONNALISABLES) */}
-        <div className="absolute top-0 inset-x-0 w-full h-[28.5%] z-10">
+        {/* ============================================================== */}
+        {/* 1. EN-TÊTE VECTORIEL : DOUBLE VAGUE (BLEU NUIT + ORANGE SOLEIL) */}
+        {/* ============================================================== */}
+        <div className="absolute top-0 inset-x-0 w-full h-[28%] z-10 pointer-events-none">
           <svg
             className="w-full h-full"
-            viewBox="0 0 856 154"
+            viewBox="0 0 856 152"
             preserveAspectRatio="none"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
-            {/* Vague d'accent inférieure */}
+            {/* Vague d'accent inférieure (Orange) qui descend plus bas vers la droite */}
             <path
-              d="M 0 0 L 856 0 L 856 126 C 730 114 560 148 370 152 C 210 155 80 142 0 120 Z"
+              d="M 0 0 L 856 0 L 856 122 C 650 128, 420 162, 200 156 C 120 152, 50 136, 0 124 Z"
               fill={accentColor}
             />
-            {/* Vague principale supérieure */}
+            {/* Vague principale supérieure (Bleu Nuit) qui remonte élégamment vers la droite */}
             <path
-              d="M 0 0 L 856 0 L 856 76 C 730 68 560 102 370 118 C 210 132 80 124 0 104 Z"
+              d="M 0 0 L 856 0 L 856 78 C 650 86, 420 144, 200 140 C 120 136, 50 126, 0 118 Z"
               fill={primaryColor}
             />
           </svg>
 
-          {/* CONTENU DE L'EN-TÊTE : LOGO + TEXTE */}
-          <div className="absolute top-0 inset-x-0 h-full flex items-center justify-between px-[4.5%] pb-[12%]">
+          {/* CONTENU DE L'EN-TÊTE : LOGO CIRCULAIRE + TITRE & SOUS-TITRE */}
+          <div className="absolute top-0 inset-x-0 h-full flex items-center justify-between px-[4.5%] pb-[11%]">
             <div className="flex items-center gap-[3%] min-w-0">
-              {/* Logo circulaire avec contour de la couleur d'accent */}
+              {/* Badge circulaire blanc avec fin contour orange */}
               <div
-                className="relative flex-shrink-0 rounded-full bg-white flex items-center justify-center shadow-xs overflow-hidden p-0.5"
+                className="relative flex-shrink-0 rounded-full bg-white flex items-center justify-center shadow-xs overflow-hidden"
                 style={{
-                  width: '8.2cqw',
-                  height: '8.2cqw',
+                  width: '8.4cqw',
+                  height: '8.4cqw',
                   border: `2px solid ${accentColor}`
                 }}
               >
@@ -193,47 +145,124 @@ export default function OfficialStudentCard({
                     src={univLogo}
                     alt={univName}
                     onError={() => setLogoError(true)}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain p-0.5"
                   />
                 ) : (
-                  <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-                    <GraduationCap style={{ width: '5.2cqw', height: '5.2cqw', color: primaryColor }} />
-                  </div>
+                  /* Logo officiel vectoriel : Toque bleu nuit + pompon orange */
+                  <svg viewBox="0 0 64 64" className="w-full h-full p-1" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* Losange supérieur (Toque) */}
+                    <path d="M32 13L8 24.5L32 36L56 24.5L32 13Z" fill={primaryColor} />
+                    {/* Calotte inférieure */}
+                    <path d="M18 29.5V40C18 43.8 24.3 47 32 47C39.7 47 46 43.8 46 40V29.5L32 36L18 29.5Z" fill={primaryColor} />
+                    {/* Bouton central & Cordon du pompon */}
+                    <circle cx="32" cy="24.5" r="2.8" fill={accentColor} />
+                    <path d="M32 24.5C26 26.5 15 32 14 36" stroke={accentColor} strokeWidth="2.4" strokeLinecap="round" />
+                    {/* Pompon suspendu */}
+                    <path d="M12 36L16 36L15.2 46L12.8 46Z" fill={accentColor} />
+                  </svg>
                 )}
               </div>
 
-              {/* Titre & Sous-titre */}
+              {/* Titre & Sous-titre de l'établissement */}
               <div className="min-w-0 leading-tight">
-                <div style={{ fontSize: '3.4cqw', lineHeight: 1.05 }}>
+                <div style={{ fontSize: '3.35cqw', lineHeight: 1.05 }}>
                   {renderUniversityTitle()}
                 </div>
                 <div
-                  className="text-white/95 font-medium tracking-wide mt-0.5 truncate"
-                  style={{ fontSize: '1.95cqw' }}
+                  className="text-white/95 font-normal tracking-wide mt-0.5 truncate"
+                  style={{ fontSize: '1.9cqw' }}
                 >
                   {subtitle}
                 </div>
               </div>
             </div>
-
-            {/* Badge année académique */}
-            <div className="flex-shrink-0 text-right">
-              <span
-                className="inline-block font-mono font-bold text-white/90 bg-white/15 px-2 py-0.5 rounded-full border border-white/25 backdrop-blur-xs"
-                style={{ fontSize: '1.75cqw' }}
-              >
-                {academicYear}
-              </span>
-            </div>
           </div>
         </div>
 
-        {/* CORPS DE LA CARTE : 3 COLONNES PARFAITEMENT ÉQUILIBRÉES */}
-        <div className="absolute top-[28.5%] bottom-[12.5%] inset-x-0 px-[5%] flex items-center justify-between gap-[3.8%] z-10">
-          {/* 1. PHOTO DE L'ÉTUDIANT (GAUCHE) */}
+        {/* ============================================================== */}
+        {/* 2. FILIGRANE DE SÉCURITÉ : VAGUES TOPOGRAPHIQUES SOUPLES       */}
+        {/* ============================================================== */}
+        {showWatermark && (
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none z-0"
+            viewBox="0 0 856 540"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {/* Lignes fluides douces ondulantes de droite à gauche */}
+            <path
+              d="M 160 540 C 360 480 500 380 856 420"
+              stroke="#0066CC"
+              strokeWidth="1.3"
+              strokeOpacity="0.09"
+            />
+            <path
+              d="M 190 540 C 390 470 530 360 856 390"
+              stroke="#0066CC"
+              strokeWidth="1.3"
+              strokeOpacity="0.08"
+            />
+            <path
+              d="M 220 540 C 420 460 560 340 856 360"
+              stroke="#0066CC"
+              strokeWidth="1.3"
+              strokeOpacity="0.08"
+            />
+            <path
+              d="M 250 540 C 450 450 590 320 856 330"
+              stroke="#0066CC"
+              strokeWidth="1.3"
+              strokeOpacity="0.07"
+            />
+            <path
+              d="M 280 540 C 480 440 620 300 856 300"
+              stroke="#0066CC"
+              strokeWidth="1.3"
+              strokeOpacity="0.07"
+            />
+            <path
+              d="M 310 540 C 510 430 650 280 856 270"
+              stroke="#0066CC"
+              strokeWidth="1.3"
+              strokeOpacity="0.06"
+            />
+            <path
+              d="M 340 540 C 540 420 680 260 856 240"
+              stroke="#0066CC"
+              strokeWidth="1.3"
+              strokeOpacity="0.06"
+            />
+            <path
+              d="M 370 540 C 570 410 710 240 856 210"
+              stroke="#0066CC"
+              strokeWidth="1.3"
+              strokeOpacity="0.05"
+            />
+            <path
+              d="M 400 540 C 600 400 740 220 856 180"
+              stroke="#0066CC"
+              strokeWidth="1.3"
+              strokeOpacity="0.05"
+            />
+            {/* Courbe douce sous la photo */}
+            <path
+              d="M -30 460 C 90 480 180 520 230 540"
+              stroke="#0066CC"
+              strokeWidth="1.2"
+              strokeOpacity="0.08"
+            />
+          </svg>
+        )}
+
+        {/* ============================================================== */}
+        {/* 3. CORPS DE LA CARTE : 3 COLONNES PARFAITEMENT PROPORTIONNÉES */}
+        {/* ============================================================== */}
+        <div className="absolute top-[28%] bottom-[12.5%] inset-x-0 px-[4.5%] flex items-center justify-between gap-[3.5%] z-10">
+          
+          {/* 3.1 PHOTO DE L'ÉTUDIANT (GAUCHE) */}
           <div
-            className="flex-shrink-0 rounded-xl overflow-hidden border border-slate-200/90 shadow-sm bg-slate-100 flex items-center justify-center"
-            style={{ width: '22.5cqw', height: '29.5cqw' }}
+            className="flex-shrink-0 rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm bg-slate-100 flex items-center justify-center"
+            style={{ width: '23cqw', height: '30.5cqw' }}
           >
             {studentPhotoUrl && !photoError ? (
               <img
@@ -246,7 +275,7 @@ export default function OfficialStudentCard({
               <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-500">
                 <span
                   className="font-black tracking-wider"
-                  style={{ fontSize: '3.2cqw', color: primaryColor }}
+                  style={{ fontSize: '3.4cqw', color: primaryColor }}
                 >
                   {initials}
                 </span>
@@ -260,109 +289,131 @@ export default function OfficialStudentCard({
             )}
           </div>
 
-          {/* 2. INFORMATIONS PRINCIPALES (CENTRE) AVEC SÉPARATEURS */}
-          <div className="flex-1 min-w-0 flex flex-col justify-between h-[29.5cqw] py-0.5">
+          {/* 3.2 INFORMATIONS PRINCIPALES (CENTRE) AVEC SÉPARATEURS */}
+          <div className="flex-1 min-w-0 flex flex-col justify-between h-[30.5cqw] py-1">
+            
             {/* Ligne Nom */}
-            <div className="border-b border-slate-200/70 pb-[1.2cqw] flex items-baseline gap-1.5 truncate">
+            <div className="border-b border-slate-200/80 pb-[1.1cqw] flex items-baseline gap-2 truncate">
               <span
                 className="font-bold tracking-tight flex-shrink-0"
-                style={{ fontSize: '2.4cqw', color: primaryColor }}
+                style={{ fontSize: '2.5cqw', color: primaryColor }}
               >
                 Nom :
               </span>
               <span
-                className="font-medium text-[#1E293B] uppercase truncate"
-                style={{ fontSize: '2.4cqw' }}
+                className="font-normal text-[#1E293B] truncate"
+                style={{ fontSize: '2.5cqw' }}
               >
-                {student.last_name || '—'}
+                {student.last_name || 'Diallo'}
               </span>
             </div>
 
             {/* Ligne Prénom */}
-            <div className="border-b border-slate-200/70 pb-[1.2cqw] flex items-baseline gap-1.5 truncate">
+            <div className="border-b border-slate-200/80 pb-[1.1cqw] flex items-baseline gap-2 truncate">
               <span
                 className="font-bold tracking-tight flex-shrink-0"
-                style={{ fontSize: '2.4cqw', color: primaryColor }}
+                style={{ fontSize: '2.5cqw', color: primaryColor }}
               >
                 Prénom :
               </span>
               <span
-                className="font-medium text-[#1E293B] capitalize truncate"
-                style={{ fontSize: '2.4cqw' }}
+                className="font-normal text-[#1E293B] truncate"
+                style={{ fontSize: '2.5cqw' }}
               >
-                {student.first_name || '—'}
+                {student.first_name || 'Moussa'}
               </span>
             </div>
 
             {/* Ligne Matricule */}
-            <div className="border-b border-slate-200/70 pb-[1.2cqw] flex items-baseline gap-1.5 truncate">
+            <div className="border-b border-slate-200/80 pb-[1.1cqw] flex items-baseline gap-2 truncate">
               <span
                 className="font-bold tracking-tight flex-shrink-0"
-                style={{ fontSize: '2.4cqw', color: primaryColor }}
+                style={{ fontSize: '2.5cqw', color: primaryColor }}
               >
                 Matricule :
               </span>
               <span
-                className="font-medium text-[#1E293B] font-mono tracking-wide truncate"
-                style={{ fontSize: '2.4cqw' }}
+                className="font-normal text-[#1E293B] tracking-wide truncate"
+                style={{ fontSize: '2.5cqw' }}
               >
-                {student.matricule || `UAI${academicYear.slice(0, 4)}${String(student.id).padStart(3, '0')}`}
+                {student.matricule || `UAI${academicYear.slice(0, 4)}${String(student.id || 1).padStart(3, '0')}`}
               </span>
             </div>
 
             {/* Ligne Filière */}
-            <div className="border-b border-slate-200/70 pb-[1.2cqw] flex items-baseline gap-1.5 truncate">
+            <div className="border-b border-slate-200/80 pb-[1.1cqw] flex items-baseline gap-2 truncate">
               <span
                 className="font-bold tracking-tight flex-shrink-0"
-                style={{ fontSize: '2.4cqw', color: primaryColor }}
+                style={{ fontSize: '2.5cqw', color: primaryColor }}
               >
                 Filière :
               </span>
               <span
-                className="font-medium text-[#1E293B] truncate"
-                style={{ fontSize: '2.4cqw' }}
+                className="font-normal text-[#1E293B] truncate"
+                style={{ fontSize: '2.5cqw' }}
               >
                 {student.filiere || 'Informatique'}
               </span>
             </div>
 
             {/* Ligne Niveau */}
-            <div className="flex items-baseline gap-1.5 truncate">
+            <div className="flex items-baseline gap-2 truncate pt-0.5">
               <span
                 className="font-bold tracking-tight flex-shrink-0"
-                style={{ fontSize: '2.4cqw', color: primaryColor }}
+                style={{ fontSize: '2.5cqw', color: primaryColor }}
               >
                 Niveau :
               </span>
               <span
-                className="font-bold truncate"
-                style={{ fontSize: '2.4cqw', color: accentColor }}
+                className="font-normal text-[#1E293B] truncate"
+                style={{ fontSize: '2.5cqw' }}
               >
                 {student.level || 'L1'}
               </span>
             </div>
           </div>
 
-          {/* 3. QR CODE SÉCURISÉ (DROITE, SI ACTIVÉ) */}
+          {/* 3.3 QR CODE SÉCURISÉ (DROITE, SI ACTIVÉ) */}
           {showQrCode ? (
             <div
-              className="flex-shrink-0 rounded-xl p-1 bg-white border border-slate-200/80 shadow-xs flex items-center justify-center"
-              style={{ width: '23cqw', height: '23cqw' }}
+              className="flex-shrink-0 rounded-2xl p-1 bg-white border border-slate-200/90 shadow-xs flex items-center justify-center"
+              style={{ width: '23.5cqw', height: '23.5cqw' }}
             >
-              <img
-                src={qrCodeUrl}
-                alt="QR Code"
-                loading="lazy"
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.opacity = '0';
-                }}
-              />
+              {!qrError ? (
+                <img
+                  src={qrCodeUrl}
+                  alt="QR Code Officiel"
+                  loading="lazy"
+                  className="w-full h-full object-contain"
+                  onError={() => setQrError(true)}
+                />
+              ) : (
+                /* Fallback SVG QR haute fidélité si l'image dynamique n'est pas encore générée */
+                <svg viewBox="0 0 100 100" className="w-full h-full p-1" fill="#000">
+                  <path d="M0,0 h30 v30 h-30 z M6,6 v18 h18 v-18 z M10,10 h10 v10 h-10 z" />
+                  <path d="M70,0 h30 v30 h-30 z M76,6 v18 h18 v-18 z M80,10 h10 v10 h-10 z" />
+                  <path d="M0,70 h30 v30 h-30 z M6,76 v18 h18 v-18 z M10,80 h10 v10 h-10 z" />
+                  <rect x="36" y="8" width="8" height="8" />
+                  <rect x="52" y="8" width="8" height="8" />
+                  <rect x="36" y="24" width="8" height="8" />
+                  <rect x="52" y="24" width="8" height="8" />
+                  <rect x="8" y="36" width="8" height="8" />
+                  <rect x="24" y="36" width="8" height="8" />
+                  <rect x="40" y="40" width="20" height="20" />
+                  <rect x="68" y="40" width="8" height="8" />
+                  <rect x="84" y="40" width="8" height="8" />
+                  <rect x="36" y="68" width="8" height="8" />
+                  <rect x="52" y="68" width="8" height="8" />
+                  <rect x="68" y="68" width="24" height="8" />
+                  <rect x="68" y="84" width="8" height="8" />
+                  <rect x="84" y="84" width="8" height="8" />
+                </svg>
+              )}
             </div>
           ) : (
             <div
-              className="flex-shrink-0 rounded-xl p-1.5 bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center text-center"
-              style={{ width: '23cqw', height: '23cqw' }}
+              className="flex-shrink-0 rounded-2xl p-1.5 bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center text-center"
+              style={{ width: '23.5cqw', height: '23.5cqw' }}
             >
               <ShieldCheck style={{ width: '8cqw', height: '8cqw', color: accentColor }} />
               <span className="font-bold uppercase tracking-wider text-slate-400 mt-1" style={{ fontSize: '1.4cqw' }}>
@@ -372,10 +423,12 @@ export default function OfficialStudentCard({
           )}
         </div>
 
-        {/* PIED DE CARTE : DEVISE / SLOGAN CENTRÉ */}
+        {/* ============================================================== */}
+        {/* 4. PIED DE CARTE : DEVISE / SLOGAN CENTRÉ (BLEU NUIT)          */}
+        {/* ============================================================== */}
         <div className="absolute bottom-0 inset-x-0 h-[12.5%] flex items-center justify-center px-4 z-10">
           <p
-            className="font-semibold tracking-tight text-center truncate"
+            className="font-medium tracking-tight text-center truncate"
             style={{ fontSize: '2.5cqw', color: primaryColor }}
           >
             {slogan}
@@ -448,41 +501,22 @@ export default function OfficialStudentCard({
             style={{ fontSize: '1.7cqw' }}
           >
             <p className="font-bold" style={{ color: primaryColor }}>{univName}</p>
-            <p>{university.address || 'Campus Universitaire Central'}</p>
-            <p>{university.email || 'contact@unisphere.ai'} • {university.phone || '+225 07 00 00 00'}</p>
-            <p className="font-mono font-semibold" style={{ color: accentColor }}>{university.website || 'https://unisphere.ai'}</p>
+            {university.address && <p className="truncate max-w-[40cqw]">{university.address}</p>}
+            {university.phone && <p>Tél : {university.phone}</p>}
+            {university.website && <p className="text-slate-400">{university.website}</p>}
           </div>
 
-          {/* Sceau & Signature */}
-          <div className="text-center flex flex-col items-center">
-            <span
-              className="font-bold text-slate-400 uppercase tracking-wider"
-              style={{ fontSize: '1.5cqw' }}
-            >
-              Le Recteur / La Direction
-            </span>
+          <div className="text-right">
+            <p className="font-semibold text-slate-600 mb-1" style={{ fontSize: '1.65cqw' }}>
+              Le Secrétariat Général
+            </p>
             <div
-              className="border border-dashed border-slate-300 rounded flex items-center justify-center bg-slate-50/50 mt-0.5"
-              style={{ width: '16cqw', height: '7cqw' }}
+              className="inline-block px-2 py-0.5 border border-dashed rounded text-slate-400 italic font-serif"
+              style={{ fontSize: '1.5cqw', borderColor: accentColor }}
             >
-              <span
-                className="font-serif italic font-semibold"
-                style={{ fontSize: '1.9cqw', color: primaryColor }}
-              >
-                Certifié Conforme
-              </span>
+              Cachet & Signature
             </div>
           </div>
-        </div>
-
-        {/* Slogan au bas du verso */}
-        <div className="text-center border-t border-slate-100 pt-1">
-          <p
-            className="font-semibold tracking-tight"
-            style={{ fontSize: '2.3cqw', color: primaryColor }}
-          >
-            {slogan}
-          </p>
         </div>
       </div>
     </div>

@@ -1142,7 +1142,7 @@ def toggle_exam_block(
 def get_payment_receipt(
     payment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant", "secretary", "censeur", "student"))
+    current_user: User = Depends(require_role("admin", "accountant", "secretary", "censeur", "student", "super_admin"))
 ):
     """Récupère les détails complets d'un paiement - logique par tranches"""
     
@@ -1158,7 +1158,7 @@ def get_payment_receipt(
     if current_user.role == "student":
         if student.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Accès non autorisé à ce reçu")
-    elif current_user.university_id and student.university_id != current_user.university_id:
+    elif current_user.role != "super_admin" and current_user.university_id and student.university_id != current_user.university_id:
         raise HTTPException(status_code=403, detail="Accès non autorisé à ce reçu")
 
     univ_id = student.university_id or current_user.university_id
@@ -1360,7 +1360,7 @@ def get_student_quitus_pdf(
     student_id: int,
     academic_year: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant", "secretary", "censeur", "student"))
+    current_user: User = Depends(require_role("admin", "accountant", "secretary", "censeur", "student", "super_admin"))
 ):
     """Génère le Quitus Financier officiel et certificat de solde en PDF sécurisé"""
     student = db.query(Student).filter(Student.id == student_id).first()
@@ -1421,7 +1421,7 @@ def get_all_receipts(
     period: Optional[str] = Query("all", description="all, today, week, month, year"),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant", "secretary"))
+    current_user: User = Depends(require_role("admin", "accountant", "secretary", "super_admin"))
 ):
     """
     Récupère TOUS les reçus et justificatifs officiels émis par l'établissement :
@@ -1719,7 +1719,7 @@ def get_financial_payments(
     page: int = 1,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant", "secretary"))
+    current_user: User = Depends(require_role("admin", "accountant", "secretary", "super_admin"))
 ):
     query = db.query(Payment).filter(Payment.university_id == current_user.university_id)
     if student_id:

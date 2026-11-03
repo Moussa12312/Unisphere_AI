@@ -558,7 +558,7 @@ def _amount_in_french_words(n: float) -> str:
 def generate_receipt_pdf(
     payment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant", "secretary", "student"))
+    current_user: User = Depends(require_role("admin", "accountant", "secretary", "student", "super_admin", "censeur"))
 ):
     payment = db.query(Payment).filter(Payment.id == payment_id).first()
     if not payment:
@@ -570,7 +570,7 @@ def generate_receipt_pdf(
 
     if current_user.role == "student" and student.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Accès non autorisé")
-    if current_user.role != "student" and current_user.university_id and student.university_id != current_user.university_id:
+    if current_user.role not in ("student", "super_admin") and current_user.university_id and student.university_id != current_user.university_id:
         raise HTTPException(status_code=403, detail="Accès non autorisé")
 
     university = db.query(University).filter(University.id == student.university_id).first()
@@ -807,7 +807,7 @@ def generate_receipt_pdf(
 def generate_financial_statement_pdf(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant", "secretary", "student"))
+    current_user: User = Depends(require_role("admin", "accountant", "secretary", "student", "super_admin", "censeur"))
 ):
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
@@ -817,7 +817,7 @@ def generate_financial_statement_pdf(
 
     if current_user.role == "student" and student.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Accès non autorisé")
-    if current_user.role != "student" and current_user.university_id and student.university_id != current_user.university_id:
+    if current_user.role not in ("student", "super_admin") and current_user.university_id and student.university_id != current_user.university_id:
         raise HTTPException(status_code=403, detail="Accès non autorisé")
 
     from app.utils.tuition import (
@@ -922,7 +922,7 @@ def generate_financial_statement_pdf(
 def generate_payment_certificate_pdf(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant", "secretary", "student"))
+    current_user: User = Depends(require_role("admin", "accountant", "secretary", "student", "super_admin", "censeur"))
 ):
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
@@ -932,7 +932,7 @@ def generate_payment_certificate_pdf(
 
     if current_user.role == "student" and student.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Accès non autorisé")
-    if current_user.role != "student" and current_user.university_id and student.university_id != current_user.university_id:
+    if current_user.role not in ("student", "super_admin") and current_user.university_id and student.university_id != current_user.university_id:
         raise HTTPException(status_code=403, detail="Accès non autorisé")
 
     from app.utils.tuition import is_valid_payment_status

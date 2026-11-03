@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { FileText, Download, Calendar, CreditCard, Loader2, Receipt, CheckCircle, Clock, Eye, Printer, X } from 'lucide-react';
+import { FileText, Download, Calendar, CreditCard, Loader2, Receipt, CheckCircle, Clock, Eye, Printer, X, ExternalLink } from 'lucide-react';
 import api from '@/lib/api';
 import financialService from '@/services/financialService';
 import { useToast } from '@/components/ToastProvider';
@@ -31,6 +31,8 @@ export default function StudentReceiptsPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState<number | null>(null);
   const [activeReceiptRef, setActiveReceiptRef] = useState<string>('');
+  const [activeReceiptId, setActiveReceiptId] = useState<number | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     loadReceipts();
@@ -67,6 +69,7 @@ export default function StudentReceiptsPage() {
   const handlePreviewReceipt = async (paymentId: number, ref: string) => {
     setPreviewLoading(paymentId);
     setActiveReceiptRef(ref);
+    setActiveReceiptId(paymentId);
     try {
       const response = await api.get(`/api/v1/payments/${paymentId}/receipt/pdf`, {
         responseType: 'blob'
@@ -100,6 +103,19 @@ export default function StudentReceiptsPage() {
   };
 
   const executePrintFromModal = () => {
+    if (iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.focus();
+        iframeRef.current.contentWindow.print();
+        return;
+      } catch (e) {
+        console.warn('Impression iframe directe:', e);
+      }
+    }
+    if (activeReceiptId) {
+      window.open(`/student/receipts/${activeReceiptId}`, '_blank');
+      return;
+    }
     if (!previewUrl) return;
     try {
       const win = window.open(previewUrl, '_blank');
@@ -234,7 +250,15 @@ export default function StudentReceiptsPage() {
                     <p className="text-base sm:text-lg font-bold text-slate-900">
                       {formatFCFA(amount)}
                     </p>
-                    <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end">
+                    <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end flex-wrap">
+                      <Link
+                        href={`/student/receipts/${id}`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold transition-all active:scale-95 border border-blue-200"
+                        title="Ouvrir la quittance officielle imprimable"
+                      >
+                        <Printer size={13} className="text-blue-600" />
+                        <span>Imprimer</span>
+                      </Link>
                       <button
                         onClick={() => handlePreviewReceipt(id, ref)}
                         disabled={previewLoading === id}
@@ -317,7 +341,7 @@ export default function StudentReceiptsPage() {
                   Ouvrir en plein écran ↗
                 </button>
               </div>
-              <iframe
+              <iframe ref={iframeRef}
                 src={previewUrl}
                 className="w-full flex-1 rounded-xl border border-slate-300 bg-white"
                 title="Aperçu Reçu de Paiement"

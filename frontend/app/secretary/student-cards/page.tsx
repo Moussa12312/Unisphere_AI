@@ -126,6 +126,15 @@ const THEME_PRESETS: ThemePreset[] = [
     accent: '#38BDF8',
     slogan: 'Vers les sommets du Savoir',
     icon: '🌊'
+  },
+  {
+    id: 'rubis',
+    name: 'Rubis Flamboyant & Corail',
+    description: 'Audace, énergie et leadership moderne',
+    primary: '#881337',
+    accent: '#F43F5E',
+    slogan: 'Audace, Passion & Réussite',
+    icon: '💎'
   }
 ];
 
