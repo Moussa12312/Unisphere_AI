@@ -1002,9 +1002,9 @@ def delete_university_completely(
                     db.query(AlumniMessage).filter(
                         (AlumniMessage.sender_id.in_(univ_user_ids)) | (AlumniMessage.receiver_id.in_(univ_user_ids))
                     ).delete(synchronize_session=False)
-                    db.query(AlumniConnection).filter(
-                        (AlumniConnection.requester_id.in_(univ_user_ids)) | (AlumniConnection.receiver_id.in_(univ_user_ids))
-                    ).delete(synchronize_session=False)
+                    alumni_prof_ids = [r[0] for r in db.query(AlumniProfile.id).filter(AlumniProfile.user_id.in_(univ_user_ids)).all()]
+                    if alumni_prof_ids:
+                        db.query(AlumniConnection).filter(AlumniConnection.alumni_id.in_(alumni_prof_ids)).delete(synchronize_session=False)
                     db.query(AlumniProfile).filter(AlumniProfile.user_id.in_(univ_user_ids)).delete(synchronize_session=False)
             except Exception:
                 pass
