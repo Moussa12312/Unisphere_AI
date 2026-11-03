@@ -1,4 +1,7 @@
 'use client';
+
+import PasswordResetSuccessModal from '@/components/modals/PasswordResetSuccessModal';
+
 import ChangeUserEmailModal from '@/components/admin/ChangeUserEmailModal';
 
 import { useState, useEffect } from 'react';
@@ -56,6 +59,19 @@ export default function AdminTeachersPage() {
   // États pour mot de passe
   const [newPassword, setNewPassword] = useState('');
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [successModalData, setSuccessModalData] = useState<{
+    isOpen: boolean;
+    targetName: string;
+    targetIdentifier?: string;
+    targetRole?: string;
+    temporaryPassword: string;
+  }>({
+    isOpen: false,
+    targetName: '',
+    targetIdentifier: '',
+    targetRole: 'Enseignant',
+    temporaryPassword: ''
+  });
 
   useEffect(() => {
     loadTeachers();
@@ -157,13 +173,25 @@ export default function AdminTeachersPage() {
     
     setResettingPassword(true);
     try {
+      const savedTeacherName = `${selectedTeacher.first_name} ${selectedTeacher.last_name}`;
+      const savedTeacherEmail = selectedTeacher.email;
+      const savedPwd = newPassword;
+
       await api.put(`/api/v1/teachers/${selectedTeacher.id}/password`, {
         password: newPassword
       });
-      toast.success('Mot de passe modifié avec succès');
+      
       setShowPasswordModal(false);
       setNewPassword('');
       setSelectedTeacher(null);
+
+      setSuccessModalData({
+        isOpen: true,
+        targetName: savedTeacherName,
+        targetIdentifier: savedTeacherEmail,
+        targetRole: 'Enseignant',
+        temporaryPassword: savedPwd
+      });
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Erreur');
     } finally {
@@ -734,6 +762,14 @@ export default function AdminTeachersPage() {
         isOpen={showEmailModal}
         onClose={() => setShowEmailModal(false)}
         onSuccess={loadTeachers}
+      />
+      <PasswordResetSuccessModal
+        isOpen={successModalData.isOpen}
+        onClose={() => setSuccessModalData(prev => ({ ...prev, isOpen: false }))}
+        targetName={successModalData.targetName}
+        targetIdentifier={successModalData.targetIdentifier}
+        targetRole={successModalData.targetRole}
+        temporaryPassword={successModalData.temporaryPassword}
       />
     </div>
   );

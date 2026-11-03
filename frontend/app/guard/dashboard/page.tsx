@@ -82,7 +82,7 @@ export default function GuardDashboardPage() {
               <Shield size={32} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Bonjour, Gardien 👋</h1>
+              <h1 className="text-2xl font-bold">Bonjour, Surveillant Général 👋</h1>
               <p className="text-slate-300 mt-1">Bienvenue dans votre espace de contrôle d'accès</p>
             </div>
           </div>
@@ -179,7 +179,7 @@ export default function GuardDashboardPage() {
           </div>
           <p className="text-xs text-slate-500 mb-1">Taux de présence</p>
           <p className="text-3xl font-bold text-blue-600">
-            {stats?.attendance_rate ? `${stats.attendance_rate.toFixed(0)}%` : '--'}
+            {typeof stats?.attendance_rate === 'number' ? `${Math.round(stats.attendance_rate)}%` : '0%'}
           </p>
         </div>
       </div>

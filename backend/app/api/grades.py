@@ -1,3 +1,17 @@
+def _parse_safe_date(val):
+    if not val:
+        return None
+    if isinstance(val, date):
+        return val
+    if isinstance(val, datetime):
+        return val.date()
+    if isinstance(val, str):
+        try:
+            return datetime.strptime(val[:10], "%Y-%m-%d").date()
+        except Exception:
+            return None
+    return None
+
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sql_func
@@ -95,7 +109,8 @@ def get_grades_by_context(
     
     # Vérification de la date de fin de session (épreuves en cours)
     is_before_session_end = False
-    if session_obj and session_obj.end_date and date.today() < session_obj.end_date:
+    sess_end_date = _parse_safe_date(session_obj.end_date) if session_obj else None
+    if sess_end_date and date.today() < sess_end_date:
         is_before_session_end = True
 
     is_locked = is_session_closed or is_globally_locked or is_before_session_end
@@ -104,7 +119,7 @@ def get_grades_by_context(
     if is_session_closed:
         lock_reason = "Session clôturée. La saisie des notes est verrouillée."
     elif is_before_session_end and session_obj and session_obj.end_date:
-        lock_reason = f"Session d'examen en cours (se termine le {session_obj.end_date.strftime('%d/%m/%Y')}). La saisie des notes sera déverrouillée à la fin des épreuves."
+        lock_reason = f"Session d'examen en cours (se termine le {sess_end_date.strftime('%d/%m/%Y')}). La saisie des notes sera déverrouillée à la fin des épreuves."
     elif is_globally_locked:
         lock_reason = "Verrouillage académique général"
 
@@ -363,10 +378,11 @@ def bulk_save_grades(
     if session.status == "closed":
         raise HTTPException(status_code=403, detail="Cette session d'examen est clôturée. La saisie des notes est strictement verrouillée.")
 
-    if session.end_date and date.today() < session.end_date:
+    sess_bulk_end = _parse_safe_date(session.end_date) if session else None
+    if sess_bulk_end and date.today() < sess_bulk_end:
         raise HTTPException(
             status_code=403,
-            detail=f"La saisie des notes n'est autorisée qu'après la fin des épreuves de la session (prévue le {session.end_date.strftime('%d/%m/%Y')})."
+            detail=f"La saisie des notes n'est autorisée qu'après la fin des épreuves de la session (prévue le {sess_bulk_end.strftime('%d/%m/%Y')})."
         )
     
     if ac_config and getattr(ac_config, "grades_locked", False):
@@ -566,7 +582,7 @@ def reject_grade(
     reason: str = Query(None),
     data: dict = Body(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "censeur"))
+    current_user: User = Depends(require_role("admin", "censeur", "secretary", "secretaire"))
 ):
     """Rejette une note → Notifie le teacher avec la raison"""
     from app.models.notification import Notification
@@ -653,7 +669,7 @@ def get_sessions_with_stats(
 @router.get("/anomalies")
 def get_anomalies(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "censeur"))
+    current_user: User = Depends(require_role("admin", "censeur", "secretary", "secretaire"))
 ):
     """Détecte les notes suspectes selon la configuration"""
     from app.models.anomaly_config import AnomalyConfig
@@ -904,4 +920,4 @@ def toggle_grades_lock(
         "is_locked": target_locked,
         "status": target_status,
         "message": f"La saisie des notes a été {action_text} avec succès."
-    }
+    }

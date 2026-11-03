@@ -1,4 +1,7 @@
 'use client';
+
+import PasswordResetSuccessModal from '@/components/modals/PasswordResetSuccessModal';
+
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -23,6 +26,19 @@ export default function SecretaryTeachersPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [successModalData, setSuccessModalData] = useState<{
+    isOpen: boolean;
+    targetName: string;
+    targetIdentifier?: string;
+    targetRole?: string;
+    temporaryPassword: string;
+  }>({
+    isOpen: false,
+    targetName: '',
+    targetIdentifier: '',
+    targetRole: 'Enseignant',
+    temporaryPassword: ''
+  });
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -624,6 +640,14 @@ export default function SecretaryTeachersPage() {
           </div>
         </div>
       )}
+      <PasswordResetSuccessModal
+        isOpen={successModalData.isOpen}
+        onClose={() => setSuccessModalData(prev => ({ ...prev, isOpen: false }))}
+        targetName={successModalData.targetName}
+        targetIdentifier={successModalData.targetIdentifier}
+        targetRole={successModalData.targetRole}
+        temporaryPassword={successModalData.temporaryPassword}
+      />
     </div>
   );
 }

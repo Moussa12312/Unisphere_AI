@@ -271,7 +271,7 @@ def get_teaching_unit_courses(
 def create_teaching_unit(
     data: TeachingUnitCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "censeur"))
+    current_user: User = Depends(require_role("admin", "censeur", "secretary", "secretaire"))
 ):
     """Créer une nouvelle Unité d'Enseignement (UE)"""
     new_unit = TeachingUnit(
@@ -315,7 +315,7 @@ def update_teaching_unit(
     id: int,
     data: TeachingUnitUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "censeur"))
+    current_user: User = Depends(require_role("admin", "censeur", "secretary", "secretaire"))
 ):
     """Modifier une Unité d'Enseignement existante"""
     unit = db.query(TeachingUnit).filter(
@@ -370,7 +370,7 @@ def update_teaching_unit(
 def delete_teaching_unit(
     id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "censeur"))
+    current_user: User = Depends(require_role("admin", "censeur", "secretary", "secretaire"))
 ):
     """Supprimer une Unité d'Enseignement (détache automatiquement les cours)"""
     unit = db.query(TeachingUnit).filter(

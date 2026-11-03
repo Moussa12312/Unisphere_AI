@@ -257,7 +257,7 @@ def _calc_effective_hours(schedule, late_minutes: int) -> float:
 def get_attendance_statistics(
     period: str = Query("week"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("guard", "admin", "secretary", "censeur", "teacher"))
+    current_user: User = Depends(require_role("guard", "admin", "secretary", "secretaire", "censeur", "teacher"))
 ):
     today = date.today()
     total_students = db.query(Student).filter(
@@ -302,7 +302,7 @@ def get_attendance_statistics(
 def get_today_stats(
     date_param: Optional[str] = Query(None, alias="date"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("guard", "admin", "secretary", "censeur", "teacher"))
+    current_user: User = Depends(require_role("guard", "admin", "secretary", "secretaire", "censeur", "teacher"))
 ):
     target_date = date.today()
     if date_param:
@@ -431,7 +431,7 @@ def get_attendance_history(
     attendance_type: str = Query(None),
     limit: int = Query(100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("guard", "admin", "secretary", "censeur", "teacher"))
+    current_user: User = Depends(require_role("guard", "admin", "secretary", "secretaire", "censeur", "teacher"))
 ):
     query = db.query(Attendance, Student).join(Student, Attendance.student_id == Student.id, isouter=True).filter(
         Attendance.university_id == current_user.university_id
@@ -496,16 +496,20 @@ def get_attendance_history(
 
 @router.get("/")
 def get_attendances(
-    date_filter: str = Query(None),
-    attendance_type: str = Query(None),
+    date_filter: Optional[str] = Query(None),
+    date_query: Optional[str] = Query(None, alias="date"),
+    attendance_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("guard", "admin", "secretary"))
+    current_user: User = Depends(require_role("guard", "admin", "secretary", "secretaire", "censeur"))
 ):
     query = db.query(Attendance, Student).join(Student, Attendance.student_id == Student.id, isouter=True).filter(
         Attendance.university_id == current_user.university_id
     )
-    if date_filter:
-        try: query = query.filter(Attendance.date == date.fromisoformat(date_filter))
+    target_d = date_filter or date_query
+    if target_d:
+        try:
+            from datetime import date as dt_date
+            query = query.filter(Attendance.date == dt_date.fromisoformat(target_d))
         except ValueError: pass
     if attendance_type:
         query = query.filter(Attendance.attendance_type == attendance_type)
@@ -1446,6 +1450,12 @@ def get_daily_attendance_matrix(
             "status_label": status_label,
             "modules": student_schedules
         })
+
+    expected_students = len(students) - summary.get("no_classes_scheduled", 0)
+    if expected_students > 0:
+        summary["attendance_rate"] = round(((summary.get("present_all_modules", 0) + summary.get("present_partial", 0)) / expected_students) * 100, 1)
+    else:
+        summary["attendance_rate"] = 100.0 if summary.get("gate_scanned_count", 0) > 0 else 0.0
 
     return {
         "summary": summary,

@@ -3508,7 +3508,15 @@ def get_student_complete_dossier(
         .limit(100)
         .all()
     )
-    all_att_statuses = [r[0].status for r in db.query(Attendance.status).filter(Attendance.student_id == student.id).all()]
+    try:
+        att_stat_rows = db.query(Attendance.status).filter(Attendance.student_id == student.id).all()
+        all_att_statuses = []
+        for r in att_stat_rows:
+            st_val = r[0] if (isinstance(r, (tuple, list)) and len(r) > 0) else getattr(r, "status", None)
+            if st_val:
+                all_att_statuses.append(str(st_val))
+    except Exception:
+        all_att_statuses = []
     total_att = len(all_att_statuses)
     present_att = sum(1 for st in all_att_statuses if st == "present")
     late_att = sum(1 for st in all_att_statuses if st == "late")
@@ -3586,6 +3594,7 @@ def reset_student_password(
 
         return {
             "temp_password": temp_password,
+            "new_password": temp_password,
             "message": "Mot de passe réinitialisé avec succès"
         }
 

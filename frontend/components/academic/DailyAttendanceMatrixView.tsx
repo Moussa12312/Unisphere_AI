@@ -211,6 +211,47 @@ export default function DailyAttendanceMatrixView({
           </div>
         </div>
 
+        {/* Cartes de Synthèse Connectées en Direct */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 pt-3 border-t border-slate-100">
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Étudiants</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{data.summary?.total_students || data.students?.length || 0}</div>
+            <span className="text-[10px] text-slate-400">Inscrits actifs</span>
+          </div>
+
+          <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-3.5">
+            <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1">
+              <DoorOpen size={13} /> Scan Portail
+            </span>
+            <div className="text-xl sm:text-2xl font-black text-blue-800 mt-1">{data.summary?.gate_scanned_count || 0}</div>
+            <span className="text-[10px] text-blue-500 font-medium">Surveillant Général</span>
+          </div>
+
+          <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-3.5">
+            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+              <CheckCircle2 size={13} /> Présents 100%
+            </span>
+            <div className="text-xl sm:text-2xl font-black text-emerald-800 mt-1">{data.summary?.present_all_modules || 0}</div>
+            <span className="text-[10px] text-emerald-600 font-medium">Tous leurs cours</span>
+          </div>
+
+          <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-3.5">
+            <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+              <Clock size={13} /> Partiels / Campus
+            </span>
+            <div className="text-xl sm:text-2xl font-black text-amber-800 mt-1">{data.summary?.present_partial || 0}</div>
+            <span className="text-[10px] text-amber-600 font-medium">Au moins 1 cours</span>
+          </div>
+
+          <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-xl p-3.5 col-span-2 lg:col-span-1">
+            <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider block">Taux d'Assiduité</span>
+            <div className="text-xl sm:text-2xl font-black text-indigo-800 mt-1">
+              {typeof data.summary?.attendance_rate === 'number' ? `${Math.round(data.summary.attendance_rate)}%` : '0%'}
+            </div>
+            <span className="text-[10px] text-indigo-500 font-medium">Global ce jour</span>
+          </div>
+        </div>
+
         {/* Pilules de filtres par Filière et Type */}
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
           <span className="text-slate-400 font-semibold mr-1">Filtre rapide :</span>

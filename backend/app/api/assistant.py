@@ -32,7 +32,7 @@ async def ask_ai(question_data: AIQuestion, current_user: User = Depends(require
 
 
 @router.get("/insights")
-async def get_insights(current_user: User = Depends(require_role("admin", "censeur"))):
+async def get_insights(current_user: User = Depends(require_role("admin", "censeur", "secretary", "secretaire"))):
     """Get AI insights about the university."""
     from app.api.dashboard import get_db
     from app.models.student import Student

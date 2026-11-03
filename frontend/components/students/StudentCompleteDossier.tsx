@@ -113,7 +113,7 @@ export default function StudentCompleteDossier({ studentId, role }: StudentCompl
     setResettingPass(true);
     try {
       const res = await api.post(`/api/v1/students/${studentId}/reset-password`);
-      setGeneratedPass(res.data.new_password);
+      setGeneratedPass(res.data.new_password || res.data.temp_password);
       setShowResetPass(true);
       toast.success('Mot de passe réinitialisé');
     } catch (err: any) {

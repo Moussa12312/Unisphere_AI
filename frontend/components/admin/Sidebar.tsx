@@ -116,7 +116,6 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Liste Étudiants', href: '/secretary/students', icon: Users },
         { label: 'Inscriptions', href: '/secretary/students/enrollment', icon: UserPlus },
         { label: 'Import en masse', href: '/secretary/students/bulk', icon: FileSpreadsheet },
-
         { label: 'Mots de passe', href: '/secretary/students/password-requests', icon: KeyRound },
       ]
     },
@@ -125,6 +124,7 @@ const MENU_CONFIG: Record<string, Array<{
       items: [
         { label: 'Emploi du temps', href: '/secretary/schedule', icon: Calendar },
         { label: 'Classes & Salles', href: '/secretary/classes', icon: Users2 },
+        { label: 'Salles de cours', href: '/secretary/rooms', icon: School },
         { label: 'Cours', href: '/secretary/courses', icon: BookOpen },
         { label: 'Enseignants', href: '/secretary/teachers', icon: GraduationCap },
         { label: "Unités (UE)", href: '/secretary/teaching-units', icon: Layers },
@@ -135,17 +135,22 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'EXAMENS',
       items: [
         { label: 'Sessions', href: '/secretary/exam-sessions', icon: FileText },
+        { label: 'Calendrier', href: '/secretary/exams/calendar', icon: Calendar },
         { label: 'Saisie des notes', href: '/secretary/grades/entry', icon: Edit3 },
         { label: 'Notes à valider', href: '/secretary/grades/pending', icon: CheckCircle, badge: 'urgent' },
-        { label: 'Bulletins', href: '/secretary/grades/report-cards', icon: FileCheck },
+        { label: 'Bulletins', href: '/secretary/bulletins', icon: FileCheck },
+        { label: 'Historique', href: '/secretary/grades/history', icon: Clock },
         { label: 'Rattrapages', href: '/secretary/exams/makeup', icon: RotateCcw },
         { label: 'Anomalies', href: '/secretary/grades/anomalies', icon: AlertTriangle },
+        { label: 'Règles anomalies', href: '/secretary/settings/anomalies', icon: AlertCircle },
       ]
     },
     {
       title: 'DOCUMENTS',
       items: [
         { label: 'Actes officiels', href: '/secretary/documents/generate', icon: FileCheck },
+        { label: 'Relevés de notes', href: '/secretary/documents/transcripts', icon: ScrollText },
+        { label: 'Procès-verbaux', href: '/secretary/documents/report-cards', icon: FileCheck },
         { label: "Demandes d'actes", href: '/secretary/certificate-requests', icon: ScrollText },
         { label: 'Archives', href: '/secretary/documents', icon: FileText },
         { label: 'Supports PDF', href: '/secretary/upload-materials', icon: Upload },
@@ -379,7 +384,7 @@ const MENU_CONFIG: Record<string, Array<{
   ],
 
   // ==========================================
-  // 🛡️ 7. GARDIEN (Portique & Contrôle d'Accès)
+  // 🛡️ 7. SURVEILLANT GÉNÉRAL / GARDIEN (Portique & Sécurité)
   // ==========================================
   guard: [
     {

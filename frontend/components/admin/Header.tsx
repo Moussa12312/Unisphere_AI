@@ -720,7 +720,7 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
                        user?.role === 'secretary' ? 'Secrétaire' :
                        user?.role === 'censeur' ? 'Censeur' :
                        user?.role === 'accountant' ? 'Comptable' :
-                       user?.role === 'guard' ? 'Gardien' :
+                       user?.role === 'guard' ? 'Surveillant Général / Gardien' :
                        user?.role === 'teacher' ? 'Enseignant' :
                        user?.role === 'student' ? 'Étudiant' : 
                        user?.role === 'alumni' ? 'Alumni' : 'Utilisateur'} 

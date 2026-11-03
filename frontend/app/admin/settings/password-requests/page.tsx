@@ -1,5 +1,8 @@
 'use client';
 
+import PasswordResetSuccessModal from '@/components/modals/PasswordResetSuccessModal';
+
+
 import { useState, useEffect } from 'react';
 import { KeyRound, CheckCircle, XCircle, Search, RefreshCw, UserCheck, ShieldAlert, Loader2 } from 'lucide-react';
 import api from '@/lib/api';
@@ -15,6 +18,28 @@ export default function AdminPasswordResetRequestsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [adminNote, setAdminNote] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [successModalData, setSuccessModalData] = useState<{
+    isOpen: boolean;
+    targetName: string;
+    targetIdentifier?: string;
+    targetRole?: string;
+    temporaryPassword: string;
+  }>({
+    isOpen: false,
+    targetName: '',
+    targetIdentifier: '',
+    targetRole: '',
+    temporaryPassword: ''
+  });
+
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let pwd = 'Uni#';
+    for (let i = 0; i < 5; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setNewPassword(pwd);
+  };
 
   useEffect(() => {
     loadRequests();
@@ -42,15 +67,28 @@ export default function AdminPasswordResetRequestsPage() {
 
     setProcessing(true);
     try {
+      const savedPwd = newPassword.trim();
+      const savedName = selectedRequest.full_name;
+      const savedIdent = selectedRequest.matricule || selectedRequest.email;
+      const savedRole = selectedRequest.role;
+
       const res = await api.post(`/api/v1/password-reset/requests/${selectedRequest.id}/resolve`, {
-        new_password: newPassword.trim(),
+        new_password: savedPwd,
         admin_note: adminNote.trim() || undefined
       });
-      toast.success(res.data.message || 'Mot de passe réinitialisé !');
+      
       setSelectedRequest(null);
       setNewPassword('');
       setAdminNote('');
       loadRequests();
+
+      setSuccessModalData({
+        isOpen: true,
+        targetName: savedName,
+        targetIdentifier: savedIdent,
+        targetRole: savedRole,
+        temporaryPassword: savedPwd
+      });
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Erreur lors de la réinitialisation');
     } finally {
@@ -229,9 +267,18 @@ export default function AdminPasswordResetRequestsPage() {
 
             <form onSubmit={handleResolve} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nouveau mot de passe temporaire *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Nouveau mot de passe temporaire *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    className="text-[11px] font-bold text-[#FF6B00] hover:text-[#e55f00] cursor-pointer"
+                  >
+                    ⚡ Générer aléatoire
+                  </button>
+                </div>
                 <input
                   type="text"
                   required
@@ -275,7 +322,14 @@ export default function AdminPasswordResetRequestsPage() {
           </div>
         </div>
       )}
+      <PasswordResetSuccessModal
+        isOpen={successModalData.isOpen}
+        onClose={() => setSuccessModalData(prev => ({ ...prev, isOpen: false }))}
+        targetName={successModalData.targetName}
+        targetIdentifier={successModalData.targetIdentifier}
+        targetRole={successModalData.targetRole}
+        temporaryPassword={successModalData.temporaryPassword}
+      />
     </div>
   );
 }
-
