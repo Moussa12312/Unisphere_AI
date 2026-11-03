@@ -6,32 +6,31 @@ import {
   Printer,
   Search,
   CheckSquare,
-  Square,
-  Filter,
   RotateCcw,
-  Users,
-  CreditCard,
-  Building2,
   Sparkles,
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
   Eye,
   SlidersHorizontal,
-  GraduationCap,
   X,
   Loader2,
-  Check,
   Palette,
-  Save,
-  CheckCircle2,
-  Layers,
-  QrCode
+  Save
 } from 'lucide-react';
-import api, { getMediaUrl } from '@/lib/api';
+import api from '@/lib/api';
 import { universityService } from '@/services/universityService';
 import { toast } from 'react-hot-toast';
-import OfficialStudentCard, { CardCustomizationOptions } from '@/components/cards/OfficialStudentCard';
+import OfficialStudentCard from '@/components/cards/OfficialStudentCard';
+
+interface CardCustomizationState {
+  primaryColor: string;
+  accentColor: string;
+  slogan: string;
+  subtitle: string;
+  showWatermark: boolean;
+  showQrCode: boolean;
+}
 
 interface Student {
   id: number;
@@ -144,7 +143,7 @@ export default function SecretaryStudentCardsPrintPage() {
   const [secretaryUser, setSecretaryUser] = useState<any>(null);
 
   // État de personnalisation de la carte
-  const [customization, setCustomization] = useState<CardCustomizationOptions>({
+  const [customization, setCustomization] = useState<CardCustomizationState>({
     primaryColor: '#072146',
     accentColor: '#FF7300',
     slogan: "Ensemble pour l'excellence",
@@ -518,8 +517,8 @@ export default function SecretaryStudentCardsPrintPage() {
                 {THEME_PRESETS.map((preset) => {
                   const isSelected =
                     activePresetId === preset.id ||
-                    (customization.primaryColor.toLowerCase() === preset.primary.toLowerCase() &&
-                     customization.accentColor.toLowerCase() === preset.accent.toLowerCase());
+                    ((customization.primaryColor || '').toLowerCase() === preset.primary.toLowerCase() &&
+                     (customization.accentColor || '').toLowerCase() === preset.accent.toLowerCase());
 
                   return (
                     <button
