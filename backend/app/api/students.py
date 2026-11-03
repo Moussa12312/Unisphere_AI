@@ -1647,6 +1647,9 @@ async def update_student_payment_plan(
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
 
     plan = body.get("payment_plan", "tranches")
+    # Accepter "monthly" comme alias de "mensuel" pour retro-compatibilite
+    if plan == "monthly":
+        plan = "mensuel"
     if plan not in ["tranches", "mensuel"]:
         raise HTTPException(status_code=400, detail="Plan de paiement invalide (doit être 'tranches' ou 'mensuel')")
 
@@ -3170,30 +3173,64 @@ async def upload_student_photo_by_staff(
     orig_filename = "student.jpg"
 
     if "application/json" in content_type:
-        payload = await request.json()
-        b64_data = payload.get("photo_base64") or payload.get("photo")
-        orig_filename = payload.get("filename") or "student.jpg"
-        if isinstance(b64_data, str) and b64_data.strip():
-            raw_b64 = b64_data.split(",", 1)[1] if "," in b64_data else b64_data
-            content = base64.b64decode(raw_b64)
+        try:
+            payload = await request.json()
+            b64_data = payload.get("photo_base64") or payload.get("photo") or payload.get("file") or payload.get("image")
+            orig_filename = payload.get("filename") or "student.jpg"
+            if isinstance(b64_data, str) and b64_data.strip():
+                raw_b64 = b64_data.split(",", 1)[1] if "," in b64_data else b64_data
+                content = base64.b64decode(raw_b64)
+        except Exception:
+            pass
     else:
-        form = await request.form()
-        uploaded = form.get("photo") or form.get("file")
-        if uploaded is not None and hasattr(uploaded, "read"):
-            orig_filename = getattr(uploaded, "filename", None) or "student.jpg"
-            content = await uploaded.read()
+        try:
+            form = await request.form()
+            uploaded = form.get("photo") or form.get("file") or form.get("image") or form.get("avatar")
+            if uploaded is None:
+                for v in form.values():
+                    if hasattr(v, "read"):
+                        uploaded = v
+                        break
+            if uploaded is not None:
+                if hasattr(uploaded, "read"):
+                    orig_filename = getattr(uploaded, "filename", None) or "student.jpg"
+                    content = await uploaded.read()
+                elif isinstance(uploaded, (bytes, bytearray)):
+                    content = bytes(uploaded)
+                elif isinstance(uploaded, str) and uploaded.strip():
+                    raw_b64 = uploaded.split(",", 1)[1] if "," in uploaded else uploaded
+                    try:
+                        content = base64.b64decode(raw_b64)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    if not content and content_type.startswith("image/"):
+        content = await request.body()
 
     if not content:
         raise HTTPException(status_code=400, detail="Aucune image valide reçue")
-    if len(content) > 8 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="L'image ne doit pas dépasser 8 Mo")
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="L'image ne doit pas dépasser 10 Mo")
 
+    uploads_dir = Path(__file__).resolve().parent.parent.parent / "uploads"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
     os.makedirs("uploads", exist_ok=True)
+
     ext = Path(orig_filename).suffix.lower() or ".jpg"
     if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
         ext = ".jpg"
-    target_path = Path("uploads") / f"STUDENT_{student.id}_{int(time_module.time())}{ext}"
+    target_path = uploads_dir / f"STUDENT_{student.id}_{int(time_module.time())}{ext}"
     saved_p = compress_and_save_upload(content, target_path, max_dimension=1200, quality=82)
+
+    rel_p = Path("uploads") / saved_p.name
+    if rel_p.resolve() != saved_p.resolve():
+        try:
+            with open(rel_p, "wb") as f_rel:
+                f_rel.write(content)
+        except Exception:
+            pass
 
     student.photo = saved_p.name
     if student.user_id:

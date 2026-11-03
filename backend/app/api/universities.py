@@ -156,69 +156,9 @@ def get_university_profile(
         "card_config": university.card_config or DEFAULT_CARD_CONFIG
     }
 
-@router.put("/profile")
-def update_university_profile(
-    profile_data: dict,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "super_admin"))
-):
-    target_id = profile_data.get("university_id") or getattr(current_user, "university_id", None)
-    if not target_id:
-        first_univ = db.query(University).first()
-        target_id = first_univ.id if first_univ else None
-
-    university = db.query(University).filter(University.id == target_id).first()
-    if not university:
-        raise HTTPException(status_code=404, detail="Université non trouvée")
-    
-    for key, value in profile_data.items():
-        if hasattr(university, key) and key not in ["id", "card_config"]:
-            setattr(university, key, value)
-            
-    db.commit()
-    return {"message": "Profil mis à jour avec succès"}
-
-@router.post("/logo")
-async def upload_university_logo(
-    logo: UploadFile = File(...),
-    remove_bg: str = Form("false"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "super_admin"))
-):
-    target_id = getattr(current_user, "university_id", None)
-    if not target_id:
-        first_univ = db.query(University).first()
-        target_id = first_univ.id if first_univ else None
-
-    university = db.query(University).filter(University.id == target_id).first()
-    if not university:
-        raise HTTPException(status_code=404, detail="Université non trouvée")
-    
-    ctype = (logo.content_type or "").lower()
-    ext_check = os.path.splitext(logo.filename or "")[1].lower()
-    if not ctype.startswith('image/') and ext_check not in (".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif"):
-        raise HTTPException(status_code=400, detail="Le fichier doit être une image")
-    
-    os.makedirs("uploads/logos", exist_ok=True)
-    ext = ext_check if ext_check in (".png", ".jpg", ".jpeg", ".webp", ".svg") else ".png"
-    logo_filename = f"university_{university.id}_{int(time.time())}{ext}"
-    logo_path = os.path.join("uploads/logos", logo_filename)
-    
-    content = await logo.read()
-    if not content:
-        raise HTTPException(status_code=400, detail="Fichier logo vide")
-    with open(logo_path, "wb") as buffer:
-        buffer.write(content)
-    
-    if university.logo:
-        old_logo_path = os.path.join("uploads/logos", university.logo)
-        if os.path.exists(old_logo_path):
-            os.remove(old_logo_path)
-    
-    university.logo = logo_filename
-    db.commit()
-    
-    return {"message": "Logo uploadé avec succès", "logo_url": f"/uploads/logos/{logo_filename}"}
+# NOTE : PUT /profile et POST /logo sont gérés par app/api/settings.py
+# (même préfixe /settings/university). Les doublons ici masquaient la version
+# tolérante (JSON + multipart) et provoquaient des erreurs 422 sur mobile.
 
 @router.get("/card-config")
 def get_card_config(

@@ -12,6 +12,7 @@ import api from '@/lib/api';
 import { filiereService } from '@/services/filiereService';
 import { useToast } from '@/components/ToastProvider';
 import DocumentScanner from '@/components/DocumentScanner';
+import { compressImage } from '@/lib/compressImage';
 
 const NEW_STUDENT_DOC_DEFS = [
   { key: 'birth_certificate', label: "Acte de naissance" },
@@ -207,7 +208,7 @@ export default function SecretaryEnrollmentPage() {
       submitData.append('student_type', studentType);
 
       if (photoFile) {
-        submitData.append('photo', photoFile);
+        submitData.append('photo', await compressImage(photoFile));
       }
 
       if (scannedFilePath) {

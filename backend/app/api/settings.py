@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
@@ -184,13 +184,13 @@ def update_university_profile(
 
 @router.post("/university/logo")
 async def upload_university_logo(
-    logo: UploadFile = File(...),
-    remove_bg: str = Form("false"),
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary", "super_admin", "superadmin"))
 ):
     from app.models.university import University
     import time
+    import base64
     
     target_id = getattr(current_user, "university_id", None)
     if not target_id:
@@ -201,14 +201,54 @@ async def upload_university_logo(
     if not university:
         raise HTTPException(status_code=404, detail="Université non trouvée")
 
+    content_type = (request.headers.get("content-type") or "").lower()
+    content: Optional[bytes] = None
+    orig_filename = "logo.png"
+    remove_bg = "false"
+
+    if "application/json" in content_type:
+        try:
+            payload = await request.json()
+            b64_data = payload.get("logo") or payload.get("logo_base64") or payload.get("file")
+            orig_filename = payload.get("filename") or "logo.png"
+            remove_bg = str(payload.get("remove_bg", "false"))
+            if isinstance(b64_data, str) and b64_data.strip():
+                raw_b64 = b64_data.split(",", 1)[1] if "," in b64_data else b64_data
+                content = base64.b64decode(raw_b64)
+        except Exception:
+            pass
+    else:
+        try:
+            form = await request.form()
+            uploaded = form.get("logo") or form.get("file") or form.get("image")
+            if uploaded is None:
+                for v in form.values():
+                    if hasattr(v, "read"):
+                        uploaded = v
+                        break
+            remove_bg = str(form.get("remove_bg", "false"))
+            if uploaded is not None:
+                if hasattr(uploaded, "read"):
+                    orig_filename = getattr(uploaded, "filename", None) or "logo.png"
+                    content = await uploaded.read()
+                elif isinstance(uploaded, (bytes, bytearray)):
+                    content = bytes(uploaded)
+                elif isinstance(uploaded, str) and uploaded.startswith("data:"):
+                    content = base64.b64decode(uploaded.split(",", 1)[1])
+        except Exception:
+            pass
+
+    if not content and content_type.startswith("image/"):
+        content = await request.body()
+
+    if not content:
+        raise HTTPException(status_code=400, detail="Aucun fichier logo reçu ou format invalide")
+
     try:
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         os.makedirs("uploads/logos", exist_ok=True)
-        content = await logo.read()
-        if not content:
-            raise HTTPException(status_code=400, detail="Fichier image vide")
 
-        raw_name = logo.filename or "logo.png"
+        raw_name = orig_filename or "logo.png"
         file_extension = raw_name.rsplit(".", 1)[-1].lower() if "." in raw_name else "png"
         if file_extension not in ("jpg", "jpeg", "png", "webp", "svg", "gif"):
             file_extension = "png"

@@ -14,6 +14,7 @@ import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
 import { getMediaUrl } from '@/lib/api';
 import StudentDossierSection from '@/components/students/StudentDossierSection';
+import { compressImage } from '@/lib/compressImage';
 
 interface StudentCompleteDossierProps {
   studentId: string;
@@ -89,17 +90,18 @@ export default function StudentCompleteDossier({ studentId, role }: StudentCompl
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
+    const file = await compressImage(rawFile);
 
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('photo', file);
 
     setUploadingPhoto(true);
     try {
       const res = await api.post(`/api/v1/students/${studentId}/photo`, fd);
       toast.success(res.data?.message || 'Photo mise à jour avec succès');
-      loadDossier();
+      await loadDossier();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Échec de l'envoi de la photo");
     } finally {
@@ -856,11 +858,11 @@ export default function StudentCompleteDossier({ studentId, role }: StudentCompl
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl"
                 >
                   <option value="tranches">Par tranches standards (P1, P2, P3)</option>
-                  <option value="monthly">Échéancier Mensuel</option>
+                  <option value="mensuel">Échéancier Mensuel</option>
                 </select>
               </div>
 
-              {planForm.payment_plan === 'monthly' && (
+              {planForm.payment_plan === 'mensuel' && (
                 <>
                   <div>
                     <label className="font-semibold text-slate-700 block mb-1">Acompte initial (FCFA)</label>

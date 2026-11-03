@@ -15,6 +15,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { themes } from '@/lib/themes';
 import { Palette } from 'lucide-react';
 import SettingsPage from '@/components/settings/SettingsPage';
+import { compressImage } from '@/lib/compressImage';
 
 export default function UniversitySettingsPage() {
   const router = useRouter();
@@ -80,28 +81,32 @@ export default function UniversitySettingsPage() {
 
       if (newLogoFile) {
         const fd = new FormData();
-        fd.append('logo', newLogoFile);
+        const logoFile = await compressImage(newLogoFile, { maxDimension: 800, keepPng: true });
+        fd.append('logo', logoFile);
         fd.append('remove_bg', removeBackground ? "true" : "false");
         const logoRes = await api.post('/api/v1/settings/university/logo', fd);
         setFormData(prev => ({ ...prev, logo: logoRes.data.logo_url }));
       }
 
-      toast.success('Profil et thème mis à jour avec succès !');
+      toast.success('Profil et logo mis à jour avec succès !');
       window.dispatchEvent(new CustomEvent('universityUpdated'));
       setNewLogoFile(null);
       setPreviewLogo(null);
       setHasChanges(false);
     } catch (error: any) {
-      // Afficher la vraie cause (message serveur, code HTTP ou réseau) plutôt qu'un message générique
       const status = error?.response?.status;
       const detail = error?.response?.data?.detail;
-      toast.error(
-        typeof detail === 'string' && detail
-          ? detail
-          : status
-            ? `Erreur lors de la sauvegarde (code ${status})`
-            : 'Serveur injoignable : vérifiez votre connexion et réessayez'
-      );
+      let msg = '';
+      if (typeof detail === 'string') {
+        msg = detail;
+      } else if (Array.isArray(detail)) {
+        msg = detail.map((d: any) => `${d.loc?.slice(-1)[0] || 'Champ'}: ${d.msg}`).join(', ');
+      } else if (status) {
+        msg = `Erreur lors de la sauvegarde (code ${status})`;
+      } else {
+        msg = 'Serveur injoignable : vérifiez votre connexion et réessayez';
+      }
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

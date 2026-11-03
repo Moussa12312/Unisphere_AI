@@ -16,7 +16,13 @@ api.interceptors.request.use(
       }
     }
 
-    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    const isFormData = typeof FormData !== 'undefined' && (
+      config.data instanceof FormData ||
+      (config.data && typeof config.data.append === 'function') ||
+      Object.prototype.toString.call(config.data) === '[object FormData]'
+    );
+
+    if (isFormData) {
       if (config.headers) {
         if (typeof (config.headers as any).setContentType === 'function') {
           (config.headers as any).setContentType(false);

@@ -12,6 +12,7 @@ import api, { getMediaUrl } from '@/lib/api';
 import { filiereService } from '@/services/filiereService';
 import { getApiErrorMessage } from '@/lib/errorHandler';
 import { toast } from 'react-hot-toast';
+import { compressImage } from '@/lib/compressImage';
 
 interface StudentEditFormProps {
   studentId: string;
@@ -241,7 +242,7 @@ export default function StudentEditForm({ studentId, role }: StudentEditFormProp
 
       // Photo
       if (photoFile) {
-        formDataToSend.append('photo', photoFile);
+        formDataToSend.append('photo', await compressImage(photoFile));
       }
 
       await api.put(`/api/v1/students/${studentId}`, formDataToSend, {

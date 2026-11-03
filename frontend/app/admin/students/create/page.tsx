@@ -7,6 +7,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { filiereService } from '@/services/filiereService';
 import { useToast } from '@/components/ToastProvider';
+import { compressImage } from '@/lib/compressImage';
 
 const NEW_STUDENT_DOC_DEFS = [
   { key: 'birth_certificate', label: "Acte de naissance" },
@@ -167,7 +168,7 @@ export default function AdminCreateStudentPage() {
       Object.entries(formData).forEach(([key, value]) => {
         if (value && value.toString().trim() !== '') submitData.append(key, value);
       });
-      if (photoFile) submitData.append('photo', photoFile);
+      if (photoFile) submitData.append('photo', await compressImage(photoFile));
 
       // Ajouter les pièces du dossier
       Object.entries(dossierFiles).forEach(([key, file]) => {
