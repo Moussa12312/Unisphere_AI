@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   KeyRound, Mail, Lock, Eye, EyeOff, ArrowLeft, ArrowRight,
-  ShieldCheck, Loader2, CheckCircle2, RotateCcw, Sparkles, AlertTriangle
+  ShieldCheck, Loader2, CheckCircle2, RotateCcw, GraduationCap, Building2, Send
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -14,15 +14,22 @@ import { toast } from 'react-hot-toast';
 export default function ForgotPasswordPage() {
   const router = useRouter();
 
-  // Étape du flux : 1 = Demande du code OTP, 2 = Saisie du code et nouveau mot de passe
-  const [step, setStep] = useState<1 | 2>(1);
+  // Mode : 'matricule' (Étudiants, direct via secrétariat) vs 'otp' (Personnel par email/OTP)
+  const [resetMode, setResetMode] = useState<'matricule' | 'otp'>('matricule');
 
-  // Données Étape 1
+  // Mode Matricule Étudiant
+  const [matricule, setMatricule] = useState('');
+  const [matriculeSuccess, setMatriculeSuccess] = useState<{
+    student_name: string;
+    matricule: string;
+    university_name: string;
+  } | null>(null);
+
+  // Mode OTP
+  const [step, setStep] = useState<1 | 2>(1);
   const [identifier, setIdentifier] = useState('');
   const [targetMasked, setTargetMasked] = useState('');
   const [devOtp, setDevOtp] = useState<string | null>(null);
-
-  // Données Étape 2
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -32,7 +39,6 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  // Décompte pour le renvoi du code
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const interval = setInterval(() => {
@@ -41,12 +47,40 @@ export default function ForgotPasswordPage() {
     return () => clearInterval(interval);
   }, [resendCooldown]);
 
-  // Étape 1 : Demande de code OTP
+  // Soumission par Matricule (Étudiant)
+  const handleMatriculeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanMatricule = matricule.trim();
+    if (!cleanMatricule) {
+      toast.error('Veuillez renseigner votre numéro matricule.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await api.post('/api/v1/auth/forgot-password/by-matricule', {
+        matricule: cleanMatricule
+      });
+      setMatriculeSuccess({
+        student_name: res.data.student_name,
+        matricule: res.data.matricule,
+        university_name: res.data.university_name
+      });
+      toast.success('Demande transmise avec succès à votre établissement !');
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Matricule introuvable. Veuillez vérifier votre saisie.';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Étape 1 OTP
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanId = identifier.trim();
     if (!cleanId) {
-      toast.error('Veuillez saisir votre adresse email, matricule ou numéro.');
+      toast.error('Veuillez saisir votre adresse email institutionnelle.');
       return;
     }
 
@@ -65,68 +99,31 @@ export default function ForgotPasswordPage() {
       if (res.data?.dev_otp) {
         setDevOtp(res.data.dev_otp);
         setOtpCode(res.data.dev_otp);
-        toast(`Code de sécurité : ${res.data.dev_otp}`, {
-          icon: '🔑',
-          duration: 12000,
-        });
+        toast(`Code de sécurité : ${res.data.dev_otp}`, { icon: '🔑', duration: 12000 });
       } else {
         setDevOtp(null);
-        toast.success(res.data?.message || `Code de sécurité envoyé à ${masked}`);
+        toast.success(res.data?.message || `Code envoyé à ${masked}`);
       }
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Erreur lors de l’envoi du code OTP.';
-      toast.error(msg);
+      toast.error(err.response?.data?.detail || 'Erreur lors de l’envoi du code.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Renvoi du code OTP
-  const handleResendOtp = async () => {
-    if (resendCooldown > 0 || loading) return;
-    setLoading(true);
-    try {
-      const res = await api.post('/api/v1/auth/forgot-password/request-otp', {
-        identifier: identifier.trim(),
-        channel: 'email'
-      });
-      setResendCooldown(60);
-      if (res.data?.dev_otp) {
-        setDevOtp(res.data.dev_otp);
-        setOtpCode(res.data.dev_otp);
-        toast(`Nouveau code généré : ${res.data.dev_otp}`, {
-          icon: '🔑',
-          duration: 12000,
-        });
-      } else {
-        setDevOtp(null);
-        toast.success('Un nouveau code de sécurité vous a été envoyé.');
-      }
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Échec du renvoi du code.';
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Étape 2 : Vérification du code et mise à jour du mot de passe
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  // Étape 2 OTP
+  const handleVerifyOtpAndReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanOtp = otpCode.trim();
-
-    if (!cleanOtp || cleanOtp.length < 6) {
-      toast.error('Veuillez saisir le code de sécurité à 6 chiffres.');
+    if (!otpCode.trim()) {
+      toast.error('Veuillez saisir le code reçu.');
       return;
     }
-
-    if (!newPassword || newPassword.length < 6) {
-      toast.error('Le nouveau mot de passe doit comporter au moins 6 caractères.');
+    if (newPassword.length < 6) {
+      toast.error('Le mot de passe doit comporter au moins 6 caractères.');
       return;
     }
-
     if (newPassword !== confirmPassword) {
-      toast.error('Les mots de passe ne correspondent pas.');
+      toast.error('Les deux mots de passe ne correspondent pas.');
       return;
     }
 
@@ -134,297 +131,294 @@ export default function ForgotPasswordPage() {
     try {
       const res = await api.post('/api/v1/auth/forgot-password/verify-otp', {
         identifier: identifier.trim(),
-        otp_code: cleanOtp,
+        otp_code: otpCode.trim(),
         new_password: newPassword
       });
 
-      const data = res.data;
-      if (data?.access_token && data?.user) {
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('role', data.user.role);
-
-        if (typeof document !== 'undefined') {
-          document.cookie = `unisphere_token=${data.access_token}; path=/; max-age=604800; SameSite=Lax`;
-          document.cookie = `unisphere_role=${data.user.role}; path=/; max-age=604800; SameSite=Lax`;
+      if (res.data?.access_token) {
+        localStorage.setItem('token', res.data.access_token);
+        if (res.data.user) {
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+          localStorage.setItem('role', res.data.user.role);
         }
-
-        toast.success('Mot de passe réinitialisé ! Connexion en cours...');
-
-        const routes: Record<string, string> = {
-          admin: '/admin/dashboard',
-          secretary: '/secretary/dashboard',
-          censeur: '/censeur/dashboard',
-          teacher: '/teacher/dashboard',
-          student: '/student/dashboard',
-          accountant: '/accountant/dashboard',
-          guard: '/guard',
-          alumni: '/alumni/dashboard',
-          super_admin: '/superadmin/dashboard',
-          superadmin: '/superadmin/dashboard',
-        };
-        const dest = routes[data.user.role] || '/login';
-        setTimeout(() => {
-          window.location.href = dest;
-        }, 800);
-      } else {
-        toast.success('Mot de passe mis à jour ! Vous pouvez vous connecter.');
-        router.push('/login');
       }
+
+      toast.success('Mot de passe réinitialisé ! Connexion en cours...');
+      setTimeout(() => {
+        router.push('/login');
+      }, 1500);
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Code erroné ou expiré.';
-      toast.error(msg);
+      toast.error(err.response?.data?.detail || 'Code erroné ou expiré.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center p-4 sm:p-6 lg:p-10 font-sans bg-[#031B63] overflow-hidden">
-      {/* Halos lumineux UniSphere AI */}
-      <div className="absolute top-[-10%] left-[-10%] w-[520px] h-[520px] rounded-full bg-[#0754C7]/30 blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[520px] h-[520px] rounded-full bg-[#FF7900]/20 blur-[140px] pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-tr from-[#031B63] via-[#0A1628] to-[#031B63] opacity-95 pointer-events-none" />
-
-      <div className="relative z-10 w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-[#0a1628] via-[#0d1d36] to-[#132742] flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-md">
         
-        {/* En-tête plateforme */}
-        <div className="text-center mb-6 space-y-2">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-orange-400 text-xs font-semibold shadow-sm">
-            <Sparkles size={14} className="text-[#FF7900]" />
-            <span>Sécurité & Récupération de Compte</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            UniSphere <span className="text-[#FF7900]">AI</span>
-          </h1>
+        {/* Logo / Marque */}
+        <div className="text-center mb-6">
+          <Link href="/login" className="inline-flex items-center gap-2 text-white font-bold text-xl hover:opacity-90 transition-opacity">
+            <div className="w-9 h-9 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/25">
+              <KeyRound size={20} />
+            </div>
+            <span>UniSphere <span className="text-[#FF6B00]">AI</span></span>
+          </Link>
+          <p className="text-xs text-slate-400 mt-2">Récupération d'accès sécurisée</p>
         </div>
 
-        {/* Carte principale blanche */}
-        <div className="bg-white rounded-3xl shadow-2xl shadow-black/40 border border-slate-100 p-6 sm:p-8">
+        {/* Carte */}
+        <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 space-y-6">
           
-          <div className="flex items-center gap-3 pb-5 border-b border-slate-100 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#FF7900] to-orange-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/25 shrink-0">
-              <KeyRound size={22} />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                {step === 1 ? 'Mot de passe oublié' : 'Vérification du code'}
-              </h2>
-              <p className="text-xs text-slate-500">
-                {step === 1
-                  ? 'Recevez un code de validation sécurisé'
-                  : `Code envoyé à ${targetMasked}`}
-              </p>
-            </div>
+          {/* Onglets : Étudiant (Matricule) vs Personnel (Email) */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+            <button
+              type="button"
+              onClick={() => {
+                setResetMode('matricule');
+                setMatriculeSuccess(null);
+              }}
+              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                resetMode === 'matricule'
+                  ? 'bg-[#FF6B00] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <GraduationCap size={15} />
+              <span>Étudiant (Matricule)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setResetMode('otp');
+                setMatriculeSuccess(null);
+              }}
+              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                resetMode === 'otp'
+                  ? 'bg-[#0a1628] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Building2 size={14} className={resetMode === 'otp' ? 'text-[#FF6B00]' : 'text-slate-400'} />
+              <span>Personnel (Email)</span>
+            </button>
           </div>
 
-          {step === 1 ? (
-            /* ======================================================== */
-            /* ÉTAPE 1 : DEMANDE DE CODE OTP                            */
-            /* ======================================================== */
-            <form onSubmit={handleRequestOtp} className="space-y-5">
-              <div className="bg-blue-50 border border-blue-200/60 rounded-2xl p-3.5 text-xs text-blue-900 flex items-start gap-2.5">
-                <ShieldCheck size={18} className="text-[#0754C7] shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  Entrez votre adresse email, votre matricule ou votre téléphone. Vous recevrez un code de sécurité à 6 chiffres valable pendant 10 minutes.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Identifiant du compte *
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Mail size={18} />
+          {/* ================================================== */}
+          {/* MODE ÉTUDIANT : PAR MATRICULE                      */}
+          {/* ================================================== */}
+          {resetMode === 'matricule' && (
+            <div>
+              {matriculeSuccess ? (
+                <div className="space-y-4 text-center py-2">
+                  <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                    <CheckCircle2 size={32} />
                   </div>
-                  <input
-                    type="text"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="ex: prenom.nom@unisphere.ai ou matricule"
-                    required
-                    autoFocus
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:border-[#FF7900] focus:ring-4 focus:ring-[#FF7900]/10 transition-all outline-none font-medium"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 px-4 rounded-xl bg-[#FF7900] hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-sm transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    <span>Envoi du code...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Envoyer le code de sécurité</span>
-                    <ArrowRight size={18} />
-                  </>
-                )}
-              </button>
-
-              <div className="pt-2 text-center">
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-                >
-                  <ArrowLeft size={14} />
-                  <span>Retour à la connexion</span>
-                </Link>
-              </div>
-            </form>
-          ) : (
-            /* ======================================================== */
-            /* ÉTAPE 2 : SAISIE OTP + NOUVEAU MOT DE PASSE               */
-            /* ======================================================== */
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              
-              {/* Alerte si le code temporaire de secours est fourni (SMTP en cours de config) */}
-              {devOtp ? (
-                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 text-xs text-amber-950 space-y-2">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                    <AlertTriangle size={16} className="text-amber-600 shrink-0" />
-                    <span>Code temporaire généré (Configuration SMTP en cours)</span>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-lg">Demande transmise !</h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Une demande a été envoyée au secrétariat de <strong className="text-slate-800">{matriculeSuccess.university_name}</strong> pour l'étudiant :
+                    </p>
+                    <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-left text-xs space-y-1">
+                      <p><span className="text-slate-500">Nom :</span> <strong className="text-slate-800">{matriculeSuccess.student_name}</strong></p>
+                      <p><span className="text-slate-500">Matricule :</span> <strong className="font-mono text-[#FF6B00]">{matriculeSuccess.matricule}</strong></p>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-3">
+                      Votre secrétariat ou administration générera votre mot de passe temporaire sur présentation de votre carte ou pièce d'identité.
+                    </p>
                   </div>
-                  <p className="text-slate-600 text-[11px] leading-relaxed">
-                    Le serveur SMTP (.env) n'est pas encore activé sur le VPS. Pour vous permettre de tester sans attendre, voici votre code :
-                  </p>
-                  <div className="text-center bg-white border-2 border-dashed border-[#FF7900] py-2 px-3 rounded-xl">
-                    <span className="font-mono text-xl font-black text-[#031B63] tracking-[6px]">{devOtp}</span>
-                  </div>
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center justify-center gap-2 w-full py-2.5 bg-[#FF6B00] hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md transition-all"
+                  >
+                    <ArrowLeft size={14} />
+                    Retour à la connexion
+                  </Link>
                 </div>
               ) : (
-                <div className="bg-emerald-50 border border-emerald-200/60 rounded-2xl p-3 text-xs text-emerald-900 flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                  <p>Consultez votre boîte de réception pour saisir le code à 6 chiffres.</p>
-                </div>
-              )}
-
-              {/* Code OTP */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Code de sécurité (6 chiffres) *
-                </label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="••••••"
-                  required
-                  autoFocus
-                  className="w-full py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-2xl font-mono tracking-[8px] font-bold text-slate-900 focus:bg-white focus:border-[#FF7900] focus:ring-4 focus:ring-[#FF7900]/10 transition-all outline-none"
-                />
-              </div>
-
-              {/* Nouveau mot de passe */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Nouveau mot de passe *
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Lock size={18} />
+                <form onSubmit={handleMatriculeSubmit} className="space-y-4">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">Mot de passe oublié Étudiant</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Entrez votre numéro matricule officiel. Votre secrétariat recevra immédiatement une demande pour réinitialiser vos accès.
+                    </p>
                   </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Minimum 6 caractères"
-                    required
-                    minLength={6}
-                    className="w-full pl-11 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:border-[#FF7900] focus:ring-4 focus:ring-[#FF7900]/10 transition-all outline-none"
-                  />
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Numéro Matricule
+                    </label>
+                    <input
+                      type="text"
+                      value={matricule}
+                      onChange={(e) => setMatricule(e.target.value)}
+                      placeholder="Ex: UN-2026-0001 ou AD-2026-0002"
+                      disabled={loading}
+                      required
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:bg-white transition-all"
+                    />
+                  </div>
+
                   <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-[#FF6B00] hover:bg-orange-600 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md shadow-orange-500/25 transition-all cursor-pointer disabled:opacity-60"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {loading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <>
+                        <Send size={15} />
+                        <span>Transmettre au secrétariat</span>
+                      </>
+                    )}
                   </button>
-                </div>
-              </div>
 
-              {/* Confirmer le mot de passe */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Confirmer le mot de passe *
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Lock size={18} />
+                  <div className="text-center pt-2">
+                    <Link
+                      href="/login"
+                      className="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 font-medium transition-colors"
+                    >
+                      <ArrowLeft size={13} />
+                      Retour à la page de connexion
+                    </Link>
                   </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Répétez le mot de passe"
-                    required
-                    minLength={6}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:border-[#FF7900] focus:ring-4 focus:ring-[#FF7900]/10 transition-all outline-none"
-                  />
-                </div>
-              </div>
+                </form>
+              )}
+            </div>
+          )}
 
-              {/* Bouton de validation */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 px-4 rounded-xl bg-[#FF7900] hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-sm transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    <span>Vérification et réinitialisation...</span>
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck size={18} />
-                    <span>Valider & Réinitialiser</span>
-                  </>
-                )}
-              </button>
+          {/* ================================================== */}
+          {/* MODE PERSONNEL : PAR EMAIL & CODE OTP              */}
+          {/* ================================================== */}
+          {resetMode === 'otp' && (
+            <div>
+              {step === 1 ? (
+                <form onSubmit={handleRequestOtp} className="space-y-4">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">Récupération par Email</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Réservé aux enseignants et au personnel administratif disposant d'une adresse email active.
+                    </p>
+                  </div>
 
-              {/* Actions secondaires : renvoyer code ou changer identifiant */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="text-slate-500 hover:text-slate-800 transition-colors"
-                >
-                  ← Changer d'identifiant
-                </button>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Adresse Email
+                    </label>
+                    <input
+                      type="email"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder="nom@universite.edu"
+                      disabled={loading}
+                      required
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:bg-white transition-all"
+                    />
+                  </div>
 
-                <button
-                  type="button"
-                  disabled={resendCooldown > 0 || loading}
-                  onClick={handleResendOtp}
-                  className="text-[#0754C7] hover:text-[#031B63] font-semibold flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <RotateCcw size={13} />
-                  <span>
-                    {resendCooldown > 0
-                      ? `Renvoyer (${resendCooldown}s)`
-                      : 'Renvoyer le code'}
-                  </span>
-                </button>
-              </div>
-            </form>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-[#0a1628] hover:bg-[#132742] text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    {loading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <>
+                        <span>Envoyer le code de sécurité</span>
+                        <ArrowRight size={15} />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-center pt-2">
+                    <Link
+                      href="/login"
+                      className="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 font-medium transition-colors"
+                    >
+                      <ArrowLeft size={13} />
+                      Retour à la page de connexion
+                    </Link>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyOtpAndReset} className="space-y-4">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">Nouveau mot de passe</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Code envoyé à <strong className="text-slate-800">{targetMasked}</strong>
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Code à 6 chiffres
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="123456"
+                      disabled={loading}
+                      required
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Nouveau mot de passe
+                    </label>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Au moins 6 caractères"
+                      disabled={loading}
+                      required
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Confirmer le mot de passe
+                    </label>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Retapez le mot de passe"
+                      disabled={loading}
+                      required
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:bg-white"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-[#FF6B00] hover:bg-orange-600 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    {loading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <>
+                        <ShieldCheck size={15} />
+                        <span>Enregistrer le nouveau mot de passe</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
           )}
 
         </div>
-
-        {/* Pied de page sécurisé */}
-        <div className="text-center mt-6 text-slate-400 text-xs flex items-center justify-center gap-1.5">
-          <ShieldCheck size={14} className="text-emerald-400" />
-          <span>Protection cryptographique • UniSphere AI v2.0</span>
-        </div>
-
       </div>
     </div>
   );

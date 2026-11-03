@@ -356,3 +356,58 @@ def auto_generate_schedule(
         "message": f"Emploi du temps généré avec succès ({len(created)} créneaux)",
         "count": len(created)
     }
+
+# ==========================================
+# CRÉNEAUX HORAIRES CONFIGURABLES DE L'UNIVERSITÉ
+# ==========================================
+DEFAULT_SLOTS_BACKEND = [
+    {"start": "08:00", "end": "10:00", "label": "08:00 - 10:00"},
+    {"start": "10:00", "end": "12:00", "label": "10:00 - 12:00"},
+    {"start": "12:00", "end": "14:00", "label": "12:00 - 14:00 (Pause / Déjeuner)", "isBreak": True},
+    {"start": "14:00", "end": "16:00", "label": "14:00 - 16:00"},
+    {"start": "16:00", "end": "18:00", "label": "16:00 - 18:00"}
+]
+
+@router.get("/time-slots")
+def get_time_slots(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher", "student"))
+):
+    """Récupère les créneaux horaires configurés pour l'université de l'utilisateur"""
+    from app.models.university import University
+    univ = db.query(University).filter(University.id == current_user.university_id).first()
+    if univ and univ.card_config and isinstance(univ.card_config, dict):
+        configured_slots = univ.card_config.get("time_slots")
+        if configured_slots and isinstance(configured_slots, list) and len(configured_slots) > 0:
+            return configured_slots
+    return DEFAULT_SLOTS_BACKEND
+
+
+@router.put("/time-slots")
+def update_time_slots(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "censeur"))
+):
+    """Met à jour les créneaux horaires institutionnels de l'université"""
+    from app.models.university import University
+    from sqlalchemy.orm.attributes import flag_modified
+    
+    slots = data.get("slots", [])
+    if not isinstance(slots, list) or len(slots) == 0:
+        raise HTTPException(status_code=400, detail="Veuillez fournir une liste de créneaux valide.")
+
+    univ = db.query(University).filter(University.id == current_user.university_id).first()
+    if not univ:
+        raise HTTPException(status_code=404, detail="Université non trouvée.")
+
+    cfg = dict(univ.card_config or {})
+    cfg["time_slots"] = slots
+    univ.card_config = cfg
+    flag_modified(univ, "card_config")
+    db.commit()
+
+    return {
+        "message": "Créneaux horaires institutionnels enregistrés avec succès.",
+        "slots": slots
+    }

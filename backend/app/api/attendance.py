@@ -1124,13 +1124,36 @@ def get_course_roster(
     
     attendance_map = {att.student_id: att.status for att in existing_attendance}
 
+    # Vérifier les scans effectués par le gardien à l'entrée ce jour-là
+    gate_scanned_ids = set()
+    if students:
+        student_ids = [s.id for s in students]
+        gate_scans = db.query(Attendance.student_id).filter(
+            Attendance.student_id.in_(student_ids),
+            Attendance.date == target_date,
+            Attendance.attendance_type == 'student'
+        ).all()
+        gate_scanned_ids = {g[0] for g in gate_scans}
+
     roster = []
     for s in students:
+        # Si un appel spécifique au cours a été fait, utiliser ce statut.
+        # Sinon, si le gardien l'a scanné à l'entrée, proposer "present", sinon "unmarked".
+        recorded_status = attendance_map.get(s.id)
+        if recorded_status:
+            status = recorded_status
+        elif s.id in gate_scanned_ids:
+            status = "present"
+        else:
+            status = "absent"
+
         roster.append({
             "student_id": s.id,
             "student_name": f"{s.first_name} {s.last_name}",
             "matricule": s.matricule,
-            "current_status": attendance_map.get(s.id, "present")
+            "current_status": status,
+            "is_saved": s.id in attendance_map,
+            "gate_scanned": s.id in gate_scanned_ids
         })
 
     return {
@@ -1268,4 +1291,163 @@ def update_attendance_config(
         "message": "Configuration sauvegardée avec succès",
         "mode": "schedule",
         "min_attendance_rate": config.min_attendance_rate
+    }
+
+# ============================================================
+# 🎓 MATRICE DE PRÉSENCE UNIVERSITAIRE BASÉE SUR L'EMPLOI DU TEMPS
+# ============================================================
+@router.get("/daily-matrix")
+def get_daily_attendance_matrix(
+    date_str: Optional[str] = Query(None, alias="date"),
+    filiere: Optional[str] = None,
+    level: Optional[str] = None,
+    filter_type: Optional[str] = "all", # "all", "gate" (gardien), "courses" (modules)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "accountant"))
+):
+    """
+    Matrice quotidienne de présence conforme au fonctionnement universitaire :
+    Pour chaque étudiant, analyse ses modules planifiés ce jour-là selon son emploi du temps,
+    ses pointages effectifs par les enseignants, et son scan d'entrée portail par le gardien.
+    """
+    # 1. Résolution de la date
+    if date_str:
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            target_date = date.today()
+    else:
+        target_date = date.today()
+
+    # Déterminer le jour de la semaine en français (Lundi, Mardi...)
+    weekday_names = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    target_day_name = weekday_names[target_date.weekday()]
+
+    # 2. Récupérer les étudiants filtrés
+    query = db.query(Student).filter(
+        Student.university_id == current_user.university_id,
+        Student.status == "active"
+    )
+    if filiere and filiere != "all":
+        query = query.filter(Student.filiere.ilike(f"%{filiere}%"))
+    if level and level != "all":
+        query = query.filter(Student.level == level)
+
+    students = query.order_by(Student.last_name, Student.first_name).all()
+
+    # 3. Récupérer tous les cours / emplois du temps de ce jour pour l'université
+    schedules = db.query(Schedule, Course).join(Course, Schedule.course_id == Course.id).filter(
+        Schedule.university_id == current_user.university_id,
+        Schedule.day_of_week == target_day_name
+    ).all()
+
+    # 4. Récupérer tous les enregistrements de présence à cette date
+    day_attendances = db.query(Attendance).filter(
+        Attendance.university_id == current_user.university_id,
+        Attendance.date == target_date
+    ).all()
+
+    # Indexer les présences par (student_id, course_id) et par student_id (pour les scans portail gardien)
+    course_att_map = {} # (student_id, course_id) -> status
+    gate_scanned_map = {} # student_id -> Attendance (scan gardien portail)
+    for att in day_attendances:
+        if att.course_id:
+            course_att_map[(att.student_id, att.course_id)] = att.status
+        if att.attendance_type == "student":
+            gate_scanned_map[att.student_id] = att
+
+    # 5. Construire la matrice par étudiant
+    results = []
+    summary = {
+        "date": str(target_date),
+        "day_name": target_day_name,
+        "total_students": len(students),
+        "present_all_modules": 0,
+        "present_partial": 0,
+        "absent": 0,
+        "no_classes_scheduled": 0,
+        "gate_scanned_count": len(gate_scanned_map)
+    }
+
+    for s in students:
+        # Trouver les cours prévus pour cet étudiant aujourd'hui (selon son niveau et sa filière)
+        student_schedules = []
+        for sched, crs in schedules:
+            # Vérifier la correspondance de niveau et de filière
+            level_match = not crs.level or (s.level and crs.level.lower() == s.level.lower())
+            filiere_match = True
+            if crs.filiere_id and s.filiere:
+                # Si le cours est lié à une filière
+                filiere_match = hasattr(crs, 'filiere') and crs.filiere and (crs.filiere.name.lower() in s.filiere.lower())
+            elif crs.department and s.filiere:
+                filiere_match = crs.department.lower() in s.filiere.lower()
+
+            if level_match and filiere_match:
+                status = course_att_map.get((s.id, crs.id), "non_pointe")
+                student_schedules.append({
+                    "schedule_id": sched.id,
+                    "course_id": crs.id,
+                    "course_title": crs.title,
+                    "code": crs.code,
+                    "start_time": str(sched.start_time)[:5] if sched.start_time else "",
+                    "end_time": str(sched.end_time)[:5] if sched.end_time else "",
+                    "room": sched.room,
+                    "status": status
+                })
+
+        # Trier les cours par heure
+        student_schedules.sort(key=lambda x: x["start_time"])
+
+        total_courses = len(student_schedules)
+        attended_count = sum(1 for c in student_schedules if c["status"] in ["present", "late"])
+        missed_count = sum(1 for c in student_schedules if c["status"] in ["absent", "non_pointe"])
+        gate_scan = gate_scanned_map.get(s.id)
+
+        # Statut global calculé
+        if total_courses == 0:
+            status_code = "no_classes"
+            status_label = "Aucun cours ce jour"
+            summary["no_classes_scheduled"] += 1
+        elif attended_count == total_courses:
+            status_code = "full_present"
+            status_label = f"Présent ({attended_count}/{total_courses} modules)"
+            summary["present_all_modules"] += 1
+        elif attended_count > 0:
+            status_code = "partial"
+            status_label = f"Partiel ({attended_count}/{total_courses} modules)"
+            summary["present_partial"] += 1
+        elif gate_scan is not None:
+            status_code = "on_campus"
+            status_label = "Au portail (non pointé en classe)"
+            summary["present_partial"] += 1
+        else:
+            status_code = "absent"
+            status_label = f"Absent (0/{total_courses} modules)"
+            summary["absent"] += 1
+
+        # Filtre optionnel par type (gardien vs modules)
+        if filter_type == "gate" and not gate_scan:
+            continue
+        if filter_type == "courses" and total_courses == 0:
+            continue
+
+        results.append({
+            "student_id": s.id,
+            "student_name": f"{s.first_name} {s.last_name}",
+            "matricule": s.matricule,
+            "filiere": s.filiere or "Non défini",
+            "level": s.level or "L1",
+            "photo": s.photo,
+            "gate_scanned": gate_scan is not None,
+            "gate_scan_time": str(gate_scan.check_in_time)[:5] if (gate_scan and gate_scan.check_in_time) else None,
+            "total_courses": total_courses,
+            "attended_count": attended_count,
+            "status_code": status_code,
+            "status_label": status_label,
+            "modules": student_schedules
+        })
+
+    return {
+        "summary": summary,
+        "students": results
     }

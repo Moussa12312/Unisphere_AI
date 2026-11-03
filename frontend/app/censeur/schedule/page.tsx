@@ -12,7 +12,7 @@ import { toast } from 'react-hot-toast';
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
-const TIME_SLOTS = [
+const DEFAULT_TIME_SLOTS = [
   { start: '08:00', end: '10:00', label: '08h00 - 10h00' },
   { start: '10:00', end: '12:00', label: '10h00 - 12h00' },
   { start: '14:00', end: '16:00', label: '14h00 - 16h00' },
@@ -21,6 +21,7 @@ const TIME_SLOTS = [
 
 export default function CenseurSchedulePage() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [timeSlots, setTimeSlots] = useState<any[]>(DEFAULT_TIME_SLOTS);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
@@ -37,11 +38,15 @@ export default function CenseurSchedulePage() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [scheduleData, classesData, uniData] = await Promise.all([
+      const [scheduleData, classesData, uniData, slotsRes] = await Promise.all([
         scheduleService.getAll().catch(() => []),
         classService.getAll().catch(() => []),
-        universityService.getInfo().catch(() => null)
+        universityService.getInfo().catch(() => null),
+        api.get('/api/v1/schedules/time-slots').catch(() => ({ data: DEFAULT_TIME_SLOTS }))
       ]);
+      if (Array.isArray(slotsRes?.data) && slotsRes.data.length > 0) {
+        setTimeSlots(slotsRes.data);
+      }
       setSchedules(scheduleData || []);
       setClasses(classesData || []);
       if (uniData) setUniversityInfo(uniData);
@@ -192,14 +197,14 @@ export default function CenseurSchedulePage() {
                 </tr>
               </thead>
               <tbody>
-                {TIME_SLOTS.map(slot => (
+                {timeSlots.map(slot => (
                   <tr key={slot.start}>
                     <td className="p-2.5 bg-slate-50/50 border border-slate-200 text-xs font-mono font-bold text-slate-700 text-center align-middle">
                       {slot.label}
                     </td>
                     {DAYS.map(day => {
                       const coursesInSlot = filteredSchedules.filter(
-                        s => s.day_of_week === day && s.start_time <= slot.start && s.end_time >= slot.end
+                        s => s.day_of_week === day && s.start_time < slot.end && s.end_time > slot.start
                       );
                       return (
                         <td key={day} className="p-2 border border-slate-200 align-top min-w-[130px] h-24">

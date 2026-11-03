@@ -128,7 +128,7 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Cours', href: '/secretary/courses', icon: BookOpen },
         { label: 'Enseignants', href: '/secretary/teachers', icon: GraduationCap },
         { label: "Unités (UE)", href: '/secretary/teaching-units', icon: Layers },
-        { label: 'Présences', href: '/teacher/attendance', icon: UserCheck },
+        { label: 'Présences', href: '/secretary/attendance', icon: UserCheck },
       ]
     },
     {

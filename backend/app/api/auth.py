@@ -150,7 +150,19 @@ def login(
     # ✅ MULTI-UNIVERSITÉS (Option B Enseignants)
     if user.role == "teacher":
         from app.models.teacher import Teacher
-        affiliations = db.query(Teacher).filter(Teacher.user_id == user.id).all()
+        # Chercher par user_id ET par email pour couvrir tous les cas d'inscription multi-établissements
+        all_affiliations = db.query(Teacher).filter(
+            or_(Teacher.user_id == user.id, func.lower(Teacher.email) == user.email.lower())
+        ).all()
+        
+        # Dédupliquer par university_id
+        seen_univs = set()
+        affiliations = []
+        for a in all_affiliations:
+            if a.university_id not in seen_univs:
+                seen_univs.add(a.university_id)
+                affiliations.append(a)
+
         if len(affiliations) > 1:
             univ_list = []
             for aff in affiliations:
@@ -764,7 +776,7 @@ def switch_university(
     if current_user.role == "teacher":
         from app.models.teacher import Teacher
         aff = db.query(Teacher).filter(
-            Teacher.user_id == current_user.id,
+            or_(Teacher.user_id == current_user.id, func.lower(Teacher.email) == current_user.email.lower()),
             Teacher.university_id == target_univ_id
         ).first()
         if not aff:
@@ -960,4 +972,59 @@ def verify_password_reset_otp(
             "role": user.role,
             "university_id": user.university_id
         }
+    }
+
+
+# ==========================================
+# DEMANDE DE RÉINITIALISATION PAR MATRICULE (Étudiant -> Secrétaire/Admin)
+# ==========================================
+@router.post("/forgot-password/by-matricule")
+def request_password_reset_by_matricule(
+    data: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Permet à un étudiant de demander la réinitialisation de son mot de passe
+    en renseignant uniquement son matricule institutionnel.
+    Alerte immédiatement le secrétariat et l'administration de son université.
+    """
+    from app.models.student import Student
+    from app.models.notification import Notification
+
+    raw_matricule = (data.get("matricule") or "").strip()
+    if not raw_matricule:
+        raise HTTPException(status_code=400, detail="Veuillez saisir votre matricule.")
+
+    student = db.query(Student).filter(
+        func.lower(Student.matricule) == raw_matricule.lower()
+    ).first()
+
+    if not student:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Aucun dossier étudiant trouvé pour le matricule « {raw_matricule} ». Vérifiez la saisie ou contactez le secrétariat."
+        )
+
+    univ = db.query(University).filter(University.id == student.university_id).first()
+    univ_name = univ.name if univ else (student.university_name or "Votre université")
+
+    # Créer la notification pour l'administration et le secrétariat
+    notif = Notification(
+        title="Demande réinitialisation mot de passe",
+        message=f"L'étudiant {student.first_name} {student.last_name} (Matricule: {student.matricule}, Filière: {student.filiere or 'N/A'}) demande la réinitialisation de son mot de passe.",
+        notification_type="password_reset_request",
+        type="warning",
+        target_roles=["admin", "secretary"],
+        university_id=student.university_id,
+        is_read=False
+    )
+    db.add(notif)
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Votre demande a bien été transmise à l'administration de {univ_name}.",
+        "student_name": f"{student.first_name} {student.last_name}",
+        "matricule": student.matricule,
+        "university_name": univ_name
     }

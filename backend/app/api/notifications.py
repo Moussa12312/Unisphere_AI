@@ -125,16 +125,26 @@ def filter_notifications_by_role(
     # - Soit la notification est spécifiquement adressée à cet utilisateur (recipient_id == user_id)
     # - Soit c'est une notification de groupe destinée à son rôle (recipient_id est None ET target_roles contient son rôle ou 'all')
     role_pattern = f'%"{user_role}"%'
-    target_cond = or_(
-        Notification.recipient_id == user_id,
-        and_(
-            Notification.recipient_id == None,
-            or_(
-                cast(Notification.target_roles, String).like(role_pattern),
-                cast(Notification.target_roles, String).like('%"all"%')
+    if user_role == "guard":
+        # Le gardien ne reçoit strictement QUE ce qui lui est personnellement adressé ou explicitement réservé aux gardiens
+        target_cond = or_(
+            Notification.recipient_id == user_id,
+            and_(
+                Notification.recipient_id == None,
+                cast(Notification.target_roles, String).like(role_pattern)
             )
         )
-    )
+    else:
+        target_cond = or_(
+            Notification.recipient_id == user_id,
+            and_(
+                Notification.recipient_id == None,
+                or_(
+                    cast(Notification.target_roles, String).like(role_pattern),
+                    cast(Notification.target_roles, String).like('%"all"%')
+                )
+            )
+        )
 
     return query.filter(and_(univ_cond, target_cond))
 

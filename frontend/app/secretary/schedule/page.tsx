@@ -120,30 +120,44 @@ export default function SecretarySchedulePage() {
 
   useEffect(() => {
     loadAll();
-    // Charger les créneaux personnalisés depuis le localStorage
+    // Charger les créneaux personnalisés depuis le serveur ou fallback localStorage
     try {
-      const saved = localStorage.getItem('unisphere_schedule_time_slots');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setTimeSlots(parsed);
-          setEditingSlots(parsed);
-        }
-      }
+      api.get('/api/v1/schedules/time-slots')
+        .then(res => {
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            setTimeSlots(res.data);
+            setEditingSlots(res.data);
+          }
+        })
+        .catch(() => {
+          const saved = localStorage.getItem('unisphere_schedule_time_slots');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setTimeSlots(parsed);
+              setEditingSlots(parsed);
+            }
+          }
+        });
     } catch (e) {
       console.error('Erreur chargement créneaux:', e);
     }
   }, []);
 
-  const handleSaveSlots = () => {
+  const handleSaveSlots = async () => {
     if (editingSlots.length === 0) {
       toast.error('Il faut conserver au moins un créneau horaire.');
       return;
     }
-    setTimeSlots(editingSlots);
-    localStorage.setItem('unisphere_schedule_time_slots', JSON.stringify(editingSlots));
-    setShowSlotsModal(false);
-    toast.success('Créneaux horaires personnalisés enregistrés avec succès !');
+    try {
+      await api.put('/api/v1/schedules/time-slots', { slots: editingSlots });
+      setTimeSlots(editingSlots);
+      localStorage.setItem('unisphere_schedule_time_slots', JSON.stringify(editingSlots));
+      setShowSlotsModal(false);
+      toast.success('Créneaux horaires institutionnels enregistrés sur le serveur !');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Erreur lors de la sauvegarde des créneaux');
+    }
   };
 
   const handleResetSlots = () => {

@@ -31,6 +31,7 @@ export default function AdminTeachersPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [search, setSearch] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
+  const [selectedFiliere, setSelectedFiliere] = useState<string>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -90,7 +91,11 @@ export default function AdminTeachersPage() {
       teacher.email.toLowerCase().includes(search.toLowerCase()) ||
       teacher.speciality.toLowerCase().includes(search.toLowerCase());
     const matchDepartment = !filterDepartment || teacher.department === filterDepartment;
-    return matchSearch && matchDepartment;
+    const teacherFiliere = (teacher as any).filiere_name || teacher.department || '';
+    const matchFiliere = selectedFiliere === 'all' || 
+      teacherFiliere.toLowerCase() === selectedFiliere.toLowerCase() ||
+      String((teacher as any).filiere_id) === selectedFiliere;
+    return matchSearch && matchDepartment && matchFiliere;
   });
 
   const departments = [...new Set(teachers.map(t => t.department).filter(Boolean))];
@@ -288,7 +293,61 @@ export default function AdminTeachersPage() {
         </div>
       </div>
 
-      {/* Filtres */}
+      {/* Sélecteur direct par Filière */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <GraduationCap size={15} className="text-[#FF6B00]" />
+            Filtrer directement par filière
+          </span>
+          <span className="text-xs text-slate-400">
+            {filieres.length} filière(s) disponible(s)
+          </span>
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <button
+            type="button"
+            onClick={() => setSelectedFiliere('all')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              selectedFiliere === 'all'
+                ? 'bg-[#FF6B00] text-white shadow-xs'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+            }`}
+          >
+            Toutes les filières ({teachers.length})
+          </button>
+          {filieres.map((f: any) => {
+            const count = teachers.filter((t: any) => 
+              (t.filiere_name && t.filiere_name.toLowerCase() === f.name.toLowerCase()) ||
+              (t.filiere_id && t.filiere_id === f.id) ||
+              (t.department && t.department.toLowerCase() === f.name.toLowerCase())
+            ).length;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setSelectedFiliere(f.name)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedFiliere.toLowerCase() === f.name.toLowerCase()
+                    ? 'bg-[#FF6B00] text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                }`}
+              >
+                <span>{f.name}</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  selectedFiliere.toLowerCase() === f.name.toLowerCase()
+                    ? 'bg-white/20 text-white font-bold'
+                    : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Filtres recherche */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-2 relative">

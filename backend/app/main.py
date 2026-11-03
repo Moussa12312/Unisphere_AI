@@ -357,6 +357,70 @@ class AddSlashMiddleware:
 # ✅ Enregistrer AVANT les autres middlewares
 app.add_middleware(AddSlashMiddleware)
 
+# ============================================================
+# 🚨 GESTIONNAIRE GLOBAL DES EXCEPTIONS 500 POUR LE SUPER-ADMIN
+# ============================================================
+import traceback
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Intercepte tout crash/bug 500 dans l'application, enregistre automatiquement
+    une alerte prioritaire avec la stacktrace pour le Super-Admin,
+    et répond un message clair.
+    """
+    # Ne pas intercepter les erreurs HTTP normales (400, 401, 403, 404, 422)
+    if isinstance(exc, (StarletteHTTPException, HTTPException)):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail}
+        )
+    if isinstance(exc, RequestValidationError):
+        return JSONResponse(
+            status_code=422,
+            content={"detail": exc.errors()}
+        )
+
+    # Erreur inattendue (500)
+    tb_str = traceback.format_exc()
+    route_info = f"{request.method} {request.url.path}"
+    print(f"🚨 [CRASH 500] {route_info} : {exc}")
+
+    try:
+        from app.database.connection import SessionLocal
+        from app.models.notification import Notification
+        db = SessionLocal()
+        try:
+            # Créer la notification Bug en priorité absolue pour le SuperAdmin
+            bug_notif = Notification(
+                title=f"🚨 Bug Système [500] : {route_info}",
+                message=f"Erreur : {str(exc)}\n\nTraceback :\n{tb_str[:1500]}",
+                notification_type="bug",
+                type="error",
+                target_roles=["super_admin", "superadmin"],
+                university_id=None,
+                is_read=False
+            )
+            db.add(bug_notif)
+            db.commit()
+        finally:
+            db.close()
+    except Exception as db_err:
+        print(f"⚠️ Impossible d'enregistrer la notification bug: {db_err}")
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": f"Erreur interne du serveur ({str(exc)}). Un rapport d'incident prioritaire a été transmis au SuperAdmin.",
+            "error_type": exc.__class__.__name__,
+            "route": route_info
+        }
+    )
+
+
 # ============================================
 # IMPORT DES ROUTERS
 # ============================================

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   AlertTriangle, RefreshCw, CheckCircle2, Clock, 
-  Building2, Eye, X, MessageSquare, ShieldAlert
+  Building2, Eye, X, MessageSquare, Copy, Check, ShieldAlert
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
@@ -279,13 +279,27 @@ export default function SuperAdminIncidentsPage() {
                 </pre>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
                 <button
-                  onClick={() => setActiveModal(null)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 font-medium hover:bg-slate-50"
+                  type="button"
+                  onClick={() => {
+                    const textToCopy = `[INCIDENT #${activeModal.id}]\nUniversité: ${activeModal.university_name}\nRoute: ${activeModal.location}\nDate: ${activeModal.created_at}\nSévérité: ${activeModal.severity}\n\nDétails:\n${activeModal.description}`;
+                    navigator.clipboard.writeText(textToCopy);
+                    toast.success("Rapport technique copié dans le presse-papier !");
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl text-xs shadow-sm transition-colors cursor-pointer"
                 >
-                  Fermer
+                  <Copy size={14} />
+                  Copier l'erreur
                 </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActiveModal(null)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 font-medium hover:bg-slate-50"
+                  >
+                    Fermer
+                  </button>
                 {activeModal.status !== 'resolved' && (
                   <button
                     onClick={() => handleResolve(activeModal.id)}
@@ -299,6 +313,7 @@ export default function SuperAdminIncidentsPage() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       )}
     </div>

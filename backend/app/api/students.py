@@ -162,16 +162,16 @@ async def create_student(
     financial_clearance: Optional[UploadFile] = File(None),
     reenrollment_form: Optional[UploadFile] = File(None),
     # Tarification particulière & Réduction négociée (optionnel)
-    discount_amount: Optional[float] = Form(0.0),
-    discount_percentage: Optional[float] = Form(0.0),
+    discount_amount: Optional[Any] = Form(0.0),
+    discount_percentage: Optional[Any] = Form(0.0),
     discount_reason: Optional[str] = Form(None),
     discount_approved_by: Optional[str] = Form(None),
-    net_tuition_amount: Optional[float] = Form(None),
+    net_tuition_amount: Optional[Any] = Form(None),
     # Modalité de paiement (tranches vs mensuel)
     payment_plan: Optional[str] = Form("tranches"),
-    monthly_deposit: Optional[float] = Form(None),
-    monthly_installment: Optional[float] = Form(None),
-    monthly_months_count: Optional[int] = Form(5),
+    monthly_deposit: Optional[Any] = Form(None),
+    monthly_installment: Optional[Any] = Form(None),
+    monthly_months_count: Optional[Any] = Form(5),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher"))
 ):
@@ -215,10 +215,18 @@ async def create_student(
             temp_stub = Student(level=level, domain=domain, filiere=filiere)
             matched_fee = find_matching_academic_fee(db, temp_stub, current_user.university_id, "scolarite")
             base_val = float(matched_fee.amount) if matched_fee else 0.0
-            if float(discount_amount or 0.0) > 0:
-                computed_net = max(0.0, base_val - float(discount_amount))
-            elif float(discount_percentage or 0.0) > 0:
-                computed_net = max(0.0, round(base_val * (1.0 - float(discount_percentage) / 100.0)))
+            def _safe_f(v, default=0.0):
+                try:
+                    return float(str(v).strip()) if v is not None and str(v).strip() != "" else default
+                except (ValueError, TypeError):
+                    return default
+
+            disc_amt = _safe_f(discount_amount, 0.0)
+            disc_pct = _safe_f(discount_percentage, 0.0)
+            if disc_amt > 0:
+                computed_net = max(0.0, base_val - disc_amt)
+            elif disc_pct > 0:
+                computed_net = max(0.0, round(base_val * (1.0 - disc_pct / 100.0)))
 
         new_student = Student(
             first_name=first_name,
@@ -243,15 +251,15 @@ async def create_student(
             university_name=univ_name,
             status="active",
             file_status="incomplete",
-            discount_amount=float(discount_amount or 0.0),
-            discount_percentage=float(discount_percentage or 0.0),
+            discount_amount=_safe_f(discount_amount, 0.0),
+            discount_percentage=_safe_f(discount_percentage, 0.0),
             discount_reason=discount_reason,
             discount_approved_by=discount_approved_by,
             net_tuition_amount=computed_net,
             payment_plan=payment_plan or "tranches",
-            monthly_deposit=float(monthly_deposit) if monthly_deposit is not None else None,
-            monthly_installment=float(monthly_installment) if monthly_installment is not None else None,
-            monthly_months_count=int(monthly_months_count) if monthly_months_count is not None else 5
+            monthly_deposit=float(str(monthly_deposit).strip()) if (monthly_deposit is not None and str(monthly_deposit).strip() != "") else None,
+            monthly_installment=float(str(monthly_installment).strip()) if (monthly_installment is not None and str(monthly_installment).strip() != "") else None,
+            monthly_months_count=int(str(monthly_months_count).strip()) if (monthly_months_count is not None and str(monthly_months_count).strip() != "") else 5
         )
         db.add(new_student)
         db.flush()
@@ -2683,8 +2691,13 @@ async def update_student(
     else:
         form = await request.form()
         payload = {k: v for k, v in form.items() if isinstance(v, str)}
-        upload = form.get("photo")
-        if upload is not None and getattr(upload, "filename", None):
+        upload = form.get("photo") or form.get("file") or form.get("image") or form.get("avatar")
+        if upload is None:
+            for v in form.values():
+                if hasattr(v, "read"):
+                    upload = v
+                    break
+        if upload is not None:
             photo = upload
 
     def _txt(key, current=None):
@@ -2766,18 +2779,32 @@ async def update_student(
             pass
     
     new_photo_name = None
-    if photo and photo.filename:
-        content = await photo.read()
-        if content:
+    if photo:
+        content = None
+        orig_filename = getattr(photo, "filename", None) or "photo.jpg"
+        if hasattr(photo, "read"):
+            content = await photo.read()
+        elif isinstance(photo, (bytes, bytearray)):
+            content = bytes(photo)
+        if content and len(content) > 10:
             uploads_dir = Path(__file__).resolve().parent.parent.parent / "uploads"
-            os.makedirs(uploads_dir, exist_ok=True)
-            ext = Path(photo.filename).suffix.lower() or ".jpg"
+            uploads_dir.mkdir(parents=True, exist_ok=True)
+            os.makedirs("uploads", exist_ok=True)
+            ext = Path(orig_filename).suffix.lower() or ".jpg"
             if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
                 ext = ".jpg"
             photo_path = uploads_dir / f"STUDENT_{existing_student.id}_{int(time_module.time())}{ext}"
             saved_p = compress_and_save_upload(content, photo_path, max_dimension=1200, quality=82)
             new_photo_name = saved_p.name
             existing_student.photo = new_photo_name
+            # Duplication de sécurité
+            try:
+                rel_p = Path("uploads") / saved_p.name
+                if rel_p.resolve() != saved_p.resolve():
+                    with open(rel_p, "wb") as f_rel:
+                        f_rel.write(content)
+            except Exception:
+                pass
 
     user = db.query(User).filter(User.id == existing_student.user_id).first()
     if user:

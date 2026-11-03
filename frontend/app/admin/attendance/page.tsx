@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { exportToExcel } from "@/lib/exportExcel";
+import DailyAttendanceMatrixView from "@/components/academic/DailyAttendanceMatrixView";
 import { toast } from "react-hot-toast";
 
 interface StudentAttendance {
@@ -52,7 +53,7 @@ interface TeacherStats {
 }
 
 export default function AdminAttendancePage() {
-  const [activeTab, setActiveTab] = useState<"students" | "teachers">("students");
+  const [activeTab, setActiveTab] = useState<"matrix" | "students" | "teachers">("matrix");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -272,17 +273,29 @@ export default function AdminAttendancePage() {
       </div>
 
       {/* Onglets Navigation */}
-      <div className="flex items-center gap-2 border-b border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab("matrix")}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition cursor-pointer ${
+            activeTab === "matrix"
+              ? "border-[#FF6B00] text-[#FF6B00]"
+              : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          🎓 Matrice Emploi du Temps & Portail
+        </button>
+
         <button
           onClick={() => setActiveTab("students")}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition ${
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 whitespace-nowrap transition cursor-pointer ${
             activeTab === "students"
               ? "border-[#031B63] text-[#031B63]"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
           <GraduationCap className="w-4 h-4" />
-          Présences Étudiants ({filteredStudents.length})
+          Pointages Détaillés ({filteredStudents.length})
         </button>
 
         <button
@@ -297,6 +310,11 @@ export default function AdminAttendancePage() {
           Suivi des Enseignants ({filteredTeachers.length})
         </button>
       </div>
+
+      {/* Contenu Onglet 0 : Matrice Emploi du Temps */}
+      {activeTab === "matrix" && (
+        <DailyAttendanceMatrixView initialDate={dateFilter} />
+      )}
 
       {/* Contenu Onglet 1 : Étudiants */}
       {activeTab === "students" && (

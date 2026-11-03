@@ -10,6 +10,8 @@ interface StudentRecord {
   student_name: string;
   matricule: string;
   current_status: 'present' | 'late' | 'absent' | 'excused';
+  gate_scanned?: boolean;
+  is_saved?: boolean;
 }
 
 export default function TeacherAttendancePage() {
@@ -155,7 +157,14 @@ export default function TeacherAttendancePage() {
                 {roster.map((student) => (
                   <tr key={student.student_id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 sm:px-6 py-4">
-                      <p className="font-semibold text-slate-900">{student.student_name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-slate-900">{student.student_name}</p>
+                        {student.gate_scanned && (
+                          <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold" title="Scanné à l'entrée du campus par le gardien">
+                            Campus
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500 font-mono">{student.matricule}</p>
                     </td>
                     <td className="px-4 sm:px-6 py-4 text-center">

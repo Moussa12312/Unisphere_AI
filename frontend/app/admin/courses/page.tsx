@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, Pencil, Trash2, Eye, Loader2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, Loader2, GraduationCap, BookOpen } from 'lucide-react';
 import Link from 'next/link';
+import api from '@/lib/api';
 import { courseService } from '@/services/courseService';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
@@ -13,6 +14,8 @@ export default function CoursesPage() {
   const { confirm } = useConfirm();
   
   const [courses, setCourses] = useState<any[]>([]);
+  const [filieres, setFilieres] = useState<any[]>([]);
+  const [selectedFiliere, setSelectedFiliere] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
@@ -22,8 +25,12 @@ export default function CoursesPage() {
 
   const loadCourses = async () => {
     try {
-      const data = await courseService.getAll();
-      setCourses(data);
+      const [coursesData, filieresRes] = await Promise.all([
+        courseService.getAll(),
+        api.get('/api/v1/filieres/').catch(() => ({ data: [] }))
+      ]);
+      setCourses(coursesData);
+      setFilieres(Array.isArray(filieresRes.data) ? filieresRes.data : []);
     } catch (error) {
       toast.error('Erreur lors du chargement des cours');
     } finally {
@@ -79,12 +86,19 @@ const getDepartmentAbbreviation = (department: string): string => {
     }
   };
 
-  const filtered = courses.filter((c: any) =>
-    c.title.toLowerCase().includes(search.toLowerCase()) ||
-    c.code.toLowerCase().includes(search.toLowerCase()) ||
-    (c.teaching_unit_code && c.teaching_unit_code.toLowerCase().includes(search.toLowerCase())) ||
-    (c.teaching_unit_name && c.teaching_unit_name.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = courses.filter((c: any) => {
+    const matchSearch = c.title.toLowerCase().includes(search.toLowerCase()) ||
+      c.code.toLowerCase().includes(search.toLowerCase()) ||
+      (c.teaching_unit_code && c.teaching_unit_code.toLowerCase().includes(search.toLowerCase())) ||
+      (c.teaching_unit_name && c.teaching_unit_name.toLowerCase().includes(search.toLowerCase()));
+    
+    const cFiliere = (c.filiere_name || c.department || '').toLowerCase();
+    const matchFiliere = selectedFiliere === 'all' || 
+      cFiliere === selectedFiliere.toLowerCase() ||
+      String(c.filiere_id) === selectedFiliere;
+      
+    return matchSearch && matchFiliere;
+  });
 
   if (loading) {
     return (
@@ -93,8 +107,62 @@ const getDepartmentAbbreviation = (department: string): string => {
   }
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div className="space-y-6">
+      {/* Sélecteur direct de cours par Filière */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <BookOpen size={15} className="text-[#FF6B00]" />
+            Filtrer directement les cours par filière
+          </span>
+          <span className="text-xs text-slate-400">
+            {filieres.length} filière(s) académique(s)
+          </span>
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <button
+            type="button"
+            onClick={() => setSelectedFiliere('all')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              selectedFiliere === 'all'
+                ? 'bg-[#FF6B00] text-white shadow-xs'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+            }`}
+          >
+            Tous les cours ({courses.length})
+          </button>
+          {filieres.map((f: any) => {
+            const count = courses.filter((c: any) => 
+              (c.filiere_name && c.filiere_name.toLowerCase() === f.name.toLowerCase()) ||
+              (c.filiere_id && c.filiere_id === f.id) ||
+              (c.department && c.department.toLowerCase() === f.name.toLowerCase())
+            ).length;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setSelectedFiliere(f.name)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedFiliere.toLowerCase() === f.name.toLowerCase()
+                    ? 'bg-[#FF6B00] text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                }`}
+              >
+                <span>{f.name}</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  selectedFiliere.toLowerCase() === f.name.toLowerCase()
+                    ? 'bg-white/20 text-white font-bold'
+                    : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
