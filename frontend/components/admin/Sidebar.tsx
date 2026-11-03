@@ -10,7 +10,8 @@ import {
   ClipboardList, Receipt, AlertCircle, FileCheck, School, Building2, DollarSign, Shield, KeyRound,
   QrCode, Edit3, Clock, AlertTriangle, RotateCcw, FileBarChart,
   BrainCircuit, UserPlus, Folder, Users2, ScrollText, FileSearch, Scale, Lock, HelpCircle,
-  Layers, FileSpreadsheet, Printer, Megaphone, LogOut, X, Sparkles, Database
+  Layers, FileSpreadsheet, Printer, Megaphone, LogOut, X, Sparkles, Database,
+  CalendarCheck
 } from 'lucide-react';
 import { authService } from '@/services/authService';
 import LogoutConfirmModal from '@/components/LogoutConfirmModal';
@@ -347,6 +348,7 @@ const MENU_CONFIG: Record<string, Array<{
       items: [
         { label: 'Mes cours & PDF', href: '/student/courses', icon: BookOpen },
         { label: 'Emploi du temps', href: '/student/schedule', icon: Calendar },
+        { label: 'Calendrier examens', href: '/student/exams', icon: CalendarCheck },
         { label: 'Présences', href: '/student/attendance', icon: ClipboardList },
       ]
     },

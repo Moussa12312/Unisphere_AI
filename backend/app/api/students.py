@@ -2027,19 +2027,40 @@ def get_student_dashboard(
                     "location": f"{sch.building or ''} {sch.room or 'Salle inconnue'}".strip()
                 })
         
-        exams = db.query(ExamSession).filter(
-            ExamSession.university_id == current_user.university_id,
-            ExamSession.start_date >= date.today()
-        ).order_by(ExamSession.start_date.asc()).limit(2).all()
+        # Épreuves précises planifiées pour cet étudiant
+        from app.models.exam_schedule import ExamSchedule
+        exam_query = db.query(ExamSchedule, Course).outerjoin(
+            Course, ExamSchedule.course_id == Course.id
+        ).filter(
+            ExamSchedule.university_id == current_user.university_id,
+            ExamSchedule.exam_date >= date.today()
+        )
+        if student.class_room_id:
+            exam_query = exam_query.filter(ExamSchedule.class_id == student.class_room_id)
         
-        for exam in exams:
+        scheduled_exams = exam_query.order_by(ExamSchedule.exam_date.asc(), ExamSchedule.start_time.asc()).limit(3).all()
+        for es, crs in scheduled_exams:
             upcoming_events.append({
-                "title": f"Session: {exam.name}",
+                "title": f"Examen: {crs.title if crs else 'Épreuve'}",
                 "type": "exam",
-                "date": exam.start_date.strftime("%d/%m/%Y") if exam.start_date else "Date inconnue",
-                "time": "Voir détails",
-                "location": "Session officielle"
+                "date": es.exam_date.strftime("%d/%m/%Y") if es.exam_date else "Date à venir",
+                "time": f"{es.start_time} - {es.end_time}",
+                "location": f"{es.room or 'Salle'} {f'({es.building})' if es.building else ''}".strip()
             })
+
+        if not scheduled_exams:
+            exams = db.query(ExamSession).filter(
+                ExamSession.university_id == current_user.university_id,
+                ExamSession.start_date >= date.today()
+            ).order_by(ExamSession.start_date.asc()).limit(2).all()
+            for exam in exams:
+                upcoming_events.append({
+                    "title": f"Session: {exam.name}",
+                    "type": "exam",
+                    "date": exam.start_date.strftime("%d/%m/%Y") if exam.start_date else "Date inconnue",
+                    "time": "Voir détails",
+                    "location": "Session officielle"
+                })
             
         upcoming_events = upcoming_events[:3]
         
@@ -2233,6 +2254,150 @@ def get_my_schedule(
         })
 
     return result
+
+
+@router.get("/me/exam-schedule")
+def get_my_exam_schedule(
+    session_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("student"))
+):
+    """
+    Récupère le calendrier / emploi du temps officiel des examens de l'étudiant connecté :
+    - Épreuves programmées par matière, date et horaire
+    - Sessions d'examen actives / programmées
+    - Salle, bâtiment, surveillant et consignes
+    """
+    from app.models.exam_schedule import ExamSchedule
+    from app.models.exam_session import ExamSession
+    from app.models.class_room import ClassRoom
+    from app.models.course import Course
+    from app.models.filiere import Filiere
+    from datetime import date
+
+    student = db.query(Student).filter(Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Profil étudiant introuvable")
+
+    univ_id = student.university_id
+
+    # 1. Récupérer les sessions d'examens de l'université
+    sessions_query = db.query(ExamSession).filter(ExamSession.university_id == univ_id)
+    if session_id:
+        sessions_query = sessions_query.filter(ExamSession.id == session_id)
+    sessions = sessions_query.order_by(ExamSession.start_date.desc(), ExamSession.id.desc()).all()
+    sessions_map = {s.id: s for s in sessions}
+
+    # 2. Identifier les classes candidates
+    student_class_id = student.class_room_id
+    student_filiere = (student.filiere or "").strip().lower()
+    student_level = (student.level or "").strip().lower()
+
+    candidate_class_ids = set()
+    if student_class_id:
+        candidate_class_ids.add(student_class_id)
+    else:
+        matched_classes = db.query(ClassRoom).filter(ClassRoom.university_id == univ_id).all()
+        for cl in matched_classes:
+            cl_level = (cl.level or "").strip().lower()
+            cl_name = (cl.name or "").strip().lower()
+            if student_level and cl_level and student_level == cl_level:
+                candidate_class_ids.add(cl.id)
+            elif student_filiere and (student_filiere in cl_name or cl_name in student_filiere):
+                candidate_class_ids.add(cl.id)
+
+    # 3. Récupérer les créneaux d'examens
+    query = db.query(ExamSchedule).filter(ExamSchedule.university_id == univ_id)
+    if session_id:
+        query = query.filter(ExamSchedule.session_id == session_id)
+    elif sessions:
+        query = query.filter(ExamSchedule.session_id.in_([s.id for s in sessions]))
+
+    all_schedules = query.order_by(ExamSchedule.exam_date.asc(), ExamSchedule.start_time.asc()).all()
+
+    items = []
+    today = date.today()
+    day_names = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    month_names = ["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+
+    for item in all_schedules:
+        # Filtrer si la classe ne correspond pas
+        if candidate_class_ids and item.class_id not in candidate_class_ids:
+            course = db.query(Course).filter(Course.id == item.course_id).first()
+            if course and getattr(course, "filiere_id", None):
+                fil = db.query(Filiere).filter(Filiere.id == course.filiere_id).first()
+                if fil and fil.name and student_filiere and fil.name.lower().strip() != student_filiere:
+                    continue
+            elif candidate_class_ids:
+                continue
+
+        sess = sessions_map.get(item.session_id)
+        course = db.query(Course).filter(Course.id == item.course_id).first()
+        cl = db.query(ClassRoom).filter(ClassRoom.id == item.class_id).first()
+        supervisor = db.query(Teacher).filter(Teacher.id == item.supervisor_id).first() if item.supervisor_id else None
+
+        exam_d = item.exam_date
+        status = "upcoming"
+        formatted_date = ""
+        if exam_d:
+            if exam_d < today:
+                status = "passed"
+            elif exam_d == today:
+                status = "today"
+            day_str = day_names[exam_d.weekday()]
+            month_str = month_names[exam_d.month]
+            formatted_date = f"{day_str} {exam_d.day:02d} {month_str} {exam_d.year}"
+
+        items.append({
+            "id": item.id,
+            "session_id": item.session_id,
+            "session_name": sess.name if sess else f"Session #{item.session_id}",
+            "session_type": getattr(sess, "session_type", "normal") if sess else "normal",
+            "course_id": item.course_id,
+            "course_title": course.title if course else f"Matière #{item.course_id}",
+            "course_code": course.code if course else "-",
+            "credits": getattr(course, "credits", 3) if course else 3,
+            "class_id": item.class_id,
+            "class_name": cl.name if cl else f"Classe #{item.class_id}",
+            "exam_date": exam_d.isoformat() if exam_d else None,
+            "formatted_date": formatted_date,
+            "start_time": item.start_time,
+            "end_time": item.end_time,
+            "time_slot": f"{item.start_time} - {item.end_time}",
+            "room": item.room or "Non spécifiée",
+            "building": item.building or "",
+            "supervisor_name": item.supervisor_name or (f"{supervisor.first_name} {supervisor.last_name}" if supervisor else "Surveillant assigné"),
+            "notes": item.notes or "",
+            "status": status
+        })
+
+    items.sort(key=lambda x: (x["exam_date"] or "9999-99-99", x["start_time"]))
+
+    return {
+        "student": {
+            "id": student.id,
+            "name": f"{student.first_name} {student.last_name}",
+            "matricule": student.matricule,
+            "filiere": student.filiere,
+            "level": student.level,
+            "class_name": student.class_room.name if getattr(student, "class_room", None) else None
+        },
+        "sessions": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "session_type": getattr(s, "session_type", "normal"),
+                "status": s.status,
+                "start_date": s.start_date.isoformat() if s.start_date else None,
+                "end_date": s.end_date.isoformat() if s.end_date else None,
+            }
+            for s in sessions
+        ],
+        "active_session": sessions[0].id if sessions else None,
+        "total_exams": len(items),
+        "upcoming_exams": sum(1 for it in items if it["status"] in ("upcoming", "today")),
+        "schedules": items
+    }
 
 
 @router.get("/me/attendance")

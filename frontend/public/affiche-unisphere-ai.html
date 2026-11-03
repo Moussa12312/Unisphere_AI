@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UniSphere AI — L'Écosystème Universitaire Tout-en-Un</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #FF6B00;
+      --primary-light: #ff8533;
+      --navy: #0a1628;
+      --navy-light: #13243d;
+      --navy-card: rgba(19, 36, 61, 0.85);
+      --emerald: #10B981;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #060e1a;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Format A4 / Affiche Poster */
+    .poster-container {
+      width: 100%;
+      max-width: 860px;
+      background: radial-gradient(circle at top right, #1a2c4e 0%, #0a1628 50%, #050b14 100%);
+      border: 1px solid rgba(255, 107, 0, 0.35);
+      border-radius: 28px;
+      padding: 44px 48px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.7), 0 0 50px rgba(255, 107, 0, 0.15);
+    }
+
+    /* Cercles lumineux d'ambiance */
+    .glow-top {
+      position: absolute;
+      top: -120px;
+      right: -120px;
+      width: 380px;
+      height: 380px;
+      background: radial-gradient(circle, rgba(255, 107, 0, 0.22) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .glow-bottom {
+      position: absolute;
+      bottom: -150px;
+      left: -150px;
+      width: 420px;
+      height: 420px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* En-tête */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+      z-index: 2;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #FF6B00 0%, #ea580c 100%);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 900;
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(255, 107, 0, 0.4);
+    }
+
+    .brand-text h1 {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      background: linear-gradient(to right, #ffffff, #ffd1b3);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .badge-hybrid {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-hybrid::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #10B981;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #10B981;
+    }
+
+    /* Hero Headline */
+    .hero {
+      text-align: center;
+      padding: 34px 10px 24px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .hero-tag {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--primary);
+      background: rgba(255, 107, 0, 0.12);
+      border: 1px solid rgba(255, 107, 0, 0.3);
+      padding: 5px 16px;
+      border-radius: 30px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 14px;
+    }
+
+    .hero h2 {
+      font-size: 38px;
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      margin-bottom: 14px;
+    }
+
+    .hero h2 span.gradient {
+      background: linear-gradient(135deg, #FF6B00 20%, #FFA800 80%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p.lead {
+      font-size: 15px;
+      color: var(--slate-300);
+      max-width: 650px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Grille des 6 Piliers d'Excellence */
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 26px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .pillar-card {
+      background: var(--navy-card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 20px 18px;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      position: relative;
+    }
+
+    .pillar-card:hover {
+      border-color: rgba(255, 107, 0, 0.5);
+      transform: translateY(-3px);
+    }
+
+    .pillar-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 12px;
+      background: rgba(255, 107, 0, 0.15);
+      border: 1px solid rgba(255, 107, 0, 0.3);
+      color: var(--primary);
+    }
+
+    .pillar-card h3 {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 6px;
+      color: #ffffff;
+    }
+
+    .pillar-card p {
+      font-size: 12px;
+      color: var(--slate-400);
+      line-height: 1.5;
+    }
+
+    /* Bandeau Marque Blanche & Hybride */
+    .white-label-banner {
+      background: linear-gradient(135deg, rgba(255, 107, 0, 0.15) 0%, rgba(19, 36, 61, 0.9) 100%);
+      border: 1px solid rgba(255, 107, 0, 0.4);
+      border-radius: 20px;
+      padding: 20px 24px;
+      margin-top: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .wlb-left h4 {
+      font-size: 16px;
+      font-weight: 900;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .wlb-left p {
+      font-size: 12px;
+      color: var(--slate-300);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .wlb-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .wlb-tag {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+
+    /* Section Appel à l'action & Contact */
+    .footer-cta {
+      margin-top: 26px;
+      background: #07101d;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 22px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .cta-info h4 {
+      font-size: 18px;
+      font-weight: 900;
+      color: #ffffff;
+    }
+
+    .cta-info p {
+      font-size: 12px;
+      color: var(--slate-400);
+      margin-top: 3px;
+    }
+
+    .contact-items {
+      display: flex;
+      gap: 20px;
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #ffffff;
+    }
+
+    .contact-item span.icon {
+      color: var(--primary);
+    }
+
+    .qr-box {
+      background: #ffffff;
+      padding: 8px;
+      border-radius: 14px;
+      text-align: center;
+      flex-shrink: 0;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .qr-box svg {
+      width: 75px;
+      height: 75px;
+      display: block;
+    }
+
+    .qr-box span {
+      display: block;
+      color: var(--navy);
+      font-size: 9px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    /* Bouton d'impression (masqué à l'impression) */
+    .print-bar {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-action {
+      background: linear-gradient(135deg, #FF6B00 0%, #ea580c 100%);
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 12px 22px;
+      border-radius: 30px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(255, 107, 0, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: transform 0.2s ease;
+    }
+
+    .btn-action:hover {
+      transform: scale(1.05);
+    }
+
+    /* Optimisation pour impression A4 */
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+      .print-bar {
+        display: none !important;
+      }
+      .poster-container {
+        max-width: 100%;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+        padding: 30px;
+        background: #0a1628 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .poster-container {
+        padding: 28px 20px;
+      }
+      .pillars-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero h2 {
+        font-size: 28px;
+      }
+      .white-label-banner, .footer-cta {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .contact-items {
+        flex-direction: column;
+        gap: 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="poster-container">
+    <div class="glow-top"></div>
+    <div class="glow-bottom"></div>
+
+    <!-- En-tête -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">U</div>
+        <div class="brand-text">
+          <h1>UniSphere AI</h1>
+          <p>Next-Gen University ERP</p>
+        </div>
+      </div>
+      <div class="badge-hybrid">
+        <span>100% Fonctionnel Même Hors-Ligne</span>
+      </div>
+    </header>
+
+    <!-- Hero / Accroche principale -->
+    <div class="hero">
+      <div class="hero-tag">🌟 La Solution Universitaire N°1 en Afrique</div>
+      <h2>
+        L'Écosystème Universitaire<br>
+        <span class="gradient">Tout-en-Un, Intelligent & Sécurisé</span>
+      </h2>
+      <p class="lead">
+        Modernisez l'administration de votre établissement. Zéro perte de données, contrôle des accès biométrique, examens conformes LMD et recouvrement financier optimisé.
+      </p>
+    </div>
+
+    <!-- 6 Piliers d'Excellence -->
+    <div class="pillars-grid">
+      <div class="pillar-card">
+        <div class="pillar-icon">🪪</div>
+        <h3>Cartes QR Anti-Fraude</h3>
+        <p>Génération instantanée de cartes étudiantes cryptées avec QR Code dynamique pour sécuriser les épreuves et l'accès au campus.</p>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon">⏱️</div>
+        <h3>Présences & Emploi du Temps</h3>
+        <p>Double contrôle : scan au portail par le Surveillant Général et appel par module lié à l'horaire de l'étudiant.</p>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon">📊</div>
+        <h3>Délibérations & Bulletins LMD</h3>
+        <p>Calcul automatique des crédits, moyennes pondérées, procès-verbaux, rattrapages et bulletins certifiés en 1 clic.</p>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon">💳</div>
+        <h3>Recouvrement & Scolarité</h3>
+        <p>Suivi des tranches, relances automatiques par SMS/Email, reçus officiels infalsifiables et journal de trésorerie.</p>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon">⚡</div>
+        <h3>Mode Hybride & Hors-Ligne</h3>
+        <p>Continuez à travailler pendant les pannes Internet ou délestages : synchronisation automatique dès le retour du réseau.</p>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon">🤖</div>
+        <h3>Intelligence Artificielle</h3>
+        <p>Assistant IA 24/7 pour les étudiants, prédiction des risques d'abandon et génération automatique des plannings d'examens.</p>
+      </div>
+    </div>
+
+    <!-- Bandeau Marque Blanche -->
+    <div class="white-label-banner">
+      <div class="wlb-left">
+        <h4>🏛️ Déployé à 100% à l'Image de Votre Université</h4>
+        <p>Votre logo officiel, vos couleurs institutionnelles, votre sous-domaine dédié et vos modèles d'actes officiels.</p>
+      </div>
+      <div class="wlb-tags">
+        <span class="wlb-tag">📱 App Android</span>
+        <span class="wlb-tag">💻 Web Responsive</span>
+        <span class="wlb-tag">🔒 Conforme RGPD & CAMES</span>
+      </div>
+    </div>
+
+    <!-- Footer Appel à l'action -->
+    <div class="footer-cta">
+      <div class="cta-info">
+        <h4>Réservez une Démonstration Privée</h4>
+        <p>Installation en 48 heures • Formation complète de vos équipes offerte</p>
+        <div class="contact-items">
+          <div class="contact-item">
+            <span class="icon">📞</span>
+            <span>+223 70 00 00 00 / +223 60 00 00 00</span>
+          </div>
+          <div class="contact-item">
+            <span class="icon">✉️</span>
+            <span>contact@unisphere-ai.com</span>
+          </div>
+          <div class="contact-item">
+            <span class="icon">🌐</span>
+            <span>www.unisphere-ai.com</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Code interactif -->
+      <div class="qr-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+          <rect x="14" y="14" width="3" height="3"></rect>
+          <rect x="18" y="18" width="3" height="3"></rect>
+          <rect x="14" y="18" width="3" height="3"></rect>
+          <rect x="18" y="14" width="3" height="3"></rect>
+        </svg>
+        <span>Scanner Démo</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barre d'action flottante (Export PDF / Imprimer) -->
+  <div class="print-bar">
+    <button class="btn-action" onclick="window.print()">
+      🖨️ Imprimer / Enregistrer en PDF A4
+    </button>
+  </div>
+
+</body>
+</html>
+

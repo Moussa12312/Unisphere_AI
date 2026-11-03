@@ -78,7 +78,7 @@ def toggle_exam_session_status(
 @router.get("/")
 def get_exam_sessions(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "teacher", "censeur"))
+    current_user: User = Depends(require_role("admin", "secretary", "teacher", "censeur", "student"))
 ):
     """Liste toutes les sessions d'examens"""
     
@@ -94,7 +94,7 @@ def get_exam_sessions(
 def get_exam_session(
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "teacher", "censeur"))
+    current_user: User = Depends(require_role("admin", "secretary", "teacher", "censeur", "student"))
 ):
     """Récupère une session d'examen par son ID"""
     

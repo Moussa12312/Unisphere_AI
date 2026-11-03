@@ -264,11 +264,15 @@ export default function StudentDashboardPage() {
 
         {/* Prochains Événements (1/3 de la largeur) */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100">
+          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Calendar size={20} className="text-[#FF6B00]" />
               À venir
             </h3>
+            <Link href="/student/exams" className="text-xs text-[#FF6B00] hover:underline font-bold inline-flex items-center gap-1">
+              <span>Examens</span>
+              <ChevronRight size={13} />
+            </Link>
           </div>
           
           <div className="p-4 space-y-4">
