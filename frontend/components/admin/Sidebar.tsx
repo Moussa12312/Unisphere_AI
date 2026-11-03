@@ -49,7 +49,7 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Étudiants', href: '/admin/students', icon: Users },
         { label: 'Import en masse', href: '/admin/students/bulk', icon: FileSpreadsheet },
         { label: 'Enseignants', href: '/admin/teachers', icon: GraduationCap },
-        { label: 'Cours', href: '/admin/courses', icon: BookOpen },
+        { label: 'Modules', href: '/admin/courses', icon: BookOpen },
         { label: "Unités (UE)", href: '/admin/teaching-units', icon: Layers },
 
       ]
@@ -126,7 +126,7 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Emploi du temps', href: '/secretary/schedule', icon: Calendar },
         { label: 'Classes & Salles', href: '/secretary/classes', icon: Users2 },
         { label: 'Salles de cours', href: '/secretary/rooms', icon: School },
-        { label: 'Cours', href: '/secretary/courses', icon: BookOpen },
+        { label: 'Modules', href: '/secretary/courses', icon: BookOpen },
         { label: 'Enseignants', href: '/secretary/teachers', icon: GraduationCap },
         { label: "Unités (UE)", href: '/secretary/teaching-units', icon: Layers },
         { label: 'Présences', href: '/secretary/attendance', icon: UserCheck },
@@ -292,7 +292,7 @@ const MENU_CONFIG: Record<string, Array<{
   // ==========================================
   teacher: [
     {
-      title: 'ESPACE COURS',
+      title: 'ESPACE MODULES',
       items: [
         { label: 'Cours du jour', href: '/teacher/dashboard', icon: LayoutDashboard },
         { label: 'Emploi du temps', href: '/teacher/schedule', icon: Calendar },
@@ -301,7 +301,7 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'CLASSES',
       items: [
-        { label: 'Mes cours', href: '/teacher/courses', icon: BookOpen },
+        { label: 'Mes modules', href: '/teacher/courses', icon: BookOpen },
         { label: 'Mes étudiants', href: '/teacher/students', icon: Users },
         { label: 'Supports déposés', href: '/teacher/materials', icon: FileText },
         { label: 'Présences', href: '/teacher/attendance', icon: UserCheck },
@@ -346,7 +346,7 @@ const MENU_CONFIG: Record<string, Array<{
     {
       title: 'PÉDAGOGIE',
       items: [
-        { label: 'Mes cours & PDF', href: '/student/courses', icon: BookOpen },
+        { label: 'Mes modules & PDF', href: '/student/courses', icon: BookOpen },
         { label: 'Emploi du temps', href: '/student/schedule', icon: Calendar },
         { label: 'Calendrier examens', href: '/student/exams', icon: CalendarCheck },
         { label: 'Présences', href: '/student/attendance', icon: ClipboardList },

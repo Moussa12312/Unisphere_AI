@@ -17,6 +17,7 @@ class Course(Base):
     university_id = Column(Integer, ForeignKey("universities.id"), nullable=False)
     filiere_id = Column(Integer, ForeignKey("filieres.id"), nullable=True)  
     teaching_unit_id = Column(Integer, ForeignKey("teaching_units.id"), nullable=True)
+    semester = Column(String, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

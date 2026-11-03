@@ -125,6 +125,20 @@ app = FastAPI(
 )
 
 @app.on_event("startup")
+def ensure_db_columns():
+    try:
+        import sqlalchemy as sa
+        insp = sa.inspect(engine)
+        cols = [col['name'] for col in insp.get_columns('courses')]
+        if 'semester' not in cols:
+            with engine.connect() as conn:
+                conn.execute(sa.text("ALTER TABLE courses ADD COLUMN semester VARCHAR"))
+                conn.commit()
+            print("[STARTUP] Colonne 'semester' ajoutée à la table courses.")
+    except Exception as e:
+        print(f"[STARTUP] Colonne semester check: {e}")
+
+@app.on_event("startup")
 def ensure_alumni_demo():
     try:
         from sqlalchemy import text

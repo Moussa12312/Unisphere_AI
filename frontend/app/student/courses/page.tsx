@@ -99,14 +99,14 @@ export default function StudentCoursesPage() {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Mes Cours & Supports</h1>
-        <p className="text-slate-500 mt-1">Retrouvez tous les supports de cours et PDF de votre filière.</p>
+        <h1 className="text-2xl font-bold text-slate-900">Mes Modules & Supports</h1>
+        <p className="text-slate-500 mt-1">Retrouvez tous les supports de modules et PDF de votre filière.</p>
       </div>
 
       {courses.length === 0 ? (
         <div className="bg-white p-10 rounded-xl border border-slate-200 text-center">
           <BookOpen size={48} className="mx-auto text-slate-300 mb-4" />
-          <p className="text-slate-500">Aucun cours n'est encore disponible pour votre filière.</p>
+          <p className="text-slate-500">Aucun module n'est encore disponible pour votre filière.</p>
         </div>
       ) : (
         <div className="space-y-6">

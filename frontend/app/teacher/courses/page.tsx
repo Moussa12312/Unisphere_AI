@@ -39,7 +39,7 @@ export default function TeacherCoursesPage() {
       const response = await api.get('/api/v1/teacher/courses');
       setCourses(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      toast.error('Erreur de chargement des cours');
+      toast.error('Erreur de chargement des modules');
     } finally {
       setLoading(false);
     }
@@ -82,7 +82,7 @@ export default function TeacherCoursesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-slate-500">Consultez et gérez vos cours attribués</p>
+        <p className="text-slate-500">Consultez et gérez vos modules attribués</p>
       </div>
 
       {/* Stats */}
@@ -93,7 +93,7 @@ export default function TeacherCoursesPage() {
               <BookOpen size={20} className="text-blue-600" />
             </div>
           </div>
-          <p className="text-xs text-slate-500 mb-1">Total cours</p>
+          <p className="text-xs text-slate-500 mb-1">Total modules</p>
           <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
         </div>
 
