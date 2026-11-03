@@ -26,6 +26,7 @@ import {
 import api, { getMediaUrl } from '@/lib/api';
 import { universityService } from '@/services/universityService';
 import { toast } from 'react-hot-toast';
+import OfficialStudentCard from '@/components/cards/OfficialStudentCard';
 
 interface Student {
   id: number;
@@ -39,40 +40,6 @@ interface Student {
   date_of_birth?: string | null;
 }
 
-export type CardDesignType = 'radar' | 'vagues' | 'medaillon' | 'rubans';
-
-interface CardDesignInfo {
-  id: CardDesignType;
-  name: string;
-  shortName: string;
-  icon: string;
-  tagline: string;
-}
-
-const CARD_DESIGNS: CardDesignInfo[] = [
-  { id: 'radar', name: 'Style 1 : Épuré & Officiel', shortName: 'Épuré', icon: '🏛️', tagline: 'En-tête descendant & logo circulaire' },
-  { id: 'rubans', name: 'Style 2 : Corporate Dynamique', shortName: 'Corporate', icon: '💎', tagline: 'Lignes franches & motifs diagonaux' },
-  { id: 'vagues', name: 'Style 3 : Sécurisé Courbes', shortName: 'Sécurisé', icon: '🌊', tagline: 'Guillochis ondulés anti-falsification' },
-  { id: 'medaillon', name: 'Style 4 : Prestige & Or', shortName: 'Prestige', icon: '👑', tagline: 'Liseré or royal & médaillon d\'honneur' }
-];
-
-interface ColorPreset {
-  id: string;
-  name: string;
-  primary: string;
-  secondary: string;
-  accent: string;
-  colorClass: string;
-}
-
-const COLOR_PRESETS: ColorPreset[] = [
-  { id: 'bordeaux', name: 'Bordeaux Prestige', primary: '#6B1426', secondary: '#430814', accent: '#F59E0B', colorClass: 'bg-[#6B1426]' },
-  { id: 'bleu', name: 'Bleu Nuit', primary: '#0B192C', secondary: '#1E293B', accent: '#38BDF8', colorClass: 'bg-[#0B192C]' },
-  { id: 'emeraude', name: 'Émeraude', primary: '#064E3B', secondary: '#022C22', accent: '#34D399', colorClass: 'bg-[#064E3B]' },
-  { id: 'royal', name: 'Noir & Or', primary: '#18181B', secondary: '#09090B', accent: '#EAB308', colorClass: 'bg-[#18181B]' },
-  { id: 'violet', name: 'Violet', primary: '#4A0E4E', secondary: '#250428', accent: '#C084FC', colorClass: 'bg-[#4A0E4E]' }
-];
-
 const STUDENTS_PER_PAGE = 12;
 
 export default function SecretaryStudentCardsPrintPage() {
@@ -80,9 +47,6 @@ export default function SecretaryStudentCardsPrintPage() {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  // Personnalisation des cartes
-  const [selectedDesign, setSelectedDesign] = useState<CardDesignType>('radar');
-  const [selectedColorPreset, setSelectedColorPreset] = useState<string>('bordeaux');
   const [cardScope, setCardScope] = useState<'students' | 'secretary'>('students');
   const [secretaryUser, setSecretaryUser] = useState<any>(null);
 
@@ -101,15 +65,13 @@ export default function SecretaryStudentCardsPrintPage() {
     name: string;
     logo: string;
     academic_year: string;
+    slogan?: string;
   }>({
     name: 'UniSphere AI',
     logo: '/uploads/logos/university_1_1791668644.png',
-    academic_year: '2026-2027'
+    academic_year: '2026-2027',
+    slogan: "Ensemble pour l'excellence"
   });
-
-  const activePreset = COLOR_PRESETS.find((c) => c.id === selectedColorPreset) || COLOR_PRESETS[0];
-  const activePrimaryColor = activePreset.primary;
-  const activeSecondaryColor = activePreset.secondary;
 
   useEffect(() => {
     loadData();
@@ -138,7 +100,8 @@ export default function SecretaryStudentCardsPrintPage() {
           logo: resUniv.logo
             ? (resUniv.logo.startsWith('/') || resUniv.logo.startsWith('http') ? resUniv.logo : `/uploads/logos/${resUniv.logo}`)
             : '/uploads/logos/university_1_1791668644.png',
-          academic_year: resUniv.academic_year || '2026-2027'
+          academic_year: resUniv.academic_year || '2026-2027',
+          slogan: resUniv.slogan || "Ensemble pour l'excellence"
         });
       }
     } catch (error) {
@@ -182,13 +145,13 @@ export default function SecretaryStudentCardsPrintPage() {
     return students.filter((s) => selectedIds.has(s.id));
   }, [students, selectedIds]);
 
-  // Découpage en planches A4 pour impression
+  // Découpage en planches A4 de 10, 8 ou 6 cartes
   const printPages = useMemo(() => {
-    const chunks: Student[][] = [];
+    const pages: Student[][] = [];
     for (let i = 0; i < selectedStudents.length; i += cardsPerPage) {
-      chunks.push(selectedStudents.slice(i, i + cardsPerPage));
+      pages.push(selectedStudents.slice(i, i + cardsPerPage));
     }
-    return chunks;
+    return pages;
   }, [selectedStudents, cardsPerPage]);
 
   const toggleSelectAllFiltered = () => {
@@ -226,143 +189,20 @@ export default function SecretaryStudentCardsPrintPage() {
     }, 250);
   };
 
-  // Helper de rendu de photo d'étudiant
-  const renderStudentPhoto = (student: Student, isMedaillon: boolean = false) => {
-    const initials = `${(student.first_name || '')[0] || ''}${(student.last_name || '')[0] || ''}`.toUpperCase() || 'ET';
-    const photoUrl = student.photo ? getMediaUrl(student.photo) : null;
-
-    if (isMedaillon) {
-      return (
-        <div className="relative w-14 h-14 rounded-full overflow-hidden border-[2.5px] border-amber-400 ring-2 ring-amber-500/40 bg-slate-100 flex-shrink-0 shadow-xs">
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt=""
-              loading="lazy"
-              className="w-full h-full object-cover"
-              onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#0F172A] to-[#1E3A8A] flex items-center justify-center text-amber-300 font-bold text-xs">
-              {initials}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className="relative w-14 h-[66px] rounded-lg overflow-hidden border-2 bg-slate-100 flex-shrink-0 shadow-2xs"
-        style={{ borderColor: activePrimaryColor }}
-      >
-        {photoUrl ? (
-          <img
-            src={photoUrl}
-            alt=""
-            loading="lazy"
-            className="w-full h-full object-cover"
-            onError={(e: any) => { e.currentTarget.style.display = 'none'; }}
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#0F172A] to-[#1E3A8A] flex flex-col items-center justify-center text-white font-bold text-xs">
-            <span className="text-amber-300">{initials}</span>
-            <span className="text-[7px] text-white/70 uppercase">Élève</span>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Rendu unitaire d'une carte étudiante (Remplit 100% de la cellule A4 en impression)
+  // Rendu d'une carte unitaire pour l'impression A4
   const renderCardItem = (student: Student) => {
-    const isMed = selectedDesign === 'medaillon';
-    const qrCodeUrl = `/api/v1/students/${student.id}/qrcode`;
-    const logoUrl = universityInfo.logo || '/uploads/logos/university_1_1791668644.png';
-
     return (
       <div
         key={student.id}
-        className="student-card-printable relative bg-white border border-dashed border-slate-400/90 rounded-xl overflow-hidden flex flex-col justify-between shadow-2xs w-full h-[55.5mm] print:h-full print:max-h-none print:min-h-0"
-        style={{
-          boxSizing: 'border-box',
-          fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
-        }}
+        className="student-card-printable relative w-full h-full flex items-center justify-center p-0"
       >
-        {/* En-tête officiel */}
-        <div
-          className="px-3 py-1 flex items-center justify-between text-white flex-shrink-0 h-8"
-          style={{ background: `linear-gradient(135deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 100%)` }}
-        >
-          <div className="flex items-center gap-1.5 min-w-0">
-            <div className="w-6 h-6 rounded-full bg-white p-0.5 flex-shrink-0 flex items-center justify-center shadow-2xs">
-              <img src={logoUrl} alt="" loading="lazy" className="w-full h-full object-contain" />
-            </div>
-            <div className="min-w-0 leading-tight">
-              <p className="font-black text-[10px] uppercase truncate text-white">{universityInfo.name}</p>
-              <p className="text-[6.8px] font-bold uppercase tracking-wider text-amber-300">CARTE OFFICIELLE D'ÉTUDIANT</p>
-            </div>
-          </div>
-          <span className="text-[7.5px] font-mono font-bold text-amber-200 bg-white/10 px-2 py-0.5 rounded border border-white/20">
-            {universityInfo.academic_year}
-          </span>
-        </div>
-
-        {/* Liseré de sécurité */}
-        <div
-          className="h-[2px] w-full flex-shrink-0"
-          style={{
-            background: isMed
-              ? 'linear-gradient(90deg, #F59E0B 0%, #FDE047 50%, #D97706 100%)'
-              : 'linear-gradient(90deg, #06B6D4 0%, #F59E0B 50%, #EC4899 100%)'
-          }}
+        <OfficialStudentCard
+          student={student}
+          university={universityInfo}
+          side="recto"
+          mode="print"
+          className="w-full h-full shadow-none"
         />
-
-        {/* Corps de carte (remplit l'espace disponible) */}
-        <div className="px-3 py-1.5 flex items-center justify-between gap-3 flex-1 min-h-0 bg-white">
-          {renderStudentPhoto(student, isMed)}
-
-          <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
-            <div>
-              <p className="text-[12.5px] font-black text-slate-950 leading-tight uppercase truncate">
-                {student.last_name}
-              </p>
-              <p className="text-[11px] font-bold text-slate-700 leading-tight capitalize truncate">
-                {student.first_name}
-              </p>
-            </div>
-
-            <div className="my-0.5">
-              <span className="inline-block px-2.5 py-0.5 rounded-md bg-orange-600 text-[10px] font-mono font-black text-white shadow-2xs">
-                {student.matricule || `EC-${String(student.id).padStart(4, '0')}`}
-              </span>
-            </div>
-
-            <div className="text-[8px] text-slate-700 leading-tight space-y-0.5">
-              <p className="truncate"><b className="text-slate-900">Filière:</b> {student.filiere || 'Général'}</p>
-              <p className="truncate"><b className="text-slate-900">Niveau:</b> <span className="font-bold text-blue-900 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded text-[8.5px]">{student.level || 'L1'}</span></p>
-            </div>
-          </div>
-
-          {/* QR Code de vérification */}
-          <div className="flex flex-col items-center justify-center flex-shrink-0">
-            <div className="p-0.5 bg-white rounded-lg border border-slate-300 shadow-2xs">
-              <img
-                src={qrCodeUrl}
-                alt=""
-                loading="lazy"
-                className="w-14 h-14 object-contain"
-              />
-            </div>
-            <span className="text-[6.5px] font-mono font-bold text-slate-700 mt-0.5 uppercase tracking-wider">SCAN MOI</span>
-          </div>
-        </div>
-
-        {/* Pied de carte sécurisé */}
-        <div className="px-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[7px] text-slate-600 font-bold flex-shrink-0 h-4">
-          <span>SÉCURISÉE & CERTIFIÉE</span>
-          <span className="font-mono text-slate-500">LIGNE ACADÉMIQUE • {universityInfo.academic_year}</span>
-        </div>
       </div>
     );
   };
@@ -370,18 +210,18 @@ export default function SecretaryStudentCardsPrintPage() {
   const sampleStudent: Student = selectedStudents[0] || students[0] || {
     id: 1,
     first_name: 'Moussa',
-    last_name: 'Coulibaly',
-    matricule: 'EC-2026-0001',
-    level: 'L3',
-    filiere: 'Informatique & Réseaux',
+    last_name: 'Diallo',
+    matricule: 'UAI2026001',
+    level: 'L1',
+    filiere: 'Informatique',
     status: 'active'
   };
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
-        <Loader2 className="w-10 h-10 text-[#FF6B00] animate-spin" />
-        <p className="text-xs text-slate-500 font-medium">Chargement optimisé des cartes...</p>
+        <Loader2 className="w-10 h-10 text-[#FF7300] animate-spin" />
+        <p className="text-xs text-slate-500 font-medium">Chargement des cartes officielles...</p>
       </div>
     );
   }
@@ -400,13 +240,13 @@ export default function SecretaryStudentCardsPrintPage() {
             </Link>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black text-slate-900">Tirage des Cartes Étudiantes</h1>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-[#FF6B00]">
+                <h1 className="text-lg font-black text-[#072146]">Tirage des Cartes Étudiantes Officielles</h1>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-[#FF7300]">
                   {students.length} étudiant{students.length > 1 ? 's' : ''}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Planches complètes A4 (10 cartes / feuille au format CR80 standard 2×5) avec repères de coupe
+                Planches A4 homologuées UniSphere AI (10 cartes / feuille au format CR80 standard 2×5) avec repères de coupe
               </p>
             </div>
           </div>
@@ -418,7 +258,7 @@ export default function SecretaryStudentCardsPrintPage() {
                 type="button"
                 onClick={() => setCardsPerPage(10)}
                 className={`px-2.5 py-1 rounded-lg transition-all ${
-                  cardsPerPage === 10 ? 'bg-[#FF6B00] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  cardsPerPage === 10 ? 'bg-[#FF7300] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 10 / feuille (2×5) ★
@@ -457,7 +297,7 @@ export default function SecretaryStudentCardsPrintPage() {
             <button
               onClick={handlePrint}
               disabled={selectedStudents.length === 0}
-              className="flex items-center gap-1.5 px-4 py-2 bg-[#FF6B00] hover:bg-orange-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#FF7300] hover:bg-[#e56700] disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
             >
               <Printer size={15} />
               <span>Imprimer ({selectedStudents.length} cartes)</span>
@@ -465,63 +305,31 @@ export default function SecretaryStudentCardsPrintPage() {
           </div>
         </div>
 
-        {/* 2. Barre de style rapide : 4 modèles + 5 couleurs */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
-          {/* 4 Styles */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-slate-500 uppercase text-[10px] mr-1">Modèle :</span>
-            {CARD_DESIGNS.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => setSelectedDesign(d.id)}
-                className={`px-2.5 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all text-xs border ${
-                  selectedDesign === d.id
-                    ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-xs'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                <span>{d.icon}</span>
-                <span>{d.shortName}</span>
-              </button>
-            ))}
+        {/* Badge Modèle Officiel Garanti */}
+        <div className="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200/60">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="font-bold text-[#072146]">Design Officiel Homologué :</span>
+            <span className="text-slate-600">UniSphere AI Double Vague (Bleu Nuit & Orange Solaire) • Filigrane Topographique • QR Code Sécurisé</span>
           </div>
-
-          {/* 5 Couleurs */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-slate-500 uppercase text-[10px] mr-1">Couleur :</span>
-            {COLOR_PRESETS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedColorPreset(p.id)}
-                title={p.name}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
-                  selectedColorPreset === p.id
-                    ? 'border-slate-900 bg-slate-100 text-slate-900 ring-1 ring-slate-900'
-                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <span className={`w-3 h-3 rounded-full ${p.colorClass} border border-white/50`} />
-                <span>{p.name}</span>
-              </button>
-            ))}
-          </div>
+          <span className="text-[11px] font-mono text-slate-500 font-semibold">{universityInfo.academic_year}</span>
         </div>
       </div>
 
-      {/* 3. Vue Carte Secrétariat (Badge Personnel) */}
+      {/* 2. Vue Carte Secrétariat (Badge Personnel) */}
       {cardScope === 'secretary' && (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4 shadow-xs print:hidden">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="text-[#FF6B00]" size={18} />
+                <ShieldCheck className="text-[#FF7300]" size={18} />
                 Badge Professionnel du Personnel - Secrétariat
               </h2>
               <p className="text-xs text-slate-500">Badge officiel avec QR code d'accès et coordonnées administratives</p>
             </div>
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-[#FF6B00] text-white rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#FF7300] text-white rounded-xl text-xs font-bold hover:bg-[#e56700] transition-colors"
             >
               <Printer size={14} /> Imprimer mon badge
             </button>
@@ -529,62 +337,40 @@ export default function SecretaryStudentCardsPrintPage() {
 
           <div className="flex justify-center py-4">
             <div
-              className="w-[86mm] h-[54mm] bg-white rounded-xl border border-slate-300 shadow-md overflow-hidden flex flex-col justify-between"
-              style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+              className="w-full max-w-[420px]"
             >
-              <div
-                className="px-3 py-1.5 flex items-center justify-between text-white"
-                style={{ background: `linear-gradient(135deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 100%)` }}
-              >
-                <div className="flex items-center gap-1.5">
-                  <div className="w-6 h-6 rounded-full bg-white p-0.5 flex items-center justify-center">
-                    <img src={universityInfo.logo} alt="" className="w-full h-full object-contain" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-[9px] uppercase leading-tight">{universityInfo.name}</p>
-                    <p className="text-[6.5px] text-amber-300 font-bold uppercase">PERSONNEL ADMINISTRATIF</p>
-                  </div>
-                </div>
-                <span className="text-[7.5px] font-mono font-bold bg-white/10 px-1.5 py-0.5 rounded border border-white/20">
-                  {universityInfo.academic_year}
-                </span>
-              </div>
-
-              <div className="p-3 flex items-center gap-3">
-                <div className="w-14 h-16 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold text-base">
-                  {secretaryUser?.full_name?.charAt(0) || 'S'}
-                </div>
-                <div className="flex-1 min-w-0 text-xs">
-                  <p className="font-bold text-slate-900 uppercase truncate">{secretaryUser?.full_name || 'Secrétaire'}</p>
-                  <p className="text-[10px] text-[#FF6B00] font-semibold">Secrétariat Général</p>
-                  <p className="text-[9px] font-mono text-slate-500">ID: SEC-{secretaryUser?.id || 1}</p>
-                  <p className="text-[9px] text-slate-400 truncate">{secretaryUser?.email}</p>
-                </div>
-              </div>
-
-              <div className="px-3 py-1 bg-slate-50 border-t border-slate-200 text-[7px] text-slate-500 flex justify-between font-bold">
-                <span>CAMPUS & ARCHIVES</span>
-                <span>{universityInfo.academic_year}</span>
-              </div>
+              <OfficialStudentCard
+                student={{
+                  id: secretaryUser?.id || 1,
+                  first_name: secretaryUser?.full_name?.split(' ')[0] || 'Secrétaire',
+                  last_name: secretaryUser?.full_name?.split(' ').slice(1).join(' ') || 'Général',
+                  matricule: `SEC-${String(secretaryUser?.id || 1).padStart(3, '0')}`,
+                  filiere: 'Administration & Archives',
+                  level: 'Personnel'
+                }}
+                university={universityInfo}
+                side="recto"
+                mode="responsive"
+              />
             </div>
           </div>
         </div>
       )}
 
-      {/* 4. Section Étudiants : Aperçu en Direct (1 carte) + Tableau Allégé avec Pagination */}
+      {/* 3. Section Étudiants : Aperçu en Direct (1 carte) + Tableau Allégé avec Pagination */}
       {cardScope === 'students' && (
         <div className="space-y-4 print:hidden">
           {/* Carte Aperçu Direct + Résumé d'impression */}
-          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col md:flex-row items-center justify-between gap-5 shadow-sm">
+          <div className="bg-gradient-to-r from-[#072146] via-slate-900 to-[#072146] rounded-2xl p-4 sm:p-5 text-white flex flex-col md:flex-row items-center justify-between gap-5 shadow-sm">
             <div className="space-y-1.5 text-center md:text-left">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-amber-300 flex items-center justify-center md:justify-start gap-1">
-                <Sparkles size={12} /> Rendu en Direct
+              <span className="text-[10px] uppercase font-bold tracking-wider text-orange-400 flex items-center justify-center md:justify-start gap-1">
+                <Sparkles size={12} /> Rendu en Direct Haute Fidélité
               </span>
               <h2 className="text-base font-bold text-white">
-                Aperçu instantané du modèle ({CARD_DESIGNS.find(d => d.id === selectedDesign)?.shortName})
+                Aperçu instantané de la carte officielle
               </h2>
               <p className="text-xs text-slate-300 max-w-md">
-                Toutes les cartes imprimées adopteront cette disposition officielle conforme aux dimensions A4 avec repères de découpe nets.
+                Toutes les cartes imprimées adopteront cette disposition conforme aux dimensions standard ISO ID-1 avec repères de découpe nets.
               </p>
               <div className="pt-2 flex items-center justify-center md:justify-start gap-3 text-xs">
                 <span className="bg-white/10 px-2.5 py-1 rounded-lg border border-white/10">
@@ -597,8 +383,13 @@ export default function SecretaryStudentCardsPrintPage() {
             </div>
 
             {/* Carte échantillon interactive */}
-            <div className="w-[86mm] max-w-full transform scale-95 origin-center">
-              {renderCardItem(sampleStudent)}
+            <div className="w-full max-w-[360px]">
+              <OfficialStudentCard
+                student={sampleStudent}
+                university={universityInfo}
+                side="recto"
+                mode="responsive"
+              />
             </div>
           </div>
 
@@ -611,7 +402,7 @@ export default function SecretaryStudentCardsPrintPage() {
                   placeholder="Rechercher par nom, prénom, matricule..."
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF7300]"
                 />
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
               </div>
@@ -619,7 +410,7 @@ export default function SecretaryStudentCardsPrintPage() {
               <select
                 value={filterFiliere}
                 onChange={(e) => { setFilterFiliere(e.target.value); setCurrentPage(1); }}
-                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FF7300]"
               >
                 <option value="">Toutes filières</option>
                 {filieres.map((f) => (
@@ -630,7 +421,7 @@ export default function SecretaryStudentCardsPrintPage() {
               <select
                 value={filterLevel}
                 onChange={(e) => { setFilterLevel(e.target.value); setCurrentPage(1); }}
-                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FF7300]"
               >
                 <option value="">Tous niveaux</option>
                 {levels.map((lvl) => (
@@ -644,7 +435,7 @@ export default function SecretaryStudentCardsPrintPage() {
                 onClick={toggleSelectAllFiltered}
                 className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-semibold text-xs transition-colors flex items-center gap-1.5"
               >
-                <CheckSquare size={14} className="text-[#FF6B00]" />
+                <CheckSquare size={14} className="text-[#FF7300]" />
                 <span>
                   {filteredStudents.length > 0 && filteredStudents.every(s => selectedIds.has(s.id))
                     ? 'Tout décocher'
@@ -664,7 +455,7 @@ export default function SecretaryStudentCardsPrintPage() {
             </div>
           </div>
 
-          {/* Tableau paginé sans surcharge serveur */}
+          {/* Tableau paginé */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -701,7 +492,7 @@ export default function SecretaryStudentCardsPrintPage() {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleStudent(student.id)}
-                              className="rounded border-slate-300 text-[#FF6B00] focus:ring-[#FF6B00] cursor-pointer"
+                              className="rounded border-slate-300 text-[#FF7300] focus:ring-[#FF7300] cursor-pointer"
                             />
                           </td>
                           <td className="px-4 py-2">
@@ -714,8 +505,8 @@ export default function SecretaryStudentCardsPrintPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-2 font-mono font-semibold text-[#FF6B00]">
-                            {student.matricule || `EC-${student.id}`}
+                          <td className="px-4 py-2 font-mono font-semibold text-[#FF7300]">
+                            {student.matricule || `UAI2026${String(student.id).padStart(3, '0')}`}
                           </td>
                           <td className="px-4 py-2 text-slate-600 truncate max-w-xs">
                             {student.filiere || 'Tronc commun'}
@@ -770,7 +561,7 @@ export default function SecretaryStudentCardsPrintPage() {
         </div>
       )}
 
-      {/* 5. PLANCHES D'IMPRESSION PHYSIQUES A4 (Remplissent 100% de la feuille A4) */}
+      {/* 4. PLANCHES D'IMPRESSION PHYSIQUES A4 */}
       <div className="hidden print:block">
         {printPages.map((pageStudents, pageIdx) => (
           <div key={pageIdx} className="print-page-wrapper">
@@ -781,7 +572,7 @@ export default function SecretaryStudentCardsPrintPage() {
         ))}
       </div>
 
-      {/* 6. Modal Solennel d'Aperçu avant Impression */}
+      {/* 5. Modal Solennel d'Aperçu avant Impression */}
       {showPrintModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 print:hidden">
           <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
@@ -802,15 +593,24 @@ export default function SecretaryStudentCardsPrintPage() {
 
             <div className="p-5 overflow-y-auto space-y-4 bg-slate-100 flex-1">
               <div className="bg-orange-50 border border-orange-200/80 rounded-xl p-3 text-xs text-orange-800 flex items-center gap-2">
-                <Sparkles size={16} className="text-[#FF6B00] flex-shrink-0" />
+                <Sparkles size={16} className="text-[#FF7300] flex-shrink-0" />
                 <span>
-                  Prêt pour l'impression. La planche est calibrée pour remplir <b>100% de la feuille A4</b> sans rognage.
+                  Prêt pour l'impression. La planche est calibrée pour remplir <b>100% de la feuille A4</b> au format officiel standard.
                 </span>
               </div>
 
-              {/* Aperçu des 2 premières cartes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {selectedStudents.slice(0, 2).map((s) => renderCardItem(s))}
+              {/* Aperçu des 2 premières cartes avec le nouveau design */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {selectedStudents.slice(0, 2).map((s) => (
+                  <div key={s.id} className="w-full">
+                    <OfficialStudentCard
+                      student={s}
+                      university={universityInfo}
+                      side="recto"
+                      mode="responsive"
+                    />
+                  </div>
+                ))}
               </div>
 
               {selectedStudents.length > 2 && (
@@ -829,7 +629,7 @@ export default function SecretaryStudentCardsPrintPage() {
               </button>
               <button
                 onClick={executePrint}
-                className="flex items-center gap-1.5 px-5 py-2 bg-[#FF6B00] hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+                className="flex items-center gap-1.5 px-5 py-2 bg-[#FF7300] hover:bg-[#e56700] text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
               >
                 <Printer size={14} />
                 Lancer l'impression ({selectedStudents.length} cartes)
@@ -885,16 +685,12 @@ export default function SecretaryStudentCardsPrintPage() {
             height: 100% !important;
             max-height: none !important;
             min-height: 0 !important;
-            border: 1px dashed #94a3b8 !important;
             box-shadow: none !important;
             box-sizing: border-box !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: space-between !important;
           }
         }
       `}</style>

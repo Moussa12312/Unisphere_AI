@@ -1,356 +1,133 @@
-"use client";
+'use client';
 
-import { useEffect, useState, use } from "react";
-import api, { getMediaUrl } from "@/lib/api";
+import { useEffect, useState, use } from 'react';
+import api from '@/lib/api';
+import OfficialStudentCard from '@/components/cards/OfficialStudentCard';
+import { ShieldCheck, CheckCircle2, AlertTriangle, Building2, Calendar, UserCheck } from 'lucide-react';
 
-export default function StudentCard({
+export default function StudentCardPublicVerificationPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-
   const resolvedParams = use(params);
-
-  const [student, setStudent] =
-    useState<any>(null);
+  const [student, setStudent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-
     async function fetchStudent() {
-
       try {
-
+        setLoading(true);
         const response = await api.get(`/api/v1/students/${resolvedParams.id}`);
         setStudent(response.data);
-
-      } catch (error) {
-
-        console.error("Erreur chargement carte etudiant:", error);
+      } catch (err) {
+        console.error('Erreur chargement carte etudiant:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
       }
     }
-
     fetchStudent();
-
   }, [resolvedParams.id]);
 
-  if (!student) {
-
+  if (loading) {
     return (
-
-      <div
-        className="
-          min-h-screen
-          flex
-          items-center
-          justify-center
-          bg-[#020817]
-          text-white
-          text-3xl
-          font-bold
-        "
-      >
-        Loading...
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white space-y-4 p-4">
+        <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-medium text-slate-300">Vérification de l'authenticité de la carte...</p>
       </div>
-
     );
   }
 
-  return (
-
-    <div
-        className="
-            min-h-screen
-            bg-[#020817]
-            flex
-            items-center
-            justify-center
-            p-10
-            font-sans
-        "
-    >
-
-      <div
-        className="
-          relative
-          w-[1000px]
-          h-[560px]
-          rounded-[38px]
-          overflow-hidden
-          shadow-[0_0_80px_rgba(37,99,235,0.35)]
-          border
-          border-blue-500/20
-          bg-gradient-to-br
-          from-[#031b63]
-          via-[#041a52]
-          to-[#020b2d]
-        "
-      >
-
-        {/* BACKGROUND */}
-
-        <div className="absolute inset-0 opacity-20">
-
-          <div
-            className="
-              absolute
-              top-0
-              left-0
-              w-[500px]
-              h-[500px]
-              bg-blue-500
-              blur-[140px]
-            "
-          />
-
-          <div
-            className="
-              absolute
-              bottom-0
-              right-0
-              w-[400px]
-              h-[400px]
-              bg-orange-500
-              blur-[140px]
-            "
-          />
-
+  if (error || !student) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-6 text-white text-center">
+        <div className="w-16 h-16 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mb-4 border border-red-500/30">
+          <AlertTriangle size={32} />
         </div>
-
-        {/* CONTENT */}
-
-        <div className="relative z-10 flex h-full">
-
-          {/* LEFT */}
-
-          <div className="w-[35%] p-10 flex flex-col justify-between">
-
-            <div>
-
-              <h1
-                className="
-                  text-5xl
-                  font-extrabold
-                  leading-tight
-                  text-white
-                  break-words
-                "
-              >
-                {student.university?.name ||
-                  "UniSphere AI"}
-              </h1>
-
-              <p className="text-blue-200 mt-3 text-lg">
-                Université intelligente
-              </p>
-
-            </div>
-
-            <div className="space-y-5">
-
-              <div className="h-3 w-52 bg-orange-400 rounded-full" />
-
-              <div className="h-3 w-36 bg-sky-400 rounded-full" />
-
-              <div className="h-3 w-64 bg-white/30 rounded-full" />
-
-            </div>
-
-            <div>
-
-              <p className="text-blue-100 text-xl font-medium">
-                Smart Student Card
-              </p>
-
-              <p className="text-blue-300 text-sm mt-1">
-                Academic Identity System
-              </p>
-
-            </div>
-
-          </div>
-
-          {/* CENTER */}
-
-          <div
-            className="
-              flex-1
-              flex
-              flex-col
-              items-center
-              justify-center
-              px-6
-            "
-          >
-
-            <div
-              className="
-                w-52
-                h-52
-                rounded-full
-                overflow-hidden
-                border-[6px]
-                border-orange-400
-                shadow-[0_0_40px_rgba(251,146,60,0.5)]
-              "
-            >
-
-              <img
-                src={getMediaUrl(student.photo, `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || 'Student')}+${encodeURIComponent(student.last_name || '')}`)}
-                alt="Student"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || 'Student')}+${encodeURIComponent(student.last_name || '')}`;
-                }}
-              />
-
-            </div>
-
-            <h2
-              className="
-                text-white
-                text-5xl
-                font-extrabold
-                mt-8
-                text-center
-                leading-tight
-                max-w-[420px]
-                break-words
-              "
-            >
-              {student.first_name}
-              {" "}
-              {student.last_name}
-            </h2>
-
-            <p
-              className="
-                text-orange-300
-                text-3xl
-                mt-5
-                font-semibold
-                tracking-wider
-              "
-            >
-              {student.matricule}
-            </p>
-
-          </div>
-
-            {/* RIGHT */}
-
-            <div
-                className="
-                    w-[28%]
-                    p-6
-                    flex
-                    flex-col
-                    justify-center
-                    items-center
-                    gap-6
-                "
-            >
-
-                {/* INFO CARD */}
-
-                <div
-                    className="
-                    w-full
-                    bg-white/10
-                    backdrop-blur-xl
-                    border
-                    border-white/10
-                    rounded-[28px]
-                    p-6
-                    shadow-xl
-                    "
-                >
-
-                    <div className="space-y-6">
-
-                    <div>
-
-                        <p className="text-blue-200 text-base font-medium">
-                        Filière
-                        </p>
-
-                        <h3
-                        className="
-                            text-white
-                            text-3xl
-                            font-bold
-                            leading-tight
-                            mt-1
-                            break-words
-                        "
-                        >
-                        {student.filiere}
-                        </h3>
-
-                    </div>
-
-                    <div>
-
-                        <p className="text-blue-200 text-base font-medium">
-                        Niveau
-                        </p>
-
-                        <h3
-                        className="
-                            text-white
-                            text-3xl
-                            font-bold
-                            mt-1
-                        "
-                        >
-                        {student.level}
-                        </h3>
-
-                    </div>
-
-                    </div>
-
-                </div>
-
-                {/* QR CODE */}
-
-                <div
-                    className="
-                    bg-white
-                    p-4
-                    rounded-[24px]
-                    shadow-2xl
-                    flex
-                    items-center
-                    justify-center
-                    w-[210px]
-                    h-[210px]
-                    "
-                >
-
-                    <img
-                    src={
-                      student.qr_code && student.qr_code.startsWith('http')
-                        ? student.qr_code
-                        : student.qr_code
-                        ? `/qr_codes/${student.qr_code.replace(/^.*[\\\/]/, '')}`
-                        : `/api/v1/students/${student.id}/qrcode`
-                    }
-                    alt="QR Code"
-                    className="w-full h-full object-contain"
-                    onError={(e: any) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = `/api/v1/students/${student.id}/qrcode`;
-                    }}
-                    />
-
-                </div>
-
-            </div>
-
-        </div>
-
+        <h1 className="text-xl font-bold text-white mb-2">Carte d'étudiant introuvable ou invalide</h1>
+        <p className="text-sm text-slate-400 max-w-md mb-6">
+          Ce certificat ou matricule ne correspond à aucun dossier étudiant actif dans les registres académiques UniSphere AI.
+        </p>
       </div>
+    );
+  }
 
+  const university = student.university || {
+    name: 'UniSphere AI',
+    academic_year: '2026-2027',
+    slogan: "Ensemble pour l'excellence"
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 py-8 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center">
+      <div className="w-full max-w-2xl space-y-6">
+        {/* En-tête de validation sécurisée */}
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between text-emerald-400">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+              <ShieldCheck className="w-6 h-6 text-emerald-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+                Certificat Académique Authentifié
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              </h2>
+              <p className="text-xs text-emerald-300/80">Identité biométrique et inscription vérifiées en temps réel</p>
+            </div>
+          </div>
+          <span className="text-xs font-mono font-bold bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/30 text-emerald-300">
+            ACTIF
+          </span>
+        </div>
+
+        {/* Carte officielle fidèle */}
+        <div className="flex justify-center">
+          <OfficialStudentCard
+            student={student}
+            university={university}
+            side="recto"
+            mode="responsive"
+            className="w-full shadow-2xl"
+          />
+        </div>
+
+        {/* Détails du registre académique */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-white space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <UserCheck size={14} className="text-[#FF7300]" />
+            Informations certifiées au registre
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+              <span className="text-slate-400 block text-[11px]">Nom & Prénom</span>
+              <span className="font-bold text-white text-sm">{student.last_name} {student.first_name}</span>
+            </div>
+
+            <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+              <span className="text-slate-400 block text-[11px]">Matricule Officiel</span>
+              <span className="font-mono font-bold text-orange-400 text-sm">{student.matricule || `ID-${student.id}`}</span>
+            </div>
+
+            <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+              <span className="text-slate-400 block text-[11px]">Filière & Spécialité</span>
+              <span className="font-semibold text-white">{student.filiere || 'Formation Supérieure'}</span>
+            </div>
+
+            <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+              <span className="text-slate-400 block text-[11px]">Niveau d'études</span>
+              <span className="font-bold text-emerald-400">{student.level || 'L1'}</span>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
+            <span>Plateforme : UniSphere AI Multi-Tenant</span>
+            <span>Année académique : {university.academic_year || '2026-2027'}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
