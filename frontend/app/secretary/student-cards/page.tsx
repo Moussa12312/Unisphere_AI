@@ -25,10 +25,6 @@ import {
 } from 'lucide-react';
 import api, { getMediaUrl } from '@/lib/api';
 import { universityService } from '@/services/universityService';
-import StudentCardTemplate, {
-  CARD_TEMPLATES_REGISTRY,
-  CardTemplateId
-} from '@/components/cards/StudentCardTemplate';
 import { toast } from 'react-hot-toast';
 
 interface Student {
@@ -84,11 +80,9 @@ export default function SecretaryStudentCardsPrintPage() {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  // Personnalisation des cartes (9 modèles exclusifs)
-  const [selectedDesign, setSelectedDesign] = useState<CardTemplateId>('wave_orange');
-  const [officialTemplate, setOfficialTemplate] = useState<CardTemplateId>('wave_orange');
-  const [savingOfficialTemplate, setSavingOfficialTemplate] = useState(false);
-  const [selectedColorPreset, setSelectedColorPreset] = useState<string>('bleu');
+  // Personnalisation des cartes
+  const [selectedDesign, setSelectedDesign] = useState<CardDesignType>('radar');
+  const [selectedColorPreset, setSelectedColorPreset] = useState<string>('bordeaux');
   const [cardScope, setCardScope] = useState<'students' | 'secretary'>('students');
   const [secretaryUser, setSecretaryUser] = useState<any>(null);
 
@@ -124,18 +118,11 @@ export default function SecretaryStudentCardsPrintPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [resStudents, resUniv, resMe, resCardConfig] = await Promise.all([
+      const [resStudents, resUniv, resMe] = await Promise.all([
         api.get('/api/v1/students/'),
         universityService.getInfo().catch(() => null),
-        api.get('/api/v1/auth/me').catch(() => null),
-        universityService.getCardConfig().catch(() => null)
+        api.get('/api/v1/auth/me').catch(() => null)
       ]);
-
-      if (resCardConfig?.data?.template_id) {
-        const tid = resCardConfig.data.template_id as CardTemplateId;
-        setSelectedDesign(tid);
-        setOfficialTemplate(tid);
-      }
 
       const studentList = Array.isArray(resStudents.data) ? resStudents.data : [];
       setStudents(studentList);
@@ -232,20 +219,6 @@ export default function SecretaryStudentCardsPrintPage() {
     setShowPrintModal(true);
   };
 
-  const handleSaveOfficialTemplate = async (templateId: CardTemplateId) => {
-    try {
-      setSavingOfficialTemplate(true);
-      await universityService.updateCardConfig({ template_id: templateId });
-      setOfficialTemplate(templateId);
-      const tName = CARD_TEMPLATES_REGISTRY.find(t => t.id === templateId)?.name || templateId;
-      toast.success(`Design "${tName}" enregistré comme modèle officiel de l'Université !`);
-    } catch (err) {
-      toast.error("Erreur lors de l'enregistrement du modèle officiel");
-    } finally {
-      setSavingOfficialTemplate(false);
-    }
-  };
-
   const executePrint = () => {
     setShowPrintModal(false);
     setTimeout(() => {
@@ -301,32 +274,95 @@ export default function SecretaryStudentCardsPrintPage() {
     );
   };
 
-  // Rendu unitaire d'une carte étudiante utilisant le composant universel
+  // Rendu unitaire d'une carte étudiante (Remplit 100% de la cellule A4 en impression)
   const renderCardItem = (student: Student) => {
+    const isMed = selectedDesign === 'medaillon';
+    const qrCodeUrl = `/api/v1/students/${student.id}/qrcode`;
+    const logoUrl = universityInfo.logo || '/uploads/logos/university_1_1791668644.png';
+
     return (
       <div
         key={student.id}
-        className="student-card-printable-container w-full h-[55.5mm] print:h-full print:max-h-none print:min-h-0 flex items-center justify-center p-0.5 print:p-0"
+        className="student-card-printable relative bg-white border border-dashed border-slate-400/90 rounded-xl overflow-hidden flex flex-col justify-between shadow-2xs w-full h-[55.5mm] print:h-full print:max-h-none print:min-h-0"
+        style={{
+          boxSizing: 'border-box',
+          fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+        }}
       >
-        <StudentCardTemplate
-          template={selectedDesign}
-          student={{
-            id: student.id,
-            first_name: student.first_name,
-            last_name: student.last_name,
-            matricule: student.matricule,
-            filiere: student.filiere,
-            level: student.level,
-            photo: student.photo,
-            date_of_birth: student.date_of_birth,
-            status: student.status
-          }}
-          university={{
-            name: universityInfo.name,
-            logo: universityInfo.logo,
-            academic_year: universityInfo.academic_year
+        {/* En-tête officiel */}
+        <div
+          className="px-3 py-1 flex items-center justify-between text-white flex-shrink-0 h-8"
+          style={{ background: `linear-gradient(135deg, ${activePrimaryColor} 0%, ${activeSecondaryColor} 100%)` }}
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-6 h-6 rounded-full bg-white p-0.5 flex-shrink-0 flex items-center justify-center shadow-2xs">
+              <img src={logoUrl} alt="" loading="lazy" className="w-full h-full object-contain" />
+            </div>
+            <div className="min-w-0 leading-tight">
+              <p className="font-black text-[10px] uppercase truncate text-white">{universityInfo.name}</p>
+              <p className="text-[6.8px] font-bold uppercase tracking-wider text-amber-300">CARTE OFFICIELLE D'ÉTUDIANT</p>
+            </div>
+          </div>
+          <span className="text-[7.5px] font-mono font-bold text-amber-200 bg-white/10 px-2 py-0.5 rounded border border-white/20">
+            {universityInfo.academic_year}
+          </span>
+        </div>
+
+        {/* Liseré de sécurité */}
+        <div
+          className="h-[2px] w-full flex-shrink-0"
+          style={{
+            background: isMed
+              ? 'linear-gradient(90deg, #F59E0B 0%, #FDE047 50%, #D97706 100%)'
+              : 'linear-gradient(90deg, #06B6D4 0%, #F59E0B 50%, #EC4899 100%)'
           }}
         />
+
+        {/* Corps de carte (remplit l'espace disponible) */}
+        <div className="px-3 py-1.5 flex items-center justify-between gap-3 flex-1 min-h-0 bg-white">
+          {renderStudentPhoto(student, isMed)}
+
+          <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
+            <div>
+              <p className="text-[12.5px] font-black text-slate-950 leading-tight uppercase truncate">
+                {student.last_name}
+              </p>
+              <p className="text-[11px] font-bold text-slate-700 leading-tight capitalize truncate">
+                {student.first_name}
+              </p>
+            </div>
+
+            <div className="my-0.5">
+              <span className="inline-block px-2.5 py-0.5 rounded-md bg-orange-600 text-[10px] font-mono font-black text-white shadow-2xs">
+                {student.matricule || `EC-${String(student.id).padStart(4, '0')}`}
+              </span>
+            </div>
+
+            <div className="text-[8px] text-slate-700 leading-tight space-y-0.5">
+              <p className="truncate"><b className="text-slate-900">Filière:</b> {student.filiere || 'Général'}</p>
+              <p className="truncate"><b className="text-slate-900">Niveau:</b> <span className="font-bold text-blue-900 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded text-[8.5px]">{student.level || 'L1'}</span></p>
+            </div>
+          </div>
+
+          {/* QR Code de vérification */}
+          <div className="flex flex-col items-center justify-center flex-shrink-0">
+            <div className="p-0.5 bg-white rounded-lg border border-slate-300 shadow-2xs">
+              <img
+                src={qrCodeUrl}
+                alt=""
+                loading="lazy"
+                className="w-14 h-14 object-contain"
+              />
+            </div>
+            <span className="text-[6.5px] font-mono font-bold text-slate-700 mt-0.5 uppercase tracking-wider">SCAN MOI</span>
+          </div>
+        </div>
+
+        {/* Pied de carte sécurisé */}
+        <div className="px-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[7px] text-slate-600 font-bold flex-shrink-0 h-4">
+          <span>SÉCURISÉE & CERTIFIÉE</span>
+          <span className="font-mono text-slate-500">LIGNE ACADÉMIQUE • {universityInfo.academic_year}</span>
+        </div>
       </div>
     );
   };
@@ -429,71 +465,45 @@ export default function SecretaryStudentCardsPrintPage() {
           </div>
         </div>
 
-        {/* 2. Galerie des 9 Modèles Exclusifs de Cartes d'Étudiants */}
-        <div className="space-y-3 pt-2 border-t border-slate-100">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <span className="font-black text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles size={14} className="text-[#FF6B00]" />
-                9 Modèles Exclusifs Disponibles (Chaque Université a son Propre Style)
-              </span>
-              <p className="text-[11px] text-slate-500">
-                Sélectionnez un modèle pour le tirage ou définissez-le comme officiel pour toute votre institution.
-              </p>
-            </div>
-
-            {selectedDesign !== officialTemplate && (
+        {/* 2. Barre de style rapide : 4 modèles + 5 couleurs */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+          {/* 4 Styles */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-slate-500 uppercase text-[10px] mr-1">Modèle :</span>
+            {CARD_DESIGNS.map((d) => (
               <button
-                onClick={() => handleSaveOfficialTemplate(selectedDesign)}
-                disabled={savingOfficialTemplate}
-                className="self-start sm:self-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs disabled:opacity-50"
+                key={d.id}
+                onClick={() => setSelectedDesign(d.id)}
+                className={`px-2.5 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all text-xs border ${
+                  selectedDesign === d.id
+                    ? 'bg-[#FF6B00] text-white border-[#FF6B00] shadow-xs'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
               >
-                {savingOfficialTemplate ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} className="text-emerald-400" />}
-                <span>Définir ce modèle comme Officiel pour l'Université</span>
+                <span>{d.icon}</span>
+                <span>{d.shortName}</span>
               </button>
-            )}
+            ))}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
-            {CARD_TEMPLATES_REGISTRY.map((t) => {
-              const isSelected = selectedDesign === t.id;
-              const isOfficial = officialTemplate === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setSelectedDesign(t.id)}
-                  className={`relative p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between group ${
-                    isSelected
-                      ? 'border-[#FF6B00] bg-orange-50/60 ring-2 ring-[#FF6B00]/40 shadow-xs'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'
-                  }`}
-                >
-                  {isOfficial && (
-                    <span className="absolute -top-1.5 -right-1 px-1.5 py-0.2 rounded-full bg-emerald-600 text-[8px] font-black text-white shadow-xs">
-                      OFFICIEL
-                    </span>
-                  )}
-                  <div>
-                    <span className="text-lg block mb-1">{t.icon}</span>
-                    <p className="font-bold text-[11px] text-slate-900 leading-tight truncate">
-                      {t.name}
-                    </p>
-                    <p className="text-[9px] text-slate-500 truncate mt-0.5">
-                      {t.subtitle}
-                    </p>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span
-                      className="w-3 h-3 rounded-full border border-white/60 shadow-2xs"
-                      style={{ backgroundColor: t.accentColor }}
-                    />
-                    {isSelected && (
-                      <span className="text-[9px] font-black text-[#FF6B00]">✓ Choisi</span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+          {/* 5 Couleurs */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-slate-500 uppercase text-[10px] mr-1">Couleur :</span>
+            {COLOR_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedColorPreset(p.id)}
+                title={p.name}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                  selectedColorPreset === p.id
+                    ? 'border-slate-900 bg-slate-100 text-slate-900 ring-1 ring-slate-900'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <span className={`w-3 h-3 rounded-full ${p.colorClass} border border-white/50`} />
+                <span>{p.name}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>

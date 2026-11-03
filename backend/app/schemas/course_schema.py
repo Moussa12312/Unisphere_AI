@@ -11,7 +11,6 @@ class CourseCreate(BaseModel):
     hours: int = 20
     filiere_id: Optional[int] = None  
     teaching_unit_id: Optional[int] = None
-    semester: Optional[str] = None
 
 
 class CourseUpdate(BaseModel):
@@ -24,4 +23,3 @@ class CourseUpdate(BaseModel):
     hours: Optional[int] = None
     filiere_id: Optional[int] = None  
     teaching_unit_id: Optional[int] = None
-    semester: Optional[str] = None

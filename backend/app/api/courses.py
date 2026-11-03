@@ -89,13 +89,6 @@ def create_course(
             suffix += 1
         code = f"{code}-{suffix}"
     
-    course_semester = course.semester
-    if not course_semester and course.teaching_unit_id:
-        from app.models.teaching_unit import TeachingUnit
-        tu = db.query(TeachingUnit).filter(TeachingUnit.id == course.teaching_unit_id).first()
-        if tu and tu.semester:
-            course_semester = tu.semester
-
     new_course = Course(
         title=course.title,
         code=code,
@@ -106,8 +99,7 @@ def create_course(
         hours=course.hours,
         university_id=current_user.university_id,
         filiere_id=course.filiere_id,
-        teaching_unit_id=course.teaching_unit_id,
-        semester=course_semester
+        teaching_unit_id=course.teaching_unit_id
     )
     
     db.add(new_course)
@@ -148,7 +140,7 @@ def get_courses(
                 teacher_name = f"{teacher.first_name} {teacher.last_name}"
         
         filiere_name = c.filiere.name if c.filiere else c.department
-        semester = c.semester or (c.teaching_unit.semester if c.teaching_unit else None)
+        semester = c.teaching_unit.semester if c.teaching_unit else None
 
         result.append({
             "id": c.id,
@@ -203,7 +195,7 @@ def get_course(
         "teaching_unit_id": course.teaching_unit_id,
         "teaching_unit_code": course.teaching_unit.code if course.teaching_unit else None,
         "teaching_unit_name": course.teaching_unit.name if course.teaching_unit else None,
-        "semester": course.semester or (course.teaching_unit.semester if course.teaching_unit else None)
+        "semester": course.teaching_unit.semester if course.teaching_unit else None
     }
 
 @router.put("/{course_id}")
@@ -325,10 +317,6 @@ def update_course(
     # 7. Unité d'Enseignement
     if course.teaching_unit_id is not None and course.teaching_unit_id != existing_course.teaching_unit_id:
         existing_course.teaching_unit_id = course.teaching_unit_id if course.teaching_unit_id != 0 else None
-
-    # 8. Semestre
-    if course.semester is not None and course.semester != existing_course.semester:
-        existing_course.semester = course.semester
 
     # ✅ Valider TOUT
     db.commit()

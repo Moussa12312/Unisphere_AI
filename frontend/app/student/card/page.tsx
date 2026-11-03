@@ -22,7 +22,6 @@ import {
   X
 } from 'lucide-react';
 import api, { getMediaUrl } from '@/lib/api';
-import StudentCardTemplate, { CardTemplateId } from '@/components/cards/StudentCardTemplate';
 import { toast } from 'react-hot-toast';
 
 export default function StudentCardPage() {
@@ -197,28 +196,212 @@ export default function StudentCardPage() {
             </div>
             <div
               id="student-card-recto"
-              className="student-card-badge relative overflow-hidden shadow-2xl transition-all duration-300 w-[360px] sm:w-[410px] md:w-[440px]"
+              className="student-card-badge relative bg-white overflow-hidden shadow-2xl transition-all duration-300 border border-slate-200/80"
+              style={{
+                width: '85.6mm',
+                height: '54mm',
+                borderRadius: '14px',
+                fontFamily: 'Inter, system-ui, sans-serif'
+              }}
             >
-              <StudentCardTemplate
-                template={(config?.template_id as CardTemplateId) || 'wave_orange'}
-                student={{
-                  id: student.id,
-                  first_name: student.first_name,
-                  last_name: student.last_name,
-                  matricule: student.matricule,
-                  filiere: student.filiere,
-                  level: student.level,
-                  photo: student.photo,
-                  date_of_birth: student.date_of_birth,
-                  status: student.status
-                }}
-                university={{
-                  name: university.name,
-                  logo: university.logo,
-                  slogan: university.slogan,
-                  academic_year: university.academic_year
+              {/* Fond guilloché de sécurité subtil */}
+              <div
+                className="absolute inset-0 opacity-[0.035] pointer-events-none"
+                style={{
+                  backgroundImage: `radial-gradient(${primaryColor} 1px, transparent 1px), radial-gradient(${primaryColor} 1px, transparent 1px)`,
+                  backgroundSize: '12px 12px',
+                  backgroundPosition: '0 0, 6px 6px'
                 }}
               />
+
+              {/* HEADER AVEC LOGO ET TITRE UNIVERSITÉ */}
+              <div
+                className="relative px-3.5 py-2 flex items-center justify-between text-white"
+                style={{
+                  background: `linear-gradient(135deg, ${primaryColor} 0%, #1e293b 100%)`,
+                  height: '46px'
+                }}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {university.logo && !logoError ? (
+                    <img
+                      src={university.logo}
+                      alt="Logo"
+                      onError={() => setLogoError(true)}
+                      className="h-8 w-8 object-contain bg-white/10 rounded-full p-0.5 border border-white/20 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 border border-white/20">
+                      <Building2 size={16} className="text-white" />
+                    </div>
+                  )}
+                  <div className="min-w-0 leading-tight">
+                    <div className="font-extrabold text-[10px] tracking-wide uppercase truncate text-white">
+                      {university.name || 'UNIVERSITÉ UNISPHERE'}
+                    </div>
+                    <div className="text-[7.5px] text-white/75 truncate font-medium">
+                      RÉPUBLIQUE • ENSEIGNEMENT SUPÉRIEUR
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <span className="text-[7px] font-bold uppercase tracking-wider text-amber-300 bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-300/30">
+                    Étudiant
+                  </span>
+                  <span className="text-[7px] text-white/70 font-mono mt-0.5">
+                    {university.academic_year || '2026-2027'}
+                  </span>
+                </div>
+              </div>
+
+              {/* BANDEAU MINI ACCENT */}
+              <div
+                className="h-[3px] w-full"
+                style={{
+                  background: `linear-gradient(90deg, ${accentColor} 0%, #F59E0B 50%, ${primaryColor} 100%)`
+                }}
+              />
+
+              {/* CORPS DE LA CARTE */}
+              <div
+                className="relative p-3 flex items-center gap-3"
+                style={{ height: 'calc(54mm - 46px - 3px - 22px)' }}
+              >
+                {/* PHOTO DE L'ÉTUDIANT + PUCE ELECTRONIQUE */}
+                <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                  <div
+                    className="relative rounded-lg overflow-hidden border-2 bg-slate-100 shadow-sm flex items-center justify-center"
+                    style={{
+                      width: '68px',
+                      height: '76px',
+                      borderColor: primaryColor
+                    }}
+                  >
+                    {student.photo && !imageError ? (
+                      <img
+                        src={getMediaUrl(student.photo)}
+                        alt={`${student.first_name} ${student.last_name}`}
+                        onError={() => setImageError(true)}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-500">
+                        <span className="font-bold text-sm tracking-widest text-slate-700">
+                          {initials}
+                        </span>
+                        <span className="text-[7px] text-slate-400 uppercase mt-0.5">Photo</span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 inset-x-0 bg-black/60 text-[6px] text-white text-center py-0.5 font-bold tracking-wider">
+                      OFFICIEL
+                    </div>
+                  </div>
+
+                  {/* Puce EMV métallique dorée décorative */}
+                  <div
+                    className="w-8 h-5 rounded-[3px] border border-amber-600/60 shadow-inner relative overflow-hidden flex items-center justify-center"
+                    style={{
+                      background: 'linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%)'
+                    }}
+                    title="Puce électronique NFC"
+                  >
+                    <div className="absolute inset-0 border border-amber-800/20 rounded-[2px] m-[2px]" />
+                    <div className="w-full h-[1px] bg-amber-800/30" />
+                    <div className="h-full w-[1px] bg-amber-800/30 absolute" />
+                  </div>
+                </div>
+
+                {/* INFORMATIONS PRINCIPALES */}
+                <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
+                  <div>
+                    <div className="text-[7.5px] uppercase font-bold tracking-wider text-slate-400">
+                      Nom & Prénom
+                    </div>
+                    <div className="text-[12px] font-black text-slate-900 leading-tight uppercase truncate">
+                      {student.last_name}
+                    </div>
+                    <div className="text-[11px] font-bold text-slate-700 leading-tight capitalize truncate">
+                      {student.first_name}
+                    </div>
+                  </div>
+
+                  {/* ID / Matricule */}
+                  <div className="my-0.5">
+                    <span className="text-[7px] uppercase font-bold text-slate-400 block">
+                      Matricule Étudiant
+                    </span>
+                    <span
+                      className="inline-block px-2 py-0.5 rounded text-[9.5px] font-mono font-black tracking-wider text-white shadow-xs"
+                      style={{ backgroundColor: accentColor }}
+                    >
+                      {student.matricule || `ID-${student.id}`}
+                    </span>
+                  </div>
+
+                  {/* Filière & Niveau */}
+                  <div className="space-y-0.5 text-[8px] text-slate-700 leading-snug">
+                    <div className="truncate">
+                      <span className="font-bold text-slate-900">Filière : </span>
+                      <span className="text-slate-600">{student.filiere || 'Formation Supérieure'}</span>
+                    </div>
+                    <div className="truncate flex items-center gap-2">
+                      <span>
+                        <span className="font-bold text-slate-900">Niveau : </span>
+                        <span className="text-slate-600">{student.level || 'Licence'}</span>
+                      </span>
+                      {student.date_of_birth && (
+                        <span className="text-slate-400 text-[7.5px]">
+                          • Né(e) le {student.date_of_birth}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* QR CODE SÉCURISÉ */}
+                <div className="flex flex-col items-center justify-center flex-shrink-0 pl-1">
+                  <div className="relative p-1 bg-white rounded-md border border-slate-300 shadow-xs">
+                    {/* Repères scanner aux coins */}
+                    <div className="w-[62px] h-[62px] flex items-center justify-center">
+                      <img
+                        src={qrCodeUrl}
+                        alt="QR Code"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  </div>
+                  <span className="text-[6.5px] font-mono font-bold text-slate-500 uppercase tracking-wider mt-0.5">
+                    SCAN SÉCURISÉ
+                  </span>
+                </div>
+              </div>
+
+              {/* FOOTER AVEC HOLOGRAMME ET SIGNATURE */}
+              <div
+                className="absolute bottom-0 inset-x-0 px-3 py-1 bg-slate-100 border-t border-slate-200 flex items-center justify-between text-[7px] text-slate-600"
+                style={{ height: '22px' }}
+              >
+                <div className="flex items-center gap-1.5">
+                  {/* Pastille hologramme sécurité */}
+                  <div
+                    className="w-3.5 h-3.5 rounded-full shadow-xs flex items-center justify-center text-[5px] font-black text-slate-900"
+                    style={{
+                      background: 'radial-gradient(circle, #67e8f9 0%, #c084fc 50%, #fde047 100%)'
+                    }}
+                    title="Hologramme officiel de sécurité"
+                  >
+                    ★
+                  </div>
+                  <span className="font-semibold text-slate-700 tracking-tight">
+                    CARTE OFFICIELLE D'ÉTUDIANT
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 font-mono text-[7px] text-slate-500">
+                  <span>EXP : 30/09/{parseInt((university.academic_year || '2026-2027').split('-')[1] || '2027')}</span>
+                </div>
+              </div>
             </div>
           </div>
         )}

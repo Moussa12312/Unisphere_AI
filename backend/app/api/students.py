@@ -2613,9 +2613,7 @@ def get_my_student_card(
     if not university:
         raise HTTPException(status_code=404, detail="Université non trouvée")
 
-    saved_config = dict(university.card_config or {})
-    if "template_id" not in saved_config:
-        saved_config["template_id"] = "wave_orange"
+    saved_config = university.card_config or {}
 
     # URLs relatives robustes pour le frontend (évite le blocage sur BACKEND_URL externe)
     photo_url = None
