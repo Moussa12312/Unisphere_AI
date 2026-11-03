@@ -3,8 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { User, GraduationCap, Building2, ArrowRight, AlertCircle, Smartphone } from 'lucide-react';
-import UniSphereLogo from './UniSphereLogo';
+import { User, GraduationCap, Building2, ArrowRight, AlertCircle } from 'lucide-react';
 import PasswordInput from './PasswordInput';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -30,7 +29,7 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
     setErrorMessage(null);
 
     if (!identifier.trim()) {
-      setErrorMessage('Veuillez saisir votre identifiant (matricule, email ou N° utilisateur).');
+      setErrorMessage('Veuillez saisir votre identifiant (matricule ou email).');
       return;
     }
 
@@ -129,36 +128,23 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
   };
 
   return (
-    <div className="w-full max-w-[420px] mx-auto">
-      {/* Logo visible sur mobile uniquement (sur desktop il est dans le panneau gauche) */}
-      <div className="flex lg:hidden justify-center mb-5">
-        <UniSphereLogo variant="dark" size="sm" showSlogan={false} />
-      </div>
-
-      {/* Carte d'authentification */}
-      <div className="bg-white rounded-3xl shadow-[0_20px_50px_-12px_rgba(10,22,40,0.12)] border border-slate-200/80 p-6 sm:p-8 relative overflow-hidden">
-        {/* Liseré supérieur aux couleurs UniSphere */}
-        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#0a1628] via-[#FF6B00] to-[#0a1628]" />
-
-        {/* En-tête */}
-        <div className="mb-5">
-          <div className="hidden lg:flex items-center gap-2 mb-3">
-            <span className="w-2 h-2 rounded-full bg-[#FF6B00]" />
-            <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
-              Authentification Sécurisée
-            </span>
-          </div>
-          <h2 className="text-2xl font-black text-[#0a1628] tracking-tight">
-            Connexion à votre espace
-          </h2>
-          <p className="text-xs text-slate-500 font-medium mt-1">
+    <div className="w-full">
+      {/* Carte épurée et moderne */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8">
+        
+        {/* Titre simple */}
+        <div className="mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            Connexion
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             {isStudentMode
-              ? 'Saisissez votre matricule étudiant et votre mot de passe'
-              : 'Administration, comptabilité, secrétariat et enseignants'}
+              ? 'Accès au portail étudiant'
+              : 'Accès administration et enseignants'}
           </p>
         </div>
 
-        {/* Sélecteur de profil segmenté (Zéro encombrement vertical) */}
+        {/* Sélecteur de profil épuré */}
         <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl mb-5">
           <button
             type="button"
@@ -166,14 +152,14 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
               setIsStudentMode(false);
               setErrorMessage(null);
             }}
-            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               !isStudentMode
                 ? 'bg-[#0a1628] text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Building2 size={14} className={!isStudentMode ? 'text-[#FF6B00]' : 'text-slate-400'} />
-            <span>Personnel & Admin</span>
+            <span>Personnel</span>
           </button>
 
           <button
@@ -182,7 +168,7 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
               setIsStudentMode(true);
               setErrorMessage(null);
             }}
-            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               isStudentMode
                 ? 'bg-[#FF6B00] text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -201,29 +187,25 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
           </div>
         )}
 
-        {/* Formulaire */}
+        {/* Formulaire direct */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-700">
-              {isStudentMode ? 'Matricule ou Email étudiant' : 'Identifiant'}
+              {isStudentMode ? 'Matricule étudiant' : 'Identifiant ou Email'}
             </label>
             <div className="relative group">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#FF6B00] transition-colors pointer-events-none">
-                <User size={17} />
+                <User size={16} />
               </div>
               <input
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 disabled={loading}
-                placeholder={
-                  isStudentMode
-                    ? 'Ex: EC-2026-0001 ou email'
-                    : 'Email, matricule ou N° utilisateur'
-                }
+                placeholder={isStudentMode ? 'Ex: MAT-2026-001' : 'Email ou nom d’utilisateur'}
                 autoFocus
                 required
-                className="w-full pl-10 pr-3.5 py-2.5 sm:py-3 bg-slate-50/80 hover:bg-slate-50 focus:bg-white border border-slate-200 hover:border-slate-300 focus:border-[#FF6B00] focus:ring-3 focus:ring-[#FF6B00]/15 rounded-xl text-slate-900 text-sm font-medium placeholder-slate-400 focus:outline-none transition-all"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 focus:bg-white border border-slate-200 focus:border-[#FF6B00] focus:ring-2 focus:ring-[#FF6B00]/15 rounded-xl text-slate-900 text-sm font-medium placeholder-slate-400 focus:outline-none transition-all"
               />
             </div>
           </div>
@@ -235,7 +217,7 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
               </label>
               <Link
                 href="/forgot-password"
-                className="text-xs text-[#FF6B00] hover:text-[#e05e00] font-bold hover:underline transition-colors"
+                className="text-xs text-[#FF6B00] hover:text-[#e05e00] font-semibold hover:underline transition-colors"
               >
                 Mot de passe oublié ?
               </Link>
@@ -244,12 +226,12 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              placeholder="Votre mot de passe"
+              placeholder="••••••••"
               required
             />
           </div>
 
-          <div className="flex items-center justify-between pt-0.5">
+          <div className="flex items-center pt-1">
             <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-600 font-medium hover:text-slate-900">
               <input
                 type="checkbox"
@@ -264,48 +246,38 @@ export default function LoginForm({ onOpenContactAdmin }: LoginFormProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-5 rounded-xl bg-gradient-to-r from-[#FF6B00] to-[#ea580c] hover:from-[#e66000] hover:to-[#d94e06] active:scale-[0.99] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#FF6B00]/25 hover:shadow-[#FF6B00]/40 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full py-2.5 sm:py-3 px-5 rounded-xl bg-[#FF6B00] hover:bg-[#e55f00] active:scale-[0.99] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-[#FF6B00]/25 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Vérification en cours...</span>
+                <span>Connexion en cours...</span>
               </>
             ) : (
               <>
                 <span>Se connecter</span>
-                <ArrowRight size={17} />
+                <ArrowRight size={16} />
               </>
             )}
           </button>
         </form>
 
         {/* Pied de carte */}
-        <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col items-center gap-2 text-xs text-slate-500">
-          <div>
-            <span>Aucun compte actif ? </span>
-            <button
-              type="button"
-              onClick={() => {
-                if (onOpenContactAdmin) {
-                  onOpenContactAdmin();
-                } else {
-                  window.location.href = 'tel:+22373343493';
-                }
-              }}
-              className="text-[#0a1628] hover:text-[#FF6B00] font-bold hover:underline cursor-pointer transition-colors"
-            >
-              Contacter l’administration
-            </button>
-          </div>
-
-          <Link
-            href="/download"
-            className="lg:hidden inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#FF6B00] hover:underline"
+        <div className="mt-6 pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
+          <span>Besoin d’aide ? </span>
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenContactAdmin) {
+                onOpenContactAdmin();
+              } else {
+                window.location.href = 'tel:+22373343493';
+              }
+            }}
+            className="text-[#0a1628] hover:text-[#FF6B00] font-semibold hover:underline cursor-pointer transition-colors"
           >
-            <Smartphone size={13} />
-            <span>Télécharger l’application Android (APK)</span>
-          </Link>
+            Contacter l’administration
+          </button>
         </div>
       </div>
     </div>
