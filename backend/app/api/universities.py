@@ -19,6 +19,7 @@ def get_db():
 
 # Configuration par défaut complète
 DEFAULT_CARD_CONFIG = {
+    "template_id": "wave_orange",
     "width": 85.6,
     "height": 54,
     "border_radius": 12,

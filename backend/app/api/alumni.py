@@ -435,7 +435,7 @@ class AlumniAdminCreate(BaseModel):
     first_name: str
     last_name: str
     email: str
-    password: str = "Alumni2026@"
+    password: Optional[str] = "Alumni2026@"
     phone: Optional[str] = None
     filiere: Optional[str] = None
     graduation_year: Optional[int] = None
@@ -449,36 +449,58 @@ class AlumniAdminCreate(BaseModel):
 def admin_create_alumni(
     data: AlumniAdminCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary"))
+    current_user: User = Depends(require_role("admin", "secretary", "super_admin", "superadmin"))
 ):
     from app.core.security import hash_password
+    from app.models.student import Student
 
+    clean_email = data.email.strip().lower()
     univ_id = current_user.university_id or 1
+    final_password = data.password.strip() if (data.password and len(data.password.strip()) >= 4) else "Alumni2026@"
 
-    existing = db.query(User).filter(User.email.ilike(data.email)).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Un compte utilisateur existe déjà avec cet email")
+    # 1. Vérifier si un profil Alumni existe déjà
+    existing_profile = db.query(AlumniProfile).filter(AlumniProfile.email.ilike(clean_email)).first()
+    if existing_profile:
+        raise HTTPException(status_code=400, detail=f"Un profil Alumni existe déjà pour l'adresse {clean_email}")
 
-    new_user = User(
-        email=data.email,
-        hashed_password=hash_password(data.password),
-        full_name=f"{data.first_name} {data.last_name}",
-        phone=data.phone,
-        role="alumni",
-        is_active=True,
-        is_email_verified=True,
-        university_id=univ_id
-    )
-    db.add(new_user)
-    db.flush()
-    db.refresh(new_user)
+    # 2. Chercher si un utilisateur existe déjà (ex: étudiant diplômé)
+    existing_user = db.query(User).filter(User.email.ilike(clean_email)).first()
+    if existing_user:
+        new_user = existing_user
+        new_user.role = "alumni"
+        new_user.is_active = True
+        new_user.is_email_verified = True
+        new_user.hashed_password = hash_password(final_password)
+        if not new_user.university_id:
+            new_user.university_id = univ_id
+        db.flush()
+    else:
+        new_user = User(
+            email=clean_email,
+            hashed_password=hash_password(final_password),
+            full_name=f"{data.first_name} {data.last_name}".strip(),
+            phone=data.phone,
+            role="alumni",
+            is_active=True,
+            is_email_verified=True,
+            university_id=univ_id
+        )
+        db.add(new_user)
+        db.flush()
+        db.refresh(new_user)
 
+    # 3. Lier l'étudiant d'origine s'il existe
+    matched_student = db.query(Student).filter(Student.email.ilike(clean_email)).first()
+    student_id = matched_student.id if matched_student else None
+
+    # 4. Créer le profil Alumni
     new_alumni = AlumniProfile(
         user_id=new_user.id,
         university_id=univ_id,
-        first_name=data.first_name,
-        last_name=data.last_name,
-        email=data.email,
+        student_id=student_id,
+        first_name=data.first_name.strip(),
+        last_name=data.last_name.strip(),
+        email=clean_email,
         phone=data.phone,
         filiere=data.filiere,
         graduation_year=data.graduation_year,
@@ -497,6 +519,8 @@ def admin_create_alumni(
 
     return {
         "id": new_alumni.id,
+        "email": clean_email,
+        "password": final_password,
         "message": f"Compte Alumni pour {data.first_name} {data.last_name} créé et activé avec succès !"
     }
 

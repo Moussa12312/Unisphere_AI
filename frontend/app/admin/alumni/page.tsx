@@ -52,6 +52,8 @@ export default function AdminAlumniPage() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingAlumni, setCreatingAlumni] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password?: string; name: string } | null>(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
   const [newAlumniData, setNewAlumniData] = useState({
     first_name: '',
     last_name: '',
@@ -78,11 +80,18 @@ export default function AdminAlumniPage() {
     }
     setCreatingAlumni(true);
     try {
+      const finalPwd = newAlumniData.password.trim() || 'Alumni2026@';
       const res = await api.post('/api/v1/alumni/admin/create', {
         ...newAlumniData,
+        password: finalPwd,
         graduation_year: newAlumniData.graduation_year ? parseInt(newAlumniData.graduation_year) : null
       });
       toast.success(res.data?.message || 'Alumni créé et activé avec succès !');
+      setCreatedCredentials({
+        name: `${newAlumniData.first_name} ${newAlumniData.last_name}`,
+        email: res.data?.email || newAlumniData.email,
+        password: res.data?.password || finalPwd
+      });
       setShowCreateModal(false);
       setNewAlumniData({
         first_name: '',
@@ -333,6 +342,62 @@ export default function AdminAlumniPage() {
               Connections
             </div>
             <p className="text-2xl font-bold text-purple-600 mt-1">{stats.active_connections}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Accès Alumni Généré */}
+      {createdCredentials && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-5 border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <Check size={24} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Compte Alumni Activé !</h3>
+                <p className="text-xs text-slate-500">Transmettez ces identifiants à l'ancien étudiant</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Alumni</span>
+                <span className="text-sm font-bold text-slate-900">{createdCredentials.name}</span>
+              </div>
+              <div className="border-t border-slate-200/60 pt-2">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Identifiant (Email)</span>
+                <span className="text-sm font-mono font-bold text-[#FF6B00] select-all">{createdCredentials.email}</span>
+              </div>
+              <div className="border-t border-slate-200/60 pt-2">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Mot de passe initial</span>
+                <span className="text-sm font-mono font-bold text-slate-900 bg-white px-2 py-1 rounded border border-slate-200 inline-block select-all">
+                  {createdCredentials.password}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => {
+                  const txt = `Bonjour ${createdCredentials.name},\n\nVotre compte Alumni UniSphere a été créé et activé avec succès.\n\n🔗 Accès : ${window.location.origin}/login\n📧 Identifiant : ${createdCredentials.email}\n🔑 Mot de passe : ${createdCredentials.password}\n\nBienvenue dans le réseau !`;
+                  navigator.clipboard.writeText(txt);
+                  setCopiedCreds(true);
+                  toast.success('Identifiants copiés dans le presse-papier !');
+                  setTimeout(() => setCopiedCreds(false), 2500);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs font-bold bg-[#FF6B00] text-white hover:bg-orange-600 transition-colors shadow-xs"
+              >
+                {copiedCreds ? <Check size={14} /> : <Copy size={14} />}
+                <span>{copiedCreds ? 'Copié !' : 'Copier les accès'}</span>
+              </button>
+              <button
+                onClick={() => setCreatedCredentials(null)}
+                className="py-2.5 px-4 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors border border-slate-200"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
       )}
