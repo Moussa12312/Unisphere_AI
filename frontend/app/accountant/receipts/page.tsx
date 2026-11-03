@@ -6,7 +6,7 @@ import {
   ArrowUpRight, ArrowDownRight, Users, Building2, Wallet, 
   CheckCircle2, Eye, X, Loader2, Download, AlertCircle, RefreshCw, FileText
 } from 'lucide-react';
-import api, { API_BASE_URL } from '@/lib/api';
+import api, { API_BASE_URL, getMediaUrl } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 import ReceiptTemplate from '@/components/ReceiptTemplate';
 
@@ -632,7 +632,7 @@ export default function AllReceiptsPage() {
                   <div className="flex items-center gap-3 sm:gap-4">
                     {activeModal.data.university?.logo && (
                       <img 
-                        src={`${API_BASE_URL}/uploads/logos/${activeModal.data.university.logo}`} 
+                        src={getMediaUrl(activeModal.data.university.logo)} 
                         alt="Logo" 
                         className="w-12 h-12 sm:w-16 sm:h-16 object-contain" 
                       />
@@ -719,7 +719,7 @@ export default function AllReceiptsPage() {
                   <div className="flex items-center gap-3 sm:gap-4">
                     {activeModal.data.university?.logo && (
                       <img 
-                        src={`${API_BASE_URL}/uploads/logos/${activeModal.data.university.logo}`} 
+                        src={getMediaUrl(activeModal.data.university.logo)} 
                         alt="Logo" 
                         className="w-12 h-12 sm:w-16 sm:h-16 object-contain" 
                       />

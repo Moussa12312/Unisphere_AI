@@ -204,27 +204,43 @@ export default function StudentsPage() {
           />
         </div>
       
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
-                    <button
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full md:w-auto">
+          <button
+            onClick={handleExportExcel}
+            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+            title="Exporter la liste en Excel (.xlsx)"
+          >
+            <FileSpreadsheet size={16} />
+            <span>Excel</span>
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+            title="Exporter la liste en CSV (.csv)"
+          >
+            <Download size={16} />
+            <span>CSV</span>
+          </button>
+          <button
             onClick={() => setShowEmailModal(true)}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
           >
             <Mail size={16} />
             <span>Modifier un email</span>
           </button>
           <Link
             href="/admin/students/bulk"
-            className="bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
+            className="bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
           >
             <UploadCloud size={16} />
             <span>Inscription en masse</span>
           </Link>
           <Link
             href="/admin/students/create"
-            className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all"
+            className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-all"
           >
             <Plus size={16} />
-            <span>Ajouter un étudiant</span>
+            <span>Ajouter</span>
           </Link>
         </div>
       </div>
