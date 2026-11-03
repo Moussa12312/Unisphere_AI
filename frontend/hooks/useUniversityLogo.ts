@@ -2,20 +2,21 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { universityService } from '@/services/universityService';
-import { API_BASE_URL } from '@/lib/api';
+import { getMediaUrl } from '@/lib/api';
 
 export function useUniversityLogo() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [universityName, setUniversityName] = useState<string>('UniSphere AI');
   const [slogan, setSlogan] = useState<string>('');
+  const [primaryColor, setPrimaryColor] = useState<string>('#FF6B00');
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadLogo = useCallback(async () => {
     try {
       setLoading(true);
 
-      // ✅ Pour le Super-Admin ou sur toute route /superadmin :
-      // Afficher UNIQUEMENT l'identité SaaS UniSphere AI, JAMAIS les données d'une université cliente
+      // Pour le Super-Admin ou sur toute route /superadmin :
+      // Afficher UNIQUEMENT l'identité centrale SaaS UniSphere AI
       if (typeof window !== 'undefined') {
         const path = window.location.pathname;
         const role = localStorage.getItem('role');
@@ -38,21 +39,45 @@ export function useUniversityLogo() {
 
       const info = await universityService.getInfo();
       if (info) {
-        if (info.name) setUniversityName(info.name);
+        const name = info.name || 'UniSphere AI';
+        setUniversityName(name);
         if (info.slogan) setSlogan(info.slogan);
+        if (info.primary_color) setPrimaryColor(info.primary_color);
 
+        let finalLogo: string | null = null;
         if (info.logo) {
-          if (info.logo.startsWith('http://') || info.logo.startsWith('https://')) {
-            setLogoUrl(info.logo);
-          } else if (info.logo.startsWith('/')) {
-            setLogoUrl(`${API_BASE_URL}${info.logo}`);
-          } else {
-            const hasUploadPath = info.logo.includes('uploads/logos') || info.logo.includes('uploads\\logos');
-            const cleanPath = hasUploadPath ? `/${info.logo}` : `/uploads/logos/${info.logo}`;
-            setLogoUrl(`${API_BASE_URL}${cleanPath}`);
-          }
+          finalLogo = getMediaUrl(info.logo);
+          setLogoUrl(finalLogo);
         } else {
           setLogoUrl(null);
+        }
+
+        // 🎯 Adaptation dynamique du Favicon et du Titre de l'onglet du navigateur
+        if (typeof document !== 'undefined') {
+          if (finalLogo) {
+            let iconLink: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+            if (!iconLink) {
+              iconLink = document.createElement('link');
+              iconLink.rel = 'shortcut icon';
+              document.head.appendChild(iconLink);
+            }
+            iconLink.href = finalLogo;
+
+            // Apple Touch Icon pour mobiles
+            let appleIcon: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']");
+            if (!appleIcon) {
+              appleIcon = document.createElement('link');
+              appleIcon.rel = 'apple-touch-icon';
+              document.head.appendChild(appleIcon);
+            }
+            appleIcon.href = finalLogo;
+          }
+
+          if (name && name !== 'UniSphere AI') {
+            if (!document.title.includes(name)) {
+              document.title = `${name} — UniSphere AI`;
+            }
+          }
         }
       }
     } catch (err) {
@@ -80,6 +105,7 @@ export function useUniversityLogo() {
     logoUrl,
     universityName,
     slogan,
+    primaryColor,
     loading,
     refreshLogo: loadLogo
   };

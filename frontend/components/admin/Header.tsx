@@ -75,6 +75,11 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
   const isLargeDesktop = useMinWidth(960); 
   const isMobile = useMaxWidth(600); 
   const { logoUrl, universityName, slogan } = useUniversityLogo();
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setLogoLoadFailed(false);
+  }, [logoUrl]);
   
   const [user, setUser] = useState<any>(propUser);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -415,12 +420,13 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
                   UniSphere AI
                 </span>
               </>
-            ) : logoUrl ? (
+            ) : (logoUrl && !logoLoadFailed) ? (
               <>
                 <img 
                   src={logoUrl} 
                   alt={universityName} 
                   className="w-8 h-8 object-contain rounded-lg bg-white p-0.5 border border-slate-200 dark:border-slate-700 shadow-sm flex-shrink-0" 
+                  onError={() => setLogoLoadFailed(true)}
                 />
                 <span className="font-extrabold text-slate-900 dark:text-white text-xs truncate max-w-[130px]">
                   {universityName || 'UniSphere AI'}

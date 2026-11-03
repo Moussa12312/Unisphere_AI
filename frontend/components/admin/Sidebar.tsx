@@ -525,6 +525,11 @@ export default function Sidebar({ userRole }: SidebarProps) {
   );
 
   const { logoUrl, universityName, slogan, loading } = useUniversityLogo();
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setLogoLoadFailed(false);
+  }, [logoUrl]);
   const { settings } = useSettings();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -570,18 +575,15 @@ export default function Sidebar({ userRole }: SidebarProps) {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0a1628] to-[#1e293b] border border-[#FF6B00]/40 flex items-center justify-center flex-shrink-0 shadow-md">
                 <Shield className="text-[#FF6B00]" size={22} />
               </div>
-            ) : logoUrl ? (
-              <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 p-1 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+            ) : (logoUrl && !logoLoadFailed) ? (
+              <div className="w-10 h-10 rounded-xl bg-white p-1 border border-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
                 <img
                   src={logoUrl}
-                  alt="Logo Université"
+                  alt={universityName}
                   className="w-full h-full object-contain rounded-lg"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
+                  onError={() => setLogoLoadFailed(true)}
                 />
-              </div>
-            ) : (
+              </div>) : (
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF6B00] to-amber-500 border border-white/20 flex items-center justify-center flex-shrink-0 shadow-md">
                 <span className="text-lg font-extrabold text-white">
                   {universityName.charAt(0).toUpperCase()}
