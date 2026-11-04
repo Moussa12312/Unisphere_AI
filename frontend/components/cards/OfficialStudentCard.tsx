@@ -146,14 +146,14 @@ export default function OfficialStudentCard({
               <rect x="0" y="0" width="856" height="540" rx="28" ry="28" />
             </clipPath>
 
-            {/* Découpe arrondie de la photo */}
+            {/* Découpe arrondie de la photo (collée au bord gauche) */}
             <clipPath id={clipPhotoId}>
-              <rect x="52" y="156" width="200" height="260" rx="18" ry="18" />
+              <rect x="22" y="148" width="206" height="274" rx="16" ry="16" />
             </clipPath>
 
-            {/* Découpe circulaire du logo */}
+            {/* Découpe circulaire du logo (agrandi) */}
             <clipPath id={clipLogoId}>
-              <circle cx="95" cy="80" r="41" />
+              <circle cx="82" cy="74" r="49" />
             </clipPath>
 
             {/* Ombre légère pour le QR Code */}
@@ -200,25 +200,25 @@ export default function OfficialStudentCard({
             />
 
             {/* ============================================================== */}
-            {/* 3. LOGO & TEXTES DE L'UNIVERSITÉ DANS L'EN-TÊTE                */}
+            {/* 3. LOGO & NOM DE L'UNIVERSITÉ AGRANDIS DANS L'EN-TÊTE         */}
             {/* ============================================================== */}
-            {/* Badge circulaire blanc */}
-            <circle cx="95" cy="80" r="44" fill="#FFFFFF" stroke={accentColor} strokeWidth="3" />
+            {/* Badge circulaire blanc agrandi */}
+            <circle cx="82" cy="74" r="52" fill="#FFFFFF" stroke={accentColor} strokeWidth="3.5" />
 
-            {/* Logo officiel de l'établissement avec fallback académique */}
+            {/* Logo officiel agrandi avec fallback académique */}
             {universityLogoUrl ? (
               <image
                 href={universityLogoUrl}
-                x="54"
-                y="39"
-                width="82"
-                height="82"
+                x="33"
+                y="25"
+                width="98"
+                height="98"
                 preserveAspectRatio="xMidYMid meet"
                 clipPath={`url(#${clipLogoId})`}
                 onError={() => setLogoError(true)}
               />
             ) : (
-              <g transform="translate(63, 48)">
+              <g transform="translate(47, 39) scale(1.15)">
                 <path d="M32 15L7 28L32 40L57 28L32 15Z" fill={primaryColor} />
                 <path d="M17 33V43C17 48 24 51 32 51C40 51 47 48 47 43V33L32 40L17 33Z" fill={primaryColor} />
                 <circle cx="32" cy="28" r="3" fill={accentColor} />
@@ -227,154 +227,154 @@ export default function OfficialStudentCard({
               </g>
             )}
 
-            {/* Titre & Sous-titre de l'établissement (taille et ajustement dynamiques) */}
+            {/* Titre & Sous-titre de l'établissement agrandis et mis en valeur */}
             {univName.toLowerCase().includes('unisphere') ? (
-              <text x="156" y="77" fill="#FFFFFF" fontSize="33" fontWeight="800" letterSpacing="-0.5">
+              <text x="148" y="75" fill="#FFFFFF" fontSize="38" fontWeight="900" letterSpacing="-0.5">
                 UniSphere <tspan fill={accentColor} fontWeight="900">AI</tspan>
               </text>
             ) : (
               <text
-                x="156"
-                y="77"
+                x="148"
+                y="75"
                 fill="#FFFFFF"
-                fontSize={univName.length > 25 ? 22 : univName.length > 18 ? 26 : 30}
-                fontWeight="800"
+                fontSize={univName.length > 25 ? 26 : univName.length > 18 ? 31 : 36}
+                fontWeight="900"
                 letterSpacing="-0.5"
-                {...(univName.length > 25 ? { textLength: 520, lengthAdjust: "spacingAndGlyphs" } : {})}
+                {...(univName.length > 25 ? { textLength: 540, lengthAdjust: "spacingAndGlyphs" } : {})}
               >
                 {univName}
               </text>
             )}
             <text
-              x="158"
-              y="107"
+              x="150"
+              y="108"
               fill="#FFFFFF"
-              fontSize={subtitle.length > 32 ? 15 : 19}
-              fontWeight="400"
+              fontSize={subtitle.length > 32 ? 17 : 21}
+              fontWeight="500"
               letterSpacing="0.4"
               opacity="0.95"
-              {...(subtitle.length > 32 ? { textLength: 500, lengthAdjust: "spacingAndGlyphs" } : {})}
+              {...(subtitle.length > 32 ? { textLength: 520, lengthAdjust: "spacingAndGlyphs" } : {})}
             >
               {subtitle}
             </text>
 
             {/* ============================================================== */}
-            {/* 4. PHOTO OFFICIELLE DE L'ÉTUDIANT (COLONNE GAUCHE)             */}
+            {/* 4. PHOTO OFFICIELLE DE L'ÉTUDIANT (BORD GAUCHE)                */}
             {/* ============================================================== */}
             <g>
-              {/* Photo recadrée nette */}
+              {/* Photo recadrée nette collée au bord gauche */}
               <image
                 href={studentPhotoUrl}
-                x="52"
-                y="156"
-                width="200"
-                height="260"
+                x="22"
+                y="148"
+                width="206"
+                height="274"
                 preserveAspectRatio="xMidYMid slice"
                 clipPath={`url(#${clipPhotoId})`}
                 onError={() => setPhotoError(true)}
               />
-              {/* Cadre fin */}
+              {/* Cadre protecteur */}
               <rect
-                x="52"
-                y="156"
-                width="200"
-                height="260"
-                rx="18"
-                ry="18"
+                x="22"
+                y="148"
+                width="206"
+                height="274"
+                rx="16"
+                ry="16"
                 fill="none"
                 stroke="#E2E8F0"
-                strokeWidth="1.5"
+                strokeWidth="1.8"
               />
             </g>
 
             {/* ============================================================== */}
-            {/* 5. INFORMATIONS DE L'ÉTUDIANT (COLONNE CENTRALE ADAPTATIVE)    */}
+            {/* 5. INFORMATIONS DE L'ÉTUDIANT AGRANDIES (ZONE CENTRALE ÉLARGIE) */}
             {/* ============================================================== */}
-            <g fontSize="23" fontFamily="Inter, system-ui, -apple-system, sans-serif">
+            <g fontSize="26" fontFamily="Inter, system-ui, -apple-system, sans-serif">
               {/* 5.1 Nom */}
-              <text x="280" y="206" fill={primaryColor} fontWeight="700">Nom :</text>
+              <text x="240" y="196" fill={primaryColor} fontWeight="700">Nom :</text>
               <text
-                x="365"
-                y="206"
-                fill="#1E293B"
-                fontWeight="500"
-                fontSize={(student.last_name || '').length > 16 ? 18 : 23}
-                {...((student.last_name || '').length > 16 ? { textLength: 210, lengthAdjust: "spacingAndGlyphs" } : {})}
+                x="335"
+                y="196"
+                fill="#0F172A"
+                fontWeight="600"
+                fontSize={(student.last_name || '').length > 16 ? 22 : 26}
+                {...((student.last_name || '').length > 16 ? { textLength: 285, lengthAdjust: "spacingAndGlyphs" } : {})}
               >
                 {student.last_name || 'Diallo'}
               </text>
-              <line x1="280" y1="220" x2="575" y2="220" stroke="#E2E8F0" strokeWidth="1.4" />
+              <line x1="240" y1="212" x2="626" y2="212" stroke="#E2E8F0" strokeWidth="1.6" />
 
               {/* 5.2 Prénom */}
-              <text x="280" y="254" fill={primaryColor} fontWeight="700">Prénom :</text>
+              <text x="240" y="248" fill={primaryColor} fontWeight="700">Prénom :</text>
               <text
-                x="395"
-                y="254"
-                fill="#1E293B"
-                fontWeight="500"
-                fontSize={(student.first_name || '').length > 14 ? 18 : 23}
-                {...((student.first_name || '').length > 14 ? { textLength: 180, lengthAdjust: "spacingAndGlyphs" } : {})}
+                x="368"
+                y="248"
+                fill="#0F172A"
+                fontWeight="600"
+                fontSize={(student.first_name || '').length > 14 ? 22 : 26}
+                {...((student.first_name || '').length > 14 ? { textLength: 252, lengthAdjust: "spacingAndGlyphs" } : {})}
               >
                 {student.first_name || 'Moussa'}
               </text>
-              <line x1="280" y1="268" x2="575" y2="268" stroke="#E2E8F0" strokeWidth="1.4" />
+              <line x1="240" y1="264" x2="626" y2="264" stroke="#E2E8F0" strokeWidth="1.6" />
 
               {/* 5.3 Matricule */}
-              <text x="280" y="302" fill={primaryColor} fontWeight="700">Matricule :</text>
-              <text x="410" y="302" fill="#1E293B" fontWeight="500" letterSpacing="0.3">
+              <text x="240" y="300" fill={primaryColor} fontWeight="700">Matricule :</text>
+              <text x="385" y="300" fill="#0F172A" fontWeight="700" letterSpacing="0.4">
                 {student.matricule || `UAI${academicYear.slice(0, 4)}${String(student.id || 1).padStart(3, '0')}`}
               </text>
-              <line x1="280" y1="316" x2="575" y2="316" stroke="#E2E8F0" strokeWidth="1.4" />
+              <line x1="240" y1="316" x2="626" y2="316" stroke="#E2E8F0" strokeWidth="1.6" />
 
-              {/* 5.4 Filière (adaptative simple ou double ligne pour noms longs) */}
-              <text x="280" y={filiereLines.length > 1 ? 346 : 352} fill={primaryColor} fontWeight="700">Filière :</text>
+              {/* 5.4 Filière (agrandie et adaptative) */}
+              <text x="240" y={filiereLines.length > 1 ? 346 : 352} fill={primaryColor} fontWeight="700">Filière :</text>
               {filiereLines.length > 1 ? (
-                <text x="370" y="344" fill="#1E293B" fontWeight="500" fontSize="16">
-                  <tspan x="370" dy="0">{filiereLines[0]}</tspan>
-                  <tspan x="370" dy="19">{filiereLines[1]}</tspan>
+                <text x="355" y="342" fill="#0F172A" fontWeight="600" fontSize="19">
+                  <tspan x="355" dy="0">{filiereLines[0]}</tspan>
+                  <tspan x="355" dy="22">{filiereLines[1]}</tspan>
                 </text>
               ) : (
                 <text
-                  x="370"
+                  x="355"
                   y="352"
-                  fill="#1E293B"
-                  fontWeight="500"
-                  fontSize={filiereText.length > 18 ? 17 : 22}
-                  {...(filiereText.length > 18 ? { textLength: 205, lengthAdjust: "spacingAndGlyphs" } : {})}
+                  fill="#0F172A"
+                  fontWeight="600"
+                  fontSize={filiereText.length > 20 ? 21 : 25}
+                  {...(filiereText.length > 20 ? { textLength: 265, lengthAdjust: "spacingAndGlyphs" } : {})}
                 >
                   {filiereText}
                 </text>
               )}
-              <line x1="280" y1={filiereLines.length > 1 ? 376 : 368} x2="575" y2={filiereLines.length > 1 ? 376 : 368} stroke="#E2E8F0" strokeWidth="1.4" />
+              <line x1="240" y1={filiereLines.length > 1 ? 376 : 368} x2="626" y2={filiereLines.length > 1 ? 376 : 368} stroke="#E2E8F0" strokeWidth="1.6" />
 
               {/* 5.5 Niveau */}
-              <text x="280" y="410" fill={primaryColor} fontWeight="700">Niveau :</text>
-              <text x="385" y="410" fill="#1E293B" fontWeight="600">{student.level || 'L1'}</text>
-              <line x1="280" y1="426" x2="575" y2="426" stroke="#E2E8F0" strokeWidth="1.4" />
+              <text x="240" y="416" fill={primaryColor} fontWeight="700">Niveau :</text>
+              <text x="360" y="416" fill="#0F172A" fontWeight="800" fontSize="27">{student.level || 'L1'}</text>
+              <line x1="240" y1="432" x2="626" y2="432" stroke="#E2E8F0" strokeWidth="1.6" />
             </g>
 
             {/* ============================================================== */}
-            {/* 6. QR CODE SÉCURISÉ PROPORTIONNÉ (COLONNE DROITE)             */}
+            {/* 6. QR CODE SÉCURISÉ (COLLÉ AU BORD DROIT)                      */}
             {/* ============================================================== */}
             {showQrCode && (
               <g filter={`url(#${shadowId})`}>
                 <rect
-                  x="598"
-                  y="180"
-                  width="206"
-                  height="206"
+                  x="638"
+                  y="172"
+                  width="196"
+                  height="196"
                   rx="18"
                   ry="18"
                   fill="#FFFFFF"
                   stroke="#E2E8F0"
-                  strokeWidth="1.5"
+                  strokeWidth="1.8"
                 />
                 <image
                   href={qrCodeUrl}
-                  x="609"
-                  y="191"
-                  width="184"
-                  height="184"
+                  x="648"
+                  y="182"
+                  width="176"
+                  height="176"
                   preserveAspectRatio="xMidYMid meet"
                   onError={() => setQrError(true)}
                 />
