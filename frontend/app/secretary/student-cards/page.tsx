@@ -139,7 +139,13 @@ export default function SecretaryStudentCardsPrintPage() {
   // Onglet actif : 'print' | 'customize' | 'secretary'
   const [activeTab, setActiveTab] = useState<'print' | 'customize' | 'secretary'>('print');
   const [previewSide, setPreviewSide] = useState<'recto' | 'verso'>('recto');
-  const [secretaryUser, setSecretaryUser] = useState<Record<string, unknown> | null>(null);
+  interface SecretaryUser {
+  id?: number;
+  full_name?: string;
+  email?: string;
+  role?: string;
+}
+const [secretaryUser, setSecretaryUser] = useState<SecretaryUser | null>(null);
 
   // État de personnalisation de la carte
   const [customization, setCustomization] = useState<CardCustomizationState>({
@@ -367,7 +373,7 @@ export default function SecretaryStudentCardsPrintPage() {
       >
         <OfficialStudentCard
           student={student}
-          university={universityInfo}
+          university={universityInfo || undefined}
           customization={customization}
           side="recto"
           mode="print"
@@ -768,7 +774,7 @@ export default function SecretaryStudentCardsPrintPage() {
                 <div className="w-full max-w-[420px] transform hover:scale-[1.01] transition-transform">
                   <OfficialStudentCard
                     student={sampleStudent}
-                    university={universityInfo}
+                    university={universityInfo || undefined}
                     customization={customization}
                     side={previewSide}
                     mode="responsive"
@@ -889,7 +895,7 @@ export default function SecretaryStudentCardsPrintPage() {
             <div className="w-full max-w-[380px] sm:max-w-[420px] flex-shrink-0 flex justify-center">
               <OfficialStudentCard
                 student={sampleStudent}
-                university={universityInfo}
+                university={universityInfo || undefined}
                 customization={customization}
                 side="recto"
                 mode="responsive"
@@ -1100,7 +1106,7 @@ export default function SecretaryStudentCardsPrintPage() {
                   filiere: 'Administration & Registre',
                   level: 'Personnel'
                 }}
-                university={universityInfo}
+                university={universityInfo || undefined}
                 customization={customization}
                 side="recto"
                 mode="responsive"
@@ -1158,7 +1164,7 @@ export default function SecretaryStudentCardsPrintPage() {
                   <div key={s.id} className="w-full">
                     <OfficialStudentCard
                       student={s}
-                      university={universityInfo}
+                      university={universityInfo || undefined}
                       customization={customization}
                       side="recto"
                       mode="responsive"

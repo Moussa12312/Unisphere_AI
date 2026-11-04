@@ -815,7 +815,6 @@ export default function AcademicConfigPage() {
                     value={selectedDomain}
                     onChange={(e) => {
                       setSelectedDomain(e.target.value);
-                      setEditingFee(null);
                     }}
                     className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                   >
