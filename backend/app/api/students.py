@@ -86,6 +86,20 @@ def parse_date_safely(date_val: Optional[Any]) -> Optional[date]:
     return None
 
 
+def _safe_float(v: Optional[Any], default: Any = 0.0) -> Any:
+    """Convertit n'importe quelle valeur en float sans risque d'UnboundLocalError ou ValueError"""
+    if v is None:
+        return default
+    try:
+        s = str(v).strip()
+        return float(s) if s != "" else default
+    except (ValueError, TypeError):
+        return default
+
+
+_safe_f = _safe_float
+
+
 def generate_matricule(db: Session, university_id: int, university_name: str) -> str:
     """Génère un matricule unique au format XX-YYYY-NNNN"""
     prefix = university_name[:2].upper() if len(university_name) >= 2 else university_name.upper()
@@ -208,21 +222,19 @@ async def create_student(
         auto_matricule = generate_matricule(db, current_user.university_id, univ_name)
 
         normalized_student_type = "returning" if student_type == "returning" else "new"
+
+        # Valeurs saines des remises (toujours définies, même sans remise)
+        disc_amt = _safe_float(discount_amount, 0.0)
+        disc_pct = _safe_float(discount_percentage, 0.0)
+
         # Calcul du net convenu si une remise est saisie
-        computed_net = float(net_tuition_amount) if net_tuition_amount is not None else None
-        if computed_net is None and (float(discount_amount or 0.0) > 0 or float(discount_percentage or 0.0) > 0):
+        computed_net = _safe_float(net_tuition_amount, None) if (net_tuition_amount is not None and str(net_tuition_amount).strip() != "") else None
+        if computed_net is None and (disc_amt > 0 or disc_pct > 0):
             from app.utils.tuition import find_matching_academic_fee
             temp_stub = Student(level=level, domain=domain, filiere=filiere)
             matched_fee = find_matching_academic_fee(db, temp_stub, current_user.university_id, "scolarite")
             base_val = float(matched_fee.amount) if matched_fee else 0.0
-            def _safe_f(v, default=0.0):
-                try:
-                    return float(str(v).strip()) if v is not None and str(v).strip() != "" else default
-                except (ValueError, TypeError):
-                    return default
 
-            disc_amt = _safe_f(discount_amount, 0.0)
-            disc_pct = _safe_f(discount_percentage, 0.0)
             if disc_amt > 0:
                 computed_net = max(0.0, base_val - disc_amt)
             elif disc_pct > 0:
@@ -251,8 +263,8 @@ async def create_student(
             university_name=univ_name,
             status="active",
             file_status="incomplete",
-            discount_amount=_safe_f(discount_amount, 0.0),
-            discount_percentage=_safe_f(discount_percentage, 0.0),
+            discount_amount=disc_amt,
+            discount_percentage=disc_pct,
             discount_reason=discount_reason,
             discount_approved_by=discount_approved_by,
             net_tuition_amount=computed_net,
