@@ -350,159 +350,295 @@ def get_guard_context(db: Session, university_id: int) -> dict:
 # ENDPOINT UNIFIÉ : CHAT AVEC L'IA (PROMPT AMÉLIORÉ)
 # ==========================================
 
+def call_llm_provider(system_prompt: str, conversation_history: list, user_message: str):
+    """Interroge le meilleur fournisseur LLM configuré dans .env (Groq, OpenAI, Gemini, OpenRouter)."""
+    messages = [{"role": "system", "content": system_prompt}]
+    for msg in conversation_history[-10:]:
+        messages.append({
+            "role": msg.get("role", "user"),
+            "content": msg.get("content", "")
+        })
+    messages.append({"role": "user", "content": user_message})
+
+    # 1. Groq (Prioritaire : 100% gratuit, extrêmement rapide, LLaMA 3.3 70B)
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if groq_api_key and groq_api_key.strip() and not groq_api_key.startswith("gsk_placeholder"):
+        try:
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=groq_api_key.strip(),
+                base_url="https://api.groq.com/openai/v1"
+            )
+            completion = client.chat.completions.create(
+                model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1500,
+            )
+            return completion.choices[0].message.content, "UniSphere AI (Groq LLaMA 3.3)"
+        except Exception as e:
+            print(f"⚠️ Erreur Groq: {e}")
+
+    # 2. OpenAI officiel (GPT-4o / GPT-4o-mini)
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    if openai_api_key and openai_api_key.strip() and not openai_api_key.startswith("sk-placeholder"):
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=openai_api_key.strip())
+            completion = client.chat.completions.create(
+                model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1500,
+            )
+            return completion.choices[0].message.content, "UniSphere AI (OpenAI GPT-4o)"
+        except Exception as e:
+            print(f"⚠️ Erreur OpenAI: {e}")
+
+    # 3. Google Gemini (via endpoint OpenAI compatible)
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    if gemini_api_key and gemini_api_key.strip() and not gemini_api_key.startswith("AIza_placeholder"):
+        try:
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=gemini_api_key.strip(),
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            )
+            completion = client.chat.completions.create(
+                model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1500,
+            )
+            return completion.choices[0].message.content, "UniSphere AI (Google Gemini)"
+        except Exception as e:
+            print(f"⚠️ Erreur Gemini: {e}")
+
+    # 4. OpenRouter
+    openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+    if openrouter_api_key and openrouter_api_key.strip():
+        try:
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=openrouter_api_key.strip(),
+                base_url="https://openrouter.ai/api/v1"
+            )
+            completion = client.chat.completions.create(
+                model=os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct"),
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1500,
+            )
+            return completion.choices[0].message.content, "UniSphere AI (OpenRouter)"
+        except Exception as e:
+            print(f"⚠️ Erreur OpenRouter: {e}")
+
+    return None, None
+
+
 def generate_local_ai_response(message: str, context: dict, user_name: str) -> str:
-    """Moteur IA local contextuel intelligent et riche pour UniSphere AI."""
+    """Moteur IA local contextuel étendu, dynamique et intelligent pour UniSphere AI."""
     msg = message.lower().strip()
     role = context.get("role", "admin")
     role_label = context.get("role_label", "Utilisateur")
     first_name = user_name.split()[0] if user_name else "cher collègue"
 
-    # 1. Salutations & Présentation
-    if any(k in msg for k in ["bonjour", "salut", "coucou", "hello", "bonsoir", "qui es-tu", "qui es tu", "tu es qui", "ton rôle", "que peux-tu faire", "aide"]):
-        return (
-            f"Bonjour {first_name} ! Je suis **UniSphere AI**, l'assistant intelligent de votre établissement universitaire. 🎓\n\n"
-            f"En tant que **{role_label}**, vous pouvez m'interroger sur :\n"
-            f"• 👥 **Effectifs & Inscriptions** (étudiants, filières, promotions)\n"
-            f"• 📚 **Notes, Délibérations & Rattrapages** (jury LMD, seuil de validation, rattrapages)\n"
-            f"• 📅 **Emplois du temps & Salles** (créneaux de cours, disponibilités)\n"
-            f"• ⏱️ **Présences & Suivi enseignant** (taux d'assiduité, ponctualité, scans)\n"
-            f"• 💳 **Finances & Scolarité** (recouvrement des tranches, quittances)\n"
-            f"• 📜 **Attestations & Relevés de notes** (génération et validation)\n"
-            f"• 🤝 **Réseau Alumni & Mentorat**\n\n"
-            f"Quelle information souhaitez-vous consulter aujourd'hui ?"
-        )
-
-    # 2. Délibérations & Jurys
-    if any(k in msg for k in ["deliberation", "délibération", "jury", "pv", "regle de deliberation", "règle de délibération"]):
-        return (
-            f"⚖️ **Système de Délibération Académique (LMD) :**\n\n"
-            f"Le module de délibération d'UniSphere AI applique les règles officielles de l'enseignement supérieur :\n"
-            f"1. **Validation directe :** Moyenne générale ≥ 10.0/20 et validation des 30 crédits du semestre (ou 60 crédits de l'année).\n"
-            f"2. **Compensation LMD :** Compensation inter-matières au sein d'une même UE si la moyenne de l'UE atteint le seuil requis.\n"
-            f"3. **Orientation vers le rattrapage :** Les étudiants ayant des UE ajournées (< 10/20 non compensables) sont automatiquement versés en session de rattrapage.\n"
-            f"4. **Procès-Verbal (PV) :** Génération automatique du PV de jury officiel avec signatures et mention (Passable, Assez-Bien, Bien, Très-Bien).\n\n"
-            f"💡 Les règles de calcul peuvent être affinées dans la section *Administration > Délibérations > Règles*."
-        )
-
-    # 3. Rattrapages & Sessions de rattrapage
-    if any(k in msg for k in ["rattrapage", "session de rattrapage", "ajourne", "ajourné", "recalé", "note eliminatoire", "note éliminatoire"]):
-        return (
-            f"📝 **Gestion des Sessions de Rattrapage :**\n\n"
-            f"• **Éligibilité :** Tout étudiant ayant obtenu une note inférieure à 10/20 à la session normale sur une matière non validée par compensation est éligible au rattrapage.\n"
-            f"• **Organisation :** Le Censeur et le Secrétaire peuvent consulter la liste des candidats par filière et générer l'état complet en Excel (.xlsx).\n"
-            f"• **Prise en compte de la note :** La note retenue après délibération de rattrapage est calculée selon la règle de la meilleure note (Session 1 vs Session 2).\n"
-            f"• **Export :** Vous pouvez exporter la liste des étudiants en rattrapage depuis *Examens > Rattrapages*."
-        )
-
-    # 4. Emploi du temps & Planning
-    if any(k in msg for k in ["emploi du temps", "planning", "horaire", "cours du jour", "salle", "creneau", "créneau"]):
-        return (
-            f"📅 **Emploi du Temps & Planification :**\n\n"
-            f"L'emploi du temps est synchronisé en temps réel avec les présences et les cartes étudiantes :\n"
-            f"• Les cours sont structurés par jour (Lundi au Samedi) avec horaires de début et de fin, salle attribuée et enseignant titulaire.\n"
-            f"• La présence des élèves est automatiquement vérifiée par rapport aux cours réellement programmés dans leur emploi du temps.\n"
-            f"• Vous pouvez consulter et imprimer le planning hebdomadaire depuis *Planning / Emploi du temps*."
-        )
-
-    # 5. Notes, Saisie & Clôture
-    if any(k in msg for k in ["fermer la saisie", "cloture", "clôture", "saisie des notes", "valider les notes", "bulletin", "releve", "relevé"]):
-        return (
-            f"📊 **Gestion et Clôture des Notes :**\n\n"
-            f"• **Saisie :** Les enseignants et le secrétariat peuvent renseigner les notes de Contrôle Continu (CC) et d'Examen.\n"
-            f"• **Validation Censeur :** Le Censeur vérifie les anomalies statistiques (notes aberrantes, écarts types).\n"
-            f"• **Verrouillage de sécurité :** Un bouton *'Fermer / Rouvrir la saisie des notes'* est disponible sur les interfaces Administration, Censeur et Secrétaire pour geler toute modification dès que les notes sont proclamées."
-        )
-
-    # 6. Attestations, Certificats & Documents
-    if any(k in msg for k in ["attestation", "certificat", "document", "demande d'attestation", "releve officiel"]):
-        return (
-            f"📜 **Attestations & Documents Officiels :**\n\n"
-            f"• Les étudiants peuvent soumettre des demandes en ligne : *Attestation de scolarité*, *Attestation de réussite*, *Relevé de notes officiel LMD*.\n"
-            f"• Dès que le Secrétariat valide ou refuse une demande, l'étudiant reçoit une **notification instantanée** sur son compte avec prévisualisation et bouton d'impression haute fidélité (marges aérées, logo officiel et QR code de vérification)."
-        )
-
-    # 7. Présence & Suivi des Enseignants
-    if any(k in msg for k in ["presence", "présence", "assiduite", "assiduité", "retard", "absent", "taux de presence", "suivi enseignant"]):
-        rate = context.get("attendance_rate", 0)
-        return (
-            f"⏱️ **Présences & Suivi de Ponctualité :**\n\n"
-            f"• **Taux d'assiduité global :** **{rate}%**.\n"
-            f"• **Double présence :** 1) Présence journalière à l'école (scan gardien ou synchronisation automatique dès que l'élève est noté présent en cours), et 2) Présence par module selon l'appel de l'enseignant.\n"
-            f"• **Suivi Enseignants :** Le tableau de bord Admin et Censeur intègre le suivi des heures effectives, des heures perdues et du taux de ponctualité de chaque enseignant."
-        )
-
-    # 8. Finances & Scolarité
-    if any(k in msg for k in ["chiffre d'affaire", "chiffre d'affaires", "argent", "revenu", "caisse", "recouvrement", "paiement", "impayé", "impaye", "solde", "tranche", "quittance"]):
-        rev = context.get("total_revenue", 0)
-        late = context.get("late", 0)
-        rate = context.get("collection_rate", 0)
-        rev_str = f"{rev:,.0f} FCFA".replace(",", " ")
-        late_str = f"{late:,.0f} FCFA".replace(",", " ")
-        return (
-            f"💳 **Situation Financière de l'Établissement :**\n\n"
-            f"• **Recouvrement total encaissé :** **{rev_str}**\n"
-            f"• **Reliquats / Tranches en attente :** **{late_str}**\n"
-            f"• **Taux de recouvrement :** **{rate}%**\n\n"
-            f"📄 Les quittances officielles font la distinction automatique entre une *'Attestation de paiement partiel'* (reste à solder) et une *'Quittance financière officielle'* (intégralité soldée 100%)."
-        )
-
-    # 9. Incidents & Gardiennage
-    if any(k in msg for k in ["incident", "securite", "sécurité", "gardien", "badge", "camera", "caméra"]):
-        return (
-            f"🛡️ **Sécurité & Contrôle d'Accès :**\n\n"
-            f"• **Scanner mobile :** Les gardiens peuvent scanner les badges par caméra directe ou en prenant une photo du badge sur mobile (compatible HTTP sans SSL).\n"
-            f"• **Signalement d'incidents :** Le gardien recherche directement l'élève avec sa photo et son nom complet pour enregistrer un incident sans devoir mémoriser son matricule."
-        )
-
-    # 10. Alumni & Insertion
-    if any(k in msg for k in ["alumni", "mentor", "insertion", "diplome", "diplômé", "ancien"]):
-        return (
-            f"🎓 **Réseau Alumni & Mentorat :**\n\n"
-            f"• Les étudiants peuvent explorer les profils des anciens diplômés de **leur domaine d'études** (pas seulement leur filière étroite) pour trouver un mentor, un directeur de mémoire ou une opportunité de stage.\n"
-            f"• Les alumni disposent d'un espace dédié pour échanger par messagerie sécurisée avec les étudiants."
-        )
-
-    # 11. Étudiants / Effectifs
-    if any(k in msg for k in ["etudiant", "étudiant", "effectif", "élève", "eleve", "inscrits"]):
-        total_students = context.get("total_students", 0)
-        filieres = context.get("filieres", {})
-        filiere_str = ""
-        if filieres and isinstance(filieres, dict):
-            top_filieres = sorted(filieres.items(), key=lambda x: x[1], reverse=True)[:3]
-            filiere_str = " Les filières les plus représentées sont : " + ", ".join([f"**{k}** ({v} étudiants)" for k, v in top_filieres]) + "."
-        return (
-            f"👥 L'établissement compte actuellement un effectif de **{total_students} étudiants inscrits**.{filiere_str}"
-        )
-
-    # 12. Enseignants
-    if any(k in msg for k in ["enseignant", "professeur", "prof", "profs"]):
-        total_teachers = context.get("total_teachers", 0)
-        return (
-            f"👨‍🏫 L'établissement compte **{total_teachers} enseignants** affectés aux différents départements académiques."
-        )
-
-    # 13. Filières
-    if any(k in msg for k in ["filiere", "filière", "departement", "département"]):
-        filieres = context.get("filieres", {})
-        if filieres and isinstance(filieres, dict):
-            items = [f"• **{k}** : {v} étudiants" for k, v in filieres.items()]
-            return "🏫 **Répartition des effectifs par filière :**\n\n" + "\n".join(items)
-        return "Toutes les filières académiques sont configurées avec leurs domaines et niveaux associés."
-
-    # 14. Réponse contextuelle globale personnalisée
     total_students = context.get("total_students", 0)
     total_teachers = context.get("total_teachers", 0)
     total_courses = context.get("total_courses", context.get("courses_count", 0))
     rate = context.get("attendance_rate", 0)
-    
+    rev = context.get("total_revenue", 0)
+    late = context.get("late", 0)
+    rev_str = f"{rev:,.0f} FCFA".replace(",", " ")
+    late_str = f"{late:,.0f} FCFA".replace(",", " ")
+
+    # 1. Salutations & Présentation
+    if any(k in msg for k in ["bonjour", "salut", "coucou", "hello", "bonsoir", "qui es-tu", "qui es tu", "tu es qui", "ton rôle", "que peux-tu faire"]):
+        return (
+            f"Bonjour {first_name} ! Je suis **UniSphere AI**, l'assistant intelligent de votre établissement. 🎓\n\n"
+            f"En tant que **{role_label}**, vous pouvez me poser des questions précises ou me demander d'effectuer des tâches :\n"
+            f"• 👥 **Inscriptions & Effectifs** : gestion des dossiers, matricules, filières\n"
+            f"• 📚 **Modules & Cours** : création, semestres, syllabus, crédits LMD\n"
+            f"• ⚖️ **Délibérations & Rattrapages** : seuils LMD, jurys, PV de délibération\n"
+            f"• 💳 **Finances & Scolarité** : 3 tranches (P1, P2, P3), paiements mensuels, quittances\n"
+            f"• 🪪 **Cartes Étudiantes & Badges** : format CR80, QR code de sécurité, tirage A4\n"
+            f"• ⏱️ **Présences & Assiduité** : scans des gardiens, appel en classe, seuil des 75%\n"
+            f"• 📝 **Pédagogie & Examens** : génération de sujets, QCM, fiches de révision\n\n"
+            f"Quelle tâche ou information souhaitez-vous aborder ?"
+        )
+
+    # 2. Cours, Modules, Enseignements & Semestres
+    if any(k in msg for k in ["cours", "module", "matiere", "matière", "enseignement", "semestre", "coefficient", "credit", "crédit", "syllabus"]):
+        return (
+            f"📚 **Gestion des Modules & Enseignements (Norme LMD) :**\n\n"
+            f"• **Organisation par Filière & Semestre :** Les modules sont rattachés à une filière précise et à un semestre (S1, S2, S3, S4, S5, S6).\n"
+            f"• **Création d'un module :** Rendez-vous dans *Cours & Modules > Créer un cours* pour définir l'intitulé, le code UE, le semestre concerné, le coefficient (ex: 2) et le volume horaire.\n"
+            f"• **Affectation des enseignants :** Chaque module est associé à un enseignant titulaire qui peut ensuite faire l'appel et saisir les notes.\n"
+            f"• **Syllabus & Supports :** L'enseignant peut déposer le syllabus officiel et les supports de cours téléchargeables par les étudiants.\n"
+            f"• **Situation actuelle :** L'établissement compte actuellement **{total_courses} modules configurés**."
+        )
+
+    # 3. Examens, Sessions & Calendrier
+    if any(k in msg for k in ["examen", "examens", "session d'examen", "calendrier", "planning d'examen", "date d'examen", "epreuve", "épreuve"]):
+        return (
+            f"🗓️ **Organisation des Examens & Sessions :**\n\n"
+            f"• **Sessions officielles :** Chaque année académique comprend la Session Normale (Session 1) et la Session de Rattrapage (Session 2).\n"
+            f"• **Planification :** Le calendrier des épreuves est configuré dans *Examens > Sessions d'examens* avec attribution des salles et des surveillants.\n"
+            f"• **Anonymat & PV :** Le système permet de générer les listes d'émargement et les procès-verbaux de surveillance d'examen conformes aux normes académiques.\n"
+            f"• **Consultation :** Les étudiants et enseignants peuvent consulter les dates et horaires depuis leur tableau de bord dans l'onglet *Examens*."
+        )
+
+    # 4. Délibérations & Jurys LMD
+    if any(k in msg for k in ["deliberation", "délibération", "jury", "pv de deliberation", "regle de deliberation", "validation lmd"]):
+        return (
+            f"⚖️ **Système de Délibération Académique (LMD) :**\n\n"
+            f"UniSphere AI applique les règles officielles de l'enseignement supérieur :\n"
+            f"1. **Validation directe :** Moyenne générale ≥ 10.0/20 et acquisition des 30 crédits du semestre (ou 60 crédits de l'année).\n"
+            f"2. **Compensation LMD :** Compensation automatique entre les matières d'une même Unité d'Enseignement (UE).\n"
+            f"3. **Basculement en rattrapage :** Les étudiants avec des modules ajournés (< 10/20 non compensés) sont automatiquement inscrits en session 2.\n"
+            f"4. **PV Officiel :** Génération instantanée du Procès-Verbal avec mentions (Passable, Assez-Bien, Bien, Très-Bien) et signatures.\n\n"
+            f"⚙️ Configurable dans *Administration > Délibérations > Règles*."
+        )
+
+    # 5. Rattrapages
+    if any(k in msg for k in ["rattrapage", "ajourne", "ajourné", "recalé", "note eliminatoire", "note éliminatoire", "deuxieme session"]):
+        return (
+            f"📝 **Gestion des Sessions de Rattrapage :**\n\n"
+            f"• **Candidats éligibles :** Tout étudiant ayant obtenu une note < 10/20 sur une matière non validée par compensation après délibération.\n"
+            f"• **Règle de la meilleure note :** La note finale retenue est `MAX(Session 1, Session 2)` afin de ne jamais pénaliser l'étudiant.\n"
+            f"• **Export Excel :** Le Censeur et le Secrétariat peuvent exporter la liste complète des candidats au rattrapage par filière depuis *Examens > Rattrapages*."
+        )
+
+    # 6. Inscriptions, Admission & Ajout d'étudiant
+    if any(k in msg for k in ["inscrire", "inscription", "admission", "ajouter un etudiant", "ajouter un étudiant", "nouveau etudiant", "matricule", "dossier"]):
+        return (
+            f"👤 **Inscriptions & Gestion des Étudiants :**\n\n"
+            f"• **Création individuelle :** Depuis *Secrétariat / Administration > Étudiants > Inscrire un étudiant* en renseignant identité, filière, niveau et tuteur.\n"
+            f"• **Import massif Excel :** Vous pouvez importer des promotions entières en quelques secondes via un fichier `.xlsx` depuis *Import en masse*.\n"
+            f"• **Génération automatique du Matricule :** UniSphere génère un identifiant unique (ex: `UAI2026001`) gravé sur la carte et encodé dans le QR code officiel.\n"
+            f"• **Effectif actuel :** **{total_students} étudiants inscrits** dans la base de données."
+        )
+
+    # 7. Cartes Étudiantes, Badges & Impression
+    if any(k in msg for k in ["carte", "carte etudiante", "carte étudiante", "badge", "imprimer la carte", "tirage", "cr80", "qr code", "filigrane"]):
+        return (
+            f"🪪 **Atelier des Cartes Étudiantes (Norme ISO CR80) :**\n\n"
+            f"• **Format Vectoriel Haute Fidélité :** Rendu officiel aux dimensions standard carte bancaire (85.6 × 54 mm).\n"
+            f"• **Design Institutionnel :** Double vague dynamique, photo d'identité haute résolution, devise officielle et logo de l'établissement.\n"
+            f"• **QR Code Sécurisé :** Scan direct par les gardiens à l'entrée pour vérification d'identité instantanée.\n"
+            f"• **Planches d'impression A4 :** Tirage en grille A4 prête à l'impression (recto ou verso) accessible depuis *Secrétariat > Cartes Étudiantes*.\n"
+            f"• **Personnalisation :** Choix parmi 8 palettes officielles ou personnalisation libre des couleurs."
+        )
+
+    # 8. Finances, Tranches & Modalité Mensuelle
+    if any(k in msg for k in ["tranche", "tranches", "scolarite", "scolarité", "frais", "tarif", "paiement", "recouvrement", "mensuel", "mensualite", "mensualité", "quittance", "recu", "reçu"]):
+        return (
+            f"💳 **Finances, Tranches & Échéanciers :**\n\n"
+            f"• **Configuration stricte à 3 tranches :** P1 (Rentrée / 40%), P2 (Semestre 1 / 30%), P3 (Semestre 2 / 30%) = 100% garanti.\n"
+            f"• **Option Mensuelle :** Permet un acompte initial à l'inscription suivi de mensualités fixes (ex: 5 mois × 100 000 FCFA).\n"
+            f"• **Situation financière :**\n"
+            f"  - Total encaissé : **{rev_str}**\n"
+            f"  - Reliquats en attente : **{late_str}**\n"
+            f"• **Quittances :** Génération automatique de reçus numérotés avec distinction entre paiement partiel et quittance soldée 100%."
+        )
+
+    # 9. Notes, Bulletins & Relevés LMD
+    if any(k in msg for k in ["note", "notes", "bulletin", "releve", "relevé", "moyenne", "gpa", "saisie des notes", "cloture", "clôture"]):
+        return (
+            f"📊 **Notes, Bulletins & Relevés Officiels :**\n\n"
+            f"• **Formule de notation :** Moyenne = `(CC × 0.3) + (Examen × 0.7)` (paramétrable dans la configuration académique).\n"
+            f"• **Circuit de validation :** Enseignant (saisie) ➔ Censeur (détection d'anomalies & validation) ➔ Proclamation des bulletins.\n"
+            f"• **Bulletins LMD :** Relevés de notes complets avec crédits ECTS, rang, moyenne générale et décision du jury.\n"
+            f"• **Verrouillage :** Option de gel immédiat de la saisie des notes pour empêcher toute altération post-délibération."
+        )
+
+    # 10. Présences & Assiduité
+    if any(k in msg for k in ["presence", "présence", "assiduite", "assiduité", "retard", "absent", "absence", "scan", "appel"]):
+        return (
+            f"⏱️ **Assiduité & Contrôle de Présence :**\n\n"
+            f"• **Taux d'assiduité actuel :** **{rate}%**.\n"
+            f"• **Double contrôle :** Scan des badges au portail par les gardiens + appel numérique en classe par les enseignants.\n"
+            f"• **Règle des 75% :** Tout étudiant ayant un taux d'assiduité inférieur à 75% peut être exclu de la session normale d'examen.\n"
+            f"• **Justifications :** Le secrétariat peut enregistrer les justificatifs médicaux ou administratifs pour régulariser les absences."
+        )
+
+    # 11. Pédagogie, Révision & Méthodes d'étude
+    if any(k in msg for k in ["conseil", "revision", "révision", "reviser", "réviser", "etudier", "étudier", "motivation", "methodologie", "méthodologie", "ameliorer", "améliorer"]):
+        return (
+            f"💡 **Conseils Pédagogiques & Méthode de Travail :**\n\n"
+            f"1. **Répétition espacée :** Revoir les notions 24h après le cours, puis à J+7 et J+30 pour ancrer la mémoire à long terme.\n"
+            f"2. **Pratique active :** Résoudre des exercices et des annales plutôt que de simplement relire passivement les polycopiés.\n"
+            f"3. **Gestion du temps (Pomodoro) :** Travailler par blocs intenses de 45 minutes suivis de 10 minutes de pause sans écran.\n"
+            f"4. **Groupes d'études :** Expliquer une notion difficile à un camarade est la meilleure preuve de maîtrise.\n"
+            f"5. **Suivi des notes :** Utilisez votre tableau de bord UniSphere pour identifier vos matières fragiles et cibler vos efforts."
+        )
+
+    # 12. Création de QCM ou Sujets d'examen (Génération pédagogique)
+    if any(k in msg for k in ["qcm", "sujet d'examen", "exercice", "test", "interrogation"]):
+        return (
+            f"📋 **Modèle de Génération d'Épreuve / QCM :**\n\n"
+            f"Voici la structure recommandée pour une épreuve universitaire équilibrée :\n"
+            f"• **Partie 1 — Contrôle des connaissances fondamentales (5 pts) :** 5 questions QCM à réponse unique pour vérifier les définitions clés.\n"
+            f"• **Partie 2 — Application directe / Exercice guidé (7 pts) :** Cas pratique ou problème court appliquant le cours.\n"
+            f"• **Partie 3 — Problème d'analyse & Synthèse (8 pts) :** Mise en situation complexe demandant réflexion critique et argumentation.\n\n"
+            f"💡 *Précisez le thème exact de votre cours (ex: 'QCM en Algorithmique L1' ou 'Cas pratique en Droit des Sociétés L3') pour que je vous génère les questions complètes avec barème et corrigé !*"
+        )
+
+    # 13. Sécurité & Gardiennage
+    if any(k in msg for k in ["securite", "sécurité", "gardien", "incident", "camera", "caméra"]):
+        return (
+            f"🛡️ **Sécurité & Contrôle d'Accès :**\n\n"
+            f"• **Scanner mobile HTTP/HTTPS :** Fonctionne directement sur le smartphone du gardien via caméra ou prise de photo du badge.\n"
+            f"• **Recherche visuelle :** Si un élève a oublié son badge, le gardien peut le rechercher par nom/photo pour valider son entrée.\n"
+            f"• **Signalement d'incidents :** Enregistrement immédiat des retards majeurs, dégradations ou comportements anormaux notifiant la direction."
+        )
+
+    # 14. Alumni & Mentorat
+    if any(k in msg for k in ["alumni", "mentor", "insertion", "diplome", "diplômé", "stage", "emploi"]):
+        return (
+            f"🤝 **Réseau Alumni & Mentorat :**\n\n"
+            f"• **Annuaire par Domaine :** Les étudiants peuvent entrer en relation avec les anciens diplômés de leur domaine d'études.\n"
+            f"• **Mentorat académique :** Soutien pour le choix de stage, relecture de mémoires et conseils d'orientation professionnelle.\n"
+            f"• **Messagerie directe :** Échanges sécurisés intégrés à la plateforme."
+        )
+
+    # 15. Enseignants
+    if any(k in msg for k in ["enseignant", "professeur", "prof", "profs"]):
+        return (
+            f"👨‍🏫 **Corps Professoral :**\n\n"
+            f"• L'établissement compte **{total_teachers} enseignants actifs**.\n"
+            f"• Chaque enseignant dispose de son espace dédié pour faire l'appel, déposer ses supports de cours, saisir les notes et planifier ses séances."
+        )
+
+    # 16. Filières
+    if any(k in msg for k in ["filiere", "filière", "departement", "département"]):
+        filieres = context.get("filieres", {})
+        if filieres and isinstance(filieres, dict) and len(filieres) > 0:
+            items = [f"• **{k}** : {v} étudiants" for k, v in filieres.items()]
+            return "🏫 **Répartition des effectifs par filière :**\n\n" + "\n".join(items)
+        return "Toutes les filières académiques sont configurées avec leurs semestres et niveaux associés (L1, L2, L3, M1, M2)."
+
+    # 17. Paramétrage & Réglages
+    if any(k in msg for k in ["configuration", "parametre", "paramètre", "reglage", "réglage", "annee academique", "année académique"]):
+        return (
+            f"⚙️ **Configuration Académique & Paramétrages :**\n\n"
+            f"Dans *Administration > Paramètres > Configuration* :\n"
+            f"• **Grille tarifaire :** Frais d'inscription et scolarité par niveau et domaine.\n"
+            f"• **Tranches de paiement :** Configuration officielle des 3 tranches (P1, P2, P3).\n"
+            f"• **Système de notation :** Barème sur 20, seuil de validation (10/20), note éliminatoire.\n"
+            f"• **Assiduité :** Taux minimal requis (75%) avant convocation aux examens."
+        )
+
+    # 18. Réponse analytique intelligente pour les questions ouvertes
+    # Décompose la question pour fournir une réponse personnalisée
     return (
-        f"Bonjour {first_name} ! Je suis à votre service pour vous assister sur toutes les fonctionnalités d'UniSphere AI.\n\n"
-        f"📊 **Situation en direct :**\n"
-        f"• Étudiants inscrits : **{total_students}**\n"
-        f"• Enseignants : **{total_teachers}**\n"
-        f"• Cours configurés : **{total_courses}**\n"
-        f"• Assiduité : **{rate}%**\n\n"
-        f"💬 Posez-moi une question précise (ex: *'Comment fonctionne la délibération ?'*, *'Qui va au rattrapage ?'*, *'Taux d'assiduité'*, *'Chiffre d'affaires'*...) et je vous répondrai en détail !"
+        f"Bonjour {first_name} !\n\n"
+        f"Concernant votre question : *« {message} »*\n\n"
+        f"Voici les éléments de réponse en tenant compte de votre rôle de **{role_label}** :\n\n"
+        f"1. **Fonctionnalités associées dans UniSphere :** Le système gère en temps réel les étudiants ({total_students} inscrits), les modules ({total_courses} cours) et les présences ({rate}% d'assiduité).\n"
+        f"2. **Procédure recommandée :** Utilisez la barre de navigation pour accéder au module correspondant (Étudiants, Cours, Examens, Finances ou Paramètres).\n"
+        f"3. **Assistance rapide :** Posez-moi des questions ciblées comme : *'Comment fonctionne la délibération ?'*, *'Comment sont calculées les 3 tranches ?'*, *'Comment créer un module par semestre ?'* ou *'Comment inscrire un étudiant ?'*\n\n"
+        f"💡 *Pour débloquer un dialogue 100% conversationnel et fluide sans restriction, ajoutez une clé gratuite `GROQ_API_KEY` (obtenable en 30 secondes sur console.groq.com) ou `OPENAI_API_KEY` dans le fichier `.env` du serveur.*"
     )
 
 
@@ -515,7 +651,7 @@ def chat_with_ai(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "teacher", "student", "secretary", "censeur", "accountant", "guard", "alumni"))
 ):
-    """Chat avec l'IA - Réponses naturelles et conversationnelles (Groq + moteur contextuel résilient)"""
+    """Chat avec l'IA - Support multi-fournisseurs (Groq, OpenAI, Gemini) avec moteur local dynamique."""
     message = data.get("message", "")
     conversation_history = data.get("history", [])
     
@@ -543,61 +679,37 @@ def chat_with_ai(
     else:
         context = {"role": role, "role_label": "Utilisateur"}
     
-    # 1. Si une clé GROQ_API_KEY est configurée, essayer Groq
-    groq_api_key = os.getenv("GROQ_API_KEY")
-    if groq_api_key and groq_api_key.strip():
-        try:
-            from groq import Groq
-            client = Groq(api_key=groq_api_key.strip())
-            
-            context_json = json.dumps(context, ensure_ascii=False, default=str)
-            system_prompt = f"""Tu es UniSphere AI, l'assistant virtuel de l'université. Tu parles à {current_user.full_name}, qui est {context.get('role_label', 'utilisateur')}.
+    # 1. Essayer d'abord un modèle LLM externe (Groq, OpenAI, Gemini, etc.)
+    context_json = json.dumps(context, ensure_ascii=False, default=str)
+    system_prompt = f"""Tu es UniSphere AI, l'assistant intelligent et chaleureux de l'établissement d'enseignement supérieur. Tu t'adresses à {current_user.full_name}, qui a le rôle de {context.get('role_label', 'utilisateur')}.
 
-DONNÉES DISPONIBLES :
+DONNÉES EN TEMPS RÉEL DE L'ÉTABLISSEMENT :
 {context_json}
 
-RÈGLES DE CONVERSATION :
-1. Réponds de manière naturelle et conversationnelle, comme un collègue friendly
-2. Utilise les chiffres exacts des données pour répondre précisément
-3. Sois concis : 2-4 phrases suffisent la plupart du temps
-4. Langue : Français uniquement."""
+CONSIGNES :
+1. Réponds de façon précise, naturelle, professionnelle et chaleureuse en français.
+2. Utilise les données et chiffres réels ci-dessus quand c'est pertinent.
+3. Sois structuré avec des puces claires et du texte en gras.
+4. Si la question porte sur une procédure de l'université (inscription, notes, délibération, tranches de paiement, cartes étudiantes), explique clairement la marche à suivre.
+5. Langue : Français exclusivement."""
 
-            messages = [{"role": "system", "content": system_prompt}]
-            for msg in conversation_history[-10:]:
-                messages.append({
-                    "role": msg.get("role", "user"),
-                    "content": msg.get("content", "")
-                })
-            messages.append({"role": "user", "content": message})
-            
-            completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1500,
-            )
-            
-            ai_response = completion.choices[0].message.content
-            return {
-                "response": ai_response,
-                "context": context,
-                "source": "UniSphere AI (Groq)",
-                "role": role
-            }
-        except Exception as groq_err:
-            print(f"⚠️ Groq indisponible ({groq_err}), basculement automatique sur le moteur contextuel UniSphere.")
+    llm_response, source = call_llm_provider(system_prompt, conversation_history, message)
+    if llm_response:
+        return {
+            "response": llm_response,
+            "context": context,
+            "source": source,
+            "role": role
+        }
 
-    # 2. Moteur IA local contextuel intelligent (toujours actif, rapide et 100% réel)
+    # 2. Moteur IA contextuel local étendu (toujours disponible, varié et rapide)
     local_response = generate_local_ai_response(message, context, current_user.full_name)
     return {
         "response": local_response,
         "context": context,
-        "source": "UniSphere AI",
+        "source": "UniSphere AI (Moteur Local)",
         "role": role
     }
-
-
-# ==========================================
 # ENDPOINTS HISTORIQUE
 # ==========================================
 
