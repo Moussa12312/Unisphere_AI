@@ -206,9 +206,7 @@ const [secretaryUser, setSecretaryUser] = useState<SecretaryUser | null>(null);
         setUniversityInfo({
           id: resUniv.id,
           name: resUniv.name || 'UniSphere AI',
-          logo: resUniv.logo
-            ? (resUniv.logo.startsWith('/') || resUniv.logo.startsWith('http') ? resUniv.logo : `/uploads/logos/${resUniv.logo}`)
-            : '/uploads/logos/university_1_1791668644.png',
+          logo: resUniv.logo || resConfig?.logo || '/logo/unisphere-logo.svg',
           academic_year: resUniv.academic_year || '2026-2027',
           slogan: resUniv.slogan || "Ensemble pour l'excellence",
           card_config: resConfig || resUniv.card_config
@@ -431,42 +429,41 @@ const [secretaryUser, setSecretaryUser] = useState<SecretaryUser | null>(null);
           </div>
 
           {/* Onglets de navigation principale - 100% responsive avec ajustement automatique sur mobile */}
-          <div className="w-full lg:w-auto flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold overflow-x-auto scrollbar-none max-w-full">
+          <div className="w-full lg:w-auto grid grid-cols-3 sm:flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold">
             <button
               onClick={() => setActiveTab('print')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap flex-1 lg:flex-initial ${
+              className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2 py-2 rounded-xl transition-all text-center ${
                 activeTab === 'print'
                   ? 'bg-white text-slate-900 shadow-xs font-extrabold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Printer size={15} className={activeTab === 'print' ? 'text-[#FF7300]' : ''} />
-              <span>Tirage ({selectedStudents.length})</span>
+              <Printer size={14} className={activeTab === 'print' ? 'text-[#FF7300] shrink-0' : 'shrink-0'} />
+              <span className="truncate">Tirage ({selectedStudents.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('customize')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap flex-1 lg:flex-initial ${
+              className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2 py-2 rounded-xl transition-all text-center ${
                 activeTab === 'customize'
                   ? 'bg-white text-slate-900 shadow-xs font-extrabold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Palette size={15} className={activeTab === 'customize' ? 'text-[#FF7300]' : ''} />
-              <span>Personnaliser</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF7300] shrink-0" />
+              <Palette size={14} className={activeTab === 'customize' ? 'text-[#FF7300] shrink-0' : 'shrink-0'} />
+              <span className="truncate">Personnaliser</span>
             </button>
 
             <button
               onClick={() => setActiveTab('secretary')}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap flex-1 lg:flex-initial ${
+              className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2 py-2 rounded-xl transition-all text-center ${
                 activeTab === 'secretary'
                   ? 'bg-white text-slate-900 shadow-xs font-extrabold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <ShieldCheck size={15} className={activeTab === 'secretary' ? 'text-[#FF7300]' : ''} />
-              <span>Badge Secrétariat</span>
+              <ShieldCheck size={14} className={activeTab === 'secretary' ? 'text-[#FF7300] shrink-0' : 'shrink-0'} />
+              <span className="truncate">Badge</span>
             </button>
           </div>
         </div>

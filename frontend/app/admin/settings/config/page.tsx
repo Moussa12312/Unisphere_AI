@@ -976,9 +976,9 @@ export default function AcademicConfigPage() {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                         <h2 className="text-base sm:text-lg font-bold text-slate-900">Tranches de Paiement Académiques</h2>
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">
+                        <span className="inline-flex self-start sm:self-auto px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">
                           Strictement 3 tranches (P1, P2, P3)
                         </span>
                       </div>
@@ -1000,13 +1000,13 @@ export default function AcademicConfigPage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
                     <span className="text-xs font-bold text-slate-600 uppercase tracking-wider shrink-0">Sélectionner un niveau :</span>
-                    <div className="flex flex-wrap items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200 w-full sm:w-auto">
+                    <div className="grid grid-cols-5 sm:flex items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200 w-full sm:w-auto max-w-full">
                       {levels.map(lvl => (
                         <button
                           key={lvl}
                           type="button"
                           onClick={() => handleSelectTrancheLevel(lvl)}
-                          className={`flex-1 sm:flex-none text-center px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                          className={`text-center px-2 sm:px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                             selectedTrancheLevel === lvl
                               ? 'bg-[#FF6B00] text-white shadow-sm'
                               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'

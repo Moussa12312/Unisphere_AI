@@ -110,6 +110,16 @@ export const getMediaUrl = (path?: string | null, fallback?: string): string => 
     return path;
   }
   const clean = path.trim().replace(/\\/g, '/');
+  // Chemins statiques directs du dossier public Next.js
+  if (
+    clean.startsWith('/images/') ||
+    clean.startsWith('/logo/') ||
+    clean.startsWith('/icons/') ||
+    clean.startsWith('/download/') ||
+    clean.startsWith('/favicon')
+  ) {
+    return clean;
+  }
   if (clean.startsWith('/uploads/')) return clean;
   if (clean.startsWith('uploads/')) return `/${clean}`;
   if (clean.startsWith('logos/')) return `/uploads/${clean}`;

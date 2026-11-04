@@ -24,7 +24,7 @@ export interface OfficialCardUniversity {
   phone?: string;
   email?: string;
   website?: string;
-  card_config?: any;
+  card_config?: Record<string, unknown>;
 }
 
 export interface CardCustomizationOptions {
@@ -56,6 +56,7 @@ export default function OfficialStudentCard({
   const uid = useId().replace(/:/g, '');
   const [photoError, setPhotoError] = useState(false);
   const [qrError, setQrError] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   // Configuration dynamique : customization > university.card_config > valeurs officielles par défaut
   const savedCfg = university.card_config || {};
@@ -82,6 +83,39 @@ export default function OfficialStudentCard({
   const clipPhotoId = `photo-clip-${uid}`;
   const clipCardId = `card-clip-${uid}`;
   const shadowId = `shadow-${uid}`;
+  const clipLogoId = `logo-clip-${uid}`;
+
+  // Logo officiel avec fallback dynamique
+  const rawLogo = university.logo || (savedCfg as Record<string, unknown> | undefined)?.logo;
+  const universityLogoUrl = (!logoError && rawLogo)
+    ? getMediaUrl(rawLogo as string)
+    : (!logoError ? '/logo/unisphere-logo.svg' : null);
+
+  // Découpage intelligent de la filière pour affichage 100% lisible sans tronquage
+  const filiereText = (student.filiere || 'Informatique').trim();
+  const getFiliereLines = (text: string): [string, string] | [string] => {
+    if (text.length <= 22) return [text];
+    const words = text.split(/\s+/);
+    if (words.length <= 1) return [text];
+
+    const mid = text.length / 2;
+    let line1 = '';
+    let line2 = '';
+    let acc = '';
+    for (let i = 0; i < words.length; i++) {
+      const candidate = acc ? `${acc} ${words[i]}` : words[i];
+      if (candidate.length <= 22 || (acc.length < mid && i < words.length - 1)) {
+        acc = candidate;
+      } else {
+        line1 = acc;
+        line2 = words.slice(i).join(' ');
+        break;
+      }
+    }
+    if (!line1) line1 = acc;
+    return line2 ? [line1, line2] : [text];
+  };
+  const filiereLines = getFiliereLines(filiereText);
 
   /* -------------------------------------------------------------------------- */
   /* RECTO : REPRODUCTION EXACTE VECTORIELLE ISO CR80 (856 × 540)               */
@@ -115,6 +149,11 @@ export default function OfficialStudentCard({
             {/* Découpe arrondie de la photo */}
             <clipPath id={clipPhotoId}>
               <rect x="52" y="156" width="200" height="260" rx="18" ry="18" />
+            </clipPath>
+
+            {/* Découpe circulaire du logo */}
+            <clipPath id={clipLogoId}>
+              <circle cx="95" cy="80" r="41" />
             </clipPath>
 
             {/* Ombre légère pour le QR Code */}
@@ -166,30 +205,56 @@ export default function OfficialStudentCard({
             {/* Badge circulaire blanc */}
             <circle cx="95" cy="80" r="44" fill="#FFFFFF" stroke={accentColor} strokeWidth="3" />
 
-            {/* Logo académique officiel : Toque bleu nuit + pompon orange */}
-            <g transform="translate(63, 48)">
-              {/* Mortier supérieur */}
-              <path d="M32 15L7 28L32 40L57 28L32 15Z" fill={primaryColor} />
-              {/* Calotte */}
-              <path d="M17 33V43C17 48 24 51 32 51C40 51 47 48 47 43V33L32 40L17 33Z" fill={primaryColor} />
-              {/* Bouton central & fil */}
-              <circle cx="32" cy="28" r="3" fill={accentColor} />
-              <path d="M32 28C25 30 14 36 13 42" stroke={accentColor} strokeWidth="2.8" strokeLinecap="round" fill="none" />
-              {/* Pompon */}
-              <path d="M10 42L16 42L15 52L11 52Z" fill={accentColor} />
-            </g>
+            {/* Logo officiel de l'établissement avec fallback académique */}
+            {universityLogoUrl ? (
+              <image
+                href={universityLogoUrl}
+                x="54"
+                y="39"
+                width="82"
+                height="82"
+                preserveAspectRatio="xMidYMid meet"
+                clipPath={`url(#${clipLogoId})`}
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <g transform="translate(63, 48)">
+                <path d="M32 15L7 28L32 40L57 28L32 15Z" fill={primaryColor} />
+                <path d="M17 33V43C17 48 24 51 32 51C40 51 47 48 47 43V33L32 40L17 33Z" fill={primaryColor} />
+                <circle cx="32" cy="28" r="3" fill={accentColor} />
+                <path d="M32 28C25 30 14 36 13 42" stroke={accentColor} strokeWidth="2.8" strokeLinecap="round" fill="none" />
+                <path d="M10 42L16 42L15 52L11 52Z" fill={accentColor} />
+              </g>
+            )}
 
-            {/* Titre & Sous-titre de l'établissement */}
+            {/* Titre & Sous-titre de l'établissement (taille et ajustement dynamiques) */}
             {univName.toLowerCase().includes('unisphere') ? (
               <text x="156" y="77" fill="#FFFFFF" fontSize="33" fontWeight="800" letterSpacing="-0.5">
                 UniSphere <tspan fill={accentColor} fontWeight="900">AI</tspan>
               </text>
             ) : (
-              <text x="156" y="77" fill="#FFFFFF" fontSize="30" fontWeight="800" letterSpacing="-0.5">
+              <text
+                x="156"
+                y="77"
+                fill="#FFFFFF"
+                fontSize={univName.length > 25 ? 22 : univName.length > 18 ? 26 : 30}
+                fontWeight="800"
+                letterSpacing="-0.5"
+                {...(univName.length > 25 ? { textLength: 520, lengthAdjust: "spacingAndGlyphs" } : {})}
+              >
                 {univName}
               </text>
             )}
-            <text x="158" y="107" fill="#FFFFFF" fontSize="19" fontWeight="400" letterSpacing="0.4" opacity="0.95">
+            <text
+              x="158"
+              y="107"
+              fill="#FFFFFF"
+              fontSize={subtitle.length > 32 ? 15 : 19}
+              fontWeight="400"
+              letterSpacing="0.4"
+              opacity="0.95"
+              {...(subtitle.length > 32 ? { textLength: 500, lengthAdjust: "spacingAndGlyphs" } : {})}
+            >
               {subtitle}
             </text>
 
@@ -223,30 +288,64 @@ export default function OfficialStudentCard({
             </g>
 
             {/* ============================================================== */}
-            {/* 5. INFORMATIONS DE L'ÉTUDIANT (COLONNE CENTRALE ALIGNÉE)        */}
+            {/* 5. INFORMATIONS DE L'ÉTUDIANT (COLONNE CENTRALE ADAPTATIVE)    */}
             {/* ============================================================== */}
             <g fontSize="23" fontFamily="Inter, system-ui, -apple-system, sans-serif">
               {/* 5.1 Nom */}
-              <text x="280" y="210" fill={primaryColor} fontWeight="700">Nom :</text>
-              <text x="365" y="210" fill="#1E293B" fontWeight="500">{student.last_name || 'Diallo'}</text>
-              <line x1="280" y1="226" x2="575" y2="226" stroke="#E2E8F0" strokeWidth="1.4" />
+              <text x="280" y="206" fill={primaryColor} fontWeight="700">Nom :</text>
+              <text
+                x="365"
+                y="206"
+                fill="#1E293B"
+                fontWeight="500"
+                fontSize={(student.last_name || '').length > 16 ? 18 : 23}
+                {...((student.last_name || '').length > 16 ? { textLength: 210, lengthAdjust: "spacingAndGlyphs" } : {})}
+              >
+                {student.last_name || 'Diallo'}
+              </text>
+              <line x1="280" y1="220" x2="575" y2="220" stroke="#E2E8F0" strokeWidth="1.4" />
 
               {/* 5.2 Prénom */}
-              <text x="280" y="260" fill={primaryColor} fontWeight="700">Prénom :</text>
-              <text x="395" y="260" fill="#1E293B" fontWeight="500">{student.first_name || 'Moussa'}</text>
-              <line x1="280" y1="276" x2="575" y2="276" stroke="#E2E8F0" strokeWidth="1.4" />
+              <text x="280" y="254" fill={primaryColor} fontWeight="700">Prénom :</text>
+              <text
+                x="395"
+                y="254"
+                fill="#1E293B"
+                fontWeight="500"
+                fontSize={(student.first_name || '').length > 14 ? 18 : 23}
+                {...((student.first_name || '').length > 14 ? { textLength: 180, lengthAdjust: "spacingAndGlyphs" } : {})}
+              >
+                {student.first_name || 'Moussa'}
+              </text>
+              <line x1="280" y1="268" x2="575" y2="268" stroke="#E2E8F0" strokeWidth="1.4" />
 
               {/* 5.3 Matricule */}
-              <text x="280" y="310" fill={primaryColor} fontWeight="700">Matricule :</text>
-              <text x="410" y="310" fill="#1E293B" fontWeight="500" letterSpacing="0.3">
+              <text x="280" y="302" fill={primaryColor} fontWeight="700">Matricule :</text>
+              <text x="410" y="302" fill="#1E293B" fontWeight="500" letterSpacing="0.3">
                 {student.matricule || `UAI${academicYear.slice(0, 4)}${String(student.id || 1).padStart(3, '0')}`}
               </text>
-              <line x1="280" y1="326" x2="575" y2="326" stroke="#E2E8F0" strokeWidth="1.4" />
+              <line x1="280" y1="316" x2="575" y2="316" stroke="#E2E8F0" strokeWidth="1.4" />
 
-              {/* 5.4 Filière */}
-              <text x="280" y="360" fill={primaryColor} fontWeight="700">Filière :</text>
-              <text x="375" y="360" fill="#1E293B" fontWeight="500">{student.filiere || 'Informatique'}</text>
-              <line x1="280" y1="376" x2="575" y2="376" stroke="#E2E8F0" strokeWidth="1.4" />
+              {/* 5.4 Filière (adaptative simple ou double ligne pour noms longs) */}
+              <text x="280" y={filiereLines.length > 1 ? 346 : 352} fill={primaryColor} fontWeight="700">Filière :</text>
+              {filiereLines.length > 1 ? (
+                <text x="370" y="344" fill="#1E293B" fontWeight="500" fontSize="16">
+                  <tspan x="370" dy="0">{filiereLines[0]}</tspan>
+                  <tspan x="370" dy="19">{filiereLines[1]}</tspan>
+                </text>
+              ) : (
+                <text
+                  x="370"
+                  y="352"
+                  fill="#1E293B"
+                  fontWeight="500"
+                  fontSize={filiereText.length > 18 ? 17 : 22}
+                  {...(filiereText.length > 18 ? { textLength: 205, lengthAdjust: "spacingAndGlyphs" } : {})}
+                >
+                  {filiereText}
+                </text>
+              )}
+              <line x1="280" y1={filiereLines.length > 1 ? 376 : 368} x2="575" y2={filiereLines.length > 1 ? 376 : 368} stroke="#E2E8F0" strokeWidth="1.4" />
 
               {/* 5.5 Niveau */}
               <text x="280" y="410" fill={primaryColor} fontWeight="700">Niveau :</text>
@@ -354,7 +453,7 @@ export default function OfficialStudentCard({
           {/* Conditions officielles d'usage */}
           <g transform="translate(50, 115)">
             <text x="0" y="24" fill={primaryColor} fontSize="20" fontWeight="700" letterSpacing="0.5">
-              CONDITIONS OFFICIELLES D'USAGE
+              CONDITIONS OFFICIELLES D&apos;USAGE
             </text>
             <text x="756" y="24" textAnchor="end" fill="#64748B" fontSize="17" fontWeight="600">
               Année : {academicYear}
