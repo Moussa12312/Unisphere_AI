@@ -151,11 +151,11 @@ export default function TeacherDocumentsPage() {
 
   const getTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      'syllabus': '📚 Syllabus',
-      'exam_report': '📝 PV d\'examen',
-      'attendance_report': '✅ Rapport de présence',
-      'grade_report': '📊 Relevé de notes',
-      'other': '📄 Autre'
+      'syllabus': 'Syllabus',
+      'exam_report': 'PV d\'examen',
+      'attendance_report': 'Rapport de présence',
+      'grade_report': 'Relevé de notes',
+      'other': 'Autre'
     };
     return labels[type] || type;
   };
@@ -239,7 +239,7 @@ export default function TeacherDocumentsPage() {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="🔍 Rechercher un document..."
+              placeholder="Rechercher un document..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
@@ -251,11 +251,11 @@ export default function TeacherDocumentsPage() {
             className="px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
           >
             <option value="">Tous les types</option>
-            <option value="syllabus">📚 Syllabus</option>
-            <option value="exam_report">📝 PV d'examen</option>
-            <option value="attendance_report">✅ Rapport de présence</option>
-            <option value="grade_report">📊 Relevé de notes</option>
-            <option value="other">📄 Autre</option>
+            <option value="syllabus">Syllabus</option>
+            <option value="exam_report">PV d'examen</option>
+            <option value="attendance_report">Rapport de présence</option>
+            <option value="grade_report">Relevé de notes</option>
+            <option value="other">Autre</option>
           </select>
         </div>
         {filteredDocs.length !== documents.length && (
@@ -376,11 +376,11 @@ export default function TeacherDocumentsPage() {
                   onChange={(e) => setFormData({ ...formData, document_type: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 >
-                  <option value="syllabus">📚 Syllabus</option>
-                  <option value="exam_report">📝 PV d'examen</option>
-                  <option value="attendance_report">✅ Rapport de présence</option>
-                  <option value="grade_report">📊 Relevé de notes</option>
-                  <option value="other">📄 Autre</option>
+                  <option value="syllabus">Syllabus</option>
+                  <option value="exam_report">PV d'examen</option>
+                  <option value="attendance_report">Rapport de présence</option>
+                  <option value="grade_report">Relevé de notes</option>
+                  <option value="other">Autre</option>
                 </select>
               </div>
 

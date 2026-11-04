@@ -242,7 +242,7 @@ export default function StudentCompleteDossier({ studentId, role }: StudentCompl
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              🎓 {student.filiere} • {student.level} • Promo {student.academic_year || '2025-2026'}
+              {student.filiere} • {student.level} • Promo {student.academic_year || '2025-2026'}
             </p>
           </div>
         </div>
@@ -616,7 +616,7 @@ export default function StudentCompleteDossier({ studentId, role }: StudentCompl
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
               <span className="text-xs text-slate-400">Statut du dossier</span>
               <p className="text-base font-bold text-slate-800 mt-1">
-                {financials?.status === 'paid' ? '✅ Soldé' : financials?.status === 'partial' ? '🟠 Partiel' : '🔴 Impayé'}
+                {financials?.status === 'paid' ? 'Soldé' : financials?.status === 'partial' ? 'Partiel' : 'Impayé'}
               </p>
             </div>
           </div>

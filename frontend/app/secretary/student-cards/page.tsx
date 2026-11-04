@@ -51,7 +51,6 @@ interface ThemePreset {
   primary: string;
   accent: string;
   slogan: string;
-  icon: string;
 }
 
 const THEME_PRESETS: ThemePreset[] = [
@@ -61,8 +60,7 @@ const THEME_PRESETS: ThemePreset[] = [
     description: 'Bleu Nuit profond & Orange Solaire dynamique',
     primary: '#072146',
     accent: '#FF7300',
-    slogan: "Ensemble pour l'excellence",
-    icon: '🌟'
+    slogan: "Ensemble pour l'excellence"
   },
   {
     id: 'bordeaux',
@@ -70,8 +68,7 @@ const THEME_PRESETS: ThemePreset[] = [
     description: 'Élégance académique royale & finitions or',
     primary: '#6B1426',
     accent: '#F59E0B',
-    slogan: 'Excellence & Savoir',
-    icon: '🍷'
+    slogan: 'Excellence & Savoir'
   },
   {
     id: 'emeraude',
@@ -79,8 +76,7 @@ const THEME_PRESETS: ThemePreset[] = [
     description: 'Vert Forêt institutionnel & Menthe claire',
     primary: '#064E3B',
     accent: '#10B981',
-    slogan: 'Lumière, Sagesse, Avenir',
-    icon: '🌲'
+    slogan: 'Lumière, Sagesse, Avenir'
   },
   {
     id: 'royal',
@@ -88,8 +84,7 @@ const THEME_PRESETS: ThemePreset[] = [
     description: 'Grand standing prestige & liseré doré',
     primary: '#18181B',
     accent: '#EAB308',
-    slogan: 'La Rigueur au service du Succès',
-    icon: '👑'
+    slogan: 'La Rigueur au service du Succès'
   },
   {
     id: 'ocean',
@@ -97,8 +92,7 @@ const THEME_PRESETS: ThemePreset[] = [
     description: 'Dynamisme technologique & clarté moderne',
     primary: '#1E3A8A',
     accent: '#06B6D4',
-    slogan: 'Innover pour transformer',
-    icon: '🌌'
+    slogan: 'Innover pour transformer'
   },
   {
     id: 'amethyste',
@@ -106,8 +100,7 @@ const THEME_PRESETS: ThemePreset[] = [
     description: 'Violet souverain & Lavande vibrante',
     primary: '#4A0E4E',
     accent: '#C084FC',
-    slogan: 'Savoir, Éthique et Progrès',
-    icon: '💜'
+    slogan: 'Savoir, Éthique et Progrès'
   },
   {
     id: 'safran',
@@ -115,8 +108,7 @@ const THEME_PRESETS: ThemePreset[] = [
     description: 'Chaleur cuivrée & ambre solaire',
     primary: '#451A03',
     accent: '#F97316',
-    slogan: 'Racines et Horizon',
-    icon: '☀️'
+    slogan: 'Racines et Horizon'
   },
   {
     id: 'midnight',
@@ -124,8 +116,7 @@ const THEME_PRESETS: ThemePreset[] = [
     description: 'Contraste pur ultra-moderne',
     primary: '#0F172A',
     accent: '#38BDF8',
-    slogan: 'Vers les sommets du Savoir',
-    icon: '🌊'
+    slogan: 'Vers les sommets du Savoir'
   },
   {
     id: 'rubis',
@@ -133,8 +124,7 @@ const THEME_PRESETS: ThemePreset[] = [
     description: 'Audace, énergie et leadership moderne',
     primary: '#881337',
     accent: '#F43F5E',
-    slogan: 'Audace, Passion & Réussite',
-    icon: '💎'
+    slogan: 'Audace, Passion & Réussite'
   }
 ];
 
@@ -393,7 +383,8 @@ export default function SecretaryStudentCardsPrintPage() {
     matricule: 'UAI2026001',
     level: 'L1',
     filiere: 'Informatique',
-    status: 'active'
+    status: 'active',
+    photo: '/images/default-student-avatar.jpg'
   };
 
   if (loading) {
@@ -541,8 +532,11 @@ export default function SecretaryStudentCardsPrintPage() {
                       }`}
                     >
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 truncate">
-                          <span>{preset.icon}</span>
+                        <div className="flex items-center gap-2 font-bold text-xs text-slate-900 truncate">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: preset.primary }}
+                          />
                           <span className="truncate">{preset.name}</span>
                         </div>
                         <p className="text-[10.5px] text-slate-500 truncate mt-0.5">{preset.description}</p>
@@ -854,41 +848,47 @@ export default function SecretaryStudentCardsPrintPage() {
             </div>
           </div>
 
-          {/* Bandeau d'aperçu express */}
-          <div
-            className="rounded-2xl p-4 sm:p-5 text-white flex flex-col md:flex-row items-center justify-between gap-5 shadow-sm"
-            style={{
-              background: `linear-gradient(135deg, ${customization.primaryColor} 0%, #0F172A 100%)`
-            }}
-          >
-            <div className="space-y-1.5 text-center md:text-left">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-orange-400 flex items-center justify-center md:justify-start gap-1">
-                <Sparkles size={12} /> Prêt pour tirage A4
-              </span>
-              <h2 className="text-base font-bold text-white">
-                Planches calibrées avec l'identité {activePresetId !== 'custom' ? THEME_PRESETS.find(p => p.id === activePresetId)?.name : 'Personnalisée'}
+          {/* Bandeau d'aperçu de la carte */}
+          <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/90 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-6">
+            <div className="space-y-2 text-center lg:text-left flex-1">
+              <div className="flex items-center justify-center lg:justify-start gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FF7300]" />
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Modèle Officiel Calibré • Norme ISO CR80
+                </span>
+              </div>
+              <h2 className="text-lg font-extrabold text-slate-900">
+                {activePresetId !== 'custom' ? THEME_PRESETS.find(p => p.id === activePresetId)?.name : 'Carte Personnalisée'}
               </h2>
-              <p className="text-xs text-slate-300 max-w-md">
-                Toutes les cartes imprimées adopteront fidèlement la double vague, le filigrane de sécurité et la devise choisie.
+              <p className="text-xs text-slate-500 max-w-lg leading-relaxed">
+                Rendu haute fidélité vectoriel. Toutes les planches imprimées adopteront fidèlement la double vague, le filigrane de sécurité et la typographie officielle.
               </p>
-              <div className="pt-2 flex items-center justify-center md:justify-start gap-3 text-xs">
-                <span className="bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 font-bold">
+              <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-2.5 text-xs">
+                <span className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl border border-slate-200 font-semibold">
                   {selectedStudents.length} carte(s) sélectionnée(s)
                 </span>
-                <span className="bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 font-bold">
+                <span className="bg-orange-50 text-[#FF7300] px-3 py-1.5 rounded-xl border border-orange-200 font-bold">
                   {printPages.length} planche(s) A4
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('customize')}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold transition"
+                >
+                  Personnaliser les couleurs →
+                </button>
               </div>
             </div>
 
-            {/* Carte échantillon interactive */}
-            <div className="w-full max-w-[340px]">
+            {/* Carte échantillon haute fidélité */}
+            <div className="w-full max-w-[380px] sm:max-w-[420px] flex-shrink-0 flex justify-center">
               <OfficialStudentCard
                 student={sampleStudent}
                 university={universityInfo}
                 customization={customization}
                 side="recto"
                 mode="responsive"
+                className="w-full"
               />
             </div>
           </div>

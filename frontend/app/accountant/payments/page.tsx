@@ -217,7 +217,7 @@ export default function PaymentsPage() {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="🔍 Rechercher un étudiant..."
+              placeholder="Rechercher un étudiant..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
@@ -240,8 +240,8 @@ export default function PaymentsPage() {
           >
             <option value="">Tous les statuts</option>
             <option value="paid">✅ Soldés</option>
-            <option value="partial">🟠 Reliquats</option>
-            <option value="unpaid">🔴 Non payés</option>
+            <option value="partial">Paiement Partiel</option>
+            <option value="unpaid">Non payé</option>
             <option value="unconfigured">⚠️ Non configurés</option>
           </select>
         </div>
@@ -295,13 +295,13 @@ export default function PaymentsPage() {
                         {getStatusBadge(summary.status, summary.paid_percentage, summary.is_configured)}
                       </div>
                       <p className="text-sm text-slate-500 mb-3">
-                        🎓 {student.matricule} • {student.filiere} {student.level}
+                        {student.matricule} • {student.filiere} {student.level}
                       </p>
 
                       {/* Récapitulatif */}
                       <div className="bg-slate-50 rounded-xl p-3 sm:p-4 mb-3">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-semibold text-slate-700">📊 RÉCAPITULATIF</span>
+                          <span className="text-xs font-semibold text-slate-700">RÉCAPITULATIF</span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                           <div>
@@ -335,7 +335,7 @@ export default function PaymentsPage() {
 
                       {/* Tranches */}
                       <div>
-                        <p className="text-xs font-semibold text-slate-700 mb-2">📋 TRANCHES</p>
+                        <p className="text-xs font-semibold text-slate-700 mb-2">TRANCHES</p>
                         <div className="space-y-1.5">
                           {paidTranches.map((tranche: any, idx: number) => (
                             <div key={idx} className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-lg">
@@ -369,7 +369,7 @@ export default function PaymentsPage() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-slate-500">{formatFCFA(tranche.amount)}</span>
-                                <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded">VERROUILLÉE 🔒</span>
+                                <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded">VERROUILLÉE</span>
                               </div>
                             </div>
                           ))}

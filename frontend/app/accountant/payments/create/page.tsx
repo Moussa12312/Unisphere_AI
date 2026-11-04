@@ -287,7 +287,7 @@ function CreatePaymentContent() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="🔍 Rechercher par nom ou matricule..."
+                  placeholder="Rechercher par nom ou matricule..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] transition-all"
@@ -342,8 +342,8 @@ function CreatePaymentContent() {
                             : 'bg-blue-100 text-blue-800 border border-blue-200'
                         }`}>
                           {studentSummary.is_monthly || studentSummary.payment_plan === 'mensuel'
-                            ? '📅 Modalité Mensuelle'
-                            : '🏛️ Par Tranches'}
+                            ? 'Modalité Mensuelle'
+                            : 'Par Tranches'}
                         </span>
                       )}
                     </div>
@@ -488,7 +488,7 @@ function CreatePaymentContent() {
                             <p className="font-semibold text-slate-900">{tranche.name}</p>
                             {tranche.due_date && (
                               <p className="text-xs text-slate-500 mt-0.5">
-                                📅 Échéance : {new Date(tranche.due_date).toLocaleDateString('fr-FR')}
+                                Échéance : {new Date(tranche.due_date).toLocaleDateString('fr-FR')}
                               </p>
                             )}
                           </div>
@@ -542,10 +542,10 @@ function CreatePaymentContent() {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Mode de paiement *</label>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { value: 'cash', label: '💵 Espèces' },
-                    { value: 'mobile_money', label: '📱 Mobile Money' },
-                    { value: 'bank_transfer', label: '🏦 Virement' },
-                    { value: 'check', label: '📄 Chèque' }
+                    { value: 'cash', label: 'Espèces' },
+                    { value: 'mobile_money', label: 'Mobile Money' },
+                    { value: 'bank_transfer', label: 'Virement' },
+                    { value: 'check', label: 'Chèque' }
                   ].map((method) => (
                     <button
                       key={method.value}

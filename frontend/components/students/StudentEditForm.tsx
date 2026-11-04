@@ -649,7 +649,7 @@ export default function StudentEditForm({ studentId, role }: StudentEditFormProp
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="font-bold text-slate-900 text-sm">
-                  🏛️ Paiement par Tranches Académiques
+                  Paiement par Tranches Académiques
                 </span>
                 <input
                   type="radio"
@@ -674,7 +674,7 @@ export default function StudentEditForm({ studentId, role }: StudentEditFormProp
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="font-bold text-slate-900 text-sm">
-                  📅 Paiement Mensuel Échelonné
+                  Paiement Mensuel Échelonné
                 </span>
                 <input
                   type="radio"

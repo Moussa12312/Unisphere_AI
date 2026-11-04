@@ -6,98 +6,99 @@ import { BrainCircuit } from 'lucide-react';
 
 export default function FloatingAIButton() {
   const router = useRouter();
-  const [role, setRole] = useState<string | null>(null);
-  const [isVisible, setIsVisible] = useState(false);
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const isDragging = useRef(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const initialPos = useRef({ x: 0, y: 0 });
-  const hasMoved = useRef(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ startX: number; startY: number; buttonX: number; buttonY: number } | null>(null);
+  const hasMovedRef = useRef(false);
 
   useEffect(() => {
-    try {
-      const storedRole = localStorage.getItem('role');
-      setRole(storedRole);
-      if (storedRole === 'super_admin' || storedRole === 'superadmin') {
-        return;
-      }
-    } catch {}
+    const handleResize = () => {
+      const margin = 20;
+      const buttonSize = 56;
+      setPosition({
+        x: window.innerWidth - buttonSize - margin,
+        y: window.innerHeight - buttonSize - 90
+      });
+    };
 
-    const timer = setTimeout(() => {
-      // Position initiale par défaut : en bas à droite bien au-dessus de la barre d'onglets
-      const isSmall = typeof window !== 'undefined' && window.innerWidth < 768;
-      const defaultX = typeof window !== 'undefined' ? window.innerWidth - (isSmall ? 64 : 76) : 300;
-      const defaultY = typeof window !== 'undefined' ? window.innerHeight - (isSmall ? 130 : 100) : 600;
-      setPosition({ x: defaultX, y: defaultY });
-      setIsVisible(true);
-    }, 400);
-    return () => clearTimeout(timer);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (!e.touches[0]) return;
     const touch = e.touches[0];
-    isDragging.current = true;
-    hasMoved.current = false;
-    dragStart.current = { x: touch.clientX, y: touch.clientY };
-    if (position) {
-      initialPos.current = { x: position.x, y: position.y };
-    }
+    dragStartRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      buttonX: position.x,
+      buttonY: position.y
+    };
+    hasMovedRef.current = false;
+    setIsDragging(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging.current || !e.touches[0]) return;
+    if (!isDragging || !dragStartRef.current) return;
     const touch = e.touches[0];
-    const dx = touch.clientX - dragStart.current.x;
-    const dy = touch.clientY - dragStart.current.y;
+    const deltaX = touch.clientX - dragStartRef.current.startX;
+    const deltaY = touch.clientY - dragStartRef.current.startY;
 
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-      hasMoved.current = true;
+    if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+      hasMovedRef.current = true;
     }
 
-    const isSmall = window.innerWidth < 768;
-    const maxX = window.innerWidth - 60;
-    const maxY = window.innerHeight - (isSmall ? 95 : 60);
+    const buttonSize = 56;
+    const minX = 10;
+    const maxX = window.innerWidth - buttonSize - 10;
+    const minY = 60;
+    const maxY = window.innerHeight - buttonSize - 70;
 
-    const newX = Math.max(10, Math.min(maxX, initialPos.current.x + dx));
-    const newY = Math.max(10, Math.min(maxY, initialPos.current.y + dy));
-
-    setPosition({ x: newX, y: newY });
+    setPosition({
+      x: Math.min(Math.max(minX, dragStartRef.current.buttonX + deltaX), maxX),
+      y: Math.min(Math.max(minY, dragStartRef.current.buttonY + deltaY), maxY)
+    });
   };
 
   const handleTouchEnd = () => {
-    isDragging.current = false;
+    setIsDragging(false);
+    dragStartRef.current = null;
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    isDragging.current = true;
-    hasMoved.current = false;
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    if (position) {
-      initialPos.current = { x: position.x, y: position.y };
-    }
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      buttonX: position.x,
+      buttonY: position.y
+    };
+    hasMovedRef.current = false;
+    setIsDragging(true);
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!isDragging.current) return;
-      const dx = moveEvent.clientX - dragStart.current.x;
-      const dy = moveEvent.clientY - dragStart.current.y;
+      if (!dragStartRef.current) return;
+      const deltaX = moveEvent.clientX - dragStartRef.current.startX;
+      const deltaY = moveEvent.clientY - dragStartRef.current.startY;
 
-      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-        hasMoved.current = true;
+      if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+        hasMovedRef.current = true;
       }
 
-      const isSmall = window.innerWidth < 768;
-      const maxX = window.innerWidth - 60;
-      const maxY = window.innerHeight - (isSmall ? 95 : 60);
+      const buttonSize = 56;
+      const minX = 10;
+      const maxX = window.innerWidth - buttonSize - 10;
+      const minY = 60;
+      const maxY = window.innerHeight - buttonSize - 70;
 
-      const newX = Math.max(10, Math.min(maxX, initialPos.current.x + dx));
-      const newY = Math.max(10, Math.min(maxY, initialPos.current.y + dy));
-
-      setPosition({ x: newX, y: newY });
+      setPosition({
+        x: Math.min(Math.max(minX, dragStartRef.current.buttonX + deltaX), maxX),
+        y: Math.min(Math.max(minY, dragStartRef.current.buttonY + deltaY), maxY)
+      });
     };
 
     const handleMouseUp = () => {
-      isDragging.current = false;
+      setIsDragging(false);
+      dragStartRef.current = null;
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
@@ -107,15 +108,15 @@ export default function FloatingAIButton() {
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Si l'utilisateur a glissé le bouton, on ne navigue pas
-    if (hasMoved.current) {
+    if (hasMovedRef.current) {
       e.preventDefault();
+      e.stopPropagation();
       return;
     }
     router.push('/ai-assistant');
   };
 
-  if (!isVisible || !position || role === 'super_admin' || role === 'superadmin') return null;
+  if (position.x === 0 && position.y === 0) return null;
 
   return (
     <div
@@ -133,15 +134,10 @@ export default function FloatingAIButton() {
       <button
         onClick={handleClick}
         type="button"
-        className="group relative flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-tr from-[#FF6B00] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white rounded-full shadow-xl shadow-orange-500/40 hover:scale-105 transition-all"
-        title="Assistant IA UniSphere (Glissez pour déplacer)"
+        className="group relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-full shadow-md transition-all active:scale-95"
+        title="Assistant IA UniSphere"
       >
-        <div className="relative pointer-events-none">
-          <BrainCircuit size={22} className="sm:hidden animate-pulse" />
-          <BrainCircuit size={26} className="hidden sm:block animate-pulse" />
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-400 rounded-full border-2 border-white animate-ping" />
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-400 rounded-full border-2 border-white" />
-        </div>
+        <BrainCircuit size={22} className="text-white" />
       </button>
     </div>
   );

@@ -180,16 +180,16 @@ export default function StudentPaymentDetailPage() {
               </h1>
               {summary?.is_monthly || summary?.payment_plan === 'mensuel' ? (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  📅 Modalité Mensuelle
+                  Modalité Mensuelle
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-                  🏛️ Par Tranches
+                  Par Tranches
                 </span>
               )}
             </div>
             <p className="text-slate-500 text-xs sm:text-sm mt-1">
-              🎓 {student.matricule} • {student.filiere} {student.level}
+              {student.matricule} • {student.filiere} {student.level}
               {summary?.monthly_plan?.formatted_summary && (
                 <span className="ml-2 text-emerald-700 font-medium">({summary.monthly_plan.formatted_summary})</span>
               )}
@@ -304,7 +304,7 @@ export default function StudentPaymentDetailPage() {
                     </div>
                     {tranche.receipt_number && (
                       <p className="text-xs text-slate-500 mt-2">
-                        📄 Reçu N° : <span className="font-mono font-semibold">{tranche.receipt_number}</span>
+                        Reçu N° : <span className="font-mono font-semibold">{tranche.receipt_number}</span>
                       </p>
                     )}
                   </div>
@@ -341,7 +341,7 @@ export default function StudentPaymentDetailPage() {
                       <div>
                         <p className="text-[11px] text-slate-500">{tranche.paid_amount > 0 ? "Solde restant dû" : "Statut"}</p>
                         <p className={`font-bold ${tranche.paid_amount > 0 ? "text-orange-600" : "text-blue-700"}`}>
-                          {tranche.paid_amount > 0 ? formatFCFA(tranche.remaining) : "EN ATTENTE 🔵"}
+                          {tranche.paid_amount > 0 ? formatFCFA(tranche.remaining) : "EN ATTENTE"}
                         </p>
                       </div>
                       {tranche.due_date && (
@@ -385,7 +385,7 @@ export default function StudentPaymentDetailPage() {
                       </div>
                       <div>
                         <p className="text-[11px] text-slate-500">Statut</p>
-                        <p className="font-semibold text-slate-600">VERROUILLÉE 🔒</p>
+                        <p className="font-semibold text-slate-600">VERROUILLÉE</p>
                       </div>
                       {tranche.due_date && (
                         <div>
@@ -395,7 +395,7 @@ export default function StudentPaymentDetailPage() {
                       )}
                     </div>
                     <p className="text-xs text-slate-500 mt-2 italic">
-                      💡 Disponible après paiement de la tranche précédente
+                      Disponible après paiement de la tranche précédente
                     </p>
                   </div>
                 </div>

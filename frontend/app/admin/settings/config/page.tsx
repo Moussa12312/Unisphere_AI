@@ -428,8 +428,8 @@ export default function AcademicConfigPage() {
     const totalAmount = getFeeAmount(selectedTrancheLevel, 'scolarite');
     if (!totalAmount || totalAmount <= 0) {
       toast.error(
-        `⚠️ Veuillez d'abord configurer le montant de la Scolarité pour le niveau ${selectedTrancheLevel} ` +
-        `dans le tableau des frais académiques ci-dessus, puis enregistrez avec le bouton 💾 (disquette).`
+        `Veuillez d'abord configurer le montant de la Scolarité pour le niveau ${selectedTrancheLevel} ` +
+        `dans le tableau des frais académiques ci-dessus, puis enregistrez avec le bouton Enregistrer.`
       );
       return;
     }
@@ -916,9 +916,10 @@ export default function AcademicConfigPage() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md">
-                      <Layers className="text-white" size={24} />
+                    <div className="w-11 h-11 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
+                      <Layers className="text-[#FF6B00]" size={22} />
                     </div>
+
                     <div>
                       <div className="flex items-center gap-2">
                         <h2 className="text-lg font-bold text-slate-900">Tranches de Paiement Académiques</h2>
@@ -983,7 +984,7 @@ export default function AcademicConfigPage() {
                     <AlertTriangle size={18} className="text-amber-600 shrink-0" />
                     <span>
                       <strong>Attention :</strong> Le tarif de scolarité pour <strong>{selectedTrancheLevel}</strong> est actuellement à 0 FCFA.
-                      Veuillez renseigner le tarif dans le tableau des frais académiques ci-dessus et cliquer sur 💾 pour que les montants des 3 tranches soient calculés en temps réel.
+                      Veuillez renseigner le tarif dans le tableau des frais académiques ci-dessus et cliquer sur Enregistrer pour que les montants des 3 tranches soient calculés en temps réel.
                     </span>
                   </div>
                 )}

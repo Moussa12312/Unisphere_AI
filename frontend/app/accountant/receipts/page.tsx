@@ -348,7 +348,7 @@ export default function AllReceiptsPage() {
               onChange={(e) => setPeriodFilter(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-[#FF6B00]"
             >
-              <option value="all">📅 Période : Toute l'année</option>
+              <option value="all">Période : Toute l'année</option>
               <option value="today">Aujourd'hui</option>
               <option value="week">7 derniers jours</option>
               <option value="month">Ce mois-ci</option>
@@ -363,7 +363,7 @@ export default function AllReceiptsPage() {
               onChange={(e) => setMethodFilter(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:ring-2 focus:ring-[#FF6B00]"
             >
-              <option value="all">💳 Mode : Tous les règlements</option>
+              <option value="all">Mode : Tous les règlements</option>
               <option value="especes">Espèces (Cash)</option>
               <option value="virement">Virement bancaire</option>
               <option value="wave">Wave</option>

@@ -330,12 +330,12 @@ export default function TeacherMaterialsPage() {
             className="px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
           >
             <option value="">Tous les types</option>
-            <option value="pdf">📄 PDF</option>
-            <option value="docx">📝 Document</option>
-            <option value="pptx">📊 Présentation</option>
-            <option value="video">🎥 Vidéo</option>
-            <option value="image">🖼️ Image</option>
-            <option value="zip">📦 Archive</option>
+            <option value="pdf">PDF</option>
+            <option value="docx">Document</option>
+            <option value="pptx">Présentation</option>
+            <option value="video">Vidéo</option>
+            <option value="image">Image</option>
+            <option value="zip">Archive ZIP</option>
           </select>
         </div>
         {filteredMaterials.length !== materials.length && (
@@ -556,9 +556,9 @@ export default function TeacherMaterialsPage() {
                   onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 >
-                  <option value="students">👥 Visible par les étudiants</option>
-                  <option value="public">🌍 Public</option>
-                  <option value="teachers_only">👨‍🏫 Enseignants uniquement</option>
+                  <option value="students">Visible par les étudiants</option>
+                  <option value="public">Public</option>
+                  <option value="teachers_only">Enseignants uniquement</option>
                 </select>
               </div>
             </div>
