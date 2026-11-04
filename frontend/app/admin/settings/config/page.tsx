@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Save, GraduationCap, Calculator, Clock, CheckCircle,
   XCircle, BookOpen, Award, Info, DollarSign, Calendar,
@@ -73,6 +73,24 @@ const ASSOCIATED_DOMAINS = [
   'Informatique & Technologies'
 ];
 
+export const LEVELS = ['L1', 'L2', 'L3', 'M1', 'M2'];
+
+export const PAYMENT_TYPES = [
+  { value: 'scolarite', label: 'Scolarité', icon: BookOpen },
+  { value: 'inscription', label: 'Inscription', icon: GraduationCap },
+  { value: 'autre', label: 'Autre', icon: DollarSign }
+];
+
+export const DEADLINE_TYPES = [
+  { value: 'inscription_start', label: 'Début des inscriptions', icon: Calendar },
+  { value: 'inscription_end', label: 'Fin des inscriptions', icon: Calendar },
+  { value: 'semester1_start', label: 'Début Semestre 1', icon: Calendar },
+  { value: 'semester1_end', label: 'Fin Semestre 1', icon: Calendar },
+  { value: 'semester2_start', label: 'Début Semestre 2', icon: Calendar },
+  { value: 'semester2_end', label: 'Fin Semestre 2', icon: Calendar },
+  { value: 'exams_s2', label: 'Examens Semestre 2 (Date limite reliquats)', icon: AlertTriangle }
+];
+
 export default function AcademicConfigPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -106,12 +124,16 @@ export default function AcademicConfigPage() {
     semester_system: 'semestriel'
   });
 
+  const [hasChanges, setHasChanges] = useState(false);
   const [fees, setFees] = useState<AcademicFee[]>([]);
-  const [editingFee, setEditingFee] = useState<{level: string, type: string, amount: string} | null>(null);
+  // ✅ Tableur de saisie globale directe (Excel-like) : clé = `${level}__${type}`
+  const [feeInputs, setFeeInputs] = useState<Record<string, string>>({});
   const [domaines, setDomaines] = useState<string[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<string>('');
+
+  // ✅ Calendrier / Deadlines saisis directement : clé = deadline_type
   const [deadlines, setDeadlines] = useState<PaymentDeadline[]>([]);
-  const [editingDeadline, setEditingDeadline] = useState<{type: string, date: string, description: string} | null>(null);
+  const [deadlineInputs, setDeadlineInputs] = useState<Record<string, { date: string; description: string }>>({});
 
   // ✅ Synchronisation groupée des 3 pôles associés
   const [autoSyncGroup, setAutoSyncGroup] = useState<boolean>(false);
@@ -123,10 +145,9 @@ export default function AcademicConfigPage() {
     auto_apply: true
   });
 
-  // ✅ Configuration stricte des 3 Tranches (P1, P2, P3 = 100%)
+  // ✅ Configuration stricte des 3 Tranches (P1, P2, P3 = 100%) par niveau
   const [tranches, setTranches] = useState<Tranche[]>([]);
   const [selectedTrancheLevel, setSelectedTrancheLevel] = useState<string>('L1');
-  const [savingThreeTranches, setSavingThreeTranches] = useState(false);
   const [threeTranches, setThreeTranches] = useState<[
     { tranche_number: number; tranche_name: string; percentage: number; due_date: string },
     { tranche_number: number; tranche_name: string; percentage: number; due_date: string },
@@ -136,6 +157,9 @@ export default function AcademicConfigPage() {
     { tranche_number: 2, tranche_name: '2ème tranche (P2 - Semestre 1)', percentage: 30, due_date: '' },
     { tranche_number: 3, tranche_name: '3ème tranche (P3 - Solde Semestre 2)', percentage: 30, due_date: '' }
   ]);
+
+  // Conserve la mémoire des modifications des 3 tranches pour chaque niveau sans rien écraser
+  const [tranchesByLevel, setTranchesByLevel] = useState<Record<string, typeof threeTranches>>({});
 
   const syncTranchesForLevel = useCallback((level: string, domain: string, tranchesList: Tranche[]) => {
     const matching = tranchesList.filter(t => 
@@ -209,13 +233,68 @@ export default function AcademicConfigPage() {
       setDeadlines(normalizedDeadlines);
       setTranches(normalizedTranches);
       setDomaines(uniqueDomaines);
-      syncTranchesForLevel(selectedTrancheLevel, selectedDomain, normalizedTranches);
+
+      // ✅ Remplissage du tableur de frais direct (Excel-like)
+      const nextFeeInputs: Record<string, string> = {};
+      LEVELS.forEach(lvl => {
+        PAYMENT_TYPES.forEach(pt => {
+          let feeMatch = undefined;
+          if (selectedDomain) {
+            feeMatch = normalizedFees.find((f: AcademicFee) => f.level === lvl && f.payment_type === pt.value && f.domain === selectedDomain && f.academic_year === academicYear);
+          }
+          if (!feeMatch) {
+            feeMatch = normalizedFees.find((f: AcademicFee) => f.level === lvl && f.payment_type === pt.value && (!f.domain || f.domain === '') && f.academic_year === academicYear);
+          }
+          if (feeMatch) {
+            nextFeeInputs[`${lvl}__${pt.value}`] = String(feeMatch.amount);
+          }
+        });
+      });
+      setFeeInputs(nextFeeInputs);
+
+      // ✅ Remplissage des dates limites
+      const nextDeadlineInputs: Record<string, { date: string; description: string }> = {};
+      DEADLINE_TYPES.forEach(dt => {
+        const found = normalizedDeadlines.find((d: PaymentDeadline) => d.deadline_type === dt.value && d.academic_year === academicYear);
+        nextDeadlineInputs[dt.value] = {
+          date: found?.deadline_date ? found.deadline_date.split('T')[0] : '',
+          description: found?.description || dt.label
+        };
+      });
+      setDeadlineInputs(nextDeadlineInputs);
+
+      // ✅ Remplissage des 3 tranches pour tous les niveaux
+      const byLevel: Record<string, typeof threeTranches> = {};
+      LEVELS.forEach(lvl => {
+        const matching = normalizedTranches.filter((t: Tranche) => 
+          t.level === lvl && 
+          t.payment_type === 'scolarite' &&
+          ((!selectedDomain && (!t.domain || t.domain === '')) || t.domain === selectedDomain)
+        );
+        const t1 = matching.find((t: Tranche) => t.tranche_number === 1);
+        const t2 = matching.find((t: Tranche) => t.tranche_number === 2);
+        const t3 = matching.find((t: Tranche) => t.tranche_number === 3);
+        if (t1 && t2 && t3) {
+          byLevel[lvl] = [
+            { tranche_number: 1, tranche_name: t1.tranche_name || '1ère tranche (P1 - Rentrée / Inscription)', percentage: t1.percentage, due_date: t1.due_date ? t1.due_date.split('T')[0] : '' },
+            { tranche_number: 2, tranche_name: t2.tranche_name || '2ème tranche (P2 - Semestre 1)', percentage: t2.percentage, due_date: t2.due_date ? t2.due_date.split('T')[0] : '' },
+            { tranche_number: 3, tranche_name: t3.tranche_name || '3ème tranche (P3 - Solde Semestre 2)', percentage: t3.percentage, due_date: t3.due_date ? t3.due_date.split('T')[0] : '' }
+          ];
+        } else {
+          byLevel[lvl] = [
+            { tranche_number: 1, tranche_name: '1ère tranche (P1 - Rentrée / Inscription)', percentage: 40, due_date: '' },
+            { tranche_number: 2, tranche_name: '2ème tranche (P2 - Semestre 1)', percentage: 30, due_date: '' },
+            { tranche_number: 3, tranche_name: '3ème tranche (P3 - Solde Semestre 2)', percentage: 30, due_date: '' }
+          ];
+        }
+      });
+      setTranchesByLevel(byLevel);
+      if (byLevel[selectedTrancheLevel]) {
+        setThreeTranches(byLevel[selectedTrancheLevel]);
+      }
+      setHasChanges(false);
       
       console.log('📊 Config chargée:', { academicYear });
-      console.log('💰 Frais chargés:', normalizedFees.length, 'entrées');
-      console.log('📅 Deadlines chargées:', normalizedDeadlines.length, 'entrées');
-      console.log('📦 Tranches chargées:', normalizedTranches.length, 'entrées');
-      
     } catch (error) {
       console.error('❌ Erreur chargement:', error);
       toast.error('Erreur lors du chargement');
@@ -225,59 +304,14 @@ export default function AcademicConfigPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTrancheLevel, selectedDomain, syncTranchesForLevel, toast]);
+  }, [selectedTrancheLevel, selectedDomain, toast]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll();
   }, [loadAll]);
 
-    const handleSave = async () => {
-    setSaving(true);
-    try {
-      await api.put('/api/v1/settings/academic/config', {
-        ...config,
-        penalty_amount: penalties.amount,
-        penalty_auto_apply: penalties.auto_apply
-      });
-      
-      if (editingDeadline && editingDeadline.date && editingDeadline.date.trim() !== '') {
-        await academicFeeService.createOrUpdateDeadline({
-          deadline_type: editingDeadline.type,
-          deadline_date: editingDeadline.date,
-          academic_year: config.current_academic_year,
-          description: editingDeadline.description
-        });
-        setEditingDeadline(null);
-      }
-      
-      await loadAll();
-      toast.success('✅ Configuration globale sauvegardée !');
-    } catch (error: unknown) {
-      console.error('❌ Erreur sauvegarde:', error);
-      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la sauvegarde');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSavePenalties = async () => {
-    setSaving(true);
-    try {
-      await api.put('/api/v1/settings/academic/config', {
-        penalty_amount: penalties.amount,
-        penalty_auto_apply: penalties.auto_apply
-      });
-      toast.success('✅ Pénalités de retard enregistrées avec succès !');
-      await loadAll();
-    } catch (error: unknown) {
-      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la sauvegarde des pénalités');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ✅ Synchroniser les 3 pôles associés (Gestion, Communication, Informatique)
+  // ✅ SYNCHRONISER LES 3 PÔLES ASSOCIÉS (Gestion, Communication, Informatique)
   const handleSyncAssociatedDomains = async () => {
     setSyncingDomains(true);
     try {
@@ -296,83 +330,176 @@ export default function AcademicConfigPage() {
     }
   };
 
-  const handleSaveFee = async () => {
-    if (!editingFee) return;
+  // ✅ getFeeAmount lit en direct dans feeInputs : tout calcul est instantané sans nécessiter de sauvegarde !
+  const getFeeAmount = (level: string, type: string): number | null => {
+    const key = `${level}__${type}`;
+    if (feeInputs[key] !== undefined && feeInputs[key] !== '') {
+      const val = parseFloat(feeInputs[key]);
+      return isNaN(val) ? 0 : val;
+    }
+    if (!fees || !Array.isArray(fees)) return null;
+    if (selectedDomain) {
+      const specificFee = fees.find(f => f.level === level && f.payment_type === type && f.domain === selectedDomain && f.academic_year === config.current_academic_year);
+      if (specificFee) return specificFee.amount;
+    }
+    const globalFee = fees.find(f => f.level === level && f.payment_type === type && (!f.domain || f.domain === '') && f.academic_year === config.current_academic_year);
+    return globalFee ? globalFee.amount : null;
+  };
+
+
+  // ✅ SAUVEGARDE GLOBALE UNIFIÉE (TOUT EN UN CLIC SANS SAUVEGARDES INDIVIDUELLES)
+  const handleSaveGlobal = async () => {
+    setSaving(true);
     try {
       const isAssociated = Boolean(selectedDomain && ASSOCIATED_DOMAINS.includes(selectedDomain));
-      await academicFeeService.createOrUpdateFee({
-        level: editingFee.level,
-        domain: selectedDomain || null,
-        payment_type: editingFee.type,
-        amount: parseFloat(editingFee.amount),
-        academic_year: config.current_academic_year,
-        sync_associated_domains: isAssociated && autoSyncGroup
+      
+      // 1. Sauvegarde config académique générale & pénalités
+      const configPromise = api.put('/api/v1/settings/academic/config', {
+        ...config,
+        penalty_amount: penalties.amount,
+        penalty_auto_apply: penalties.auto_apply
       });
+
+      // 2. Sauvegarde de tous les frais modifiés / saisis dans le tableur direct
+      const feePromises: Promise<unknown>[] = [];
+      for (const level of LEVELS) {
+        for (const type of PAYMENT_TYPES) {
+          const key = `${level}__${type.value}`;
+          const rawVal = feeInputs[key];
+          if (rawVal !== undefined && rawVal.trim() !== '') {
+            const amt = parseFloat(rawVal);
+            if (!isNaN(amt) && amt >= 0) {
+              feePromises.push(
+                academicFeeService.createOrUpdateFee({
+                  level,
+                  domain: selectedDomain || null,
+                  payment_type: type.value,
+                  amount: amt,
+                  academic_year: config.current_academic_year,
+                  sync_associated_domains: isAssociated && autoSyncGroup
+                })
+              );
+            }
+          }
+        }
+      }
+
+      // 3. Sauvegarde des 3 tranches pour tous les niveaux configurés
+      const tranchePromises: Promise<unknown>[] = [];
+      const currentLevelTranches = { ...tranchesByLevel, [selectedTrancheLevel]: threeTranches };
+      for (const lvl of LEVELS) {
+        const lvlTranches = currentLevelTranches[lvl];
+        const scolariteAmt = getFeeAmount(lvl, 'scolarite') || 0;
+        if (lvlTranches && scolariteAmt > 0) {
+          const amt1 = Math.round((scolariteAmt * lvlTranches[0].percentage) / 100);
+          const amt2 = Math.round((scolariteAmt * lvlTranches[1].percentage) / 100);
+          const amt3 = Math.max(0, scolariteAmt - amt1 - amt2);
+
+          tranchePromises.push(
+            paymentTrancheService.configureThreeTranches({
+              level: lvl,
+              domain: selectedDomain || null,
+              payment_type: 'scolarite',
+              academic_year: config.current_academic_year,
+              sync_associated_domains: isAssociated && autoSyncGroup,
+              tranches: [
+                {
+                  tranche_number: 1,
+                  tranche_name: lvlTranches[0].tranche_name || '1ère tranche (P1)',
+                  percentage: lvlTranches[0].percentage,
+                  amount: amt1,
+                  due_date: lvlTranches[0].due_date || null
+                },
+                {
+                  tranche_number: 2,
+                  tranche_name: lvlTranches[1].tranche_name || '2ème tranche (P2)',
+                  percentage: lvlTranches[1].percentage,
+                  amount: amt2,
+                  due_date: lvlTranches[1].due_date || null
+                },
+                {
+                  tranche_number: 3,
+                  tranche_name: lvlTranches[2].tranche_name || '3ème tranche (P3)',
+                  percentage: lvlTranches[2].percentage,
+                  amount: amt3,
+                  due_date: lvlTranches[2].due_date || null
+                }
+              ]
+            })
+          );
+        }
+      }
+
+      // 4. Sauvegarde des dates limites (calendrier)
+      const deadlinePromises: Promise<unknown>[] = [];
+      for (const dt of DEADLINE_TYPES) {
+        const dl = deadlineInputs[dt.value];
+        if (dl && dl.date && dl.date.trim() !== '') {
+          deadlinePromises.push(
+            academicFeeService.createOrUpdateDeadline({
+              deadline_type: dt.value,
+              deadline_date: dl.date,
+              academic_year: config.current_academic_year,
+              description: dl.description || dt.label
+            })
+          );
+        }
+      }
+
+      await Promise.all([configPromise, ...feePromises, ...tranchePromises, ...deadlinePromises]);
+
+      setHasChanges(false);
       toast.success(
         isAssociated && autoSyncGroup
-          ? `Tarif enregistré et synchronisé pour les 3 pôles associés !`
-          : (selectedDomain ? `Tarif enregistré pour le pôle ${selectedDomain}` : 'Tarif standard global enregistré')
+          ? '✅ Configuration globale sauvegardée et synchronisée pour les 3 pôles associés !'
+          : '✅ Configuration globale sauvegardée avec succès ! (Frais, Tranches, Calendrier, Notation, Pénalités)'
       );
-      setEditingFee(null);
       await loadAll();
     } catch (error: unknown) {
-      toast.error((error as Error)?.message || 'Erreur lors de la sauvegarde du tarif');
+      console.error('❌ Erreur sauvegarde globale:', error);
+      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la sauvegarde globale');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleSaveDeadline = async () => {
-    if (!editingDeadline) return;
-    
-    if (!editingDeadline.date || editingDeadline.date.trim() === '') {
-      toast.error('⚠️ Veuillez sélectionner une date valide');
-      setEditingDeadline(null);
-      return;
-    }
-    
-    const selectedDate = new Date(editingDeadline.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (selectedDate < today) {
-      toast.error('⚠️ La date doit être dans le futur');
-      setEditingDeadline(null);
-      return;
-    }
-    
-    try {
-      await academicFeeService.createOrUpdateDeadline({
-        deadline_type: editingDeadline.type,
-        deadline_date: editingDeadline.date,
-        academic_year: config.current_academic_year,
-        description: editingDeadline.description
-      });
-      
-      const deadlineLabel = deadlineTypes.find(d => d.value === editingDeadline.type)?.label || 'Date limite';
-      toast.success(`✅ "${deadlineLabel}" enregistrée avec succès !`);
-      
-      setEditingDeadline(null);
-      await loadAll();
-    } catch (error: unknown) {
-      console.error('❌ Erreur sauvegarde deadline:', error);
-      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la sauvegarde');
-    }
-  };
+
+
+  const saveGlobalRef = useRef(handleSaveGlobal);
+
+  useEffect(() => {
+    saveGlobalRef.current = handleSaveGlobal;
+  });
+
+  // ✅ Raccourci clavier Ctrl+S / Cmd+S pour sauvegarder toute la configuration en un clic
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveGlobalRef.current();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // ✅ AUTO-CALCUL DYNAMIQUE DES 3 TRANCHES (GARANTIT STRICTEMENT 100% SANS DÉPASSEMENT)
   const handleUpdateTranche1 = (val: number) => {
     const raw = isNaN(val) ? 1 : val;
-    // P1 plafonné entre 1% et 98%
     const p1 = Math.max(1, Math.min(98, Math.round(raw * 10) / 10));
     let p2 = threeTranches[1].percentage;
     if (p1 + p2 >= 99) {
       p2 = Math.max(1, Math.round((99 - p1) * 10) / 10);
     }
     const p3 = Math.max(1, Math.round((100 - p1 - p2) * 10) / 10);
-    setThreeTranches(prev => [
-      { ...prev[0], percentage: p1 },
-      { ...prev[1], percentage: p2 },
-      { ...prev[2], percentage: p3 }
-    ]);
+    const updated: typeof threeTranches = [
+      { ...threeTranches[0], percentage: p1 },
+      { ...threeTranches[1], percentage: p2 },
+      { ...threeTranches[2], percentage: p3 }
+    ];
+    setThreeTranches(updated);
+    setTranchesByLevel(prev => ({ ...prev, [selectedTrancheLevel]: updated }));
+    setHasChanges(true);
   };
 
   const handleUpdateTranche2 = (val: number) => {
@@ -381,11 +508,14 @@ export default function AcademicConfigPage() {
     const maxP2 = Math.max(1, Math.round((99 - p1) * 10) / 10);
     const p2 = Math.max(1, Math.min(maxP2, Math.round(raw * 10) / 10));
     const p3 = Math.max(1, Math.round((100 - p1 - p2) * 10) / 10);
-    setThreeTranches(prev => [
-      prev[0],
-      { ...prev[1], percentage: p2 },
-      { ...prev[2], percentage: p3 }
-    ]);
+    const updated: typeof threeTranches = [
+      threeTranches[0],
+      { ...threeTranches[1], percentage: p2 },
+      { ...threeTranches[2], percentage: p3 }
+    ];
+    setThreeTranches(updated);
+    setTranchesByLevel(prev => ({ ...prev, [selectedTrancheLevel]: updated }));
+    setHasChanges(true);
   };
 
   const handleUpdateTranche3 = (val: number) => {
@@ -394,103 +524,49 @@ export default function AcademicConfigPage() {
     const maxP3 = Math.max(1, Math.round((99 - p1) * 10) / 10);
     const p3 = Math.max(1, Math.min(maxP3, Math.round(raw * 10) / 10));
     const p2 = Math.max(1, Math.round((100 - p1 - p3) * 10) / 10);
-    setThreeTranches(prev => [
-      prev[0],
-      { ...prev[1], percentage: p2 },
-      { ...prev[2], percentage: p3 }
-    ]);
+    const updated: typeof threeTranches = [
+      threeTranches[0],
+      { ...threeTranches[1], percentage: p2 },
+      { ...threeTranches[2], percentage: p3 }
+    ];
+    setThreeTranches(updated);
+    setTranchesByLevel(prev => ({ ...prev, [selectedTrancheLevel]: updated }));
+    setHasChanges(true);
   };
 
   const applyTranchePreset = (p1: number, p2: number, p3: number) => {
-    setThreeTranches(prev => [
-      { ...prev[0], percentage: p1 },
-      { ...prev[1], percentage: p2 },
-      { ...prev[2], percentage: p3 }
-    ]);
+    const updated: typeof threeTranches = [
+      { ...threeTranches[0], percentage: p1 },
+      { ...threeTranches[1], percentage: p2 },
+      { ...threeTranches[2], percentage: p3 }
+    ];
+    setThreeTranches(updated);
+    setTranchesByLevel(prev => ({ ...prev, [selectedTrancheLevel]: updated }));
+    setHasChanges(true);
   };
 
   const handleUpdateTrancheName = (idx: 0 | 1 | 2, name: string) => {
-    setThreeTranches(prev => {
-      const copy = [...prev] as typeof prev;
-      copy[idx] = { ...copy[idx], tranche_name: name };
-      return copy;
-    });
+    const updated = [...threeTranches] as typeof threeTranches;
+    updated[idx] = { ...updated[idx], tranche_name: name };
+    setThreeTranches(updated);
+    setTranchesByLevel(prev => ({ ...prev, [selectedTrancheLevel]: updated }));
+    setHasChanges(true);
   };
 
   const handleUpdateTrancheDueDate = (idx: 0 | 1 | 2, date: string) => {
-    setThreeTranches(prev => {
-      const copy = [...prev] as typeof prev;
-      copy[idx] = { ...copy[idx], due_date: date };
-      return copy;
-    });
+    const updated = [...threeTranches] as typeof threeTranches;
+    updated[idx] = { ...updated[idx], due_date: date };
+    setThreeTranches(updated);
+    setTranchesByLevel(prev => ({ ...prev, [selectedTrancheLevel]: updated }));
+    setHasChanges(true);
   };
 
-  // Sauvegarder les 3 tranches (100% atomique)
-  const handleSaveThreeTranches = async () => {
-    const totalAmount = getFeeAmount(selectedTrancheLevel, 'scolarite');
-    if (!totalAmount || totalAmount <= 0) {
-      toast.error(
-        `Veuillez d'abord configurer le montant de la Scolarité pour le niveau ${selectedTrancheLevel} ` +
-        `dans le tableau des frais académiques ci-dessus, puis enregistrez avec le bouton Enregistrer.`
-      );
-      return;
-    }
-
-    const sumPct = Math.round((threeTranches[0].percentage + threeTranches[1].percentage + threeTranches[2].percentage) * 100) / 100;
-    if (Math.abs(sumPct - 100) > 0.2) {
-      toast.error(`Le total des pourcentages doit être exactement de 100% (actuel: ${sumPct}%).`);
-      return;
-    }
-
-    const amt1 = Math.round((totalAmount * threeTranches[0].percentage) / 100);
-    const amt2 = Math.round((totalAmount * threeTranches[1].percentage) / 100);
-    const amt3 = Math.max(0, totalAmount - amt1 - amt2);
-
-    const isAssociated = Boolean(selectedDomain && ASSOCIATED_DOMAINS.includes(selectedDomain));
-    setSavingThreeTranches(true);
-    try {
-      await paymentTrancheService.configureThreeTranches({
-        level: selectedTrancheLevel,
-        domain: selectedDomain || null,
-        payment_type: 'scolarite',
-        academic_year: config.current_academic_year,
-        sync_associated_domains: isAssociated && autoSyncGroup,
-        tranches: [
-          {
-            tranche_number: 1,
-            tranche_name: threeTranches[0].tranche_name || '1ère tranche (P1)',
-            percentage: threeTranches[0].percentage,
-            amount: amt1,
-            due_date: threeTranches[0].due_date || null
-          },
-          {
-            tranche_number: 2,
-            tranche_name: threeTranches[1].tranche_name || '2ème tranche (P2)',
-            percentage: threeTranches[1].percentage,
-            amount: amt2,
-            due_date: threeTranches[1].due_date || null
-          },
-          {
-            tranche_number: 3,
-            tranche_name: threeTranches[2].tranche_name || '3ème tranche (P3)',
-            percentage: threeTranches[2].percentage,
-            amount: amt3,
-            due_date: threeTranches[2].due_date || null
-          }
-        ]
-      });
-
-      toast.success(
-        isAssociated && autoSyncGroup
-          ? `✅ 3 Tranches enregistrées et synchronisées pour les 3 pôles associés !`
-          : `✅ Configuration des 3 tranches enregistrée pour ${selectedTrancheLevel} (Total 100% : ${totalAmount.toLocaleString('fr-FR')} FCFA)`
-      );
-      await loadAll();
-    } catch (error: unknown) {
-      console.error('❌ Erreur configuration 3 tranches:', error);
-      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la configuration des tranches');
-    } finally {
-      setSavingThreeTranches(false);
+  const handleSelectTrancheLevel = (lvl: string) => {
+    setSelectedTrancheLevel(lvl);
+    if (tranchesByLevel[lvl]) {
+      setThreeTranches(tranchesByLevel[lvl]);
+    } else {
+      syncTranchesForLevel(lvl, selectedDomain, tranches);
     }
   };
 
@@ -526,28 +602,21 @@ export default function AcademicConfigPage() {
 
   const handleChange = <K extends keyof AcademicConfig>(field: K, value: AcademicConfig[K]) => {
     setConfig(prev => ({ ...prev, [field]: value }));
+    setHasChanges(true);
   };
 
   const handleCCChange = (value: number) => {
     const cc = Math.max(0, Math.min(1, value));
     const exam = parseFloat((1 - cc).toFixed(2));
     setConfig(prev => ({ ...prev, default_cc_coefficient: cc, default_exam_coefficient: exam }));
+    setHasChanges(true);
   };
 
   const handleExamChange = (value: number) => {
     const exam = Math.max(0, Math.min(1, value));
     const cc = parseFloat((1 - exam).toFixed(2));
     setConfig(prev => ({ ...prev, default_exam_coefficient: exam, default_cc_coefficient: cc }));
-  };
-
-  const getFeeAmount = (level: string, type: string): number | null => {
-    if (!fees || !Array.isArray(fees)) return null;
-    if (selectedDomain) {
-      const specificFee = fees.find(f => f.level === level && f.payment_type === type && f.domain === selectedDomain && f.academic_year === config.current_academic_year);
-      if (specificFee) return specificFee.amount;
-    }
-    const globalFee = fees.find(f => f.level === level && f.payment_type === type && (!f.domain || f.domain === '') && f.academic_year === config.current_academic_year);
-    return globalFee ? globalFee.amount : null;
+    setHasChanges(true);
   };
 
   const isFeeLocked = (level: string, type: string): boolean => {
@@ -653,21 +722,11 @@ export default function AcademicConfigPage() {
     );
   }
 
-  const levels = ['L1', 'L2', 'L3', 'M1', 'M2'];
-  const paymentTypes = [
-    { value: 'scolarite', label: 'Scolarité', icon: BookOpen },
-    { value: 'inscription', label: 'Inscription', icon: GraduationCap },
-    { value: 'autre', label: 'Autre', icon: DollarSign }
-  ];
-  const deadlineTypes = [
-    { value: 'inscription_start', label: 'Début des inscriptions', icon: Calendar },
-    { value: 'inscription_end', label: 'Fin des inscriptions', icon: Calendar },
-    { value: 'semester1_start', label: 'Début Semestre 1', icon: Calendar },
-    { value: 'semester1_end', label: 'Fin Semestre 1', icon: Calendar },
-    { value: 'semester2_start', label: 'Début Semestre 2', icon: Calendar },
-    { value: 'semester2_end', label: 'Fin Semestre 2', icon: Calendar },
-    { value: 'exams_s2', label: 'Examens Semestre 2 (Date limite reliquats)', icon: AlertTriangle }
-  ];
+  const levels = LEVELS;
+  const paymentTypes = PAYMENT_TYPES;
+  const deadlineTypes = DEADLINE_TYPES;
+
+
 
   const tabs = [
     { id: 'frais', label: 'Scolarités, Tranches & Pénalités', icon: DollarSign },
@@ -695,12 +754,15 @@ export default function AcademicConfigPage() {
           <p className="text-xs sm:text-sm text-slate-500 mt-1">Tour de contrôle unique des scolarités, tranches, calendrier et règles LMD</p>
         </div>
         <button
-          onClick={handleSave}
+          onClick={handleSaveGlobal}
           disabled={saving}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-[#FF6B00] text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-[#e55f00] transition-all shadow-md disabled:opacity-50 w-full sm:w-auto"
+          className="relative flex items-center justify-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-[#FF6B00] text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-[#e55f00] transition-all shadow-md active:scale-95 disabled:opacity-50 w-full sm:w-auto"
         >
-          <Save size={16} />
-          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          {saving ? 'Sauvegarde globale...' : 'Sauvegarder la configuration'}
+          {hasChanges && (
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-300 ring-2 ring-white animate-pulse" title="Modifications en attente" />
+          )}
         </button>
       </div>
 
@@ -826,9 +888,8 @@ export default function AcademicConfigPage() {
                             <span className="font-semibold text-slate-900">{level}</span>
                           </td>
                           {paymentTypes.map(type => {
-                            const amount = getFeeAmount(level, type.value);
                             const locked = isFeeLocked(level, type.value);
-                            const isEditing = editingFee?.level === level && editingFee?.type === type.value;
+                            const cellValue = feeInputs[`${level}__${type.value}`] ?? '';
                             return (
                               <td key={type.value} className="py-4 px-4 text-center">
                                 <div className="flex items-center justify-center gap-2">
@@ -839,24 +900,17 @@ export default function AcademicConfigPage() {
                                   )}
                                   <input
                                     type="number"
-                                    value={isEditing ? editingFee.amount : (amount || '')}
-                                    onChange={(e) => setEditingFee({ level, type: type.value, amount: e.target.value })}
-                                    onFocus={() => {
-                                      if (!isEditing) {
-                                        setEditingFee({ level, type: type.value, amount: amount?.toString() || '' });
-                                      }
+                                    min="0"
+                                    step="1000"
+                                    value={cellValue}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setFeeInputs(prev => ({ ...prev, [`${level}__${type.value}`]: val }));
+                                      setHasChanges(true);
                                     }}
-                                    className="w-32 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                                    className="w-32 px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 text-center focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] bg-white transition-all hover:border-slate-300"
                                     placeholder="0 FCFA"
                                   />
-                                  {isEditing && (
-                                    <button
-                                      onClick={handleSaveFee}
-                                      className="px-3 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-xs font-medium"
-                                    >
-                                      <Save size={14} />
-                                    </button>
-                                  )}
                                 </div>
                               </td>
                             );
@@ -943,17 +997,17 @@ export default function AcademicConfigPage() {
                   </div>
                 </div>
 
-                {/* Sélecteur de Niveau */}
+                {/* Sélecteur de Niveau - 100% responsive fluide */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap">Sélectionner un niveau :</span>
-                    <div className="flex flex-wrap items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200 max-w-full">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider shrink-0">Sélectionner un niveau :</span>
+                    <div className="flex flex-wrap items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200 w-full sm:w-auto">
                       {levels.map(lvl => (
                         <button
                           key={lvl}
                           type="button"
-                          onClick={() => { setSelectedTrancheLevel(lvl); syncTranchesForLevel(lvl, selectedDomain, tranches); }}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                          onClick={() => handleSelectTrancheLevel(lvl)}
+                          className={`flex-1 sm:flex-none text-center px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                             selectedTrancheLevel === lvl
                               ? 'bg-[#FF6B00] text-white shadow-sm'
                               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -985,8 +1039,8 @@ export default function AcademicConfigPage() {
                   <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-800 text-xs">
                     <AlertTriangle size={18} className="text-amber-600 shrink-0" />
                     <span>
-                      <strong>Attention :</strong> Le tarif de scolarité pour <strong>{selectedTrancheLevel}</strong> est actuellement à 0 FCFA.
-                      Veuillez renseigner le tarif dans le tableau des frais académiques ci-dessus et cliquer sur Enregistrer pour que les montants des 3 tranches soient calculés en temps réel.
+                      <strong>Calcul instantané :</strong> Le tarif de scolarité pour <strong>{selectedTrancheLevel}</strong> est actuellement à 0 FCFA.
+                      Renseignez simplement le tarif dans le tableau ci-dessus : le calcul des montants des 3 tranches s&apos;actualise instantanément en direct !
                     </span>
                   </div>
                 )}
@@ -1339,19 +1393,19 @@ export default function AcademicConfigPage() {
 
                     <button
                       type="button"
-                      onClick={handleSaveThreeTranches}
-                      disabled={savingThreeTranches || currentScolariteFee <= 0}
+                      onClick={handleSaveGlobal}
+                      disabled={saving || currentScolariteFee <= 0}
                       className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-xs font-bold transition-all shadow-md disabled:opacity-50"
                     >
-                      {savingThreeTranches ? (
+                      {saving ? (
                         <>
                           <Loader2 size={15} className="animate-spin" />
-                          Enregistrement des 3 tranches...
+                          Sauvegarde globale en cours...
                         </>
                       ) : (
                         <>
                           <Save size={15} />
-                          Enregistrer les 3 tranches ({selectedTrancheLevel} - 100%)
+                          Sauvegarder toute la configuration
                         </>
                       )}
                     </button>
@@ -1515,12 +1569,12 @@ export default function AcademicConfigPage() {
                 <div className="flex justify-end mt-4 pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={handleSavePenalties}
+                    onClick={handleSaveGlobal}
                     disabled={saving}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
                   >
-                    <Save size={14} />
-                    {saving ? 'Enregistrement...' : 'Enregistrer les pénalités'}
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    {saving ? 'Sauvegarde globale...' : 'Sauvegarder toute la configuration'}
                   </button>
                 </div>
               </div>
@@ -1544,10 +1598,7 @@ export default function AcademicConfigPage() {
                 {deadlineTypes.map(deadlineType => {
                   const deadline = getDeadline(deadlineType.value);
                   const Icon = deadlineType.icon;
-                  const isEditing = editingDeadline?.type === deadlineType.value;
-                  const currentValue = isEditing ? editingDeadline.date : (deadline?.deadline_date || '');
-                  const originalValue = deadline?.deadline_date || '';
-                  const hasChanged = isEditing && editingDeadline.date !== originalValue;
+                  const dlVal = deadlineInputs[deadlineType.value]?.date || '';
                   
                   return (
                     <div key={deadlineType.value} className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
@@ -1565,7 +1616,7 @@ export default function AcademicConfigPage() {
                             )}
                           </div>
                         </div>
-                        {deadline?.deadline_date && (
+                        {dlVal && (
                           <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-medium self-start sm:self-auto">
                             ✓ Configurée
                           </span>
@@ -1575,39 +1626,20 @@ export default function AcademicConfigPage() {
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                         <input
                           type="date"
-                          value={currentValue}
+                          value={dlVal}
                           onChange={(e) => {
                             const newDate = e.target.value;
-                            setEditingDeadline({
-                              type: deadlineType.value,
-                              date: newDate,
-                              description: deadline?.description || ''
-                            });
+                            setDeadlineInputs(prev => ({
+                              ...prev,
+                              [deadlineType.value]: {
+                                date: newDate,
+                                description: deadline?.description || deadlineType.label
+                              }
+                            }));
+                            setHasChanges(true);
                           }}
-                          className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
+                          className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
                         />
-                        
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
-                          {hasChanged && (
-                            <button
-                              onClick={handleSaveDeadline}
-                              className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium transition-colors"
-                            >
-                              <Save size={14} />
-                              Enregistrer
-                            </button>
-                          )}
-                          
-                          {isEditing && hasChanged && (
-                            <button
-                              onClick={() => setEditingDeadline(null)}
-                              className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-medium transition-colors"
-                            >
-                              <XCircle size={14} />
-                              Annuler
-                            </button>
-                          )}
-                        </div>
                       </div>
                     </div>
                   );
@@ -1640,6 +1672,19 @@ export default function AcademicConfigPage() {
                     </select>
                   </div>
                 </div>
+              </div>
+
+              {/* Bouton de sauvegarde globale onglet Calendrier */}
+              <div className="flex justify-end pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={handleSaveGlobal}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? 'Sauvegarde en cours...' : 'Sauvegarder toute la configuration'}
+                </button>
               </div>
             </div>
           )}
@@ -1742,6 +1787,19 @@ export default function AcademicConfigPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Bouton de sauvegarde globale onglet Notation */}
+              <div className="flex justify-end pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={handleSaveGlobal}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? 'Sauvegarde en cours...' : 'Sauvegarder toute la configuration'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -1801,6 +1859,19 @@ export default function AcademicConfigPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Bouton de sauvegarde globale onglet Assiduité */}
+              <div className="flex justify-end pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={handleSaveGlobal}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? 'Sauvegarde en cours...' : 'Sauvegarder toute la configuration'}
+                </button>
               </div>
             </div>
           )}
@@ -1925,10 +1996,41 @@ export default function AcademicConfigPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Bouton de sauvegarde globale onglet Délibération */}
+              <div className="flex justify-end pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={handleSaveGlobal}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? 'Sauvegarde en cours...' : 'Sauvegarder toute la configuration'}
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Barre Flottante de Sauvegarde Globale Rapide */}
+      {hasChanges && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-xs font-bold whitespace-nowrap">Modifications non enregistrées</span>
+          </div>
+          <button
+            onClick={handleSaveGlobal}
+            disabled={saving}
+            className="px-4 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50 whitespace-nowrap"
+          >
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+            Sauvegarder tout (Ctrl+S)
+          </button>
+        </div>
+      )}
 
       {/* Modal Configuration Modalité Mensuelle */}
       {monthlyModal && (

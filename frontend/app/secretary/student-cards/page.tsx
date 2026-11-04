@@ -139,7 +139,7 @@ export default function SecretaryStudentCardsPrintPage() {
   // Onglet actif : 'print' | 'customize' | 'secretary'
   const [activeTab, setActiveTab] = useState<'print' | 'customize' | 'secretary'>('print');
   const [previewSide, setPreviewSide] = useState<'recto' | 'verso'>('recto');
-  const [secretaryUser, setSecretaryUser] = useState<any>(null);
+  const [secretaryUser, setSecretaryUser] = useState<Record<string, unknown> | null>(null);
 
   // État de personnalisation de la carte
   const [customization, setCustomization] = useState<CardCustomizationState>({
@@ -159,7 +159,7 @@ export default function SecretaryStudentCardsPrintPage() {
   const [filterLevel, setFilterLevel] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Format d'impression A4 : 10, 8 ou 6 cartes par feuille
+  // Format d&apos;impression A4 : 10, 8 ou 6 cartes par feuille
   const [cardsPerPage, setCardsPerPage] = useState<6 | 8 | 10>(10);
   const [showPrintModal, setShowPrintModal] = useState(false);
 
@@ -170,17 +170,13 @@ export default function SecretaryStudentCardsPrintPage() {
     logo: string;
     academic_year: string;
     slogan?: string;
-    card_config?: any;
+    card_config?: Record<string, unknown>;
   }>({
     name: 'UniSphere AI',
     logo: '/uploads/logos/university_1_1791668644.png',
     academic_year: '2026-2027',
     slogan: "Ensemble pour l'excellence"
   });
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const loadData = async () => {
     try {
@@ -240,6 +236,11 @@ export default function SecretaryStudentCardsPrintPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadData();
+  }, []);
 
   const handleApplyPreset = (preset: ThemePreset) => {
     setActivePresetId(preset.id);
@@ -391,7 +392,7 @@ export default function SecretaryStudentCardsPrintPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
         <Loader2 className="w-10 h-10 text-[#FF7300] animate-spin" />
-        <p className="text-xs text-slate-500 font-medium">Chargement de l'atelier des cartes...</p>
+        <p className="text-xs text-slate-500 font-medium">Chargement de l&apos;atelier des cartes...</p>
       </div>
     );
   }
@@ -423,36 +424,36 @@ export default function SecretaryStudentCardsPrintPage() {
             </div>
           </div>
 
-          {/* Onglets de navigation principale - avec défilement horizontal fluide sur mobile */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold overflow-x-auto flex-nowrap scrollbar-none max-w-full">
+          {/* Onglets de navigation principale - 100% responsive avec ajustement automatique sur mobile */}
+          <div className="w-full lg:w-auto flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold overflow-x-auto scrollbar-none max-w-full">
             <button
               onClick={() => setActiveTab('print')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap flex-1 lg:flex-initial ${
                 activeTab === 'print'
                   ? 'bg-white text-slate-900 shadow-xs font-extrabold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Printer size={15} className={activeTab === 'print' ? 'text-[#FF7300]' : ''} />
-              <span>Tirage & Impression ({selectedStudents.length})</span>
+              <span>Tirage ({selectedStudents.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('customize')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap flex-1 lg:flex-initial ${
                 activeTab === 'customize'
                   ? 'bg-white text-slate-900 shadow-xs font-extrabold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Palette size={15} className={activeTab === 'customize' ? 'text-[#FF7300]' : ''} />
-              <span>Personnaliser la carte</span>
-              <span className="w-2 h-2 rounded-full bg-[#FF7300]" />
+              <span>Personnaliser</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF7300] shrink-0" />
             </button>
 
             <button
               onClick={() => setActiveTab('secretary')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap flex-1 lg:flex-initial ${
                 activeTab === 'secretary'
                   ? 'bg-white text-slate-900 shadow-xs font-extrabold'
                   : 'text-slate-600 hover:text-slate-900'
@@ -601,7 +602,7 @@ export default function SecretaryStudentCardsPrintPage() {
                 {/* Sélecteur Couleur Vague Accent */}
                 <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
                   <label className="block text-xs font-bold text-slate-700">
-                    Vague d'Accent (Inférieure)
+                    Vague d&apos;Accent (Inférieure)
                   </label>
                   <p className="text-[11px] text-slate-500">Colore la vague dynamique, les badges et liserés</p>
                   <div className="flex items-center gap-3 pt-1">
@@ -651,7 +652,7 @@ export default function SecretaryStudentCardsPrintPage() {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Sous-titre d'En-tête
+                    Sous-titre d&apos;En-tête
                   </label>
                   <input
                     type="text"
@@ -724,7 +725,7 @@ export default function SecretaryStudentCardsPrintPage() {
                   ) : (
                     <>
                       <Save size={15} />
-                      <span>Sauvegarder pour l'université</span>
+                      <span>Sauvegarder pour l&apos;université</span>
                     </>
                   )}
                 </button>
@@ -839,7 +840,7 @@ export default function SecretaryStudentCardsPrintPage() {
               </div>
             </div>
 
-            {/* Boutons d'impression */}
+            {/* Boutons d&apos;impression */}
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrint}
@@ -847,7 +848,7 @@ export default function SecretaryStudentCardsPrintPage() {
                 className="flex items-center gap-1.5 px-5 py-2 bg-[#FF7300] hover:bg-orange-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
               >
                 <Printer size={15} />
-                <span>Lancer l'impression ({selectedStudents.length} cartes • {printPages.length} feuille{printPages.length > 1 ? 's' : ''})</span>
+                <span>Lancer l&apos;impression ({selectedStudents.length} cartes • {printPages.length} feuille{printPages.length > 1 ? 's' : ''})</span>
               </button>
             </div>
           </div>
@@ -961,10 +962,10 @@ export default function SecretaryStudentCardsPrintPage() {
             </div>
           </div>
 
-          {/* Tableau paginé des étudiants */}
+          {/* Tableau paginé des étudiants - défilement tactile fluide */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto -mx-1 sm:mx-0">
+              <table className="w-full text-left text-xs min-w-[520px]">
                 <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200/80">
                   <tr>
                     <th className="px-4 py-2.5 w-10 text-center">Sélection</th>
@@ -1147,7 +1148,7 @@ export default function SecretaryStudentCardsPrintPage() {
               <div className="bg-orange-50 border border-orange-200/80 rounded-xl p-3 text-xs text-orange-800 flex items-center gap-2">
                 <Sparkles size={16} className="text-[#FF7300] flex-shrink-0" />
                 <span>
-                  Prêt pour l'impression. La planche est calibrée pour remplir <b>100% de la feuille A4</b> au format officiel standard ISO CR80.
+                  Prêt pour l&apos;impression. La planche est calibrée pour remplir <b>100% de la feuille A4</b> au format officiel standard ISO CR80.
                 </span>
               </div>
 
@@ -1168,7 +1169,7 @@ export default function SecretaryStudentCardsPrintPage() {
 
               {selectedStudents.length > 2 && (
                 <p className="text-center text-xs text-slate-500 italic">
-                  + {selectedStudents.length - 2} autre(s) carte(s) configurée(s) pour l'impression
+                  + {selectedStudents.length - 2} autre(s) carte(s) configurée(s) pour l&apos;impression
                 </p>
               )}
             </div>
@@ -1185,7 +1186,7 @@ export default function SecretaryStudentCardsPrintPage() {
                 className="flex items-center gap-1.5 px-5 py-2 bg-[#FF7300] hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
               >
                 <Printer size={14} />
-                Lancer l'impression ({selectedStudents.length} cartes)
+                Lancer l&apos;impression ({selectedStudents.length} cartes)
               </button>
             </div>
           </div>

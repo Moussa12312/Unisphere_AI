@@ -15,9 +15,10 @@ export default function FloatingAIButton() {
     const handleResize = () => {
       const margin = 20;
       const buttonSize = 56;
+      const isMobile = window.innerWidth < 640;
       setPosition({
-        x: window.innerWidth - buttonSize - margin,
-        y: window.innerHeight - buttonSize - 90
+        x: window.innerWidth - buttonSize - (isMobile ? 12 : margin),
+        y: isMobile ? window.innerHeight - buttonSize - 130 : window.innerHeight - buttonSize - 90
       });
     };
 
