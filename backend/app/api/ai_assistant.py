@@ -49,18 +49,30 @@ def get_admin_context(db: Session, university_id: int) -> dict:
     ).group_by(Student.level).all()
     niveaux_data = {n[0]: n[1] for n in niveaux}
     
+    u_filter = [Payment.university_id == university_id] if university_id else []
     total_revenue = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
-        Payment.university_id == university_id, Payment.status == "completed"
-    ).scalar()
+        *u_filter, Payment.status == "completed"
+    ).scalar() or 0.0
     unpaid = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
-        Payment.university_id == university_id, Payment.status == "failed"
-    ).scalar()
+        *u_filter, Payment.status == "failed"
+    ).scalar() or 0.0
     late = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
-        Payment.university_id == university_id, Payment.status == "pending"
-    ).scalar()
-    
-    total_expected = total_revenue + late
-    collection_rate = (total_revenue / total_expected * 100) if total_expected > 0 else 100.0
+        *u_filter, Payment.status == "pending"
+    ).scalar() or 0.0
+
+    total_expenses = 0.0
+    try:
+        from app.models.accounting import Expense
+        exp_filter = [Expense.university_id == university_id] if university_id else []
+        total_expenses = db.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
+            *exp_filter, Expense.status == "paid"
+        ).scalar() or 0.0
+    except Exception:
+        total_expenses = 0.0
+
+    net_balance = (total_revenue or 0.0) - total_expenses
+    total_expected = (total_revenue or 0.0) + (late or 0.0)
+    collection_rate = ((total_revenue or 0.0) / total_expected * 100) if total_expected > 0 else 100.0
     
     total_attendance = db.query(func.count(Attendance.id)).filter(Attendance.university_id == university_id).scalar() or 0
     present_count = db.query(func.count(Attendance.id)).filter(
@@ -77,6 +89,8 @@ def get_admin_context(db: Session, university_id: int) -> dict:
         "filieres": filieres_data,
         "niveaux": niveaux_data,
         "total_revenue": total_revenue,
+        "total_expenses": total_expenses,
+        "net_balance": net_balance,
         "unpaid": unpaid,
         "late": late,
         "collection_rate": round(collection_rate, 1),
@@ -360,7 +374,7 @@ def call_llm_provider(system_prompt: str, conversation_history: list, user_messa
         })
     messages.append({"role": "user", "content": user_message})
 
-    # 1. Groq (Prioritaire : 100% gratuit, extrêmement rapide, LLaMA 3.3 70B)
+    # 1. Groq (Prioritaire : 100% gratuit, extrêmement rapide, multi-modèles)
     groq_api_key = os.getenv("GROQ_API_KEY")
     if groq_api_key and groq_api_key.strip() and not groq_api_key.startswith("gsk_placeholder"):
         try:
@@ -369,13 +383,26 @@ def call_llm_provider(system_prompt: str, conversation_history: list, user_messa
                 api_key=groq_api_key.strip(),
                 base_url="https://api.groq.com/openai/v1"
             )
-            completion = client.chat.completions.create(
-                model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1500,
-            )
-            return completion.choices[0].message.content, "UniSphere AI (Groq LLaMA 3.3)"
+            configured_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b").strip()
+            models_to_try = [configured_model] if configured_model else []
+            for candidate in ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"]:
+                if candidate not in models_to_try:
+                    models_to_try.append(candidate)
+
+            for model_name in models_to_try:
+                try:
+                    completion = client.chat.completions.create(
+                        model=model_name,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=1500,
+                    )
+                    content = completion.choices[0].message.content
+                    if content and len(content.strip()) > 0:
+                        return content.strip(), f"UniSphere AI (Groq {model_name})"
+                except Exception as m_err:
+                    print(f"⚠️ Modèle Groq {model_name} non disponible : {m_err}")
+                    continue
         except Exception as e:
             print(f"⚠️ Erreur Groq: {e}")
 
@@ -447,10 +474,18 @@ def generate_local_ai_response(message: str, context: dict, user_name: str) -> s
     total_teachers = context.get("total_teachers", 0)
     total_courses = context.get("total_courses", context.get("courses_count", 0))
     rate = context.get("attendance_rate", 0)
-    rev = context.get("total_revenue", 0)
-    late = context.get("late", 0)
+    rev = context.get("total_revenue", 0) or 0
+    expenses = context.get("total_expenses", 0) or 0
+    net = context.get("net_balance", rev - expenses) or 0
+    late = context.get("late", 0) or 0
+    unpaid = context.get("unpaid", 0) or 0
+    rate_coll = context.get("collection_rate", 100) or 100
+
     rev_str = f"{rev:,.0f} FCFA".replace(",", " ")
+    exp_str = f"{expenses:,.0f} FCFA".replace(",", " ")
+    net_str = f"{net:,.0f} FCFA".replace(",", " ")
     late_str = f"{late:,.0f} FCFA".replace(",", " ")
+    unpaid_str = f"{unpaid:,.0f} FCFA".replace(",", " ")
 
     # 1. Salutations & Présentation
     if any(k in msg for k in ["bonjour", "salut", "coucou", "hello", "bonsoir", "qui es-tu", "qui es tu", "tu es qui", "ton rôle", "que peux-tu faire"]):
@@ -530,16 +565,24 @@ def generate_local_ai_response(message: str, context: dict, user_name: str) -> s
             f"• **Personnalisation :** Choix parmi 8 palettes officielles ou personnalisation libre des couleurs."
         )
 
-    # 8. Finances, Tranches & Modalité Mensuelle
-    if any(k in msg for k in ["tranche", "tranches", "scolarite", "scolarité", "frais", "tarif", "paiement", "recouvrement", "mensuel", "mensualite", "mensualité", "quittance", "recu", "reçu"]):
+    # 8. Finances, Trésorerie, Dépenses & Recettes (enrichi avec tous les mots-clés)
+    if any(k in msg for k in [
+        "finance", "finances", "argent", "combien", "caisse", "solde", "tresorerie", "trésorerie",
+        "chiffre", "recette", "recettes", "revenu", "revenus", "depense", "depenses", "dépense", "dépenses",
+        "impaye", "impayes", "impayé", "impayés", "tranche", "tranches", "scolarite", "scolarité",
+        "frais", "tarif", "paiement", "recouvrement", "mensuel", "mensualite", "mensualité",
+        "quittance", "recu", "reçu"
+    ]):
         return (
-            f"💳 **Finances, Tranches & Échéanciers :**\n\n"
-            f"• **Configuration stricte à 3 tranches :** P1 (Rentrée / 40%), P2 (Semestre 1 / 30%), P3 (Semestre 2 / 30%) = 100% garanti.\n"
-            f"• **Option Mensuelle :** Permet un acompte initial à l'inscription suivi de mensualités fixes (ex: 5 mois × 100 000 FCFA).\n"
-            f"• **Situation financière :**\n"
-            f"  - Total encaissé : **{rev_str}**\n"
-            f"  - Reliquats en attente : **{late_str}**\n"
-            f"• **Quittances :** Génération automatique de reçus numérotés avec distinction entre paiement partiel et quittance soldée 100%."
+            f"💰 **Situation Financière & Trésorerie en Temps Réel :**\n\n"
+            f"Voici l'état consolidé de vos finances pour votre établissement :\n\n"
+            f"• 📥 **Total Recettes Encaissées :** **{rev_str}**\n"
+            f"• 📤 **Total Dépenses Payées :** **{exp_str}**\n"
+            f"• 🏦 **Solde Net de Trésorerie :** **{net_str}**\n"
+            f"• ⏳ **Reliquats / Échéances en Attente :** **{late_str}**\n"
+            f"• 📊 **Taux de Recouvrement Global :** **{rate_coll}%**\n\n"
+            f"📌 *UniSphere AI gère automatiquement la répartition stricte des 3 tranches académiques (P1, P2, P3 = 100%) "
+            f"ainsi que les facilités de paiements mensuels avec délivrance instantanée des quittances.*"
         )
 
     # 9. Notes, Bulletins & Relevés LMD
