@@ -167,7 +167,7 @@ export default function MobileBottomNav({ userRole }: MobileBottomNavProps) {
       aria-label="Navigation mobile"
       className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200/80 px-2 py-1.5 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] md:hidden print:hidden transition-all duration-300"
     >
-      <div className="flex items-center justify-around max-w-md mx-auto">
+      <div className="grid grid-cols-5 items-center w-full max-w-md mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           // Les liens "Accueil/Dashboard" ne sont actifs que sur correspondance exacte
@@ -177,19 +177,19 @@ export default function MobileBottomNav({ userRole }: MobileBottomNavProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all duration-150 ${
                 isActive
-                  ? 'text-[#FF6B00] font-bold scale-105'
+                  ? 'text-[#FF6B00] font-bold'
                   : 'text-slate-500 hover:text-slate-800 font-medium'
               }`}
             >
               <div className={`relative p-1 rounded-lg transition-colors ${isActive ? 'bg-orange-50' : 'bg-transparent'}`}>
-                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                <Icon size={19} strokeWidth={isActive ? 2.5 : 2} />
                 {isActive && (
                   <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#FF6B00] rounded-full" />
                 )}
               </div>
-              <span className="text-[10px] mt-0.5 tracking-tight leading-tight whitespace-nowrap">
+              <span className="text-[9.5px] sm:text-[10px] mt-0.5 tracking-tight leading-tight truncate max-w-full text-center">
                 {item.label}
               </span>
             </Link>

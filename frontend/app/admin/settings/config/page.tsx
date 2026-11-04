@@ -915,15 +915,15 @@ export default function AcademicConfigPage() {
               <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200">
-                      <Layers className="text-[#FF6B00]" size={22} />
+                  <div className="flex items-start sm:items-center gap-2.5 sm:gap-3">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 flex-shrink-0 mt-0.5 sm:mt-0">
+                      <Layers className="text-[#FF6B00]" size={20} />
                     </div>
 
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-bold text-slate-900">Tranches de Paiement Académiques</h2>
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <h2 className="text-base sm:text-lg font-bold text-slate-900">Tranches de Paiement Académiques</h2>
+                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">
                           Strictement 3 tranches (P1, P2, P3)
                         </span>
                       </div>
@@ -942,10 +942,10 @@ export default function AcademicConfigPage() {
                 </div>
 
                 {/* Sélecteur de Niveau */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Sélectionner un niveau :</span>
-                    <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap">Sélectionner un niveau :</span>
+                    <div className="flex flex-wrap items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200 max-w-full">
                       {levels.map(lvl => (
                         <button
                           key={lvl}
@@ -963,8 +963,8 @@ export default function AcademicConfigPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <div className="text-left md:text-right">
                       <p className="text-[11px] text-slate-500 font-medium">
                         Scolarité de référence ({selectedTrancheLevel}{selectedDomain ? ` - ${selectedDomain}` : ' - Tous pôles'}) :
                       </p>
@@ -1550,7 +1550,7 @@ export default function AcademicConfigPage() {
                   return (
                     <div key={deadlineType.value} className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                           <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 shrink-0">
                             <Icon className="text-slate-600" size={18} />
                           </div>
@@ -1585,7 +1585,7 @@ export default function AcademicConfigPage() {
                           className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
                         />
                         
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
                           {hasChanged && (
                             <button
                               onClick={handleSaveDeadline}
@@ -1819,7 +1819,7 @@ export default function AcademicConfigPage() {
               <div className="space-y-4">
                 <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                       <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                         config.allow_compensation ? 'bg-green-100' : 'bg-red-100'
                       }`}>
@@ -1863,7 +1863,7 @@ export default function AcademicConfigPage() {
 
                 <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                       <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                         config.allow_makeup_exam ? 'bg-green-100' : 'bg-red-100'
                       }`}>

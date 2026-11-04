@@ -400,18 +400,20 @@ export default function SecretaryStudentCardsPrintPage() {
     <div className="space-y-6 max-w-7xl mx-auto p-3 sm:p-5 lg:p-6">
       {/* 1. En-tête & Barre de navigation principale */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4 print:hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
             <Link
               href="/secretary/students"
-              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors flex-shrink-0 mt-0.5 sm:mt-0"
             >
               <ChevronLeft size={20} />
             </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">Cartes Étudiantes & Identité Visuelle</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-[#FF7300]">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+                  Cartes Étudiantes & Identité Visuelle
+                </h1>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-[#FF7300] whitespace-nowrap">
                   {students.length} étudiant{students.length > 1 ? 's' : ''}
                 </span>
               </div>
@@ -421,11 +423,11 @@ export default function SecretaryStudentCardsPrintPage() {
             </div>
           </div>
 
-          {/* Onglets de navigation principale */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold">
+          {/* Onglets de navigation principale - avec défilement horizontal fluide sur mobile */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold overflow-x-auto flex-nowrap scrollbar-none max-w-full">
             <button
               onClick={() => setActiveTab('print')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'print'
                   ? 'bg-white text-slate-900 shadow-xs font-extrabold'
                   : 'text-slate-600 hover:text-slate-900'
@@ -437,7 +439,7 @@ export default function SecretaryStudentCardsPrintPage() {
 
             <button
               onClick={() => setActiveTab('customize')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'customize'
                   ? 'bg-white text-slate-900 shadow-xs font-extrabold'
                   : 'text-slate-600 hover:text-slate-900'
@@ -450,7 +452,7 @@ export default function SecretaryStudentCardsPrintPage() {
 
             <button
               onClick={() => setActiveTab('secretary')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap flex-shrink-0 ${
                 activeTab === 'secretary'
                   ? 'bg-white text-slate-900 shadow-xs font-extrabold'
                   : 'text-slate-600 hover:text-slate-900'
@@ -463,28 +465,30 @@ export default function SecretaryStudentCardsPrintPage() {
         </div>
 
         {/* Barre de statut du thème appliqué */}
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200/60">
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-4 h-4 rounded-full border border-white shadow-2xs flex-shrink-0"
-              style={{ backgroundColor: customization.primaryColor }}
-            />
-            <div
-              className="w-4 h-4 rounded-full border border-white shadow-2xs -ml-3 flex-shrink-0"
-              style={{ backgroundColor: customization.accentColor }}
-            />
-            <span className="font-bold text-slate-800">Thème Actif :</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+          <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+            <div className="flex items-center -space-x-1.5 flex-shrink-0">
+              <div
+                className="w-4 h-4 rounded-full border border-white shadow-2xs"
+                style={{ backgroundColor: customization.primaryColor }}
+              />
+              <div
+                className="w-4 h-4 rounded-full border border-white shadow-2xs"
+                style={{ backgroundColor: customization.accentColor }}
+              />
+            </div>
+            <span className="font-bold text-slate-800 whitespace-nowrap">Thème Actif :</span>
             <span className="text-slate-600 font-medium">
-              Vague Principale (<code className="font-mono text-slate-800 font-bold">{customization.primaryColor}</code>) • Accent (<code className="font-mono text-slate-800 font-bold">{customization.accentColor}</code>)
+              Vague (<code className="font-mono text-slate-800 font-bold">{customization.primaryColor}</code>) • Accent (<code className="font-mono text-slate-800 font-bold">{customization.accentColor}</code>)
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-slate-500 italic">« {customization.slogan} »</span>
+          <div className="flex items-center justify-between sm:justify-end gap-3 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-200/50">
+            <span className="text-slate-500 italic truncate max-w-[220px]">« {customization.slogan} »</span>
             {activeTab !== 'customize' && (
               <button
                 onClick={() => setActiveTab('customize')}
-                className="text-[#FF7300] hover:underline font-bold text-xs"
+                className="text-[#FF7300] hover:underline font-bold text-xs whitespace-nowrap flex-shrink-0"
               >
                 Modifier le style →
               </button>
@@ -894,46 +898,48 @@ export default function SecretaryStudentCardsPrintPage() {
           </div>
 
           {/* Filtres & Recherche Légers */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-              <div className="relative flex-1">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-3.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
+              <div className="relative flex-1 min-w-0">
                 <input
                   type="text"
                   placeholder="Rechercher par nom, prénom, matricule..."
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF7300]"
+                  className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#FF7300]"
                 />
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
               </div>
 
-              <select
-                value={filterFiliere}
-                onChange={(e) => { setFilterFiliere(e.target.value); setCurrentPage(1); }}
-                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FF7300]"
-              >
-                <option value="">Toutes filières</option>
-                {filieres.map((f) => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
+              <div className="grid grid-cols-2 sm:flex items-center gap-2">
+                <select
+                  value={filterFiliere}
+                  onChange={(e) => { setFilterFiliere(e.target.value); setCurrentPage(1); }}
+                  className="w-full sm:w-auto px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FF7300]"
+                >
+                  <option value="">Toutes filières</option>
+                  {filieres.map((f) => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
 
-              <select
-                value={filterLevel}
-                onChange={(e) => { setFilterLevel(e.target.value); setCurrentPage(1); }}
-                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FF7300]"
-              >
-                <option value="">Tous niveaux</option>
-                {levels.map((lvl) => (
-                  <option key={lvl} value={lvl}>{lvl}</option>
-                ))}
-              </select>
+                <select
+                  value={filterLevel}
+                  onChange={(e) => { setFilterLevel(e.target.value); setCurrentPage(1); }}
+                  className="w-full sm:w-auto px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FF7300]"
+                >
+                  <option value="">Tous niveaux</option>
+                  {levels.map((lvl) => (
+                    <option key={lvl} value={lvl}>{lvl}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
               <button
                 onClick={toggleSelectAllFiltered}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-semibold text-xs transition-colors flex items-center gap-1.5"
+                className="flex-1 sm:flex-initial px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
               >
                 <CheckSquare size={14} className="text-[#FF7300]" />
                 <span>
@@ -946,7 +952,7 @@ export default function SecretaryStudentCardsPrintPage() {
               {(search || filterFiliere || filterLevel) && (
                 <button
                   onClick={() => { setSearch(''); setFilterFiliere(''); setFilterLevel(''); setCurrentPage(1); }}
-                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg"
+                  className="text-slate-400 hover:text-slate-600 p-2 rounded-xl border border-slate-200 hover:bg-slate-50"
                   title="Réinitialiser"
                 >
                   <RotateCcw size={14} />
@@ -1066,7 +1072,7 @@ export default function SecretaryStudentCardsPrintPage() {
       {/* ==================================================================== */}
       {activeTab === 'secretary' && (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4 shadow-xs print:hidden">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <ShieldCheck className="text-[#FF7300]" size={18} />
@@ -1076,7 +1082,7 @@ export default function SecretaryStudentCardsPrintPage() {
             </div>
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-4 py-2 bg-[#FF7300] text-white rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#FF7300] text-white rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors self-start sm:self-auto"
             >
               <Printer size={14} /> Imprimer mon badge
             </button>
