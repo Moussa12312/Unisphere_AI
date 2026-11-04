@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 import {
   Save, GraduationCap, Calculator, Clock, CheckCircle,
   XCircle, BookOpen, Award, Info, DollarSign, Calendar,
-  Lock, AlertTriangle, Layers, Plus, Trash2, Loader2,
-  Check, ShieldCheck, Sparkles, RefreshCw, ArrowRight, Edit3, Share2
+  Lock, AlertTriangle, Layers, Trash2, Loader2,
+  Check, ShieldCheck, Sparkles, RefreshCw, Share2
 } from 'lucide-react';
+import { useCallback } from 'react';
 import api from '@/lib/api';
 import academicFeeService from '@/services/academicFeeService';
 import paymentTrancheService from '@/services/paymentTrancheService';
@@ -75,7 +76,19 @@ const ASSOCIATED_DOMAINS = [
 export default function AcademicConfigPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('frais');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const urlTab = new URLSearchParams(window.location.search).get('tab');
+      if (urlTab) {
+        if (['frais', 'scolarite', 'scolarites', 'tranches', 'penalites', 'financial'].includes(urlTab)) {
+          return 'frais';
+        } else if (['calendrier', 'notation', 'assiduite', 'deliberation'].includes(urlTab)) {
+          return urlTab;
+        }
+      }
+    }
+    return 'frais';
+  });
   const toast = useToast();
   const { confirm } = useConfirm();
   
@@ -124,27 +137,11 @@ export default function AcademicConfigPage() {
     { tranche_number: 3, tranche_name: '3ème tranche (P3 - Solde Semestre 2)', percentage: 30, due_date: '' }
   ]);
 
-  // ✅✅✅ HOOKS AU NIVEAU SUPÉRIEUR (CRITIQUE !)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const urlTab = new URLSearchParams(window.location.search).get('tab');
-      if (urlTab) {
-        if (['frais', 'scolarite', 'scolarites', 'tranches', 'penalites', 'financial'].includes(urlTab)) {
-          setActiveTab('frais');
-        } else if (['calendrier', 'notation', 'assiduite', 'deliberation'].includes(urlTab)) {
-          setActiveTab(urlTab);
-        }
-      }
-    }
-    loadAll();
-  }, []);
-
-  // ✅ Synchronisation automatique des 3 tranches quand le niveau, le domaine ou les tranches changent
-  useEffect(() => {
-    const matching = tranches.filter(t => 
-      t.level === selectedTrancheLevel && 
+  const syncTranchesForLevel = useCallback((level: string, domain: string, tranchesList: Tranche[]) => {
+    const matching = tranchesList.filter(t => 
+      t.level === level && 
       t.payment_type === 'scolarite' &&
-      ((!selectedDomain && (!t.domain || t.domain === '')) || t.domain === selectedDomain)
+      ((!domain && (!t.domain || t.domain === '')) || t.domain === domain)
     );
 
     const t1 = matching.find(t => t.tranche_number === 1);
@@ -179,10 +176,9 @@ export default function AcademicConfigPage() {
         { tranche_number: 3, tranche_name: '3ème tranche (P3 - Solde Semestre 2)', percentage: 30, due_date: '' }
       ]);
     }
-  }, [selectedTrancheLevel, selectedDomain, tranches]);
+  }, []);
 
-  const loadAll = async () => {
-    setLoading(true);
+  const loadAll = useCallback(async () => {
     try {
       const configRes = await api.get('/api/v1/settings/academic/config');
       const loadedConfig = configRes.data;
@@ -207,12 +203,13 @@ export default function AcademicConfigPage() {
       const normalizedFees = Array.isArray(feesRes) ? feesRes : (feesRes?.data || []);
       const normalizedDeadlines = Array.isArray(deadlinesRes) ? deadlinesRes : (deadlinesRes?.data || []);
       const normalizedTranches = Array.isArray(tranchesRes) ? tranchesRes : [];
-      const uniqueDomaines = Array.from(new Set((filieresRes || []).map((f: any) => f.domain).filter(Boolean))) as string[];
+      const uniqueDomaines = Array.from(new Set((filieresRes || []).map((f: { domain?: string }) => f.domain).filter(Boolean))) as string[];
       
       setFees(normalizedFees);
       setDeadlines(normalizedDeadlines);
       setTranches(normalizedTranches);
       setDomaines(uniqueDomaines);
+      syncTranchesForLevel(selectedTrancheLevel, selectedDomain, normalizedTranches);
       
       console.log('📊 Config chargée:', { academicYear });
       console.log('💰 Frais chargés:', normalizedFees.length, 'entrées');
@@ -228,9 +225,14 @@ export default function AcademicConfigPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedTrancheLevel, selectedDomain, syncTranchesForLevel, toast]);
 
-  const handleSave = async () => {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadAll();
+  }, [loadAll]);
+
+    const handleSave = async () => {
     setSaving(true);
     try {
       await api.put('/api/v1/settings/academic/config', {
@@ -251,9 +253,9 @@ export default function AcademicConfigPage() {
       
       await loadAll();
       toast.success('✅ Configuration globale sauvegardée !');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Erreur sauvegarde:', error);
-      toast.error(error.response?.data?.detail || 'Erreur lors de la sauvegarde');
+      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
     }
@@ -268,8 +270,8 @@ export default function AcademicConfigPage() {
       });
       toast.success('✅ Pénalités de retard enregistrées avec succès !');
       await loadAll();
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erreur lors de la sauvegarde des pénalités');
+    } catch (error: unknown) {
+      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la sauvegarde des pénalités');
     } finally {
       setSaving(false);
     }
@@ -287,8 +289,8 @@ export default function AcademicConfigPage() {
       });
       toast.success(res.message || '✅ Les 3 pôles associés ont été synchronisés avec succès !');
       await loadAll();
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erreur lors de la synchronisation des 3 pôles');
+    } catch (error: unknown) {
+      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la synchronisation des 3 pôles');
     } finally {
       setSyncingDomains(false);
     }
@@ -313,8 +315,8 @@ export default function AcademicConfigPage() {
       );
       setEditingFee(null);
       await loadAll();
-    } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la sauvegarde du tarif');
+    } catch (error: unknown) {
+      toast.error((error as Error)?.message || 'Erreur lors de la sauvegarde du tarif');
     }
   };
 
@@ -350,9 +352,9 @@ export default function AcademicConfigPage() {
       
       setEditingDeadline(null);
       await loadAll();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Erreur sauvegarde deadline:', error);
-      toast.error(error.response?.data?.detail || 'Erreur lors de la sauvegarde');
+      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la sauvegarde');
     }
   };
 
@@ -484,9 +486,9 @@ export default function AcademicConfigPage() {
           : `✅ Configuration des 3 tranches enregistrée pour ${selectedTrancheLevel} (Total 100% : ${totalAmount.toLocaleString('fr-FR')} FCFA)`
       );
       await loadAll();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Erreur configuration 3 tranches:', error);
-      toast.error(error.response?.data?.detail || 'Erreur lors de la configuration des tranches');
+      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la configuration des tranches');
     } finally {
       setSavingThreeTranches(false);
     }
@@ -516,7 +518,7 @@ export default function AcademicConfigPage() {
         await Promise.all(toDelete.map(t => paymentTrancheService.delete(t.id)));
         toast.success(`Tranches de ${level} réinitialisées`);
         await loadAll();
-      } catch (error) {
+      } catch {
         toast.error('Erreur lors de la suppression des tranches');
       }
     }
@@ -615,8 +617,8 @@ export default function AcademicConfigPage() {
       );
       setMonthlyModal(null);
       await loadAll();
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Erreur lors de la sauvegarde');
+    } catch (error: unknown) {
+      toast.error((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erreur lors de la sauvegarde');
     }
   };
 
@@ -735,7 +737,7 @@ export default function AcademicConfigPage() {
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">Grille tarifaire annuelle</h2>
-                    <p className="text-sm text-slate-500">Configurez les frais par niveau et pôle d'études</p>
+                    <p className="text-sm text-slate-500">Configurez les frais par niveau et pôle d&apos;études</p>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
@@ -875,7 +877,7 @@ export default function AcademicConfigPage() {
                                   <div className="flex flex-col items-center justify-center gap-1.5">
                                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                                       <Calendar size={13} className="text-emerald-600" />
-                                      {deposit.toLocaleString('fr-FR')} F à l'inscription, puis {inst.toLocaleString('fr-FR')} F × {months} mois
+                                      {deposit.toLocaleString('fr-FR')} F à l&apos;inscription, puis {inst.toLocaleString('fr-FR')} F × {months} mois
                                     </span>
                                     <button
                                       type="button"
@@ -886,7 +888,7 @@ export default function AcademicConfigPage() {
                                     </button>
                                   </div>
                                 ) : (
-                                  <span className="text-xs text-slate-400 italic">Saisir la scolarité d'abord</span>
+                                  <span className="text-xs text-slate-400 italic">Saisir la scolarité d&apos;abord</span>
                                 )}
                               </td>
                             );
@@ -903,9 +905,9 @@ export default function AcademicConfigPage() {
                   <div>
                     <h4 className="text-sm font-bold text-emerald-950">Option de Paiement Mensuel (Modalité Mensuelle)</h4>
                     <p className="text-xs text-emerald-800 mt-0.5 leading-relaxed">
-                      Conformément aux pratiques des universités et instituts supérieurs, UniSphere permet d'offrir le paiement mensuel échelonné :
-                      un <strong>acompte initial à l'inscription</strong>, suivi de <strong>mensualités fixes</strong> (ex: 100 000 FCFA pendant 5 mois).
-                      Le système calcule et synchronise automatiquement l'échéancier des étudiants ayant choisi cette formule sans perturber la comptabilité générale.
+                      Conformément aux pratiques des universités et instituts supérieurs, UniSphere permet d&apos;offrir le paiement mensuel échelonné :
+                      un <strong>acompte initial à l&apos;inscription</strong>, suivi de <strong>mensualités fixes</strong> (ex: 100 000 FCFA pendant 5 mois).
+                      Le système calcule et synchronise automatiquement l&apos;échéancier des étudiants ayant choisi cette formule sans perturber la comptabilité générale.
                     </p>
                   </div>
                 </div>
@@ -928,7 +930,7 @@ export default function AcademicConfigPage() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Configuration officielle des 3 échéances annuelles. Les pourcentages s'équilibrent automatiquement pour garantir exactement 100%.
+                        Configuration officielle des 3 échéances annuelles. Les pourcentages s&apos;équilibrent automatiquement pour garantir exactement 100%.
                       </p>
                     </div>
                   </div>
@@ -950,7 +952,7 @@ export default function AcademicConfigPage() {
                         <button
                           key={lvl}
                           type="button"
-                          onClick={() => setSelectedTrancheLevel(lvl)}
+                          onClick={() => { setSelectedTrancheLevel(lvl); syncTranchesForLevel(lvl, selectedDomain, tranches); }}
                           className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                             selectedTrancheLevel === lvl
                               ? 'bg-[#FF6B00] text-white shadow-sm'
@@ -1458,7 +1460,7 @@ export default function AcademicConfigPage() {
                               <td className="py-3 px-4 text-right">
                                 <button
                                   type="button"
-                                  onClick={() => setSelectedTrancheLevel(lvl)}
+                                  onClick={() => { setSelectedTrancheLevel(lvl); syncTranchesForLevel(lvl, selectedDomain, tranches); }}
                                   className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
                                     selectedTrancheLevel === lvl
                                       ? 'bg-orange-100 text-[#FF6B00] border border-orange-200'
@@ -1773,7 +1775,7 @@ export default function AcademicConfigPage() {
                   <div className="flex items-start gap-2 mt-3 p-3 bg-blue-50 rounded-lg">
                     <Info className="text-blue-500 flex-shrink-0 mt-0.5" size={16} />
                     <p className="text-xs text-blue-700">
-                      Les étudiants avec un taux inférieur ne pourront pas passer l'examen final
+                      Les étudiants avec un taux inférieur ne pourront pas passer l&apos;examen final
                     </p>
                   </div>
                 </div>
@@ -1875,7 +1877,7 @@ export default function AcademicConfigPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-slate-900">Session de rattrapage</p>
-                        <p className="text-sm text-slate-500 mt-1">Permettre aux étudiants échoués de repasser l'examen</p>
+                        <p className="text-sm text-slate-500 mt-1">Permettre aux étudiants échoués de repasser l&apos;examen</p>
                       </div>
                     </div>
                   </div>
@@ -1907,7 +1909,7 @@ export default function AcademicConfigPage() {
 
                 <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl">
                   <label className="block text-sm font-semibold text-slate-900 mb-3">
-                    GPA minimum pour valider l'année
+                    GPA minimum pour valider l&apos;année
                   </label>
                   <div className="relative max-w-xs">
                     <input
@@ -1955,12 +1957,12 @@ export default function AcademicConfigPage() {
 
             <div className="space-y-4 py-4">
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 leading-relaxed">
-                Configurez l'acompte initial exigé à l'inscription et la mensualité à payer chaque mois (acompte d'inscription + mensualités régulières étalées sur l'année).
+                Configurez l&apos;acompte initial exigé à l&apos;inscription et la mensualité à payer chaque mois (acompte d&apos;inscription + mensualités régulières étalées sur l&apos;année).
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Acompte à l'inscription (FCFA)
+                  Acompte à l&apos;inscription (FCFA)
                 </label>
                 <input
                   type="number"
