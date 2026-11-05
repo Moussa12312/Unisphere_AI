@@ -20,13 +20,13 @@ import qrcode
 import secrets
 import shutil
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-BACKEND_DIR = Path(__file__).resolve().parent.parent
+BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+ROOT_DIR = BACKEND_DIR.parent
 
 def _save_teacher_photo_bytes(photo_bytes: bytes, filename: str) -> str:
     """Sauvegarde la photo de manière synchronisée dans backend/uploads, backend/uploads/avatars et uploads/"""
     backend_uploads = BACKEND_DIR / "uploads"
-    root_uploads = BASE_DIR / "uploads"
+    root_uploads = ROOT_DIR / "uploads"
     backend_avatars = backend_uploads / "avatars"
     backend_photos = backend_uploads / "photos"
     
@@ -51,7 +51,7 @@ def _save_teacher_qr_code(teacher_id: int) -> str:
     """Sauvegarde le QR code synchronisé dans backend/qr_codes et qr_codes/"""
     qr_filename = f"TEACHER_{teacher_id}.png"
     backend_qr = BACKEND_DIR / "qr_codes"
-    root_qr = BASE_DIR / "qr_codes"
+    root_qr = ROOT_DIR / "qr_codes"
     backend_qr.mkdir(parents=True, exist_ok=True)
     root_qr.mkdir(parents=True, exist_ok=True)
     
@@ -580,7 +580,7 @@ async def upload_teacher_photo(
     # Supprimer l'ancienne photo si elle existe
     if teacher.photo:
         old_name = os.path.basename(str(teacher.photo).replace("\\", "/"))
-        for d in (BACKEND_DIR / "uploads", BASE_DIR / "uploads", BACKEND_DIR / "uploads" / "avatars"):
+        for d in (BACKEND_DIR / "uploads", ROOT_DIR / "uploads", BACKEND_DIR / "uploads" / "avatars"):
             old_p = d / old_name
             if old_p.exists():
                 try:
@@ -623,11 +623,11 @@ def get_teacher_photo(
     clean_p = os.path.basename(str(teacher.photo).replace("\\", "/"))
     candidates = [
         BACKEND_DIR / "uploads" / clean_p,
-        BASE_DIR / "uploads" / clean_p,
+        ROOT_DIR / "uploads" / clean_p,
         BACKEND_DIR / "uploads" / "avatars" / clean_p,
         BACKEND_DIR / "uploads" / "photos" / clean_p,
         BACKEND_DIR / "uploads" / "profiles" / clean_p,
-        BASE_DIR / "uploads" / "avatars" / clean_p,
+        ROOT_DIR / "uploads" / "avatars" / clean_p,
     ]
     for cand in candidates:
         if cand.is_file():
@@ -664,7 +664,7 @@ def delete_teacher(
     
     if teacher.photo:
         old_name = os.path.basename(str(teacher.photo).replace("\\", "/"))
-        for d in (BACKEND_DIR / "uploads", BASE_DIR / "uploads", BACKEND_DIR / "uploads" / "avatars", BACKEND_DIR / "uploads" / "photos"):
+        for d in (BACKEND_DIR / "uploads", ROOT_DIR / "uploads", BACKEND_DIR / "uploads" / "avatars", BACKEND_DIR / "uploads" / "photos"):
             old_p = d / old_name
             if old_p.exists():
                 try:
@@ -815,7 +815,7 @@ def get_teacher_qr_code(
         raise HTTPException(status_code=404, detail="Enseignant non trouvé")
     
     backend_qr = BACKEND_DIR / "qr_codes"
-    root_qr = BASE_DIR / "qr_codes"
+    root_qr = ROOT_DIR / "qr_codes"
     backend_qr.mkdir(parents=True, exist_ok=True)
     root_qr.mkdir(parents=True, exist_ok=True)
     

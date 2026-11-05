@@ -1,17 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from pathlib import Path
 from typing import Optional
+import time
+import base64
+import json
+
 from app.database.connection import get_db
 from app.models.user import User
-from app.core.dependencies import get_current_user # Adapte si le nom est différent
-from app.core.security import hash_password, verify_password, pwd_context
+from app.core.dependencies import get_current_user
+from app.core.security import hash_password, verify_password
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-UPLOAD_DIR = BASE_DIR / "uploads" / "profiles"
+BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+ROOT_DIR = BACKEND_DIR.parent
+UPLOAD_DIR = BACKEND_DIR / "uploads" / "profiles"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 class UserProfileUpdate(BaseModel):
@@ -178,9 +183,6 @@ async def upload_profile_photo(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    import time
-    import base64
-
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
@@ -229,15 +231,16 @@ async def upload_profile_photo(
 
     filename = f"user_{user.id}_{int(time.time())}.{ext}"
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    (BASE_DIR / "uploads").mkdir(parents=True, exist_ok=True)
-    (BASE_DIR / "uploads" / "profiles").mkdir(parents=True, exist_ok=True)
-    (BASE_DIR / "uploads" / "avatars").mkdir(parents=True, exist_ok=True)
-    (UPLOAD_DIR / "profiles").mkdir(parents=True, exist_ok=True)
-
     # Écriture dans tous les emplacements cibles (uploads racine + sous-dossier profiles + avatars)
-    for target_dir in (UPLOAD_DIR, BASE_DIR / "uploads", BASE_DIR / "uploads" / "profiles", BASE_DIR / "uploads" / "avatars", UPLOAD_DIR / "profiles"):
+    for target_dir in (
+        BACKEND_DIR / "uploads",
+        BACKEND_DIR / "uploads" / "profiles",
+        BACKEND_DIR / "uploads" / "avatars",
+        ROOT_DIR / "uploads",
+        ROOT_DIR / "uploads" / "profiles"
+    ):
         try:
+            target_dir.mkdir(parents=True, exist_ok=True)
             with open(target_dir / filename, "wb") as buffer:
                 buffer.write(content)
         except Exception:
@@ -312,7 +315,6 @@ def get_user_preferences(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    import json
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
@@ -331,7 +333,6 @@ def update_user_preferences(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    import json
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
@@ -427,7 +428,7 @@ def create_user(
         phone=clean_phone,
         role=data.role,
         university_id=current_user.university_id,
-        hashed_password=pwd_context.hash(data.password),
+        hashed_password=hash_password(data.password),
         is_active=True
     )
     db.add(new_user)

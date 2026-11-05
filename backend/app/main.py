@@ -9,11 +9,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from pathlib import Path
+from typing import Optional
 import os
+import qrcode
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, FileResponse
 from starlette.requests import Request
 
 from app.database.connection import Base, engine, SessionLocal
@@ -501,8 +504,6 @@ def health_check():
 def health_check_v1():
     return {"status": "healthy"}
 
-from fastapi.responses import FileResponse
-
 @app.get("/download/unisphereai.apk")
 @app.get("/api/v1/download/unisphereai.apk")
 def download_apk():
@@ -520,10 +521,9 @@ def download_apk():
             )
     return {"error": "APK not found"}
 
-import qrcode
 
 @app.get("/api/v1/teacher/qrcode")
-def get_teacher_qrcode(teacher_id: int = None):
+def get_teacher_qrcode(teacher_id: Optional[int] = None):
     db = SessionLocal()
     try:
         if teacher_id:
