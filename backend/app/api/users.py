@@ -231,17 +231,19 @@ async def upload_profile_photo(
 
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     (BASE_DIR / "uploads").mkdir(parents=True, exist_ok=True)
+    (BASE_DIR / "uploads" / "profiles").mkdir(parents=True, exist_ok=True)
+    (BASE_DIR / "uploads" / "avatars").mkdir(parents=True, exist_ok=True)
+    (UPLOAD_DIR / "profiles").mkdir(parents=True, exist_ok=True)
 
-    file_path = UPLOAD_DIR / filename
-    with open(file_path, "wb") as buffer:
-        buffer.write(content)
+    # Écriture dans tous les emplacements cibles (uploads racine + sous-dossier profiles + avatars)
+    for target_dir in (UPLOAD_DIR, BASE_DIR / "uploads", BASE_DIR / "uploads" / "profiles", BASE_DIR / "uploads" / "avatars", UPLOAD_DIR / "profiles"):
+        try:
+            with open(target_dir / filename, "wb") as buffer:
+                buffer.write(content)
+        except Exception:
+            pass
 
-    main_upload_path = BASE_DIR / "uploads" / filename
-    with open(main_upload_path, "wb") as buffer:
-        buffer.write(content)
-
-    # On stocke le chemin relatif depuis /uploads/ (ex: "profiles/user_7_xxx.jpg")
-    # Cela garantit que getMediaUrl('/uploads/' + photo) fonctionne sans double /uploads/
+    # On stocke le nom propre ou chemin relatif
     rel_photo = f"profiles/{filename}"
     user.photo = rel_photo
 

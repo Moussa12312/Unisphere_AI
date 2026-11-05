@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { teacherService } from '@/services/teacherService';
 import { filiereService } from '@/services/filiereService';
+import { getMediaUrl } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -324,9 +325,21 @@ export default function SecretaryTeachersPage() {
                   <tr key={teacher.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-[#FF6B00]/10 rounded-full flex items-center justify-center text-[#FF6B00] font-semibold text-sm">
-                          {teacher.first_name?.charAt(0)}{teacher.last_name?.charAt(0)}
-                        </div>
+                        {teacher.photo ? (
+                          <img
+                            src={getMediaUrl(teacher.photo)}
+                            alt={`${teacher.first_name} ${teacher.last_name}`}
+                            className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                            onError={(e: any) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.first_name || '')}+${encodeURIComponent(teacher.last_name || '')}&background=FF6B00&color=fff&size=64`;
+                            }}
+                          />
+                        ) : (
+                          <div className="w-9 h-9 bg-[#FF6B00]/10 rounded-full flex items-center justify-center text-[#FF6B00] font-semibold text-sm">
+                            {teacher.first_name?.charAt(0)}{teacher.last_name?.charAt(0)}
+                          </div>
+                        )}
                         <div>
                           <p className="font-semibold text-slate-900 text-sm">
                             {teacher.first_name} {teacher.last_name}
@@ -583,7 +596,15 @@ export default function SecretaryTeachersPage() {
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-16 h-16 bg-[#FF6B00]/10 rounded-full flex items-center justify-center text-[#FF6B00] font-bold text-xl overflow-hidden border border-slate-200">
                   {selectedTeacher.photo ? (
-                    <img src={`/uploads/${selectedTeacher.photo}`} alt="Photo" className="w-full h-full object-cover" />
+                    <img
+                      src={getMediaUrl(selectedTeacher.photo)}
+                      alt="Photo"
+                      className="w-full h-full object-cover"
+                      onError={(e: any) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedTeacher.first_name || '')}+${encodeURIComponent(selectedTeacher.last_name || '')}&background=FF6B00&color=fff&size=128`;
+                      }}
+                    />
                   ) : (
                     <span>{selectedTeacher.first_name?.charAt(0)}{selectedTeacher.last_name?.charAt(0)}</span>
                   )}

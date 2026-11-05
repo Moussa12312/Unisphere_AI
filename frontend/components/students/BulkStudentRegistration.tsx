@@ -354,6 +354,51 @@ export default function BulkStudentRegistration({ basePath }: BulkStudentRegistr
       {/* ========================================================= */}
       {activeTab === 'file' && (
         <div className="space-y-6">
+          {/* Cartes Téléchargement Modèles */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                  <FileSpreadsheet size={26} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Modèle Microsoft Excel (.xlsx)</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">En-têtes mis en forme et 2 exemples pré-remplis</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDownloadTemplate('excel')}
+                disabled={downloadingTemplate === 'excel'}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl flex items-center gap-2 transition-all shadow-sm flex-shrink-0 cursor-pointer"
+              >
+                {downloadingTemplate === 'excel' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                <span>Télécharger .xlsx</span>
+              </button>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <FileText size={26} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Modèle Texte CSV (.csv)</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Compatible tous tableurs (séparateur point-virgule)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDownloadTemplate('csv')}
+                disabled={downloadingTemplate === 'csv'}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl flex items-center gap-2 transition-all shadow-sm flex-shrink-0 cursor-pointer"
+              >
+                {downloadingTemplate === 'csv' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                <span>Télécharger .csv</span>
+              </button>
+            </div>
+          </div>
+
           {/* Zone de Dépôt / Upload */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">

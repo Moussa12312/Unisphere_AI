@@ -48,8 +48,8 @@ export default function CreateTeacherPage() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error('La photo ne doit pas dépasser 2MB');
+      if (file.size > 8 * 1024 * 1024) {
+        toast.error('La photo ne doit pas dépasser 8 Mo');
         return;
       }
       setPhotoFile(file);

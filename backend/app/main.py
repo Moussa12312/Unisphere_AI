@@ -465,7 +465,7 @@ class SmartStaticFiles(StaticFiles):
                 if alt_cand.is_file():
                     from fastapi.responses import FileResponse
                     return FileResponse(str(alt_cand))
-                for sub in ("logos", "avatars", "photos", "dossier_etudiant"):
+                for sub in ("logos", "avatars", "photos", "profiles", "dossier_etudiant"):
                     sub_cand = alt_base / sub / clean_name
                     if sub_cand.is_file():
                         from fastapi.responses import FileResponse

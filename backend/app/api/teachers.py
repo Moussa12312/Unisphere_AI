@@ -18,6 +18,59 @@ import time
 import os
 import qrcode
 import secrets
+import shutil
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+def _save_teacher_photo_bytes(photo_bytes: bytes, filename: str) -> str:
+    """Sauvegarde la photo de manière synchronisée dans backend/uploads, backend/uploads/avatars et uploads/"""
+    backend_uploads = BACKEND_DIR / "uploads"
+    root_uploads = BASE_DIR / "uploads"
+    backend_avatars = backend_uploads / "avatars"
+    backend_photos = backend_uploads / "photos"
+    
+    backend_uploads.mkdir(parents=True, exist_ok=True)
+    root_uploads.mkdir(parents=True, exist_ok=True)
+    backend_avatars.mkdir(parents=True, exist_ok=True)
+    backend_photos.mkdir(parents=True, exist_ok=True)
+    
+    target_backend = backend_uploads / filename
+    saved_p = compress_and_save_upload(photo_bytes, target_backend, max_dimension=1200, quality=82)
+    final_name = saved_p.name
+    
+    for d in (root_uploads, backend_avatars, backend_photos):
+        try:
+            shutil.copy2(str(saved_p), str(d / final_name))
+        except Exception:
+            pass
+        
+    return final_name
+
+def _save_teacher_qr_code(teacher_id: int) -> str:
+    """Sauvegarde le QR code synchronisé dans backend/qr_codes et qr_codes/"""
+    qr_filename = f"TEACHER_{teacher_id}.png"
+    backend_qr = BACKEND_DIR / "qr_codes"
+    root_qr = BASE_DIR / "qr_codes"
+    backend_qr.mkdir(parents=True, exist_ok=True)
+    root_qr.mkdir(parents=True, exist_ok=True)
+    
+    target_p = backend_qr / qr_filename
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(f"TEACHER-{teacher_id}")
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    img.save(str(target_p))
+    try:
+        shutil.copy2(str(target_p), str(root_qr / qr_filename))
+    except Exception:
+        pass
+    return qr_filename
 
 # ✅ PRÉFIXE AVEC "S" (CRUD enseignants)
 router = APIRouter(prefix="/teachers", tags=["Teachers"])
@@ -37,6 +90,23 @@ def format_teacher(teacher: Teacher) -> dict:
         f_name = teacher.filiere.name
     elif teacher.department:
         f_name = teacher.department
+
+    clean_photo = None
+    photo_url = None
+    if teacher.photo:
+        raw_p = str(teacher.photo).replace("\\", "/").strip().lstrip("/")
+        if raw_p.startswith(("http://", "https://", "data:", "blob:")):
+            clean_photo = raw_p
+            photo_url = raw_p
+        elif raw_p.startswith("uploads/"):
+            clean_photo = raw_p[len("uploads/"):]
+            photo_url = f"/{raw_p}"
+        else:
+            clean_photo = raw_p
+            photo_url = f"/uploads/{raw_p}"
+
+    qr_url = f"/api/v1/teachers/{teacher.id}/qrcode"
+
     return {
         "id": teacher.id,
         "first_name": teacher.first_name,
@@ -45,8 +115,10 @@ def format_teacher(teacher: Teacher) -> dict:
         "department": teacher.department,
         "speciality": teacher.speciality,
         "phone": teacher.phone,
-        "photo": teacher.photo,
+        "photo": clean_photo,
+        "photo_url": photo_url,
         "qr_code": teacher.qr_code,
+        "qr_code_url": qr_url,
         "user_id": teacher.user_id,
         "university_id": teacher.university_id,
         "university_name": teacher.university_name,
@@ -261,22 +333,17 @@ async def create_teacher(
         db.add(new_teacher)
         db.flush()
 
-        os.makedirs("qr_codes", exist_ok=True)
-        qr_filename = f"TEACHER_{new_teacher.id}.png"
-        qr_path = os.path.join("qr_codes", qr_filename)
-        qr = qrcode.make(f"TEACHER-{new_teacher.id}")
-        qr.save(qr_path)
+        qr_filename = _save_teacher_qr_code(new_teacher.id)
         new_teacher.qr_code = qr_filename
 
         if photo_bytes:
-            os.makedirs("uploads", exist_ok=True)
-            ext = Path(photo.filename).suffix.lower() or ".jpg"
+            ext = Path(photo.filename or "").suffix.lower() or ".jpg"
             if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
                 ext = ".jpg"
-            target_path = Path("uploads") / f"TEACHER_{new_teacher.id}_{int(time.time())}{ext}"
-            saved_p = compress_and_save_upload(photo_bytes, target_path, max_dimension=1200, quality=82)
-            new_teacher.photo = saved_p.name
-            existing_user.photo = saved_p.name
+            target_name = f"TEACHER_{new_teacher.id}_{int(time.time())}{ext}"
+            saved_name = _save_teacher_photo_bytes(photo_bytes, target_name)
+            new_teacher.photo = saved_name
+            existing_user.photo = saved_name
 
         db.commit()
         db.refresh(new_teacher)
@@ -328,22 +395,17 @@ async def create_teacher(
         db.add(new_teacher)
         db.flush()
 
-        os.makedirs("qr_codes", exist_ok=True)
-        qr_filename = f"TEACHER_{new_teacher.id}.png"
-        qr_path = os.path.join("qr_codes", qr_filename)
-        qr = qrcode.make(f"TEACHER-{new_teacher.id}")
-        qr.save(qr_path)
+        qr_filename = _save_teacher_qr_code(new_teacher.id)
         new_teacher.qr_code = qr_filename
 
         if photo_bytes:
-            os.makedirs("uploads", exist_ok=True)
-            ext = Path(photo.filename).suffix.lower() or ".jpg"
+            ext = Path(photo.filename or "").suffix.lower() or ".jpg"
             if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
                 ext = ".jpg"
-            target_path = Path("uploads") / f"TEACHER_{new_teacher.id}_{int(time.time())}{ext}"
-            saved_p = compress_and_save_upload(photo_bytes, target_path, max_dimension=1200, quality=82)
-            new_teacher.photo = saved_p.name
-            new_user.photo = saved_p.name
+            target_name = f"TEACHER_{new_teacher.id}_{int(time.time())}{ext}"
+            saved_name = _save_teacher_photo_bytes(photo_bytes, target_name)
+            new_teacher.photo = saved_name
+            new_user.photo = saved_name
 
         db.commit()
         db.refresh(new_teacher)
@@ -481,13 +543,14 @@ def update_teacher(
 # UPLOAD PHOTO D'UN ENSEIGNANT
 # ==========================================
 @router.post("/upload-photo/{teacher_id}")
+@router.post("/{teacher_id}/photo")
 async def upload_teacher_photo(
     teacher_id: int,
     photo: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary"))
+    current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher"))
 ):
-    """Upload une photo pour un enseignant"""
+    """Upload une photo pour un enseignant (synchronise Teacher et User)"""
     
     # Vérifier que l'enseignant existe
     teacher = db.query(Teacher).filter(
@@ -497,6 +560,9 @@ async def upload_teacher_photo(
     
     if not teacher:
         raise HTTPException(status_code=404, detail="Enseignant non trouvé")
+        
+    if current_user.role == "teacher" and teacher.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Vous ne pouvez modifier que votre propre photo")
     
     # Vérifier que c'est bien une image (tolérant si content_type est None sur mobile)
     ctype = (photo.content_type or "").lower()
@@ -513,19 +579,19 @@ async def upload_teacher_photo(
     
     # Supprimer l'ancienne photo si elle existe
     if teacher.photo:
-        old_photo_path = os.path.join("uploads", os.path.basename(teacher.photo))
-        if os.path.exists(old_photo_path):
-            try:
-                os.remove(old_photo_path)
-            except Exception as e:
-                print(f"Erreur suppression ancienne photo: {e}")
+        old_name = os.path.basename(str(teacher.photo).replace("\\", "/"))
+        for d in (BACKEND_DIR / "uploads", BASE_DIR / "uploads", BACKEND_DIR / "uploads" / "avatars"):
+            old_p = d / old_name
+            if old_p.exists():
+                try:
+                    old_p.unlink()
+                except Exception:
+                    pass
     
-    # Sauvegarder la nouvelle photo
-    os.makedirs("uploads", exist_ok=True)
+    # Sauvegarder la nouvelle photo de manière synchronisée
     ext = ext_check if ext_check in (".jpg", ".jpeg", ".png", ".webp", ".gif") else ".jpg"
-    target_path = Path("uploads") / f"TEACHER_{teacher_id}_{int(time.time())}{ext}"
-    saved_p = compress_and_save_upload(content, target_path, max_dimension=1200, quality=82)
-    photo_filename = saved_p.name
+    target_name = f"TEACHER_{teacher_id}_{int(time.time())}{ext}"
+    photo_filename = _save_teacher_photo_bytes(content, target_name)
     
     # Mettre à jour la base de données (Teacher + User synchronisés)
     teacher.photo = photo_filename
@@ -538,9 +604,36 @@ async def upload_teacher_photo(
     
     return {
         "message": "Photo uploadée avec succès",
+        "photo": photo_filename,
         "photo_url": f"/uploads/{photo_filename}",
         "photo_filename": photo_filename
     }
+
+
+@router.get("/{teacher_id}/photo")
+def get_teacher_photo(
+    teacher_id: int,
+    db: Session = Depends(get_db)
+):
+    """Sert directement la photo d'un enseignant"""
+    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+    if not teacher or not teacher.photo:
+        raise HTTPException(status_code=404, detail="Photo non trouvée")
+        
+    clean_p = os.path.basename(str(teacher.photo).replace("\\", "/"))
+    candidates = [
+        BACKEND_DIR / "uploads" / clean_p,
+        BASE_DIR / "uploads" / clean_p,
+        BACKEND_DIR / "uploads" / "avatars" / clean_p,
+        BACKEND_DIR / "uploads" / "photos" / clean_p,
+        BACKEND_DIR / "uploads" / "profiles" / clean_p,
+        BASE_DIR / "uploads" / "avatars" / clean_p,
+    ]
+    for cand in candidates:
+        if cand.is_file():
+            return FileResponse(str(cand))
+            
+    raise HTTPException(status_code=404, detail="Fichier photo introuvable")
 
 
 # ==========================================
@@ -570,12 +663,14 @@ def delete_teacher(
                 pass
     
     if teacher.photo:
-        photo_path = os.path.join("uploads", os.path.basename(teacher.photo))
-        if os.path.exists(photo_path):
-            try:
-                os.remove(photo_path)
-            except Exception:
-                pass
+        old_name = os.path.basename(str(teacher.photo).replace("\\", "/"))
+        for d in (BACKEND_DIR / "uploads", BASE_DIR / "uploads", BACKEND_DIR / "uploads" / "avatars", BACKEND_DIR / "uploads" / "photos"):
+            old_p = d / old_name
+            if old_p.exists():
+                try:
+                    old_p.unlink()
+                except Exception:
+                    pass
             
     user_id = teacher.user_id
 
@@ -719,28 +814,22 @@ def get_teacher_qr_code(
     if not teacher:
         raise HTTPException(status_code=404, detail="Enseignant non trouvé")
     
-    os.makedirs("qr_codes", exist_ok=True)
-    qr_filename = teacher.qr_code or f"TEACHER_{teacher.id}.png"
-    qr_filename = os.path.basename(qr_filename)
-    qr_path = os.path.join("qr_codes", qr_filename)
+    backend_qr = BACKEND_DIR / "qr_codes"
+    root_qr = BASE_DIR / "qr_codes"
+    backend_qr.mkdir(parents=True, exist_ok=True)
+    root_qr.mkdir(parents=True, exist_ok=True)
     
-    if os.path.exists(qr_path) and os.path.getsize(qr_path) > 0:
-        return FileResponse(qr_path, media_type="image/png", filename=f"QR_TEACHER_{teacher.id}.png")
+    qr_filename = os.path.basename(teacher.qr_code or f"TEACHER_{teacher.id}.png")
     
-    # Génération du QR code s'il n'existe pas encore sur le disque
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=10,
-        border=2,
-    )
-    qr.add_data(f"TEACHER-{teacher.id}")
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    img.save(qr_path)
-    
+    for cand_d in (backend_qr, root_qr):
+        cand_p = cand_d / qr_filename
+        if cand_p.is_file() and cand_p.stat().st_size > 0:
+            return FileResponse(str(cand_p), media_type="image/png", filename=f"QR_TEACHER_{teacher.id}.png")
+            
+    qr_filename = _save_teacher_qr_code(teacher.id)
     if teacher.qr_code != qr_filename:
         teacher.qr_code = qr_filename
         db.commit()
         
-    return FileResponse(qr_path, media_type="image/png", filename=f"QR_TEACHER_{teacher.id}.png")
+    target_p = backend_qr / qr_filename
+    return FileResponse(str(target_p), media_type="image/png", filename=f"QR_TEACHER_{teacher.id}.png")

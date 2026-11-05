@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Pencil, Trash2, Mail, Copy, BookOpen, Users, Clock, Award, Loader2, Key, ArrowLeft, QrCode } from 'lucide-react';
+import { Pencil, Trash2, Mail, Copy, BookOpen, Users, Clock, Award, Loader2, Key, ArrowLeft, QrCode, Camera } from 'lucide-react';
 import Link from 'next/link';
 import { teacherService } from '@/services/teacherService';
-import api, { API_BASE_URL } from '@/lib/api';
+import api, { API_BASE_URL, getMediaUrl } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -47,6 +47,32 @@ export default function SecretaryTeacherDetailPage() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !teacher) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Veuillez sélectionner un fichier image valide');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("L'image ne doit pas dépasser 8 Mo");
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      const res = await teacherService.uploadPhoto(teacher.id, file);
+      toast.success('Photo mise à jour avec succès');
+      setTeacher((prev) => prev ? { ...prev, photo: res.photo || res.photo_filename || prev.photo } : null);
+      loadTeacher();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Erreur lors de l'upload de la photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   useEffect(() => { loadTeacher(); }, [params.id]);
 
@@ -135,11 +161,39 @@ export default function SecretaryTeacherDetailPage() {
         {/* Colonne gauche : Profil et QR code */}
         <div className="space-y-5">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 text-center">
-            <img
-              src={teacher.photo ? `/uploads/${teacher.photo}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${teacher.first_name}+${teacher.last_name}&background=4F46E5&color=fff&size=256`}
-              alt="Photo Enseignant"
-              className="w-32 h-32 rounded-full mx-auto object-cover mb-4 border-4 border-slate-100 shadow-inner"
-            />
+            <div className="relative w-32 h-32 mx-auto mb-4 group">
+              <img
+                src={teacher.photo ? getMediaUrl(teacher.photo) : `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.first_name || '')}+${encodeURIComponent(teacher.last_name || '')}&background=4F46E5&color=fff&size=256`}
+                alt="Photo Enseignant"
+                className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-slate-100 shadow-inner"
+                onError={(e: any) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.first_name || '')}+${encodeURIComponent(teacher.last_name || '')}&background=4F46E5&color=fff&size=256`;
+                }}
+              />
+              <label
+                htmlFor="secretary-teacher-photo"
+                className="absolute inset-0 rounded-full bg-black/40 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                title="Changer la photo"
+              >
+                {uploadingPhoto ? (
+                  <Loader2 size={24} className="animate-spin" />
+                ) : (
+                  <>
+                    <Camera size={22} />
+                    <span className="text-[11px] font-medium mt-1">Changer</span>
+                  </>
+                )}
+              </label>
+              <input
+                id="secretary-teacher-photo"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploadingPhoto}
+                onChange={handlePhotoSelect}
+              />
+            </div>
             <p className="font-bold text-slate-900 text-lg">{teacher.first_name} {teacher.last_name}</p>
             <p className="text-sm text-slate-500">{teacher.speciality}</p>
             <span className="inline-block mt-3 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">

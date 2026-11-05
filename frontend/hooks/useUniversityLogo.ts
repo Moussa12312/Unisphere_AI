@@ -49,7 +49,7 @@ export function useUniversityLogo() {
           finalLogo = getMediaUrl(info.logo);
           setLogoUrl(finalLogo);
         } else {
-          setLogoUrl(null);
+          setLogoUrl('/logo.png');
         }
 
         // 🎯 Adaptation dynamique du Favicon et du Titre de l'onglet du navigateur

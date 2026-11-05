@@ -6,7 +6,7 @@ import {
   User, Mail, Phone, Save, ArrowLeft, Upload, X,
   Loader2, GraduationCap, BookOpen
 } from 'lucide-react';
-import api, { API_BASE_URL } from '@/lib/api';
+import api, { API_BASE_URL, getMediaUrl } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 
 export default function EditTeacherPage() {
@@ -54,7 +54,7 @@ export default function EditTeacherPage() {
       });
       
       if (teacher.photo) {
-        setPhotoPreview(`${API_BASE_URL}/uploads/${teacher.photo}`);
+        setPhotoPreview(getMediaUrl(teacher.photo));
       }
     } catch (error: any) {
       toast.error('Erreur de chargement');

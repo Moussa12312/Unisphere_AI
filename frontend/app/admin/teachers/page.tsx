@@ -11,7 +11,7 @@ import {
   Download, QrCode, RefreshCw, AlertCircle, BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
-import api, { API_BASE_URL } from '@/lib/api';
+import api, { API_BASE_URL, getMediaUrl } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
 
 interface Teacher {
@@ -232,8 +232,8 @@ export default function AdminTeachersPage() {
       return;
     }
     
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('L\'image ne doit pas dépasser 5 Mo');
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("L'image ne doit pas dépasser 8 Mo");
       return;
     }
     
@@ -430,9 +430,13 @@ export default function AdminTeachersPage() {
                       <div className="flex items-center gap-3">
                         {teacher.photo ? (
                           <img
-                          src={teacher.photo ? `${API_BASE_URL}/uploads/${teacher.photo}?t=${Date.now()}` : `https://ui-avatars.com/api/?name=${teacher.first_name}+${teacher.last_name}&background=FF6B00&color=fff&size=64`}
+                            src={getMediaUrl(teacher.photo)}
                             alt={`${teacher.first_name} ${teacher.last_name}`}
-                            className="w-10 h-10 rounded-full object-cover"
+                            className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                            onError={(e: any) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.first_name || '')}+${encodeURIComponent(teacher.last_name || '')}&background=FF6B00&color=fff&size=64`;
+                            }}
                           />
                         ) : (
                           <div className="w-10 h-10 bg-gradient-to-br from-[#FF6B00] to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
