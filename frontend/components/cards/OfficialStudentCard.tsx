@@ -214,6 +214,7 @@ export default function OfficialStudentCard({
             {universityLogoUrl ? (
               <image
                 href={universityLogoUrl}
+                xlinkHref={universityLogoUrl}
                 x="33"
                 y="25"
                 width="98"
@@ -270,6 +271,7 @@ export default function OfficialStudentCard({
               {studentPhotoUrl ? (
                 <image
                   href={studentPhotoUrl}
+                  xlinkHref={studentPhotoUrl}
                   x="22"
                   y="148"
                   width="206"
@@ -421,6 +423,7 @@ export default function OfficialStudentCard({
                 />
                 <image
                   href={qrCodeUrl}
+                  xlinkHref={qrCodeUrl}
                   x="648"
                   y="182"
                   width="176"

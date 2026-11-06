@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import DATABASE_URL
 
@@ -47,6 +47,20 @@ except Exception:
         f"sqlite:///{sqlite_path}",
         connect_args={"check_same_thread": False}
     )
+
+# Optimisation SQLite haute performance (WAL mode, non-blocking reads, fast cache)
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if "sqlite" in str(engine.url):
+        try:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA cache_size=10000")
+            cursor.execute("PRAGMA temp_store=MEMORY")
+            cursor.close()
+        except Exception:
+            pass
 
 SessionLocal = sessionmaker(
     autocommit=False,

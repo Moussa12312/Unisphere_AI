@@ -253,25 +253,31 @@ async def upload_profile_photo(
     # Synchroniser la photo avec toutes les tables de profils métiers éventuelles
     try:
         from app.models.student import Student
-        student = db.query(Student).filter(Student.user_id == user.id).first()
-        if student:
-            student.photo = rel_photo
+        students = db.query(Student).filter((Student.user_id == user.id) | (Student.email == user.email)).all()
+        for st in students:
+            st.photo = rel_photo
+            if not st.user_id:
+                st.user_id = user.id
     except Exception:
         pass
 
     try:
         from app.models.teacher import Teacher
-        teachers = db.query(Teacher).filter(Teacher.user_id == user.id).all()
+        teachers = db.query(Teacher).filter((Teacher.user_id == user.id) | (Teacher.email == user.email)).all()
         for t in teachers:
             t.photo = rel_photo
+            if not t.user_id:
+                t.user_id = user.id
     except Exception:
         pass
 
     try:
         from app.models.censor import Censor
-        censor = db.query(Censor).filter(Censor.user_id == user.id).first()
-        if censor:
-            censor.photo = rel_photo
+        censors = db.query(Censor).filter((Censor.user_id == user.id) | (Censor.email == user.email)).all()
+        for cs in censors:
+            cs.photo = rel_photo
+            if not cs.user_id:
+                cs.user_id = user.id
     except Exception:
         pass
 

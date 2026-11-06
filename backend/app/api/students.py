@@ -1724,16 +1724,33 @@ def get_students(
     
     result = []
     univ_id = current_user.university_id or (students[0].university_id if students else 1)
+    
+    # ⚡ Optimisation Haute Performance : Pré-chargement des filières (évite la boucle N+1)
+    filieres_map = {
+        f.name: f.domain
+        for f in db.query(Filiere).filter(Filiere.university_id == univ_id).all()
+        if f.name
+    }
+
+    # Pré-chargement des photos des comptes utilisateurs liés pour synchronisation instantanée
+    user_ids = [s.user_id for s in students if s.user_id and not s.photo]
+    user_emails = [s.email for s in students if s.email and not s.photo]
+    user_photo_map = {}
+    if user_ids or user_emails:
+        try:
+            linked_users = db.query(User).filter(
+                (User.id.in_(user_ids)) | (User.email.in_(user_emails))
+            ).all()
+            for u in linked_users:
+                if u.photo:
+                    user_photo_map[f"id_{u.id}"] = u.photo
+                    user_photo_map[f"email_{u.email}"] = u.photo
+        except Exception:
+            pass
+
     for student in students:
-        filiere_obj = None
-        if student.filiere:
-            filiere_obj = db.query(Filiere).filter(
-                Filiere.name == student.filiere,
-                Filiere.university_id == (student.university_id or univ_id)
-            ).first()
-        
-        # Prioriser le domaine stocké sur l'étudiant, sinon celui de la filière
-        resolved_domain = student.domain or (filiere_obj.domain if filiere_obj else None) or "Non défini"
+        resolved_domain = student.domain or filieres_map.get(student.filiere) or "Non défini"
+        resolved_photo = student.photo or user_photo_map.get(f"id_{student.user_id}") or user_photo_map.get(f"email_{student.email}")
         
         student_dict = {
             "id": student.id,
@@ -1746,7 +1763,7 @@ def get_students(
             "filiere": student.filiere,
             "domain": resolved_domain,
             "status": student.status,
-            "photo": student.photo,
+            "photo": resolved_photo,
             "date_of_birth": student.date_of_birth.isoformat() if student.date_of_birth else None,
             "place_of_birth": student.place_of_birth,
             "address": student.address,
@@ -3467,8 +3484,18 @@ def get_student_card_by_id(
         raise HTTPException(status_code=404, detail="Université non trouvée")
 
     photo_url = None
-    if student.photo:
-        clean_p = str(student.photo).replace("\\", "/").lstrip("/")
+    target_photo = student.photo
+    if not target_photo and student.user_id:
+        u = db.query(User).filter(User.id == student.user_id).first()
+        if u and u.photo:
+            target_photo = u.photo
+    if not target_photo and student.email:
+        u = db.query(User).filter(User.email == student.email).first()
+        if u and u.photo:
+            target_photo = u.photo
+
+    if target_photo:
+        clean_p = str(target_photo).replace("\\", "/").lstrip("/")
         if clean_p.startswith(("http://", "https://")):
             photo_url = clean_p
         elif clean_p.startswith("uploads/"):
