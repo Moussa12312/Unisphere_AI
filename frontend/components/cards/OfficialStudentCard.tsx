@@ -70,10 +70,15 @@ export default function OfficialStudentCard({
   const univName = university.name || 'UniSphere AI';
   const academicYear = university.academic_year || '2026-2027';
 
-  // Photo de l'étudiant avec fallback sur le portrait officiel haute définition
-  const studentPhotoUrl = (!photoError && student.photo)
-    ? getMediaUrl(student.photo)
-    : '/images/default-student-avatar.jpg';
+  // Photo de l'étudiant / personnel : utilise la vraie photo si disponible, sinon null (affichage d'un avatar officiel neutre avec initiales, JAMAIS d'inconnu)
+  const isCustomPhoto = Boolean(
+    !photoError &&
+    student.photo &&
+    typeof student.photo === 'string' &&
+    student.photo.trim() !== '' &&
+    !student.photo.includes('default-student-avatar')
+  );
+  const studentPhotoUrl = isCustomPhoto ? getMediaUrl(student.photo!) : null;
 
   // QR Code officiel avec fallback sur le QR haute définition
   const qrCodeUrl = !qrError
@@ -259,20 +264,65 @@ export default function OfficialStudentCard({
             </text>
 
             {/* ============================================================== */}
-            {/* 4. PHOTO OFFICIELLE DE L'ÉTUDIANT (BORD GAUCHE)                */}
+            {/* 4. PHOTO OFFICIELLE DE L'ÉTUDIANT / PERSONNEL (BORD GAUCHE)    */}
             {/* ============================================================== */}
-            <g>
-              {/* Photo recadrée nette collée au bord gauche */}
-              <image
-                href={studentPhotoUrl}
-                x="22"
-                y="148"
-                width="206"
-                height="274"
-                preserveAspectRatio="xMidYMid slice"
-                clipPath={`url(#${clipPhotoId})`}
-                onError={() => setPhotoError(true)}
-              />
+            <g clipPath={`url(#${clipPhotoId})`}>
+              {studentPhotoUrl ? (
+                <image
+                  href={studentPhotoUrl}
+                  x="22"
+                  y="148"
+                  width="206"
+                  height="274"
+                  preserveAspectRatio="xMidYMid slice"
+                  onError={() => setPhotoError(true)}
+                />
+              ) : (
+                /* Silhouette officielle élégante et neutre (JAMAIS un visage inconnu) */
+                <g>
+                  {/* Fond neutre moderne */}
+                  <rect x="22" y="148" width="206" height="274" fill="#F8FAFC" />
+                  
+                  {/* Cercle monogramme avec initiales réelles */}
+                  <circle cx="125" cy="245" r="50" fill={primaryColor} opacity="0.1" />
+                  <circle cx="125" cy="245" r="44" fill={primaryColor} />
+                  <text
+                    x="125"
+                    y="256"
+                    textAnchor="middle"
+                    fill="#FFFFFF"
+                    fontSize="30"
+                    fontWeight="800"
+                    fontFamily="Inter, system-ui, sans-serif"
+                    letterSpacing="1"
+                  >
+                    {`${(student.first_name?.[0] || 'E').toUpperCase()}${(student.last_name?.[0] || 'S').toUpperCase()}`}
+                  </text>
+                  
+                  {/* Silhouette icône buste officielle */}
+                  <path
+                    d="M97 335 C97 305, 153 305, 153 335 Z"
+                    fill={primaryColor}
+                    opacity="0.25"
+                  />
+                  <circle cx="125" cy="300" r="14" fill={primaryColor} opacity="0.25" />
+
+                  {/* Bandeau officiel sécurisé */}
+                  <rect x="22" y="386" width="206" height="36" fill={primaryColor} />
+                  <text
+                    x="125"
+                    y="409"
+                    textAnchor="middle"
+                    fill="#FFFFFF"
+                    fontSize="10"
+                    fontWeight="700"
+                    fontFamily="Inter, system-ui, sans-serif"
+                    letterSpacing="0.8"
+                  >
+                    IDENTITÉ OFFICIELLE
+                  </text>
+                </g>
+              )}
               {/* Cadre protecteur */}
               <rect
                 x="22"
@@ -282,7 +332,7 @@ export default function OfficialStudentCard({
                 rx="16"
                 ry="16"
                 fill="none"
-                stroke="#E2E8F0"
+                stroke="#CBD5E1"
                 strokeWidth="1.8"
               />
             </g>

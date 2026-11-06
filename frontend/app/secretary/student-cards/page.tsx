@@ -16,7 +16,8 @@ import {
   X,
   Loader2,
   Palette,
-  Save
+  Save,
+  Camera
 } from 'lucide-react';
 import api from '@/lib/api';
 import { universityService } from '@/services/universityService';
@@ -140,12 +141,14 @@ export default function SecretaryStudentCardsPrintPage() {
   const [activeTab, setActiveTab] = useState<'print' | 'customize' | 'secretary'>('print');
   const [previewSide, setPreviewSide] = useState<'recto' | 'verso'>('recto');
   interface SecretaryUser {
-  id?: number;
-  full_name?: string;
-  email?: string;
-  role?: string;
-}
-const [secretaryUser, setSecretaryUser] = useState<SecretaryUser | null>(null);
+    id?: number;
+    full_name?: string;
+    email?: string;
+    role?: string;
+    photo?: string | null;
+  }
+  const [secretaryUser, setSecretaryUser] = useState<SecretaryUser | null>(null);
+  const [uploadingStaffPhoto, setUploadingStaffPhoto] = useState(false);
 
   // État de personnalisation de la carte
   const [customization, setCustomization] = useState<CardCustomizationState>({
@@ -389,7 +392,7 @@ const [secretaryUser, setSecretaryUser] = useState<SecretaryUser | null>(null);
     level: 'L1',
     filiere: 'Informatique',
     status: 'active',
-    photo: '/images/default-student-avatar.jpg'
+    photo: null
   };
 
   if (loading) {
@@ -1084,12 +1087,44 @@ const [secretaryUser, setSecretaryUser] = useState<SecretaryUser | null>(null);
               </h2>
               <p className="text-xs text-slate-500">Badge officiel avec coordonnées administratives et identité visuelle du campus</p>
             </div>
-            <button
-              onClick={() => window.print()}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#FF7300] text-white rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors self-start sm:self-auto"
-            >
-              <Printer size={14} /> Imprimer mon badge
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-slate-300 shadow-xs">
+                <Camera size={14} className="text-[#FF7300]" />
+                <span>{uploadingStaffPhoto ? 'Téléchargement...' : 'Changer ma photo'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadingStaffPhoto}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      setUploadingStaffPhoto(true);
+                      const formData = new FormData();
+                      formData.append('photo', file);
+                      const res = await api.post('/api/v1/users/profile/photo', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                      });
+                      const newPhoto = res.data?.photo || res.data?.photo_url || res.data?.avatar;
+                      setSecretaryUser(prev => prev ? { ...prev, photo: newPhoto } : null);
+                      toast.success('Votre photo de badge a été mise à jour !');
+                    } catch (err) {
+                      console.error(err);
+                      toast.error('Erreur lors du téléchargement de la photo');
+                    } finally {
+                      setUploadingStaffPhoto(false);
+                    }
+                  }}
+                />
+              </label>
+              <button
+                onClick={() => window.print()}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#FF7300] text-white rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors self-start sm:self-auto"
+              >
+                <Printer size={14} /> Imprimer mon badge
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-center py-6">
@@ -1101,7 +1136,8 @@ const [secretaryUser, setSecretaryUser] = useState<SecretaryUser | null>(null);
                   last_name: secretaryUser?.full_name?.split(' ').slice(1).join(' ') || 'Général',
                   matricule: `SEC-${String(secretaryUser?.id || 1).padStart(3, '0')}`,
                   filiere: 'Administration & Registre',
-                  level: 'Personnel'
+                  level: 'Personnel',
+                  photo: secretaryUser?.photo || null
                 }}
                 university={universityInfo || undefined}
                 customization={customization}

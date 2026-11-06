@@ -15,7 +15,8 @@ import {
   Download,
   Eye,
   X,
-  Sparkles
+  Sparkles,
+  Camera
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -26,6 +27,31 @@ export default function StudentCardPage() {
   const [data, setData] = useState<any>(null);
   const [activeSide, setActiveSide] = useState<'recto' | 'verso' | 'both'>('recto');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handleUploadStudentPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingPhoto(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/api/v1/students/me/photo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const newPhoto = res.data?.photo;
+      setData((prev: any) => ({
+        ...prev,
+        student: { ...prev.student, photo: newPhoto }
+      }));
+      toast.success('Votre photo d\'identité a été mise à jour avec succès !');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Erreur lors du téléchargement de la photo');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   useEffect(() => {
     loadCard();
@@ -155,6 +181,18 @@ export default function StudentCardPage() {
               Les deux
             </button>
           </div>
+
+          <label className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer border border-slate-200 shadow-xs">
+            <Camera size={14} className="text-[#FF7300]" />
+            <span>{uploadingPhoto ? 'Téléchargement...' : 'Changer ma photo'}</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploadingPhoto}
+              onChange={handleUploadStudentPhoto}
+            />
+          </label>
 
           <button
             onClick={handleDownloadQr}

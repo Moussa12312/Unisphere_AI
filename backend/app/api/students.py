@@ -2629,8 +2629,9 @@ def get_my_student_card(
 
     # URLs relatives robustes pour le frontend (évite le blocage sur BACKEND_URL externe)
     photo_url = None
-    if student.photo:
-        clean_p = str(student.photo).replace("\\", "/").lstrip("/")
+    target_photo = student.photo or getattr(current_user, 'photo', None)
+    if target_photo:
+        clean_p = str(target_photo).replace("\\", "/").lstrip("/")
         if clean_p.startswith(("http://", "https://")):
             photo_url = clean_p
         elif clean_p.startswith("uploads/"):
