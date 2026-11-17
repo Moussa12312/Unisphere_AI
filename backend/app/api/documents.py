@@ -578,6 +578,7 @@ def generate_receipt_pdf(
     from app.utils.tuition import (
         resolve_student_tuition_breakdown,
         get_configured_tranches_for_student,
+        get_monthly_schedule_for_student,
         scale_tranches_to_amount,
         is_valid_payment_status,
         is_scolarite_payment_type,
@@ -597,45 +598,77 @@ def generate_receipt_pdf(
         if is_valid_payment_status(p.status)
     ]
 
+    is_monthly = (getattr(student, "payment_plan", None) == "mensuel")
+
     if is_scol_type:
         all_payments = [p for p in all_valid if is_scolarite_payment_type(p.payment_type)]
         total_paid_all = sum(float(p.amount or 0.0) for p in all_payments)
         total_due = float(breakdown["net_amount"] or 0.0) if breakdown.get("is_configured") else max(total_paid_all, float(payment.amount or 0.0))
-        configured_tranches = get_configured_tranches_for_student(db, student, student.university_id, total_due)
-        scaled_tranches = scale_tranches_to_amount(configured_tranches, total_due)
+        if is_monthly:
+            monthly_schedule = get_monthly_schedule_for_student(
+                breakdown, total_paid_all, all_payments, getattr(student, "academic_year", None)
+            )
+            scaled_tranches = monthly_schedule
+        else:
+            configured_tranches = get_configured_tranches_for_student(db, student, student.university_id, total_due)
+            scaled_tranches = scale_tranches_to_amount(configured_tranches, total_due)
     else:
         all_payments = [p for p in all_valid if (p.payment_type or "").strip().lower() == p_type_norm]
         total_paid_all = sum(float(p.amount or 0.0) for p in all_payments)
         total_due = float(breakdown["net_amount"] or 0.0) if breakdown.get("is_configured") else max(total_paid_all, float(payment.amount or 0.0))
-        configured_tranches = []
         scaled_tranches = []
 
     rem_alloc = float(total_paid_all)
     tranches_rows = []
-    for t in scaled_tranches:
-        t_amt = float(t["amount"] or 0.0)
-        if rem_alloc >= t_amt and t_amt > 0:
-            p_amt = t_amt
-            rem_alloc -= t_amt
-            status_txt = "Soldée"
-        elif rem_alloc > 0:
-            p_amt = rem_alloc
-            rem_alloc = 0.0
-            status_txt = "Partielle"
-        else:
-            p_amt = 0.0
-            status_txt = "En attente"
-        r_amt = max(0.0, t_amt - p_amt)
-        due_dt = t["due_date"]
-        due_str = due_dt.strftime("%d/%m/%Y") if due_dt else "—"
-        tranches_rows.append([
-            f"Tranche {t['tranche_number']} : {t['tranche_name'] or ''}",
-            due_str,
-            f"{int(round(t_amt)):,} FCFA".replace(",", " "),
-            f"{int(round(p_amt)):,} FCFA".replace(",", " "),
-            f"{int(round(r_amt)):,} FCFA".replace(",", " "),
-            status_txt
-        ])
+
+    if is_monthly and is_scol_type:
+        for t in scaled_tranches:
+            t_amt = float(t.get("amount") or 0.0)
+            p_amt = float(t.get("paid_amount") or 0.0)
+            r_amt = float(t.get("remaining") or max(0.0, t_amt - p_amt))
+            st_raw = t.get("status") or ("paid" if r_amt == 0 and t_amt > 0 else "partial" if p_amt > 0 else "pending")
+            status_txt = "Soldée" if st_raw == "paid" else ("Partielle" if st_raw == "partial" else "En attente")
+            due_dt = t.get("due_date")
+            if hasattr(due_dt, "strftime"):
+                due_str = due_dt.strftime("%d/%m/%Y")
+            elif due_dt:
+                due_str = str(due_dt).split("T")[0]
+            else:
+                due_str = "—"
+
+            tranches_rows.append([
+                str(t.get("name") or "Mensualité"),
+                due_str,
+                f"{int(round(t_amt)):,} FCFA".replace(",", " "),
+                f"{int(round(p_amt)):,} FCFA".replace(",", " "),
+                f"{int(round(r_amt)):,} FCFA".replace(",", " "),
+                status_txt
+            ])
+    else:
+        for t in scaled_tranches:
+            t_amt = float(t["amount"] or 0.0)
+            if rem_alloc >= t_amt and t_amt > 0:
+                p_amt = t_amt
+                rem_alloc -= t_amt
+                status_txt = "Soldée"
+            elif rem_alloc > 0:
+                p_amt = rem_alloc
+                rem_alloc = 0.0
+                status_txt = "Partielle"
+            else:
+                p_amt = 0.0
+                status_txt = "En attente"
+            r_amt = max(0.0, t_amt - p_amt)
+            due_dt = t["due_date"]
+            due_str = due_dt.strftime("%d/%m/%Y") if due_dt else "—"
+            tranches_rows.append([
+                f"Tranche {t['tranche_number']} : {t['tranche_name'] or ''}",
+                due_str,
+                f"{int(round(t_amt)):,} FCFA".replace(",", " "),
+                f"{int(round(p_amt)):,} FCFA".replace(",", " "),
+                f"{int(round(r_amt)):,} FCFA".replace(",", " "),
+                status_txt
+            ])
 
     balance_remaining = max(0.0, total_due - total_paid_all)
 
@@ -739,10 +772,11 @@ def generate_receipt_pdf(
     elements.append(amount_table)
     elements.append(Spacer(1, 0.4*cm))
 
-    # Tableau de ventilation des tranches (si existant)
+    # Tableau de ventilation des tranches ou mensualités (si existant)
     if tranches_rows:
-        elements.append(Paragraph("<b>VENTILATION DE LA SCOLARITÉ PAR TRANCHES :</b>", ParagraphStyle('TrTitle', fontSize=8.5, fontName="Helvetica-Bold", spaceAfter=3, textColor=colors.HexColor('#0a1628'))))
-        table_headers = ["Désignation", "Échéance", "Montant prévu", "Réglé à ce jour", "Reste dû", "Statut"]
+        section_title = "<b>VENTILATION DE LA SCOLARITÉ (ACOMPTE & MENSUALITÉS) :</b>" if is_monthly else "<b>VENTILATION DE LA SCOLARITÉ PAR TRANCHES :</b>"
+        elements.append(Paragraph(section_title, ParagraphStyle('TrTitle', fontSize=8.5, fontName="Helvetica-Bold", spaceAfter=3, textColor=colors.HexColor('#0a1628'))))
+        table_headers = ["Désignation (Échéance)", "Date Limite", "Montant prévu", "Réglé à ce jour", "Reste dû", "Statut"]
         t_data = [table_headers] + tranches_rows
         # Ligne de total
         t_data.append([

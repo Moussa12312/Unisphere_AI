@@ -42,6 +42,8 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [search, setSearch] = useState('');
+  const [selectedLevel, setSelectedLevel] = useState('ALL');
+  const [selectedFiliere, setSelectedFiliere] = useState('ALL');
   const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
   const [expandedFilieres, setExpandedFilieres] = useState<Set<string>>(new Set());
   const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
@@ -71,12 +73,25 @@ export default function StudentsPage() {
     }
   };
 
+  // Listes uniques pour les filtres
+  const availableLevels = ['L1', 'L2', 'L3', 'M1', 'M2', 'Doctorat'];
+  const availableFilieres = Array.from(new Set(students.map(s => s.filiere).filter(Boolean) as string[])).sort();
+
+  const getExportFilename = (ext: string) => {
+    const parts = ['Etudiants'];
+    if (selectedLevel !== 'ALL') parts.push(selectedLevel);
+    if (selectedFiliere !== 'ALL') parts.push(selectedFiliere.replace(/[^a-zA-Z0-9]/g, '_'));
+    if (selectedLevel === 'ALL' && selectedFiliere === 'ALL') parts.push('Tous');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    return `${parts.join('_')}_${dateStr}.${ext}`;
+  };
+
   const handleExportExcel = () => {
-    if (students.length === 0) {
-      toast.error('Aucun étudiant à exporter');
+    if (filteredStudents.length === 0) {
+      toast.error('Aucun étudiant à exporter pour ce filtre');
       return;
     }
-    const dataToExport = students.map(s => ({
+    const dataToExport = filteredStudents.map(s => ({
       Matricule: s.matricule || 'N/A',
       Nom: s.last_name,
       Prénom: s.first_name,
@@ -87,16 +102,17 @@ export default function StudentsPage() {
       Niveau: s.level || 'N/A',
       Statut: s.status || 'Actif'
     }));
-    exportToExcel(dataToExport, `Repertoire_Etudiants_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    toast.success('Répertoire étudiants exporté en Excel (.xlsx)');
+    const filename = getExportFilename('xlsx');
+    exportToExcel(dataToExport, filename);
+    toast.success(`Exporté : ${filteredStudents.length} étudiant(s) (${filename})`);
   };
 
   const handleExportCSV = () => {
-    if (students.length === 0) {
-      toast.error('Aucun étudiant à exporter');
+    if (filteredStudents.length === 0) {
+      toast.error('Aucun étudiant à exporter pour ce filtre');
       return;
     }
-    const dataToExport = students.map(s => ({
+    const dataToExport = filteredStudents.map(s => ({
       Matricule: s.matricule || 'N/A',
       Nom: s.last_name,
       Prénom: s.first_name,
@@ -107,8 +123,9 @@ export default function StudentsPage() {
       Niveau: s.level || 'N/A',
       Statut: s.status || 'Actif'
     }));
-    exportToCSV(dataToExport, `Repertoire_Etudiants_${new Date().toISOString().slice(0, 10)}.csv`);
-    toast.success('Répertoire étudiants exporté en CSV (.csv)');
+    const filename = getExportFilename('csv');
+    exportToCSV(dataToExport, filename);
+    toast.success(`Exporté : ${filteredStudents.length} étudiant(s) (${filename})`);
   };
 
   const handleDelete = async (id: number, name: string) => {
@@ -158,10 +175,16 @@ export default function StudentsPage() {
     const domain = (student.domain || '').toLowerCase();
     const searchTerm = search.toLowerCase();
     
-    return fullName.includes(searchTerm) || 
+    const matchesSearch = !searchTerm || 
+           fullName.includes(searchTerm) || 
            matricule.includes(searchTerm) || 
            filiere.includes(searchTerm) ||
            domain.includes(searchTerm);
+
+    const matchesLevel = selectedLevel === 'ALL' || (student.level || '').toUpperCase() === selectedLevel.toUpperCase();
+    const matchesFiliere = selectedFiliere === 'ALL' || (student.filiere || '').toLowerCase() === selectedFiliere.toLowerCase();
+
+    return matchesSearch && matchesLevel && matchesFiliere;
   });
 
   // ✅✅✅ Grouper par Domaine → Filière → Niveau
@@ -192,56 +215,82 @@ export default function StudentsPage() {
     <div className="space-y-6">
 
       {/* Search & Actions Responsives */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input
-            type="text"
-            placeholder="Rechercher par nom, matricule, filière ou domaine..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white shadow-sm"
-          />
-        </div>
-      
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full md:w-auto">
-          <button
-            onClick={handleExportExcel}
-            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-            title="Exporter la liste en Excel (.xlsx)"
-          >
-            <FileSpreadsheet size={16} />
-            <span>Excel</span>
-          </button>
-          <button
-            onClick={handleExportCSV}
-            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-            title="Exporter la liste en CSV (.csv)"
-          >
-            <Download size={16} />
-            <span>CSV</span>
-          </button>
-          <button
-            onClick={() => setShowEmailModal(true)}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-          >
-            <Mail size={16} />
-            <span>Modifier un email</span>
-          </button>
-          <Link
-            href="/admin/students/bulk"
-            className="bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-          >
-            <UploadCloud size={16} />
-            <span>Inscription en masse</span>
-          </Link>
-          <Link
-            href="/admin/students/create"
-            className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-all"
-          >
-            <Plus size={16} />
-            <span>Ajouter</span>
-          </Link>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+          <div className="flex flex-1 flex-col sm:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder="Rechercher par nom, matricule, filière ou domaine..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white shadow-sm"
+              />
+            </div>
+            {/* Filtre Niveau */}
+            <select
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value)}
+              className="px-3 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] shadow-sm font-medium text-slate-700"
+            >
+              <option value="ALL">🎓 Tous les niveaux</option>
+              {availableLevels.map(lvl => (
+                <option key={lvl} value={lvl}>{lvl}</option>
+              ))}
+            </select>
+            {/* Filtre Filière */}
+            <select
+              value={selectedFiliere}
+              onChange={(e) => setSelectedFiliere(e.target.value)}
+              className="px-3 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] shadow-sm font-medium text-slate-700 max-w-xs"
+            >
+              <option value="ALL">🏛️ Toutes les filières</option>
+              {availableFilieres.map(fil => (
+                <option key={fil} value={fil}>{fil}</option>
+              ))}
+            </select>
+          </div>
+        
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full md:w-auto">
+            <button
+              onClick={handleExportExcel}
+              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+              title={`Exporter les ${filteredStudents.length} étudiants filtrés en Excel`}
+            >
+              <FileSpreadsheet size={16} />
+              <span>Excel ({filteredStudents.length})</span>
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+              title={`Exporter les ${filteredStudents.length} étudiants filtrés en CSV`}
+            >
+              <Download size={16} />
+              <span>CSV</span>
+            </button>
+            <button
+              onClick={() => setShowEmailModal(true)}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+            >
+              <Mail size={16} />
+              <span>Modifier un email</span>
+            </button>
+            <Link
+              href="/admin/students/bulk"
+              className="bg-orange-50 hover:bg-orange-100 text-[#FF6B00] border border-orange-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+            >
+              <UploadCloud size={16} />
+              <span>Inscription en masse</span>
+            </Link>
+            <Link
+              href="/admin/students/create"
+              className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-all"
+            >
+              <Plus size={16} />
+              <span>Ajouter</span>
+            </Link>
+          </div>
         </div>
       </div>
 

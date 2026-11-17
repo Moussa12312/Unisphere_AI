@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Printer, ArrowLeft, Download, FileText, Loader2 } from 'lucide-react';
-import api, { API_BASE_URL } from '@/lib/api';
+import { Printer, ArrowLeft, Download, FileText, Loader2, MessageCircle } from 'lucide-react';
+import api, { API_BASE_URL, getMediaUrl } from '@/lib/api';
 
 /* ---------- Montant en lettres ---------- */
 function enLettres(n: number): string {
@@ -52,7 +52,35 @@ export default function ReceiptTemplate({ receipt, showBackButton = false, backU
   const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n || 0);
   const dateFr = (d: any) => (d ? new Date(d).toLocaleDateString('fr-FR') : '—');
 
+  const isMonthly = Boolean(
+    receipt?.is_monthly ||
+    receipt?.payment_plan === 'mensuel' ||
+    s?.payment_plan === 'mensuel' ||
+    paid.some((item: any) => item.is_monthly) ||
+    remaining.some((item: any) => item.is_monthly)
+  );
+
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleShareWhatsApp = () => {
+    const rawPhone = s?.phone ? String(s.phone).replace(/[^0-9]/g, '') : '';
+    const studentName = s?.name || 'Étudiant';
+    const amountStr = fmt(p?.amount);
+    const recNum = p?.receipt_number || `REC-${p?.id}`;
+    const dateStr = dateFr(p?.payment_date || p?.created_at);
+    const msg = `*REÇU OFFICIEL DE RÈGLEMENT & QUITTANCE*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `👤 *Étudiant :* ${studentName}\n` +
+      `🎓 *Matricule :* ${s?.matricule || '—'}\n` +
+      `🧾 *N° Reçu :* ${recNum}\n` +
+      `📅 *Date :* ${dateStr}\n` +
+      `💰 *Montant encaissé :* ${amountStr} FCFA\n` +
+      `📌 *Modalité :* ${isMonthly ? 'Échelonnement Mensuel (Acompte + Mensualités)' : 'Règlement standard par Tranches'}\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `_Document officiel certifié par le système comptable UniSphere AI._`;
+    const url = rawPhone ? `https://wa.me/${rawPhone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  };
 
   const getAuthToken = () => {
     if (typeof window === 'undefined') return '';
@@ -119,6 +147,14 @@ export default function ReceiptTemplate({ receipt, showBackButton = false, backU
             <span>{downloadingPdf ? 'Génération...' : 'Télécharger PDF'}</span>
           </button>
         )}
+        <button
+          onClick={handleShareWhatsApp}
+          className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 bg-emerald-600 text-white rounded-xl text-xs sm:text-sm font-semibold hover:bg-emerald-700 shadow-md transition-all"
+          title="Partager le reçu directement sur WhatsApp"
+        >
+          <MessageCircle size={16} />
+          <span>Partager sur WhatsApp</span>
+        </button>
       </div>
 
       {/* ✅ FEUILLE OFFICIELLE — Double encadrement solennel, filigrane et cachet d'État */}
@@ -205,6 +241,7 @@ export default function ReceiptTemplate({ receipt, showBackButton = false, backU
                 <tbody>
                   <tr><td className="text-slate-500 py-0.5 w-20 sm:w-24">Objet :</td><td className="font-bold py-0.5 capitalize">{(p.payment_type || 'scolarite').replace('_', ' ')}</td></tr>
                   <tr><td className="text-slate-500 py-0.5">Mode règlement :</td><td className="font-semibold py-0.5 capitalize">{(p.payment_method || 'espèces').replace('_', ' ')}</td></tr>
+                  <tr><td className="text-slate-500 py-0.5">Modalité :</td><td className="font-semibold py-0.5 text-[#FF6B00]">{isMonthly ? '📅 Échelonnement Mensuel' : '🏛️ Par Tranches (P1, P2, P3)'}</td></tr>
                   <tr><td className="text-slate-500 py-0.5">Imputation :</td><td className="font-mono py-0.5">706000 — Droits scolarité</td></tr>
                   <tr><td className="text-slate-500 py-0.5">Comptable :</td><td className="py-0.5 font-medium">{c.name || 'Agent Comptable'}</td></tr>
                 </tbody>
@@ -212,12 +249,14 @@ export default function ReceiptTemplate({ receipt, showBackButton = false, backU
             </div>
           </div>
 
-          {/* ===== TABLEAU DES TRANCHES & ÉCHÉANCES (Avec Scroll Horizontal sur Mobile) ===== */}
+          {/* ===== TABLEAU DES TRANCHES OU MENSUALITÉS (Avec Scroll Horizontal sur Mobile) ===== */}
           <div className="overflow-x-auto w-full -mx-1 sm:mx-0 mb-4 sm:mb-5">
             <table className="w-full min-w-[420px] sm:min-w-full border-collapse border border-slate-400 text-[10px] sm:text-[11px]">
               <thead>
                 <tr className="bg-slate-800 text-white font-bold uppercase text-[9px] sm:text-[10px]">
-                  <th className="border border-slate-400 px-2 sm:px-3 py-2 text-left">Désignation de la Tranche</th>
+                  <th className="border border-slate-400 px-2 sm:px-3 py-2 text-left">
+                    {isMonthly ? 'Désignation (Acompte / Mensualité)' : 'Désignation de la Tranche'}
+                  </th>
                   <th className="border border-slate-400 px-2 sm:px-3 py-2 text-right">Montant Exigible</th>
                   <th className="border border-slate-400 px-2 sm:px-3 py-2 text-center">Échéance</th>
                   <th className="border border-slate-400 px-2 sm:px-3 py-2 text-center">Statut</th>
@@ -242,7 +281,9 @@ export default function ReceiptTemplate({ receipt, showBackButton = false, backU
                 ))}
                 {paid.length === 0 && remaining.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="border border-slate-300 px-3 py-2 text-center text-slate-500 italic">Paiement unique de scolarité</td>
+                    <td colSpan={4} className="border border-slate-300 px-3 py-2 text-center text-slate-500 italic">
+                      {isMonthly ? 'Paiement de scolarité mensuelle' : 'Paiement unique de scolarité'}
+                    </td>
                   </tr>
                 )}
               </tbody>

@@ -206,9 +206,25 @@ const getDepartmentAbbreviation = (department: string): string => {
                     </div>
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
-                    <span className="py-1 px-2.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                      {getDepartmentAbbreviation(course.department)} - {course.level}
-                    </span>
+                    <div className="flex flex-col gap-1 items-start">
+                      {course.is_common_core ? (
+                        <span className="py-0.5 px-2 bg-purple-100 text-purple-700 text-xs font-semibold rounded-md flex items-center gap-1">
+                          🏛️ Tronc Commun
+                        </span>
+                      ) : (
+                        <span className="py-0.5 px-2 bg-blue-100 text-blue-700 text-xs font-medium rounded-md">
+                          {getDepartmentAbbreviation(course.department)}
+                        </span>
+                      )}
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                        <span className="font-semibold text-slate-700">{course.level}</span>
+                        {course.semester && (
+                          <span className="px-1.5 py-0.2 bg-slate-100 border border-slate-200 text-slate-600 rounded text-[11px] font-bold">
+                            {course.semester}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
                     {course.teaching_unit_code ? (

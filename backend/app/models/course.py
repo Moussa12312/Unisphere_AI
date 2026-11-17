@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database.connection import Base
@@ -11,6 +11,9 @@ class Course(Base):
     code = Column(String, unique=True, nullable=False)
     department = Column(String, nullable=False)
     level = Column(String, nullable=False)
+    semester = Column(String, nullable=True)                      # ex: "S1", "S2", "S3", "S4", "S5", "S6"
+    is_common_core = Column(Boolean, default=False)               # True si cours en Tronc Commun
+    common_core_filieres = Column(String, nullable=True)          # ex: "1,4,7" ou "ALL"
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True)
     credits = Column(Integer, default=3)
     hours = Column(Integer, default=20)

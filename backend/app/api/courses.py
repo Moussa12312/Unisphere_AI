@@ -55,10 +55,10 @@ def create_course(
     current_user: User = Depends(require_role("admin", "secretary", "censeur", "teacher"))
 ):
     # ✅ Validation
-    if not course.filiere_id and not course.department:
-        raise HTTPException(status_code=400, detail="Vous devez sélectionner une filière ou un département")
+    if not course.filiere_id and not course.department and not course.is_common_core:
+        raise HTTPException(status_code=400, detail="Vous devez sélectionner une filière ou marquer le cours en tronc commun")
     
-    # ✅ Récupérer le département depuis la filière
+    # ✅ Récupérer le département depuis la filière ou tronc commun
     department = course.department
     if course.filiere_id:
         filiere = db.query(Filiere).filter(
@@ -68,11 +68,13 @@ def create_course(
         if not filiere:
             raise HTTPException(status_code=404, detail="Filière non trouvée")
         department = filiere.name
+    elif course.is_common_core and not department:
+        department = "Tronc Commun"
     
     # Générer le code
     code = course.code
     if not code or code.strip() == "":
-        code = generate_course_code(course.title, department, course.level)
+        code = generate_course_code(course.title, department or "COURS", course.level)
     
     # Vérifier unicité
     existing = db.query(Course).filter(
@@ -92,8 +94,11 @@ def create_course(
     new_course = Course(
         title=course.title,
         code=code,
-        department=department,
+        department=department or "Tronc Commun",
         level=course.level,
+        semester=course.semester,
+        is_common_core=bool(course.is_common_core),
+        common_core_filieres=course.common_core_filieres,
         teacher_id=course.teacher_id,
         credits=course.credits,
         hours=course.hours,
@@ -140,7 +145,7 @@ def get_courses(
                 teacher_name = f"{teacher.first_name} {teacher.last_name}"
         
         filiere_name = c.filiere.name if c.filiere else c.department
-        semester = c.teaching_unit.semester if c.teaching_unit else None
+        semester = getattr(c, 'semester', None) or (c.teaching_unit.semester if c.teaching_unit else None)
 
         result.append({
             "id": c.id,
@@ -157,7 +162,9 @@ def get_courses(
             "teaching_unit_id": c.teaching_unit_id,
             "teaching_unit_code": c.teaching_unit.code if c.teaching_unit else None,
             "teaching_unit_name": c.teaching_unit.name if c.teaching_unit else None,
-            "semester": semester
+            "semester": semester,
+            "is_common_core": bool(getattr(c, 'is_common_core', False)),
+            "common_core_filieres": getattr(c, 'common_core_filieres', None)
         })
     return result
 
@@ -180,6 +187,8 @@ def get_course(
         if teacher:
             teacher_name = f"{teacher.first_name} {teacher.last_name}"
     
+    semester = getattr(course, 'semester', None) or (course.teaching_unit.semester if course.teaching_unit else None)
+
     return {
         "id": course.id,
         "title": course.title,
@@ -195,7 +204,9 @@ def get_course(
         "teaching_unit_id": course.teaching_unit_id,
         "teaching_unit_code": course.teaching_unit.code if course.teaching_unit else None,
         "teaching_unit_name": course.teaching_unit.name if course.teaching_unit else None,
-        "semester": course.teaching_unit.semester if course.teaching_unit else None
+        "semester": semester,
+        "is_common_core": bool(getattr(course, 'is_common_core', False)),
+        "common_core_filieres": getattr(course, 'common_core_filieres', None)
     }
 
 @router.put("/{course_id}")

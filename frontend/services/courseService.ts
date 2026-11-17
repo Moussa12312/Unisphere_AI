@@ -13,6 +13,8 @@ export interface Course {
   filiere_id?: number;
   filiere_name?: string;
   semester?: string;
+  is_common_core?: boolean;
+  common_core_filieres?: string;
   teaching_unit_id?: number;
   teaching_unit_code?: string;
   teaching_unit_name?: string;

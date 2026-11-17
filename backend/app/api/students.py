@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from pathlib import Path
 from datetime import datetime, date, time
 import re
+import unicodedata
 import os
 import time as time_module  # ✅ Alias pour éviter le conflit avec datetime.time
 import shutil
@@ -239,6 +240,14 @@ async def create_student(
                 computed_net = max(0.0, base_val - disc_amt)
             elif disc_pct > 0:
                 computed_net = max(0.0, round(base_val * (1.0 - disc_pct / 100.0)))
+
+        # Normalisation canonique de la filière et du domaine
+        filieres_db = db.query(Filiere).filter(Filiere.university_id == current_user.university_id).all()
+        matched_f = match_canonical_filiere(filiere, filieres_db)
+        if matched_f:
+            filiere = matched_f.name
+            if not domain or str(domain).strip() == "":
+                domain = matched_f.domain
 
         new_student = Student(
             first_name=first_name,
@@ -548,6 +557,55 @@ def normalize_column_name(header: str) -> Optional[str]:
     return COLUMN_MAPPINGS.get(cleaned, cleaned)
 
 
+def normalize_string_key(text: str) -> str:
+    """Enlève les accents, minusculise, et supprime la ponctuation superflue pour comparaison canonique"""
+    if not text:
+        return ""
+    norm = unicodedata.normalize('NFKD', str(text))
+    cleaned = ''.join(c for c in norm if not unicodedata.combining(c))
+    cleaned = re.sub(r'[^a-zA-Z0-9\s]', ' ', cleaned).lower()
+    return ' '.join(cleaned.split())
+
+
+def match_canonical_filiere(fil_input: str, filieres_db: List[Filiere]) -> Optional[Filiere]:
+    """Trouve la filière officielle correspondant au texte saisi (insensible à la casse, aux accents et aux pluriels/préfixes)
+    Exemple : 'reseau', 'Reseau', 'réseau' ou 'Réseaux' matcheront 'Réseaux & Télécommunications' ou 'Réseau Informatique'
+    """
+    if not fil_input or not filieres_db:
+        return None
+    
+    norm_input = normalize_string_key(fil_input)
+    if not norm_input:
+        return None
+
+    # 1. Correspondance exacte normalisée (ex: "reseau" == "reseau")
+    for f in filieres_db:
+        if normalize_string_key(f.name) == norm_input:
+            return f
+
+    # 2. Correspondance par inclusion / préfixe
+    input_words = set(norm_input.split())
+    for f in filieres_db:
+        norm_fname = normalize_string_key(f.name)
+        if norm_input in norm_fname or norm_fname in norm_input:
+            return f
+
+    # 3. Plus grande intersection de mots-clés
+    best_match = None
+    max_overlap = 0
+    for f in filieres_db:
+        f_words = set(normalize_string_key(f.name).split())
+        overlap = len(input_words.intersection(f_words))
+        if overlap > max_overlap:
+            max_overlap = overlap
+            best_match = f
+            
+    if max_overlap > 0:
+        return best_match
+
+    return None
+
+
 def process_bulk_students(students_data: List[Dict[str, Any]], db: Session, current_user: User) -> Dict[str, Any]:
     """Exécute la création en masse d'étudiants avec attribution des comptes, matricules et QR codes"""
     univ_id = current_user.university_id
@@ -593,8 +651,13 @@ def process_bulk_students(students_data: List[Dict[str, Any]], db: Session, curr
             errors.append({"row": row_num, "name": f"{fn} {ln}", "email": em, "error": "Cet email est déjà utilisé par un autre compte"})
             continue
 
-        # Résoudre automatiquement le domaine si absent
-        if not dom:
+        # ✅ Résolution et normalisation canonique de la filière et du domaine
+        matched_f = match_canonical_filiere(fil, filieres_db)
+        if matched_f:
+            fil = matched_f.name
+            if not dom:
+                dom = matched_f.domain
+        elif not dom:
             dom = filiere_domain_map.get(fil.lower()) or None
 
         try:
@@ -2938,10 +3001,20 @@ async def update_student(
     existing_student.first_name = first_name
     existing_student.last_name = last_name
     existing_student.email = email
-    existing_student.filiere = filiere
+    # Normalisation canonique de la filière et du domaine
+    filieres_db = db.query(Filiere).filter(Filiere.university_id == current_user.university_id).all()
+    matched_f = match_canonical_filiere(filiere, filieres_db)
+    if matched_f:
+        existing_student.filiere = matched_f.name
+        if not domain or str(domain).strip() == "":
+            existing_student.domain = matched_f.domain
+        else:
+            existing_student.domain = domain
+    else:
+        existing_student.filiere = filiere
+        if domain:
+            existing_student.domain = domain
     existing_student.level = level
-    if domain:
-        existing_student.domain = domain
     existing_student.date_of_birth = parse_date_safely(date_of_birth)
     existing_student.place_of_birth = place_of_birth
     existing_student.gender = gender

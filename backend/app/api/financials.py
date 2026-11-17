@@ -1174,6 +1174,7 @@ def get_payment_receipt(
     from app.utils.tuition import (
         resolve_student_tuition_breakdown,
         get_configured_tranches_for_student,
+        get_monthly_schedule_for_student,
         scale_tranches_to_amount,
         is_valid_payment_status,
         is_scolarite_payment_type,
@@ -1193,12 +1194,21 @@ def get_payment_receipt(
         if is_valid_payment_status(p.status)
     ]
 
+    is_monthly = (getattr(student, "payment_plan", None) == "mensuel")
+
     if is_scol_type:
         all_payments = [p for p in all_valid_payments if is_scolarite_payment_type(p.payment_type)]
         total_paid_real = sum(float(p.amount or 0.0) for p in all_payments)
         total_amount = float(breakdown["net_amount"] or 0.0) if breakdown.get("is_configured") else total_paid_real
-        configured_tranches = get_configured_tranches_for_student(db, student, univ_id, total_amount)
-        scaled_tranches = scale_tranches_to_amount(configured_tranches, total_amount)
+        if is_monthly:
+            monthly_items = get_monthly_schedule_for_student(
+                breakdown, total_paid_real, all_payments, getattr(student, "academic_year", None)
+            )
+            configured_tranches = monthly_items
+            scaled_tranches = monthly_items
+        else:
+            configured_tranches = get_configured_tranches_for_student(db, student, univ_id, total_amount)
+            scaled_tranches = scale_tranches_to_amount(configured_tranches, total_amount)
     else:
         all_payments = [p for p in all_valid_payments if (p.payment_type or "").strip().lower() == p_type_norm]
         total_paid_real = sum(float(p.amount or 0.0) for p in all_payments)
@@ -1208,36 +1218,61 @@ def get_payment_receipt(
 
     paid_tranches = []
     remaining_tranches = []
-    rem_alloc = float(total_paid_real)
 
-    for tr in scaled_tranches:
-        tranche_amount = float(tr["amount"] or 0.0)
-        if rem_alloc >= tranche_amount and tranche_amount > 0:
-            tranche_paid = tranche_amount
-            st = "paid"
-            rem_alloc -= tranche_amount
-        elif rem_alloc > 0:
-            tranche_paid = rem_alloc
-            st = "partial"
-            rem_alloc = 0.0
-        else:
-            tranche_paid = 0.0
-            st = "pending"
+    if is_monthly and is_scol_type:
+        for tr in scaled_tranches:
+            due_dt = tr.get("due_date")
+            due_iso = due_dt.isoformat() if hasattr(due_dt, "isoformat") else (str(due_dt) if due_dt else None)
+            t_amt = round(float(tr.get("amount") or 0.0))
+            p_amt = round(float(tr.get("paid_amount") or 0.0))
+            r_amt = round(float(tr.get("remaining") or max(0.0, t_amt - p_amt)))
+            st = tr.get("status") or ("paid" if r_amt == 0 and t_amt > 0 else "partial" if p_amt > 0 else "pending")
+            tr_data = {
+                "tranche_number": tr.get("number"),
+                "tranche_name": tr.get("name"),
+                "amount": t_amt,
+                "paid_amount": p_amt,
+                "remaining": r_amt,
+                "due_date": due_iso,
+                "status": st,
+                "is_monthly": True
+            }
+            if st == "paid":
+                paid_tranches.append(tr_data)
+            else:
+                remaining_tranches.append(tr_data)
+    else:
+        rem_alloc = float(total_paid_real)
+        for tr in scaled_tranches:
+            tranche_amount = float(tr["amount"] or 0.0)
+            if rem_alloc >= tranche_amount and tranche_amount > 0:
+                tranche_paid = tranche_amount
+                st = "paid"
+                rem_alloc -= tranche_amount
+            elif rem_alloc > 0:
+                tranche_paid = rem_alloc
+                st = "partial"
+                rem_alloc = 0.0
+            else:
+                tranche_paid = 0.0
+                st = "pending"
 
-        due_dt = tr["due_date"]
-        tr_data = {
-            "tranche_number": tr["tranche_number"],
-            "tranche_name": tr["tranche_name"],
-            "amount": round(tranche_amount),
-            "paid_amount": round(tranche_paid),
-            "remaining": round(max(0.0, tranche_amount - tranche_paid)),
-            "due_date": due_dt.isoformat() if due_dt else None,
-            "status": st,
-        }
-        if st == "paid":
-            paid_tranches.append(tr_data)
-        else:
-            remaining_tranches.append(tr_data)
+            due_dt = tr["due_date"]
+            due_iso = due_dt.isoformat() if hasattr(due_dt, "isoformat") else (str(due_dt) if due_dt else None)
+            tr_data = {
+                "tranche_number": tr["tranche_number"],
+                "tranche_name": tr["tranche_name"],
+                "amount": round(tranche_amount),
+                "paid_amount": round(tranche_paid),
+                "remaining": round(max(0.0, tranche_amount - tranche_paid)),
+                "due_date": due_iso,
+                "status": st,
+                "is_monthly": False
+            }
+            if st == "paid":
+                paid_tranches.append(tr_data)
+            else:
+                remaining_tranches.append(tr_data)
 
     # ✅ Le total payé réel et le reste à payer réel sans perdre aucun centime
     total_paid = round(total_paid_real)
@@ -1254,6 +1289,8 @@ def get_payment_receipt(
     
     return {
         "receipt": {
+            "is_monthly": is_monthly,
+            "payment_plan": "mensuel" if is_monthly else "tranches",
             "payment": {
                 "id": payment.id,
                 "reference": getattr(payment, 'reference', None) or f"PAY-{payment.id:06d}",
