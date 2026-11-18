@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, X, Save, Check } from 'lucide-react';
+import { Upload, X, Save, Check, UserPlus, ArrowLeft, Globe, Layers } from 'lucide-react';
 import Link from 'next/link';
 import { teacherService } from '@/services/teacherService';
 import { filiereService } from '@/services/filiereService';
@@ -20,18 +20,27 @@ export default function CreateTeacherPage() {
     first_name: '',
     last_name: '',
     email: '',
-    domain: '',        // Domaine sélectionné
-    filiere_id: '',    // ID de la filière
-    speciality: '',
     phone: '',
+    department: '',
+    speciality: '',
+    scope: 'ALL', // 'ALL' | 'CUSTOM'
+    selected_filieres: [] as number[],
   });
 
-  // ✅ Charger les filières
+  const defaultDepartments = [
+    'Sciences & Technologies',
+    'Sciences Économiques & Gestion',
+    'Droit & Sciences Politiques',
+    'Lettres, Langues & Sciences Humaines',
+    'Médecine & Sciences de la Santé',
+    'Sciences de l\'Ingénieur'
+  ];
+
   useEffect(() => {
     const loadFilieres = async () => {
       try {
         const data = await filiereService.getAll();
-        setFilieres(data);
+        setFilieres(data || []);
       } catch (error) {
         console.error('Erreur chargement filières:', error);
       }
@@ -39,11 +48,9 @@ export default function CreateTeacherPage() {
     loadFilieres();
   }, []);
 
-  // ✅ Extraire les domaines uniques
-  const domains = [...new Set(filieres.map(f => f.domain))].sort();
-  
-  // ✅ Filtrer les filières par domaine
-  const filieresOfDomain = filieres.filter(f => f.domain === formData.domain);
+  // Domaines uniques disponibles depuis les filières créées
+  const existingDomains = [...new Set(filieres.map(f => f.domain))].filter(Boolean);
+  const availableDepartments = Array.from(new Set([...defaultDepartments, ...existingDomains])).sort();
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -64,24 +71,50 @@ export default function CreateTeacherPage() {
     setPhotoPreview(null);
   };
 
+  const toggleFiliereSelection = (filiereId: number) => {
+    setFormData(prev => {
+      const exists = prev.selected_filieres.includes(filiereId);
+      return {
+        ...prev,
+        selected_filieres: exists
+          ? prev.selected_filieres.filter(id => id !== filiereId)
+          : [...prev.selected_filieres, filiereId]
+      };
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.first_name.trim() || !formData.last_name.trim() || !formData.email.trim()) {
+      toast.error('Veuillez renseigner le nom, prénom et email');
+      return;
+    }
+    if (!formData.speciality.trim()) {
+      toast.error('Veuillez renseigner la spécialité de l\'enseignant');
+      return;
+    }
+
     setLoading(true);
   
     try {
       const formDataToSend = new FormData();
-      formDataToSend.append('first_name', formData.first_name);
-      formDataToSend.append('last_name', formData.last_name);
-      formDataToSend.append('email', formData.email);
-      formDataToSend.append('speciality', formData.speciality);
+      formDataToSend.append('first_name', formData.first_name.trim());
+      formDataToSend.append('last_name', formData.last_name.trim());
+      formDataToSend.append('email', formData.email.trim().toLowerCase());
+      formDataToSend.append('department', formData.department || 'Enseignement Général');
+      formDataToSend.append('speciality', formData.speciality.trim());
       
-      // ✅ CORRECTION : N'envoyer filiere_id que s'il est valide
-      if (formData.filiere_id && formData.filiere_id !== '') {
-        formDataToSend.append('filiere_id', formData.filiere_id);
+      const filieresInterventions = formData.scope === 'ALL'
+        ? 'ALL'
+        : formData.selected_filieres.join(',');
+      formDataToSend.append('filieres_interventions', filieresInterventions);
+
+      if (formData.scope === 'CUSTOM' && formData.selected_filieres.length > 0) {
+        formDataToSend.append('filiere_id', formData.selected_filieres[0].toString());
       }
       
       if (formData.phone && formData.phone.trim() !== '') {
-        formDataToSend.append('phone', formData.phone);
+        formDataToSend.append('phone', formData.phone.trim());
       }
       
       if (photoFile) {
@@ -109,7 +142,6 @@ export default function CreateTeacherPage() {
       
     } catch (error: any) {
       console.error('❌ Erreur:', error);
-      console.error('📋 Détails:', error.response?.data);
       toast.error(getApiErrorMessage(error, 'Erreur lors de la création'));
     } finally {
       setLoading(false);
@@ -117,170 +149,243 @@ export default function CreateTeacherPage() {
   };
 
   return (
-    <div>
+    <div className="max-w-4xl mx-auto space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <div>
-          <p className="text-slate-500 mt-1">Créer un nouveau profil enseignant.</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/teachers"
+            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-xs"
+          >
+            <ArrowLeft size={18} />
+          </Link>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <UserPlus className="text-[#FF6B00]" size={22} />
+              Nouvel Enseignant
+            </h1>
+            <p className="text-xs text-slate-500">Ajout d'un enseignant avec affectation transversale ou multi-filières</p>
+          </div>
         </div>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Prénom */}
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+        
+        {/* État civil & contact */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Prénom *</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Prénom *
+            </label>
             <input
               type="text"
               value={formData.first_name}
-              onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
               required
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              placeholder="Ex: Amadou, Fanta..."
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
             />
           </div>
 
-          {/* Nom */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Nom *</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Nom de Famille *
+            </label>
             <input
               type="text"
               value={formData.last_name}
-              onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
               required
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              placeholder="Ex: Coulibaly, Traoré..."
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
             />
           </div>
 
-          {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Email *</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Email Académique / Professionnel *
+            </label>
             <input
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              placeholder="enseignant@univ.edu"
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
             />
           </div>
 
-          {/* Téléphone */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Téléphone</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Numéro de Téléphone
+            </label>
             <input
               type="tel"
               value={formData.phone}
-              onChange={(e) => setFormData({...formData, phone: e.target.value})}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="+223 70 00 00 00"
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
             />
           </div>
+        </div>
 
-          {/* ✅ Domaine (dynamique) */}
+        {/* Profil Académique : Département & Spécialité */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Domaine *</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Département / Faculté de Rattachement *
+            </label>
             <select
-              value={formData.domain}
-              onChange={(e) => setFormData({...formData, domain: e.target.value, filiere_id: ''})}
+              value={formData.department}
+              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
               required
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white text-sm"
             >
-              <option value="">Sélectionnez un domaine</option>
-              {domains.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-            {filieres.length === 0 && (
-              <p className="text-xs text-orange-600 mt-1">
-                ⚠️ Aucune filière configurée. <Link href="/admin/filieres/create" className="underline">Ajouter une filière</Link>
-              </p>
-            )}
-          </div>
-
-          {/* ✅ Filière (filtrée par domaine) */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Filière *</label>
-            <select
-              value={formData.filiere_id}
-              onChange={(e) => setFormData({...formData, filiere_id: e.target.value})}
-              required
-              disabled={!formData.domain}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white disabled:bg-slate-100"
-            >
-              <option value="">Sélectionnez une filière</option>
-              {filieresOfDomain.map(f => (
-                <option key={f.id} value={f.id}>{f.name}</option>
+              <option value="">Sélectionner un département...</option>
+              {availableDepartments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
               ))}
             </select>
           </div>
 
-          {/* Spécialité */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-2">Spécialité *</label>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Spécialité / Discipline d'Enseignement *
+            </label>
             <input
               type="text"
               value={formData.speciality}
-              onChange={(e) => setFormData({...formData, speciality: e.target.value})}
-              placeholder="Ex: Développement Web, Comptabilité..."
+              onChange={(e) => setFormData({ ...formData, speciality: e.target.value })}
+              placeholder="Ex: Algorithmique, Droit Civil, Macroéconomie, Mathématiques..."
               required
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
             />
           </div>
         </div>
 
+        {/* Périmètre d'Intervention Académique (Boutons) */}
+        <div className="pt-2 border-t border-slate-100 space-y-3">
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Périmètre d'Intervention de l'Enseignant *
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, scope: 'ALL' }))}
+              className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                formData.scope === 'ALL'
+                  ? 'border-blue-600 bg-blue-50/50 text-blue-700'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Globe size={16} />
+                <div>
+                  <div className="font-bold text-xs">🌐 Transversal (Toutes les filières)</div>
+                  <div className="text-[11px] font-normal text-slate-500">Peut dispenser des cours dans n'importe quelle filière</div>
+                </div>
+              </div>
+              {formData.scope === 'ALL' && <Check size={16} />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, scope: 'CUSTOM' }))}
+              className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                formData.scope === 'CUSTOM'
+                  ? 'border-[#FF6B00] bg-orange-50/50 text-[#FF6B00]'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Layers size={16} />
+                <div>
+                  <div className="font-bold text-xs">🎯 Filières Spécifiques</div>
+                  <div className="text-[11px] font-normal text-slate-500">Affecté à une ou plusieurs filières choisies</div>
+                </div>
+              </div>
+              {formData.scope === 'CUSTOM' && <Check size={16} />}
+            </button>
+          </div>
+
+          {/* Sélection personnalisée si CUSTOM */}
+          {formData.scope === 'CUSTOM' && (
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <div className="text-xs font-semibold text-slate-700">
+                Sélectionnez les filières d'intervention ({formData.selected_filieres.length} sélectionnée(s)) :
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                {filieres.map(f => {
+                  const isChecked = formData.selected_filieres.includes(f.id);
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => toggleFiliereSelection(f.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isChecked
+                          ? 'bg-[#FF6B00] text-white shadow-xs'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      {isChecked && <Check size={12} />}
+                      <span>{f.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Photo Upload */}
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-slate-700 mb-2">Photo de l'enseignant</label>
+        <div className="pt-2 border-t border-slate-100">
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+            Photo de Profil (Optionnelle)
+          </label>
           
           {photoPreview ? (
             <div className="relative inline-block">
               <img 
                 src={photoPreview} 
                 alt="Preview" 
-                className="w-32 h-32 rounded-lg object-cover border-2 border-slate-200"
+                className="w-28 h-28 rounded-xl object-cover border-2 border-slate-200"
               />
-              {photoFile && (
-                <div className="absolute -top-2 -left-2 bg-green-500 text-white rounded-full p-1 shadow-md">
-                  <Check size={12} />
-                </div>
-              )}
               <button
                 type="button"
                 onClick={removePhoto}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-md"
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 cursor-pointer"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
-              {photoFile && (
-                <p className="text-xs text-green-600 mt-2 text-center font-medium">
-                  ✓ Photo sélectionnée
-                </p>
-              )}
-              <label className="block mt-2 cursor-pointer">
-                <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
-                <span className="text-xs text-[#FF6B00] hover:underline font-medium">Changer la photo</span>
-              </label>
             </div>
           ) : (
-            <label className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center hover:border-[#FF6B00] transition-colors cursor-pointer block max-w-xs">
-              <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
-              <Upload className="mx-auto text-slate-400 mb-2" size={32} />
-              <p className="text-sm text-slate-500">Cliquez pour ajouter une photo</p>
-              <p className="text-xs text-slate-400 mt-1">JPG, PNG (max. 2MB)</p>
+            <label className="border-2 border-dashed border-slate-200 hover:border-[#FF6B00] rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors max-w-sm">
+              <Upload className="text-slate-400 mb-1" size={24} />
+              <span className="text-xs font-semibold text-slate-700">Sélectionner une photo</span>
+              <span className="text-[11px] text-slate-400 mt-0.5">JPG, PNG ou WEBP (max 8 Mo)</span>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handlePhotoChange} 
+                className="hidden" 
+              />
             </label>
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-3 mt-8 pt-6 border-t border-slate-100">
+        {/* Boutons d'action */}
+        <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
           <button
             type="submit"
             disabled={loading}
-            className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="bg-[#FF6B00] hover:bg-[#e55f00] text-white px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
-            <Save size={16} />
-            {loading ? 'Enregistrement...' : 'Enregistrer l\'enseignant'}
+            <Save size={16} /> {loading ? 'Création en cours...' : 'Enregistrer l\'Enseignant'}
           </button>
           <Link
             href="/admin/teachers"
-            className="px-6 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50"
+            className="px-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
           >
             Annuler
           </Link>

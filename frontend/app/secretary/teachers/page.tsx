@@ -351,12 +351,14 @@ export default function SecretaryTeachersPage() {
                     <td className="py-3 px-4 text-sm text-slate-600">{teacher.phone || '-'}</td>
                     <td className="py-3 px-4 text-sm text-slate-600">{teacher.speciality || '-'}</td>
                     <td className="py-3 px-4">
-                      {teacher.filiere_name ? (
-                        <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded">
-                          {teacher.filiere_name}
+                      {teacher.filieres_interventions === 'ALL' || (!teacher.filiere_id && !teacher.filiere_name) ? (
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200 inline-flex items-center gap-1">
+                          🌐 Transversal
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-400">Non assignée</span>
+                        <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs font-medium rounded-full border border-purple-200">
+                          {teacher.filiere_name || 'Multi-filières'}
+                        </span>
                       )}
                     </td>
                     <td className="py-3 px-4">
@@ -456,13 +458,13 @@ export default function SecretaryTeachersPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Filière</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Périmètre / Filière</label>
                 <select
                   value={formData.filiere_id}
                   onChange={(e) => setFormData({ ...formData, filiere_id: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 >
-                  <option value="">Non assignée</option>
+                  <option value="">🌐 Transversal (Toutes filières)</option>
                   {filieres.map((f: any) => (
                     <option key={f.id} value={f.id}>{f.name}</option>
                   ))}
@@ -549,13 +551,13 @@ export default function SecretaryTeachersPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Filière</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Périmètre / Filière</label>
                 <select
                   value={formData.filiere_id}
                   onChange={(e) => setFormData({ ...formData, filiere_id: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
                 >
-                  <option value="">Non assignée</option>
+                  <option value="">🌐 Transversal (Toutes filières)</option>
                   {filieres.map((f: any) => (
                     <option key={f.id} value={f.id}>{f.name}</option>
                   ))}

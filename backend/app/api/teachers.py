@@ -88,6 +88,8 @@ def format_teacher(teacher: Teacher) -> dict:
     f_name = None
     if teacher.filiere:
         f_name = teacher.filiere.name
+    elif getattr(teacher, "filieres_interventions", "ALL") == "ALL" or not getattr(teacher, "filieres_interventions", None):
+        f_name = "Transversal (Toutes filières)"
     elif teacher.department:
         f_name = teacher.department
 
@@ -123,6 +125,7 @@ def format_teacher(teacher: Teacher) -> dict:
         "university_id": teacher.university_id,
         "university_name": teacher.university_name,
         "filiere_id": teacher.filiere_id,
+        "filieres_interventions": getattr(teacher, "filieres_interventions", "ALL") or "ALL",
         "filiere_name": f_name,
         "created_at": teacher.created_at.isoformat() if teacher.created_at else None,
         "updated_at": teacher.updated_at.isoformat() if teacher.updated_at else None,
@@ -140,6 +143,7 @@ class TeacherUpdate(BaseModel):
     speciality: Optional[str] = None
     phone: Optional[str] = None
     filiere_id: Optional[int] = None
+    filieres_interventions: Optional[str] = None
     photo: Optional[str] = None
     password: Optional[str] = None
 
@@ -251,6 +255,7 @@ async def create_teacher(
     speciality: str = Form(None),
     phone: str = Form(None),
     filiere_id: Optional[str] = Form(None),
+    filieres_interventions: Optional[str] = Form("ALL"),
     photo: UploadFile = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary"))
@@ -264,19 +269,19 @@ async def create_teacher(
     if filiere_id is not None and str(filiere_id).strip().isdigit():
         parsed_filiere_id = int(str(filiere_id).strip())
 
-    if parsed_filiere_id:
+    if parsed_filiere_id and not department:
         filiere = db.query(Filiere).filter(
             Filiere.id == parsed_filiere_id,
             Filiere.university_id == current_user.university_id
         ).first()
         if filiere:
-            department = filiere.name
+            department = filiere.department or filiere.name
         else:
             parsed_filiere_id = None
     
-    if not department:
+    if not department or not department.strip():
         department = "Enseignement Général"
-    if not speciality:
+    if not speciality or not speciality.strip():
         speciality = department
 
     # 1. Vérification d'unicité du téléphone
@@ -328,7 +333,8 @@ async def create_teacher(
             user_id=existing_user.id,
             university_id=current_user.university_id,
             university_name=univ_name,
-            filiere_id=parsed_filiere_id
+            filiere_id=parsed_filiere_id,
+            filieres_interventions=filieres_interventions or "ALL"
         )
         db.add(new_teacher)
         db.flush()
@@ -390,7 +396,8 @@ async def create_teacher(
             user_id=new_user.id,
             university_id=current_user.university_id,
             university_name=univ_name,
-            filiere_id=parsed_filiere_id
+            filiere_id=parsed_filiere_id,
+            filieres_interventions=filieres_interventions or "ALL"
         )
         db.add(new_teacher)
         db.flush()
@@ -514,6 +521,8 @@ def update_teacher(
         existing_teacher.speciality = teacher_data.speciality
     if teacher_data.filiere_id is not None:
         existing_teacher.filiere_id = teacher_data.filiere_id
+    if teacher_data.filieres_interventions is not None:
+        existing_teacher.filieres_interventions = teacher_data.filieres_interventions
     if teacher_data.photo is not None:
         existing_teacher.photo = teacher_data.photo
 

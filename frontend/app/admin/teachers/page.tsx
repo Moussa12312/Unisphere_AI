@@ -466,7 +466,18 @@ export default function AdminTeachersPage() {
                         {teacher.speciality}
                     </td>
                     <td className="py-3 px-4 text-sm text-slate-600">
-                      {teacher.department}
+                      <div>
+                        <p className="font-medium text-slate-800">{teacher.department || 'Enseignement Général'}</p>
+                        {(!teacher.filiere_id || (teacher as any).filieres_interventions === 'ALL') ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-0.5">
+                            🌐 Transversal
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 mt-0.5">
+                            🎯 Multi-filières
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-end gap-1">

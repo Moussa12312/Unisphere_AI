@@ -23,6 +23,7 @@ class Teacher(Base):
     university_id = Column(Integer, ForeignKey("universities.id"), nullable=False, index=True)
     university_name = Column(String, nullable=True)
     filiere_id = Column(Integer, ForeignKey("filieres.id"), nullable=True)  
+    filieres_interventions = Column(String, nullable=True, default="ALL")  
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
