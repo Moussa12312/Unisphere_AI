@@ -32,8 +32,8 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
       annualPrice: '450 000',
       monthlyPrice: '60 000',
       annualTotal: 450000,
-      monthlyTotal: 600000,
-      savings: 'Économie de 150 000 FCFA en paiement annuel'
+      monthlyTotal: 480000,
+      savings: 'Économie de 30 000 FCFA en paiement annuel'
     },
     {
       id: 'tier-2',
@@ -42,8 +42,8 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
       annualPrice: '600 000',
       monthlyPrice: '75 000',
       annualTotal: 600000,
-      monthlyTotal: 750000,
-      savings: 'Économie de 150 000 FCFA en paiement annuel'
+      monthlyTotal: 600000,
+      savings: '8 mensualités de 75 000 FCFA • Vacances offertes'
     },
     {
       id: 'tier-3',
@@ -52,8 +52,8 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
       annualPrice: '900 000',
       monthlyPrice: '112 500',
       annualTotal: 900000,
-      monthlyTotal: 1125000,
-      savings: 'Économie de 225 000 FCFA en paiement annuel',
+      monthlyTotal: 900000,
+      savings: '8 mensualités de 112 500 FCFA • Vacances offertes',
       badge: '★ FORMULE LA PLUS CHOISIE'
     },
     {
@@ -63,8 +63,8 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
       annualPrice: '1 500 000',
       monthlyPrice: '187 500',
       annualTotal: 1500000,
-      monthlyTotal: 1875000,
-      savings: 'Économie de 375 000 FCFA en paiement annuel'
+      monthlyTotal: 1500000,
+      savings: '8 mensualités de 187 500 FCFA • Vacances offertes'
     },
     {
       id: 'tier-5',
@@ -73,8 +73,8 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
       annualPrice: '2 400 000',
       monthlyPrice: '300 000',
       annualTotal: 2400000,
-      monthlyTotal: 3000000,
-      savings: 'Économie de 600 000 FCFA en paiement annuel'
+      monthlyTotal: 2400000,
+      savings: '8 mensualités de 300 000 FCFA • Vacances offertes'
     },
     {
       id: 'tier-6',
@@ -175,7 +175,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                 <p className="text-[11px] font-semibold text-slate-500 mt-1.5">
                   {currentTier.isCustom 
                     ? 'Tarification mensuelle adaptée à vos campus et volumes'
-                    : `Facturé mensuellement sur l'année académique`}
+                    : `Facturé sur les 8 mois de l'année académique (les 4 mois de vacances sont offerts)`}
                 </p>
               </div>
 
@@ -340,8 +340,8 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                   <th className="py-3.5 px-4 sm:px-6">Catégorie</th>
                   <th className="py-3.5 px-4">Effectif étudiant</th>
                   <th className="py-3.5 px-4 font-extrabold text-slate-900">Prix Annuel</th>
-                  <th className="py-3.5 px-4">Paiement Mensuel</th>
-                  <th className="py-3.5 px-4 text-right sm:pr-6">Avantage Annuel</th>
+                  <th className="py-3.5 px-4">Paiement Mensuel (sur 8 mois)</th>
+                  <th className="py-3.5 px-4 text-right sm:pr-6">Avantage Formule</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -360,11 +360,15 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                       {t.annualPrice} {t.annualTotal ? 'FCFA' : ''}
                     </td>
                     <td className="py-3 px-4 font-medium text-slate-600">
-                      {t.monthlyPrice} {!t.isCustom ? 'FCFA' : ''}
+                      {t.monthlyPrice} {!t.isCustom ? 'FCFA / mois' : ''}
                     </td>
                     <td className="py-3 px-4 text-right sm:pr-6">
                       <span className="inline-block text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                        {t.isCustom ? 'Sur mesure' : 'Prix au-dessous du mensuel'}
+                        {t.isCustom 
+                          ? 'Sur mesure' 
+                          : t.annualTotal && t.monthlyTotal && t.annualTotal < t.monthlyTotal 
+                            ? `Économie de ${(t.monthlyTotal - t.annualTotal).toLocaleString('fr-FR')} FCFA` 
+                            : '8 mensualités sans surcoût'}
                       </span>
                     </td>
                   </tr>
