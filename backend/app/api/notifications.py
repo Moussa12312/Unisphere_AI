@@ -236,7 +236,7 @@ def get_notifications(
             if prefs.get("announcements_notifications") is False:
                 ignored_types.extend(["announcement", "maintenance"])
             if prefs.get("grades_notifications") is False:
-                ignored_types.extend(["grade_published", "deliberation"])
+                ignored_types.extend(["grade_published"])
             if prefs.get("payments_notifications") is False:
                 ignored_types.extend(["payment_received", "payment_overdue"])
             if prefs.get("messages_notifications") is False:

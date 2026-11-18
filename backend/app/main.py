@@ -59,7 +59,6 @@ _optional_models = [
     ('app.models.class_room', 'ClassRoom'),
     ('app.models.schedule', 'Schedule'),
     ('app.models.announcement', 'Announcement'),
-    ('app.models.deliberation', 'DeliberationRule'),
     ('app.models.audit_log', 'AuditLog'),
     ('app.models.academic_config', 'AcademicConfig'),
     ('app.models.course_history', 'CourseHistory'),
@@ -371,7 +370,6 @@ settings_router = try_import_router("app.api.settings")
 
 alumni_router = try_import_router("app.api.alumni")
 scan_sessions_router = try_import_router("app.api.scan_sessions")
-deliberations_router = try_import_router("app.api.deliberations")
 academic_year_transition_router = try_import_router("app.api.academic_year_transition")
 
 
@@ -432,7 +430,6 @@ all_routers = {
     "settings": settings_router,
     "alumni": alumni_router,
     "scan_sessions": scan_sessions_router,
-    "deliberations": deliberations_router,
     "censors": censors_router,
     "teaching_units": teaching_units_router,
     "subscriptions": subscriptions_router,

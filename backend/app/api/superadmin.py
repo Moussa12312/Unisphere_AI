@@ -966,17 +966,6 @@ def delete_university_completely(
         except Exception:
             pass
 
-        # 2c. Décisions de délibération (deliberation_decisions -> deliberation_sessions / students)
-        try:
-            from app.models.deliberation import DeliberationSession, DeliberationDecision
-            ds_ids = [r[0] for r in db.query(DeliberationSession.id).filter(DeliberationSession.university_id == university_id).all()]
-            if ds_ids:
-                db.query(DeliberationDecision).filter(DeliberationDecision.session_id.in_(ds_ids)).delete(synchronize_session=False)
-            if univ_student_ids:
-                db.query(DeliberationDecision).filter(DeliberationDecision.student_id.in_(univ_student_ids)).delete(synchronize_session=False)
-        except Exception:
-            pass
-
         # 2d. Historique des cours (course_history -> courses)
         try:
             from app.models.course import Course

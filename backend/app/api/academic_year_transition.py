@@ -20,7 +20,6 @@ from app.models.university import University
 from app.models.academic_config import AcademicConfig
 from app.models.student import Student
 from app.models.grade import Grade
-from app.models.deliberation import DeliberationDecision, DeliberationSession
 from app.models.student_academic_history import StudentAcademicHistory
 from app.core.dependencies import require_role
 from app.utils.academic_year import get_current_academic_year
@@ -123,24 +122,15 @@ def preview_academic_year_transition(
     students_preview = []
 
     for s in students:
-        last_decision = db.query(DeliberationDecision).join(DeliberationSession).filter(
-            DeliberationDecision.student_id == s.id,
-            DeliberationSession.academic_year == current_year
-        ).order_by(DeliberationDecision.id.desc()).first()
-
         decision_type = "pending"
         avg_score = None
 
-        if last_decision and last_decision.decision:
-            decision_type = last_decision.decision.lower()
-            avg_score = last_decision.average
-        else:
-            student_grades = db.query(Grade).filter(Grade.student_id == s.id).all()
-            if student_grades:
-                scores = [g.score for g in student_grades if g.score is not None]
-                if scores:
-                    avg_score = round(sum(scores) / len(scores), 2)
-                    decision_type = "admis" if avg_score >= 10.0 else "redouble"
+        student_grades = db.query(Grade).filter(Grade.student_id == s.id).all()
+        if student_grades:
+            scores = [g.score for g in student_grades if g.score is not None]
+            if scores:
+                avg_score = round(sum(scores) / len(scores), 2)
+                decision_type = "admis" if avg_score >= 10.0 else "redouble"
 
         current_lvl = s.level or "L1"
         target_lvl, status_kind = get_next_level(current_lvl)
@@ -246,18 +236,10 @@ def execute_academic_year_transition(
     archived_count = 0
 
     for s in students:
-        last_decision = db.query(DeliberationDecision).join(DeliberationSession).filter(
-            DeliberationDecision.student_id == s.id,
-            DeliberationSession.academic_year == current_year
-        ).order_by(DeliberationDecision.id.desc()).first()
-
         avg_score = None
         decision = "admis"
 
-        if last_decision and last_decision.decision:
-            decision = last_decision.decision.lower()
-            avg_score = last_decision.average
-        elif payload.auto_promote_by_average:
+        if payload.auto_promote_by_average:
             student_grades = db.query(Grade).filter(Grade.student_id == s.id).all()
             if student_grades:
                 scores = [g.score for g in student_grades if g.score is not None]

@@ -80,15 +80,6 @@ const MENU_CONFIG: Record<string, Array<{
       ]
     },
     {
-      title: 'DÉLIBÉRATIONS',
-      items: [
-        { label: 'Sessions de jury', href: '/admin/deliberations/sessions', icon: Users },
-        { label: 'Règles', href: '/admin/deliberations/rules', icon: Settings },
-        { label: 'Décisions', href: '/admin/deliberations/decisions', icon: Scale },
-        { label: 'Procès-verbaux', href: '/admin/deliberations/minutes', icon: FileText },
-      ]
-    },
-    {
       title: 'PARAMÈTRES',
       items: [
         { label: 'Établissement', href: '/admin/settings', icon: Building2 },

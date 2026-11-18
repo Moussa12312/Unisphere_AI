@@ -3168,13 +3168,11 @@ def delete_student(
         logger.warning(f"Nettoyage paiements pour student {student_id}: {e}")
 
     try:
-        # C. Notes, Délibérations et Bulletins
+        # C. Notes et Bulletins
         from app.models.grade import Grade
-        from app.models.deliberation import DeliberationDecision
         from app.models.report_card import ReportCard
         from app.models.student_academic_history import StudentAcademicHistory
         db.query(Grade).filter(Grade.student_id == student_id).delete(synchronize_session=False)
-        db.query(DeliberationDecision).filter(DeliberationDecision.student_id == student_id).delete(synchronize_session=False)
         db.query(ReportCard).filter(ReportCard.student_id == student_id).delete(synchronize_session=False)
         db.query(StudentAcademicHistory).filter(StudentAcademicHistory.student_id == student_id).delete(synchronize_session=False)
     except Exception as e:

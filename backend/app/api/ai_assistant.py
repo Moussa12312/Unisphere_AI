@@ -523,16 +523,16 @@ def generate_local_ai_response(message: str, context: dict, user_name: str) -> s
             f"• **Consultation :** Les étudiants et enseignants peuvent consulter les dates et horaires depuis leur tableau de bord dans l'onglet *Examens*."
         )
 
-    # 4. Délibérations & Jurys LMD
-    if any(k in msg for k in ["deliberation", "délibération", "jury", "pv de deliberation", "regle de deliberation", "validation lmd"]):
+    # 4. Moyennes, Résultats & Bulletins LMD
+    if any(k in msg for k in ["moyenne", "bulletin", "releve", "resultat", "session", "validation lmd"]):
         return (
-            f"⚖️ **Système de Délibération Académique (LMD) :**\n\n"
-            f"UniSphere AI applique les règles officielles de l'enseignement supérieur :\n"
-            f"1. **Validation directe :** Moyenne générale ≥ 10.0/20 et acquisition des 30 crédits du semestre (ou 60 crédits de l'année).\n"
-            f"2. **Compensation LMD :** Compensation automatique entre les matières d'une même Unité d'Enseignement (UE).\n"
-            f"3. **Basculement en rattrapage :** Les étudiants avec des modules ajournés (< 10/20 non compensés) sont automatiquement inscrits en session 2.\n"
-            f"4. **PV Officiel :** Génération instantanée du Procès-Verbal avec mentions (Passable, Assez-Bien, Bien, Très-Bien) et signatures.\n\n"
-            f"⚙️ Configurable dans *Administration > Délibérations > Règles*."
+            f"📊 **Calcul des Moyennes & Bulletins de Notes (LMD) :**\n\n"
+            f"UniSphere AI applique le barème officiel de l'enseignement supérieur :\n"
+            f"1. **Calcul pondéré :** Calcul automatique des moyennes semestrielles et annuelles selon les coefficients et crédits ECTS.\n"
+            f"2. **Édition officielle :** Génération des bulletins de notes et procès-verbaux de fin de semestre en 1 clic.\n"
+            f"3. **Rattrapages :** Prise en compte immédiate des notes de la session de rattrapage pour l'actualisation des résultats.\n"
+            f"4. **Mentions :** Attribution automatique des mentions (Passable, Assez-Bien, Bien, Très-Bien).\n\n"
+            f"⚙️ Accessible dans *Examens > Bulletins de notes*."
         )
 
     # 5. Rattrapages

@@ -1353,7 +1353,7 @@ def generate_exam_convocation(
     )
 
 
-# 📜 8. PROCÈS-VERBAL DE DÉLIBÉRATION DU JURY D'EXAMEN
+# 📜 8. PROCÈS-VERBAL DES RÉSULTATS D'EXAMENS
 @router.get("/generate-jury-deliberation-pv")
 def generate_jury_deliberation_pv(
     filiere: str = "Logistique et Transport",
@@ -1390,7 +1390,7 @@ def generate_jury_deliberation_pv(
         repeating_count=repeating
     )
 
-    filename = f"pv_deliberation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    filename = f"pv_resultats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     return Response(
         content=pdf_content,
         media_type="application/pdf",

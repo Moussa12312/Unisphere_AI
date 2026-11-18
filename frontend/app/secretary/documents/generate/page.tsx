@@ -282,7 +282,7 @@ export default function SecretaryGenerateDocumentsPage() {
     }
   };
 
-  // 13. PV de délibération de jury
+  // 13. PV des résultats d'examens
   const handleGenerateJuryPV = async () => {
     setGenerating('jury-pv');
     try {
@@ -291,11 +291,11 @@ export default function SecretaryGenerateDocumentsPage() {
         level: selectedLevel || 'Licence 3',
         session_title: customParams.session_title || 'Session Normale Semestre 6'
       });
-      downloadBlob(blob, `pv_deliberation_jury.pdf`);
-      toast.success('PV officiel de délibération du jury généré');
+      downloadBlob(blob, `pv_resultats_examens.pdf`);
+      toast.success('PV officiel des résultats d\'examens généré');
       setModalType(null);
     } catch (e: any) {
-      toast.error('Erreur lors de la génération du PV de délibération');
+      toast.error('Erreur lors de la génération du PV des résultats');
     } finally {
       setGenerating(null);
     }
@@ -772,14 +772,14 @@ export default function SecretaryGenerateDocumentsPage() {
               </button>
             </div>
 
-            {/* Card 2: PV de Délibération */}
+            {/* Card 2: PV des Résultats d'Examens */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:border-[#FF6B00] transition-all">
               <div className="w-12 h-12 bg-amber-50 text-amber-700 rounded-xl flex items-center justify-center mb-4">
                 <Award size={24} />
               </div>
-              <h3 className="font-bold text-lg text-slate-900">PV de Délibération du Jury</h3>
+              <h3 className="font-bold text-lg text-slate-900">Procès-Verbal des Résultats d'Examens</h3>
               <p className="text-xs text-slate-500 mt-1 mb-4">
-                Procès-verbal officiel constatant la validation des crédits ECTS/LMD, statistiques d'admission, ajournements et signatures du président du jury.
+                Procès-verbal officiel constatant la synthèse des moyennes semestrielles, statistiques de réussite et signatures du responsable pédagogique.
               </p>
               <button
                 onClick={() => {
@@ -897,7 +897,7 @@ export default function SecretaryGenerateDocumentsPage() {
                 {modalType === 'thesis' && 'Dépôt de Mémoire & Soutenance'}
                 {modalType === 'transfer' && 'Certificat de Transfert / Radiation'}
                 {modalType === 'exam-sheet' && 'Feuille d’Émargement d’Examen'}
-                {modalType === 'jury-pv' && 'PV de Délibération du Jury'}
+                {modalType === 'jury-pv' && 'Procès-Verbal des Résultats d\'Examens'}
                 {modalType === 'convocation' && 'Convocation aux Examens'}
                 {modalType === 'mission-order' && 'Ordre de Mission Officiel'}
                 {modalType === 'service-completion' && 'Attestation de Service Fait'}
