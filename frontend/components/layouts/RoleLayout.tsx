@@ -42,6 +42,30 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true); // Replié par défaut au lancement comme demandé !
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_collapsed');
+      if (saved !== null) {
+        setIsCollapsed(saved === 'true');
+      } else {
+        setIsCollapsed(true); // Par défaut replié au lancement
+      }
+    } catch {
+      setIsCollapsed(true);
+    }
+  }, []);
+
+  const handleToggleCollapse = () => {
+    setIsCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // ✅ MÉMOÏSER allowedRoles pour éviter les re-rendus inutiles
   const memoizedAllowedRoles = useMemo(() => allowedRoles, [allowedRoles.join(',')]);
@@ -167,22 +191,33 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
       )}
 
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-60
-        transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50
+        transform transition-all duration-300 ease-in-out
+        ${isDesktop ? (isCollapsed ? 'w-[70px]' : 'w-60') : 'w-60'}
         ${isSidebarOpen || isDesktop ? 'translate-x-0' : '-translate-x-full'}
         print:hidden
       `}>
-        <Sidebar userRole={user.role} />
+        <Sidebar 
+          userRole={user.role} 
+          isCollapsed={isDesktop ? isCollapsed : false}
+          onToggleCollapse={handleToggleCollapse}
+        />
       </div>
 
-      <div className={`flex-1 flex flex-col h-full min-w-0 overflow-hidden transition-all duration-300 ${isDesktop ? 'ml-60' : 'ml-0'} print:ml-0 print:w-full print:h-auto print:overflow-visible print:block`}>
+      <div className={`flex-1 flex flex-col h-full min-w-0 overflow-hidden transition-all duration-300 ${isDesktop ? (isCollapsed ? 'ml-[70px]' : 'ml-60') : 'ml-0'} print:ml-0 print:w-full print:h-auto print:overflow-visible print:block`}>
         {/* ✅ HEADER FIXE EN HAUT - NE DÉFILE PAS AVEC LE CONTENU */}
         {pathname !== '/ai-assistant' && (
           <div className="sticky top-0 z-40 flex-shrink-0 w-full bg-[#f1f5f9]/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-xs print:hidden">
             <Header 
               user={user} 
               isDesktop={isDesktop}
-              onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
+              onToggleSidebar={() => {
+                if (isDesktop) {
+                  handleToggleCollapse();
+                } else {
+                  setIsSidebarOpen(!isSidebarOpen);
+                }
+              }} 
             />
           </div>
         )}

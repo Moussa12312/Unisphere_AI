@@ -396,16 +396,15 @@ export default function Header({ user: propUser, isDesktop = false, onToggleSide
     <header className="flex-shrink-0 ">
       <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
         
-        {/* Bouton menu mobile */}
-        {!isDesktop && (
-          <button
-            onClick={onToggleSidebar}
-            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
-            aria-label="Menu"
-          >
-            <Menu size={22} />
-          </button>
-        )}
+        {/* Bouton Menu / Bascule Sidebar (Mobile & Desktop) */}
+        <button
+          onClick={onToggleSidebar}
+          className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-xl transition-colors flex-shrink-0 cursor-pointer"
+          aria-label="Menu"
+          title={isDesktop ? "Replier / Déplier le menu" : "Menu"}
+        >
+          <Menu size={20} />
+        </button>
 
         {/* IDENTITÉ SUR MOBILE (LOGO) VS TITRE DE LA PAGE SUR TABLETTE & PC (Audio 2) */}
         <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0 pr-2">

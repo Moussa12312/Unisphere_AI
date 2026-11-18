@@ -20,6 +20,8 @@ import { useSettings } from '@/contexts/SettingsContext';
 
 interface SidebarProps {
   userRole: string;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const MENU_CONFIG: Record<string, Array<{
@@ -512,7 +514,7 @@ MENU_CONFIG.secretaire = MENU_CONFIG.secretary;
 MENU_CONFIG.comptable = MENU_CONFIG.accountant;
 MENU_CONFIG.gardien = MENU_CONFIG.guard;
 
-export default function Sidebar({ userRole }: SidebarProps) {
+export default function Sidebar({ userRole, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const normalizedRole = (userRole || '').toLowerCase().trim();
@@ -565,86 +567,153 @@ export default function Sidebar({ userRole }: SidebarProps) {
 
   return (
     <>
-      <aside style={{ backgroundColor: sidebarBg }} className="h-screen w-58 text-white flex flex-col overflow-hidden transition-colors duration-200">
-
+      <aside
+        style={{ backgroundColor: sidebarBg }}
+        className={`h-screen text-white flex flex-col overflow-hidden transition-all duration-300 ${
+          isCollapsed ? 'w-[70px] min-w-[70px]' : 'w-60 min-w-[240px]'
+        }`}
+      >
         {/* En-tête de la Sidebar */}
-        <div className="px-4 py-3.5 border-b border-white/10 bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            {isSuperAdmin ? (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0a1628] to-[#1e293b] border border-[#FF6B00]/40 flex items-center justify-center flex-shrink-0 shadow-md">
-                <Shield className="text-[#FF6B00]" size={22} />
+        <div className={`border-b border-white/10 bg-white/[0.02] transition-all duration-300 ${isCollapsed ? 'p-3 flex flex-col items-center justify-center' : 'px-4 py-3.5'}`}>
+          {isCollapsed ? (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="relative group p-0.5 rounded-2xl transition-transform hover:scale-105 active:scale-95 cursor-pointer focus:outline-hidden"
+              title="Déplier le menu"
+            >
+              {isSuperAdmin ? (
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#0a1628] to-[#1e293b] border border-[#FF6B00]/40 flex items-center justify-center shadow-md">
+                  <Shield className="text-[#FF6B00]" size={22} />
+                </div>
+              ) : (logoUrl && !logoLoadFailed) ? (
+                <div className="w-11 h-11 rounded-2xl bg-white p-1 border border-white/20 flex items-center justify-center overflow-hidden shadow-sm">
+                  <img
+                    src={logoUrl}
+                    alt={universityName}
+                    className="w-full h-full object-contain rounded-xl"
+                    onError={() => setLogoLoadFailed(true)}
+                  />
+                </div>
+              ) : (
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#FF6B00] to-amber-500 border border-white/20 flex items-center justify-center shadow-md">
+                  <span className="text-lg font-extrabold text-white">
+                    {universityName.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              {/* Tooltip flottant */}
+              <span className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-50 border border-slate-700/80">
+                Déplier le menu
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                {isSuperAdmin ? (
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0a1628] to-[#1e293b] border border-[#FF6B00]/40 flex items-center justify-center flex-shrink-0 shadow-md">
+                    <Shield className="text-[#FF6B00]" size={22} />
+                  </div>
+                ) : (logoUrl && !logoLoadFailed) ? (
+                  <div className="w-10 h-10 rounded-xl bg-white p-1 border border-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+                    <img
+                      src={logoUrl}
+                      alt={universityName}
+                      className="w-full h-full object-contain rounded-lg"
+                      onError={() => setLogoLoadFailed(true)}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF6B00] to-amber-500 border border-white/20 flex items-center justify-center flex-shrink-0 shadow-md">
+                    <span className="text-lg font-extrabold text-white">
+                      {universityName.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-sm font-bold text-white truncate leading-snug tracking-wide">
+                    {isSuperAdmin ? 'UniSphere AI' : universityName}
+                  </h1>
+                  <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                    {isSuperAdmin ? 'Administration SaaS' : (slogan || 'Plateforme Éducative')}
+                  </p>
+                </div>
               </div>
-            ) : (logoUrl && !logoLoadFailed) ? (
-              <div className="w-10 h-10 rounded-xl bg-white p-1 border border-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
-                <img
-                  src={logoUrl}
-                  alt={universityName}
-                  className="w-full h-full object-contain rounded-lg"
-                  onError={() => setLogoLoadFailed(true)}
-                />
-              </div>) : (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF6B00] to-amber-500 border border-white/20 flex items-center justify-center flex-shrink-0 shadow-md">
-                <span className="text-lg font-extrabold text-white">
-                  {universityName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-sm font-bold text-white truncate leading-snug tracking-wide">
-                {isSuperAdmin ? 'UniSphere AI' : universityName}
-              </h1>
-              <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                {isSuperAdmin ? 'Administration SaaS' : (slogan || 'Plateforme Éducative')}
-              </p>
+              {onToggleCollapse && (
+                <button
+                  type="button"
+                  onClick={onToggleCollapse}
+                  className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer flex-shrink-0"
+                  title="Replier le menu"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+              )}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Menu Scrollable */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
-          {menu.map((section) => (
-            <div key={section.title} className="space-y-1">
-              <button
-                type="button"
-                onClick={() => toggleSection(section.title)}
-                className="flex items-center justify-between w-full text-[11px] font-semibold text-slate-400 uppercase tracking-wider hover:text-white transition-colors px-2.5 py-1.5 rounded-md hover:bg-white/5"
-              >
-                <span>{section.title}</span>
-                {expandedSections.includes(section.title) ? (
-                  <ChevronDown size={14} className="text-slate-400" />
-                ) : (
-                  <ChevronRight size={14} className="text-slate-400" />
-                )}
-              </button>
+        <nav className={`flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide transition-all ${isCollapsed ? 'p-2 space-y-1.5 flex flex-col items-center' : 'p-4 space-y-3'}`}>
+          {menu.map((section, sIdx) => (
+            <div key={section.title} className={isCollapsed ? 'w-full flex flex-col items-center' : 'space-y-1'}>
+              {/* En mode replié : séparateur discret entre sections */}
+              {isCollapsed ? (
+                sIdx > 0 && <div className="w-8 h-px bg-white/10 my-1.5" />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.title)}
+                  className="flex items-center justify-between w-full text-[11px] font-semibold text-slate-400 uppercase tracking-wider hover:text-white transition-colors px-2.5 py-1.5 rounded-md hover:bg-white/5"
+                >
+                  <span>{section.title}</span>
+                  {expandedSections.includes(section.title) ? (
+                    <ChevronDown size={14} className="text-slate-400" />
+                  ) : (
+                    <ChevronRight size={14} className="text-slate-400" />
+                  )}
+                </button>
+              )}
 
-              {expandedSections.includes(section.title) && (
-                <ul className="space-y-1 pt-0.5">
+              {/* Items de navigation */}
+              {(isCollapsed || expandedSections.includes(section.title)) && (
+                <ul className={isCollapsed ? 'space-y-1.5 w-full flex flex-col items-center' : 'space-y-1 pt-0.5'}>
                   {section.items.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href || (item.href.includes('?') && pathname === item.href.split('?')[0]);
 
                     if (item.href === '/superadmin/demo' || item.href === '/admin/demo' || item.href === '#univ-demo') {
-                      if (!isSuperAdmin) {
-                        return null;
-                      }
+                      if (!isSuperAdmin) return null;
                       const isDemoActive = pathname === '/superadmin/demo' || pathname === '/admin/demo';
                       const targetHref = '/superadmin/demo';
                       return (
-                        <li key={item.href}>
+                        <li key={item.href} className={isCollapsed ? 'w-full flex justify-center' : ''}>
                           <Link
                             href={targetHref}
-                            className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-xs transition-all border font-bold group shadow-xs ${isDemoActive
-                              ? 'bg-gradient-to-r from-amber-500 to-[#FF6B00] border-amber-300 text-white shadow-md'
-                              : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border-amber-400/40 text-amber-200'
-                              }`}
+                            className={isCollapsed ? (
+                              `relative group flex items-center justify-center w-11 h-11 rounded-2xl transition-all cursor-pointer ${
+                                isDemoActive
+                                  ? 'bg-gradient-to-r from-amber-500 to-[#FF6B00] text-white shadow-md'
+                                  : 'bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                              }`
+                            ) : (
+                              `w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-xs transition-all border font-bold group shadow-xs ${isDemoActive
+                                ? 'bg-gradient-to-r from-amber-500 to-[#FF6B00] border-amber-300 text-white shadow-md'
+                                : 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border-amber-400/40 text-amber-200'
+                              }`
+                            )}
+                            title={isCollapsed ? item.label : undefined}
                           >
-                            <div className="flex items-center gap-2.5">
-                              <Icon size={16} className="text-amber-400 group-hover:scale-110 transition-transform" />
-                              <span>{item.label}</span>
-                            </div>
-                            {item.badge && (
+                            <Icon size={isCollapsed ? 18 : 16} className={isDemoActive ? 'text-white' : 'text-amber-400 group-hover:scale-110 transition-transform'} />
+                            {!isCollapsed && <span>{item.label}</span>}
+                            {!isCollapsed && item.badge && (
                               <span className="text-[10px] bg-[#FF6B00] text-white px-2 py-0.5 rounded-full font-black">
                                 {item.badge}
+                              </span>
+                            )}
+                            {isCollapsed && (
+                              <span className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-50 border border-slate-700/80">
+                                {item.label}
                               </span>
                             )}
                           </Link>
@@ -653,22 +722,40 @@ export default function Sidebar({ userRole }: SidebarProps) {
                     }
 
                     return (
-                      <li key={item.href}>
+                      <li key={item.href} className={isCollapsed ? 'w-full flex justify-center' : ''}>
                         <Link
                           href={item.href}
-                          className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs transition-all ${isActive
-                            ? 'bg-[#FF6B00] text-white font-medium shadow-xs'
-                            : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                            }`}
+                          className={isCollapsed ? (
+                            `relative group flex items-center justify-center w-11 h-11 rounded-2xl transition-all cursor-pointer ${
+                              isActive
+                                ? 'bg-[#FF6B00] text-white shadow-md'
+                                : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                            }`
+                          ) : (
+                            `flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs transition-all ${isActive
+                              ? 'bg-[#FF6B00] text-white font-medium shadow-xs'
+                              : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                            }`
+                          )}
+                          title={isCollapsed ? item.label : undefined}
                         >
-                          <div className="flex items-center gap-2.5">
-                            <Icon size={16} />
-                            <span>{item.label}</span>
+                          <div className={isCollapsed ? 'flex items-center justify-center' : 'flex items-center gap-2.5'}>
+                            <Icon size={isCollapsed ? 19 : 16} className={isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'} />
+                            {!isCollapsed && <span>{item.label}</span>}
                           </div>
-                          {item.badge && (
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${item.badge === 'urgent' ? 'bg-rose-500 text-white animate-pulse' : 'bg-white/20 text-white'
-                              }`}>
+                          {!isCollapsed && item.badge && (
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                              item.badge === 'urgent' ? 'bg-rose-500 text-white animate-pulse' : 'bg-white/20 text-white'
+                            }`}>
                               {item.badge}
+                            </span>
+                          )}
+                          {isCollapsed && item.badge && (
+                            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
+                          )}
+                          {isCollapsed && (
+                            <span className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-50 border border-slate-700/80">
+                              {item.label}
                             </span>
                           )}
                         </Link>
@@ -682,18 +769,49 @@ export default function Sidebar({ userRole }: SidebarProps) {
         </nav>
 
         {/* Profil utilisateur et Déconnexion */}
-        <div className="border-t border-white/10 bg-[#0a1628] flex-shrink-0 p-3 mb-1 space-y-2">
-          <button
-            type="button"
-            onClick={() => setShowLogoutConfirm(true)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-600/30 border border-rose-500/20 active:scale-98 transition-all"
-          >
-            <LogOut size={15} />
-            <span>Se déconnecter</span>
-          </button>
-          <p className="text-[11px] text-slate-500 text-center">
-            Propulsé par <span className="text-[#FF6B00] font-semibold">UniSphere AI</span>
-          </p>
+        <div className={`border-t border-white/10 bg-[#0a1628] flex-shrink-0 transition-all ${isCollapsed ? 'p-2 flex flex-col items-center space-y-2' : 'p-3 mb-1 space-y-2'}`}>
+          {isCollapsed ? (
+            <>
+              {onToggleCollapse && (
+                <button
+                  type="button"
+                  onClick={onToggleCollapse}
+                  className="relative group w-11 h-11 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  title="Déplier le menu"
+                >
+                  <ChevronRight size={19} />
+                  <span className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-50 border border-slate-700/80">
+                    Déplier le menu
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="relative group w-11 h-11 rounded-2xl flex items-center justify-center text-rose-400 hover:text-white hover:bg-rose-600/30 transition-colors cursor-pointer"
+                title="Se déconnecter"
+              >
+                <LogOut size={18} />
+                <span className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 z-50 border border-slate-700/80">
+                  Se déconnecter
+                </span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-600/30 border border-rose-500/20 active:scale-98 transition-all cursor-pointer"
+              >
+                <LogOut size={15} />
+                <span>Se déconnecter</span>
+              </button>
+              <p className="text-[11px] text-slate-500 text-center">
+                Propulsé par <span className="text-[#FF6B00] font-semibold">UniSphere AI</span>
+              </p>
+            </>
+          )}
         </div>
       </aside>
 
