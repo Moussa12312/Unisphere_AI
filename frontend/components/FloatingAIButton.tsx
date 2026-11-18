@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { BrainCircuit } from 'lucide-react';
 
 export default function FloatingAIButton() {
   const router = useRouter();
+  const pathname = usePathname();
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ startX: number; startY: number; buttonX: number; buttonY: number } | null>(null);
@@ -117,6 +118,7 @@ export default function FloatingAIButton() {
     router.push('/ai-assistant');
   };
 
+  if (pathname === '/ai-assistant' || pathname?.includes('/print') || pathname?.includes('/cards/print')) return null;
   if (position.x === 0 && position.y === 0) return null;
 
   return (

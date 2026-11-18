@@ -17,7 +17,8 @@ from app.models.exam_session import ExamSession
 from app.models.schedule import Schedule
 from app.models.message import Message
 from app.models.notification import Notification
-from app.core.dependencies import require_role
+from app.core.dependencies import require_role, get_current_user_optional
+from typing import Optional
 
 router = APIRouter(prefix="/ai-assistant", tags=["AI Assistant"])
 
@@ -30,8 +31,46 @@ def get_db():
 
 
 # ==========================================
-# CONTEXTE PAR RÔLE (inchangé)
+# CONTEXTE PAR RÔLE
 # ==========================================
+
+def get_superadmin_context(db: Session) -> dict:
+    """Contexte SuperAdmin : vue globale de toute la plateforme SaaS"""
+    from app.models.university import University
+    total_univs = db.query(func.count(University.id)).scalar() or 0
+    total_students = db.query(func.count(Student.id)).scalar() or 0
+    total_users = db.query(func.count(User.id)).scalar() or 0
+    total_courses = db.query(func.count(Course.id)).scalar() or 0
+    return {
+        "role": "super_admin",
+        "role_label": "Super Administrateur de la Plateforme",
+        "total_universities": total_univs,
+        "total_students": total_students,
+        "total_users": total_users,
+        "total_courses": total_courses,
+        "platform_name": "UniSphere AI",
+        "coverage": "Mali et zone UEMOA"
+    }
+
+def get_visitor_context(db: Session) -> dict:
+    """Contexte Visiteur / Découverte de la plateforme UniSphere AI"""
+    total_students = db.query(func.count(Student.id)).scalar() or 0
+    total_courses = db.query(func.count(Course.id)).scalar() or 0
+    return {
+        "role": "visitor",
+        "role_label": "Visiteur de la plateforme",
+        "platform_name": "UniSphere AI",
+        "total_students": total_students,
+        "total_courses": total_courses,
+        "coverage": "Mali et zone UEMOA",
+        "modules": [
+            "Gestion académique & système LMD",
+            "Inscriptions, dossiers étudiants et cartes QR",
+            "Saisie des notes, calcul des moyennes et procès-verbaux",
+            "Finances, recouvrement et frais de scolarité sur 8 mois",
+            "Pilotage et tableaux de bord décisionnels"
+        ]
+    }
 
 def get_admin_context(db: Session, university_id: int) -> dict:
     """Contexte admin : vue globale de l'université"""
@@ -494,7 +533,7 @@ def generate_local_ai_response(message: str, context: dict, user_name: str) -> s
             f"En tant que **{role_label}**, vous pouvez me poser des questions précises ou me demander d'effectuer des tâches :\n"
             f"• 👥 **Inscriptions & Effectifs** : gestion des dossiers, matricules, filières\n"
             f"• 📚 **Modules & Cours** : création, semestres, syllabus, crédits LMD\n"
-            f"• ⚖️ **Délibérations & Rattrapages** : seuils LMD, jurys, PV de délibération\n"
+            f"• 📊 **Notes & Procès-Verbaux** : saisie des notes, calcul des moyennes, PV de résultats\n"
             f"• 💳 **Finances & Scolarité** : 3 tranches (P1, P2, P3), paiements mensuels, quittances\n"
             f"• 🪪 **Cartes Étudiantes & Badges** : format CR80, QR code de sécurité, tirage A4\n"
             f"• ⏱️ **Présences & Assiduité** : scans des gardiens, appel en classe, seuil des 75%\n"
@@ -692,39 +731,47 @@ ai_compat_router = APIRouter(prefix="/ai", tags=["AI"])
 def chat_with_ai(
     data: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "teacher", "student", "secretary", "censeur", "accountant", "guard", "alumni"))
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    """Chat avec l'IA - Support multi-fournisseurs (Groq, OpenAI, Gemini) avec moteur local dynamique."""
+    """Chat avec l'IA - Support multi-fournisseurs (Groq, OpenAI, Gemini) avec moteur local dynamique et fallback visiteur/démo."""
     message = data.get("message", "")
     conversation_history = data.get("history", [])
     
     if not message:
         raise HTTPException(status_code=400, detail="Message requis")
     
-    # Récupérer le contexte selon le rôle
-    role = current_user.role
-    university_id = current_user.university_id
-    
-    if role == "admin":
-        context = get_admin_context(db, university_id)
-    elif role == "teacher":
-        context = get_teacher_context(db, current_user.id, university_id)
-    elif role == "student":
-        context = get_student_context(db, current_user.id, university_id)
-    elif role == "secretary":
-        context = get_secretary_context(db, university_id)
-    elif role == "censeur":
-        context = get_censeur_context(db, university_id)
-    elif role == "accountant":
-        context = get_accountant_context(db, university_id)
-    elif role == "guard":
-        context = get_guard_context(db, university_id)
+    # Récupérer le contexte selon le rôle ou visiteur
+    if current_user:
+        role = current_user.role
+        university_id = current_user.university_id
+        user_name = current_user.full_name or "Utilisateur"
+        
+        if role in ("super_admin", "superadmin"):
+            context = get_superadmin_context(db)
+        elif role == "admin":
+            context = get_admin_context(db, university_id)
+        elif role == "teacher":
+            context = get_teacher_context(db, current_user.id, university_id)
+        elif role == "student":
+            context = get_student_context(db, current_user.id, university_id)
+        elif role == "secretary":
+            context = get_secretary_context(db, university_id)
+        elif role == "censeur":
+            context = get_censeur_context(db, university_id)
+        elif role == "accountant":
+            context = get_accountant_context(db, university_id)
+        elif role == "guard":
+            context = get_guard_context(db, university_id)
+        else:
+            context = {"role": role, "role_label": "Utilisateur"}
     else:
-        context = {"role": role, "role_label": "Utilisateur"}
+        role = "visitor"
+        user_name = "Visiteur"
+        context = get_visitor_context(db)
     
     # 1. Essayer d'abord un modèle LLM externe (Groq, OpenAI, Gemini, etc.)
     context_json = json.dumps(context, ensure_ascii=False, default=str)
-    system_prompt = f"""Tu es UniSphere AI, l'assistant intelligent et chaleureux de l'établissement d'enseignement supérieur. Tu t'adresses à {current_user.full_name}, qui a le rôle de {context.get('role_label', 'utilisateur')}.
+    system_prompt = f"""Tu es UniSphere AI, l'assistant intelligent et chaleureux de la plateforme de gestion universitaire UniSphere AI. Tu t'adresses à {user_name}, qui a le statut de {context.get('role_label', 'utilisateur')}.
 
 DONNÉES EN TEMPS RÉEL DE L'ÉTABLISSEMENT :
 {context_json}
@@ -733,7 +780,7 @@ CONSIGNES :
 1. Réponds de façon précise, naturelle, professionnelle et chaleureuse en français.
 2. Utilise les données et chiffres réels ci-dessus quand c'est pertinent.
 3. Sois structuré avec des puces claires et du texte en gras.
-4. Si la question porte sur une procédure de l'université (inscription, notes, délibération, tranches de paiement, cartes étudiantes), explique clairement la marche à suivre.
+4. Si la question porte sur une procédure de l'université (inscription, notes, maquette LMD, tranches de paiement sur 8 mois, cartes étudiantes QR), explique clairement la marche à suivre.
 5. Langue : Français exclusivement."""
 
     llm_response, source = call_llm_provider(system_prompt, conversation_history, message)
@@ -746,27 +793,32 @@ CONSIGNES :
         }
 
     # 2. Moteur IA contextuel local étendu (toujours disponible, varié et rapide)
-    local_response = generate_local_ai_response(message, context, current_user.full_name)
+    local_response = generate_local_ai_response(message, context, user_name)
     return {
         "response": local_response,
         "context": context,
         "source": "UniSphere AI (Moteur Local)",
         "role": role
     }
+
+
+# ==========================================
 # ENDPOINTS HISTORIQUE
 # ==========================================
 
 @router.get("/history")
+@ai_compat_router.get("/history")
 def get_chat_history(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "teacher", "student", "secretary", "censeur", "accountant", "guard", "alumni"))
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
     return []
 
 
 @router.delete("/history")
+@ai_compat_router.delete("/history")
 def clear_chat_history(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "teacher", "student", "secretary", "censeur", "accountant", "guard", "alumni"))
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ):
     return {"message": "Historique effacé"}

@@ -6,6 +6,7 @@ import { SettingsProvider } from '@/contexts/SettingsContext';
 import StartupAnimation from '@/components/StartupAnimation';
 import PushNotificationManager from '@/components/PushNotificationManager';
 import OfflineBanner from '@/components/OfflineBanner';
+import FloatingAIButton from '@/components/FloatingAIButton';
 
 export const metadata: Metadata = {
   title: "UniSphere AI — Logiciel de Gestion Universitaire & Plateforme LMD",
@@ -57,6 +58,7 @@ export default function RootLayout({
         <StartupAnimation />
         <PushNotificationManager />
         <OfflineBanner />
+        <FloatingAIButton />
         <SettingsProvider>
           <ToastProvider>
             <ConfirmProvider>

@@ -41,6 +41,7 @@ const MENU_CONFIG: Record<string, Array<{
       items: [
         { label: "Vue d'ensemble", href: '/admin/dashboard', icon: LayoutDashboard },
         { label: 'Statistiques', href: '/admin/statistics', icon: BarChart3 },
+        { label: 'Assistant IA', href: '/ai-assistant', icon: BrainCircuit },
       ]
     },
     {
@@ -100,6 +101,7 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'TABLEAU DE BORD',
       items: [
         { label: 'Activités', href: '/secretary/dashboard', icon: LayoutDashboard },
+        { label: 'Assistant IA', href: '/ai-assistant', icon: BrainCircuit },
       ]
     },
     {
@@ -175,6 +177,7 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'DIRECTION ÉTUDES',
       items: [
         { label: 'Tableau de bord', href: '/censeur/dashboard', icon: LayoutDashboard },
+        { label: 'Assistant IA', href: '/ai-assistant', icon: BrainCircuit },
       ]
     },
     {
@@ -195,7 +198,7 @@ const MENU_CONFIG: Record<string, Array<{
       ]
     },
     {
-      title: 'DÉLIBÉRATIONS',
+      title: 'RÉSULTATS & BULLETINS',
       items: [
         { label: 'Bulletins', href: '/censeur/bulletins', icon: FileCheck },
         { label: 'Relevés de notes', href: '/censeur/documents/transcripts', icon: ScrollText },
@@ -229,6 +232,7 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'DIRECTION FINANCIÈRE',
       items: [
         { label: 'Vue financière', href: '/accountant/dashboard', icon: LayoutDashboard },
+        { label: 'Assistant IA', href: '/ai-assistant', icon: BrainCircuit },
       ]
     },
     {
@@ -332,6 +336,7 @@ const MENU_CONFIG: Record<string, Array<{
         { label: 'Tableau de bord', href: '/student/dashboard', icon: LayoutDashboard },
         { label: 'Mon profil', href: '/student/profile', icon: User },
         { label: 'Ma carte QR', href: '/student/card', icon: CreditCard },
+        { label: 'Assistant IA', href: '/ai-assistant', icon: BrainCircuit },
       ]
     },
     {
@@ -447,6 +452,7 @@ const MENU_CONFIG: Record<string, Array<{
       title: 'PILOTAGE SAAS',
       items: [
         { label: "Vue d'ensemble", href: '/superadmin/dashboard', icon: LayoutDashboard },
+        { label: 'Assistant IA', href: '/ai-assistant', icon: BrainCircuit },
       ]
     },
     {

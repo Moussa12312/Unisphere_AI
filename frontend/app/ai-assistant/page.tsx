@@ -231,7 +231,7 @@ export default function AIAssistantPage() {
 
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "Désolé, une erreur est survenue. Vérifiez que la clé GROQ_API_KEY est configurée dans le fichier .env du backend.",
+        text: "Désolé, je rencontre une difficulté momentanée pour vous répondre. Veuillez réessayer dans un instant ou reformuler votre question.",
         sender: 'ai',
         timestamp: new Date()
       };
