@@ -51,7 +51,7 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
             </div>
 
             <p className="text-sm text-slate-400 leading-relaxed max-w-sm">
-              La plateforme universitaire unifiée de nouvelle génération. Conçue pour simplifier la scolarité LMD, sécuriser les encaissements Mobile Money et fédérer le réseau des diplômés.
+              Plateforme intelligente de gestion administrative, académique et financière conçue pour les établissements d&apos;enseignement supérieur au Mali et dans la zone UEMOA.
             </p>
 
             <div className="pt-2 flex flex-col gap-2 text-xs text-slate-400 font-medium">
@@ -119,11 +119,11 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
               Modules Métiers
             </h4>
             <ul className="space-y-2 text-sm text-slate-400">
-              <li>Direction & Délibérations CAMES</li>
-              <li>Scolarité, Secrétariat & Bulletins</li>
-              <li>Comptabilité & Mobile Money (Wave, Orange)</li>
-              <li>Corps Professoral & Saisie de notes</li>
-              <li>Portique de Sécurité & Badges QR Code</li>
+              <li>Direction & Pilotage Institutionnel</li>
+              <li>Scolarité, Secrétariat & Inscriptions</li>
+              <li>Comptabilité, Scolarité & Reçus Sécurisés</li>
+              <li>Corps Professoral, Notes & Moyennes LMD</li>
+              <li>Contrôle d'Accès Portail & Badges QR Code</li>
               <li>Réseau Alumni & Insertion Professionnelle</li>
             </ul>
           </div>
@@ -144,7 +144,7 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
                 onClick={() => onOpenRegister()}
                 className="w-full py-2.5 px-3 rounded-xl bg-[#FF6B00] hover:bg-orange-600 text-white text-xs font-bold text-center transition-colors shadow-sm"
               >
-                Essai Gratuit 7 Jours
+                Demander une Démo
               </button>
               <Link
                 href="/download"
@@ -163,7 +163,7 @@ export default function FooterSection({ onOpenLogin, onOpenRegister }: FooterSec
           <div className="flex flex-col sm:flex-row items-center gap-2 text-center sm:text-left">
             <span>© {currentYear} UniSphere AI. Tous droits réservés.</span>
             <span className="hidden sm:inline">•</span>
-            <span>Système d&apos;Information Universitaire certifié conforme aux normes LMD & CAMES.</span>
+            <span>Plateforme de gestion universitaire structurée selon le système LMD.</span>
           </div>
 
           <div className="flex items-center gap-4">

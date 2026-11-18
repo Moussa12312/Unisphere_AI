@@ -8,8 +8,18 @@ import PushNotificationManager from '@/components/PushNotificationManager';
 import OfflineBanner from '@/components/OfflineBanner';
 
 export const metadata: Metadata = {
-  title: "UniSphere AI - Plateforme Universitaire Intelligente",
-  description: "Plateforme universitaire unifiée pour étudiants, enseignants et administration",
+  title: "UniSphere AI — Logiciel de Gestion Universitaire & Plateforme LMD",
+  description: "Plateforme intelligente de gestion administrative, académique et financière pour les universités, instituts supérieurs et grandes écoles au Mali et en zone UEMOA.",
+  keywords: [
+    "logiciel de gestion universitaire",
+    "plateforme de gestion académique",
+    "gestion universitaire au Mali",
+    "logiciel de gestion des universités",
+    "gestion du système LMD",
+    "gestion des étudiants",
+    "digitalisation de l'enseignement supérieur",
+    "gestion administrative et financière universitaire"
+  ],
   manifest: "/manifest.json",
   icons: {
     icon: [

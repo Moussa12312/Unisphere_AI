@@ -84,19 +84,19 @@ export default function HomePage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
               <div className="space-y-1">
                 <p className="text-2xl sm:text-3xl font-black text-white tracking-tight">45 000+</p>
-                <p className="text-xs font-semibold text-slate-400">Étudiants & parcours gérés</p>
+                <p className="text-xs font-semibold text-slate-400">Étudiants & parcours académiques suivis</p>
               </div>
               <div className="space-y-1">
                 <p className="text-2xl sm:text-3xl font-black text-[#FF6B00] tracking-tight">100%</p>
-                <p className="text-xs font-semibold text-slate-400">PV conformes normes CAMES</p>
+                <p className="text-xs font-semibold text-slate-400">Structuration selon le système LMD</p>
               </div>
               <div className="space-y-1">
                 <p className="text-2xl sm:text-3xl font-black text-white tracking-tight">&lt; 30 sec</p>
-                <p className="text-xs font-semibold text-slate-400">Génération de relevé & bulletin</p>
+                <p className="text-xs font-semibold text-slate-400">Calcul des moyennes & édition des bulletins</p>
               </div>
               <div className="space-y-1">
-                <p className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">0 Faux</p>
-                <p className="text-xs font-semibold text-slate-400">Badges & reçus certifiés QR</p>
+                <p className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">0 Fraude</p>
+                <p className="text-xs font-semibold text-slate-400">Cartes d'étudiants & reçus certifiés QR</p>
               </div>
             </div>
           </div>
@@ -117,15 +117,15 @@ export default function HomePage() {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center space-y-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 text-[#FF6B00] text-xs font-bold uppercase tracking-wider">
               <Sparkles size={14} />
-              <span>Modernisation Garantie</span>
+              <span>Pilotage Universitaire de Nouvelle Génération</span>
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-snug">
-              Prêt à transformer la gestion de votre établissement universitaire ?
+              Prêt à digitaliser la gestion globale de votre établissement d'enseignement supérieur ?
             </h2>
 
             <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
-              Rejoignez les universités et grandes écoles qui font le choix de la rigueur, de la transparence et de la sérénité administrative.
+              Centralisation des données, simplification administrative, rigueur du suivi académique et maîtrise financière : découvrez la puissance d'UniSphere AI.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
@@ -133,7 +133,7 @@ export default function HomePage() {
                 onClick={() => handleOpenRegister('etablissement')}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25 transition-all cursor-pointer"
               >
-                <span>Activer mon essai gratuit</span>
+                <span>Demander une démonstration</span>
                 <ArrowRight size={16} />
               </button>
 

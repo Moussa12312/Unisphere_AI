@@ -36,17 +36,17 @@ export default function HeroSection({ onOpenLogin, onOpenRegister }: HeroSection
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-50 border border-orange-200/80 text-xs sm:text-sm font-semibold text-orange-950 mb-6 shadow-2xs w-fit">
               <span className="flex h-2 w-2 rounded-full bg-[#FF6B00] animate-pulse"></span>
               <ShieldCheck size={16} className="text-[#FF6B00]" />
-              <span>Conforme CAMES & Enseignement Supérieur • Mali & UEMOA</span>
+              <span>Plateforme de Gestion Universitaire • Mali & Zone UEMOA</span>
             </div>
 
             {/* 2. Titre principal percutant */}
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-6">
-              <span className="text-[#FF6B00]">UniSphere AI</span> : La plateforme tout-en-un pour moderniser, sécuriser et piloter votre université.
+              <span className="text-[#FF6B00]">UniSphere AI</span> : La plateforme intelligente de gestion administrative, académique et financière pour l&apos;enseignement supérieur.
             </h1>
 
             {/* 3. Paragraphe explicatif court (3 lignes max) */}
             <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl mb-8">
-              Finis les dossiers papier égarés, les retards de scolarité et les calculs de PV manuels. UniSphere unifie scolarité LMD, paiements Mobile Money (Orange Money, Wave, MTN), contrôle d&apos;accès par QR Code et réseau Alumni dans un environnement fluide et ultra-sécurisé.
+              Conçue pour les universités publiques et privées, instituts supérieurs et grandes écoles : centralisez les inscriptions, la scolarité LMD, les évaluations, le suivi financier et le pilotage institutionnel dans un environnement fluide, moderne et performant.
             </p>
 
             {/* 4. Double bouton d'appel à l'action (CTA) */}
@@ -55,7 +55,7 @@ export default function HeroSection({ onOpenLogin, onOpenRegister }: HeroSection
                 onClick={() => onOpenRegister('mensuel')}
                 className="inline-flex items-center justify-center gap-3 px-7 py-4 rounded-xl text-base font-bold text-white bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 transition-all transform active:scale-98"
               >
-                <span>Commencer mon essai gratuit</span>
+                <span>Demander une démonstration</span>
                 <ArrowRight size={18} />
               </button>
 
@@ -73,15 +73,15 @@ export default function HeroSection({ onOpenLogin, onOpenRegister }: HeroSection
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm font-semibold text-slate-700">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0" />
-                  <span>Essai 7 jours sans engagement</span>
+                  <span>Accompagnement & déploiement rapide</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0" />
-                  <span>Paiements Wave, Orange & MTN</span>
+                  <span>Sécurisation du recouvrement financier</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={17} className="text-emerald-600 shrink-0" />
-                  <span>Conforme maquettes LMD</span>
+                  <span>Organisation selon le système LMD</span>
                 </div>
               </div>
             </div>
@@ -192,12 +192,12 @@ export default function HeroSection({ onOpenLogin, onOpenRegister }: HeroSection
                 {activeTab === 'direction' && (
                   <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs space-y-2.5">
                     <div className="flex items-center justify-between font-bold text-slate-800">
-                      <span>Dernières Délibérations LMD</span>
-                      <span className="text-emerald-600 font-extrabold">100% Validées</span>
+                      <span>Synthèse des Résultats Semestriels</span>
+                      <span className="text-emerald-600 font-extrabold">100% Finalisés</span>
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="font-semibold text-slate-700">Licence 3 - Informatique & IA</span>
+                        <span className="font-semibold text-slate-700">Licence 3 - Informatique & Systèmes</span>
                         <span className="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-[10px]">PV Généré</span>
                       </div>
                       <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
@@ -212,14 +212,14 @@ export default function HeroSection({ onOpenLogin, onOpenRegister }: HeroSection
                   <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs space-y-2.5">
                     <div className="flex items-center justify-between font-bold text-slate-800">
                       <span>Calcul Automatisé des Crédits</span>
-                      <span className="text-blue-600 font-extrabold">Norme CAMES</span>
+                      <span className="text-blue-600 font-extrabold">Système LMD</span>
                     </div>
                     <div className="p-2.5 rounded-lg bg-orange-50/70 border border-orange-200/80 text-slate-700 space-y-1">
                       <div className="flex justify-between font-bold">
                         <span>Unités d&apos;Enseignement (UE)</span>
                         <span>30 Crédits ECTS</span>
                       </div>
-                      <p className="text-[11px] text-slate-600">Calcul des moyennes semestrielles pondérées sans risque d&apos;erreur de formule.</p>
+                      <p className="text-[11px] text-slate-600">Calcul des moyennes semestrielles pondérées et classement sans risque d&apos;erreur de formule.</p>
                     </div>
                   </div>
                 )}
@@ -227,8 +227,8 @@ export default function HeroSection({ onOpenLogin, onOpenRegister }: HeroSection
                 {activeTab === 'finances' && (
                   <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs space-y-2.5">
                     <div className="flex items-center justify-between font-bold text-slate-800">
-                      <span>Flux Directs de Scolarité</span>
-                      <span className="text-emerald-600 font-extrabold">Instant Money</span>
+                      <span>Suivi des Règlements de Scolarité</span>
+                      <span className="text-emerald-600 font-extrabold">En Temps Réel</span>
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-50/60 border border-emerald-100 text-[11px]">
@@ -253,7 +253,7 @@ export default function HeroSection({ onOpenLogin, onOpenRegister }: HeroSection
                     onClick={onOpenLogin}
                     className="font-bold text-[#FF6B00] hover:text-orange-700 flex items-center gap-1 hover:underline"
                   >
-                    Tester la démo <ArrowRight size={13} />
+                    Découvrir la plateforme <ArrowRight size={13} />
                   </button>
                 </div>
 

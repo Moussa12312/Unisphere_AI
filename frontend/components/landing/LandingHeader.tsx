@@ -150,7 +150,7 @@ export default function LandingHeader({ onOpenLogin, onOpenRegister }: LandingHe
             onClick={() => onOpenRegister()}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-[#FF6B00] to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md shadow-orange-500/25 transition-all hover:shadow-lg active:scale-95 cursor-pointer"
           >
-            <span>Créer un compte</span>
+            <span>Demander une démo</span>
             <ArrowRight size={16} />
           </button>
         </div>

@@ -14,43 +14,43 @@ export default function FeaturesSection({ onOpenRegister }: FeaturesSectionProps
   const features = [
     {
       icon: GraduationCap,
-      badge: "Conforme CAMES",
+      badge: "Organisation LMD",
       badgeColor: "bg-orange-100 text-orange-800 border-orange-200",
       iconColor: "text-[#FF6B00]",
       iconBg: "bg-orange-50 border-orange-200",
-      title: "Parcours LMD & PV Automatisés",
-      description: "Saisie sécurisée des notes, calcul pondéré des crédits ECTS et génération instantanée des procès-verbaux de délibération sans risque d'erreur.",
-      gain: "Gain de temps de 80% lors des jurys de fin de semestre"
-    },
-    {
-      icon: Smartphone,
-      badge: "Wave & Orange Money",
-      badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-      iconColor: "text-emerald-600",
-      iconBg: "bg-emerald-50 border-emerald-200",
-      title: "Encaissements Locaux Intégrés",
-      description: "Règlement des frais de scolarité via Mobile Money, réconciliation comptable automatique et délivrance instantanée de reçus certifiés.",
-      gain: "Suppression des files d'attente et fin des impayés cachés"
+      title: "Gestion Académique & Cursus LMD",
+      description: "Structuration des filières, semestres (S1 à S10), unités d'enseignement (UE) et cours en tronc commun avec calcul précis des crédits ECTS.",
+      gain: "Accompagnement de l'organisation et du suivi des parcours universitaires"
     },
     {
       icon: QrCode,
-      badge: "Anti-Fraude",
+      badge: "Dossiers 360°",
       badgeColor: "bg-blue-100 text-blue-800 border-blue-200",
       iconColor: "text-blue-600",
       iconBg: "bg-blue-50 border-blue-200",
-      title: "Cartes Numériques & Contrôle QR",
-      description: "Badges étudiants infalsifiables et pointage en direct aux portiques, salles d'examen et bibliothèques même avec une connexion faible.",
-      gain: "Sécurisation intégrale des accès et présence vérifiée"
+      title: "Inscriptions & Cartes Sécurisées",
+      description: "Enrôlement complet des étudiants, gestion des dossiers scolaires et génération instantanée de cartes à QR Code crypté pour le contrôle d'accès.",
+      gain: "Sécurisation des accès au campus et aux épreuves d'examens"
     },
     {
       icon: Award,
-      badge: "Insertion Pro",
+      badge: "Notes & PV",
       badgeColor: "bg-purple-100 text-purple-800 border-purple-200",
       iconColor: "text-purple-600",
       iconBg: "bg-purple-50 border-purple-200",
-      title: "Réseau Diplômés & Alumni",
-      description: "Annuaire interactif des anciens, offres exclusives de stages et suivi statistique de l'insertion pour valoriser le prestige de votre école.",
-      gain: "Valorisation du diplôme et partenariats entreprises"
+      title: "Notes, Moyennes & Procès-Verbaux",
+      description: "Saisie des évaluations par les enseignants, calcul automatique des moyennes pondérées par coefficients et production des procès-verbaux de résultats.",
+      gain: "Édition fiable et rapide des relevés de notes et bulletins officiels"
+    },
+    {
+      icon: Smartphone,
+      badge: "Recouvrement",
+      badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      iconColor: "text-emerald-600",
+      iconBg: "bg-emerald-50 border-emerald-200",
+      title: "Gestion Financière & Scolarité",
+      description: "Échéanciers par tranches ou mensualités, suivi rigoureux des impayés, tenue de caisse et édition de reçus officiels numérotés infalsifiables.",
+      gain: "Maîtrise de la trésorerie et élimination des impayés non identifiés"
     }
   ];
 
@@ -62,15 +62,15 @@ export default function FeaturesSection({ onOpenRegister }: FeaturesSectionProps
         <div className="max-w-3xl mx-auto text-center mb-16">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-700 mb-4">
             <Sparkles size={14} className="text-[#FF6B00]" />
-            <span>Architecture & Méthode Unifiée</span>
+            <span>Pilotage Institutionnel & Pédagogique</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight mb-4">
-            Une méthode simple, pensée pour la rigueur et l&apos;excellence académique
+            Une plateforme intégrée, pensée pour les exigences de l&apos;enseignement supérieur
           </h2>
 
           <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-            UniSphere AI supprime les silos entre la scolarité, la comptabilité, le corps professoral et les étudiants grâce à 4 piliers fondamentaux.
+            UniSphere AI unifie la scolarité, la gestion académique, le suivi financier et la gouvernance institutionnelle au sein d&apos;un environnement unique.
           </p>
         </div>
 

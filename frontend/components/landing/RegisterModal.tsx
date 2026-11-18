@@ -88,7 +88,7 @@ export default function RegisterModal({
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-black tracking-tight text-white">
-                Créer un Compte • Déploiement UniSphere AI
+                Demander une Démonstration • Déploiement UniSphere AI
               </h3>
               <p className="text-xs text-orange-300 font-semibold">
                 Accompagnement & Déploiement Personnalisé
@@ -126,7 +126,7 @@ export default function RegisterModal({
           {/* Boutons d'Action Directs : WhatsApp & Téléphone */}
           <div className="space-y-3">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
-              Contactez directement Chakir's Entreprise (Direction Technique) :
+              Contactez directement notre direction technique & commerciale :
             </p>
 
             {/* Bouton WhatsApp */}

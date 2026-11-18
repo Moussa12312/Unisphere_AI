@@ -78,3 +78,6 @@ Desktop.ini
 # ===== Backups =====
 backend/backups/
 backups/
+
+# Fichiers temporaires Office
+~$*
