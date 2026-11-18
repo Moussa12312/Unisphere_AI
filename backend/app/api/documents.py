@@ -253,7 +253,8 @@ async def scan_document(
     # Sauvegarder temporairement le fichier pour prévisualisation
     upload_dir = Path("uploads/temp_scans")
     upload_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+    safe_name = Path(file.filename).name.replace(" ", "_")
+    filename = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_name}"
     file_path = upload_dir / filename
     
     with open(file_path, "wb") as f:
@@ -280,7 +281,8 @@ async def upload_course_material(
     
     upload_dir = Path("uploads/courses")
     upload_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+    safe_name = Path(file.filename).name.replace(" ", "_")
+    filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe_name}"
     file_path = upload_dir / filename
     
     content = await file.read()

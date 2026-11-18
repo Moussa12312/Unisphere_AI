@@ -158,7 +158,7 @@ async def start_nightly_backup_scheduler():
     print("[STARTUP] 🕒 Scheduler de sauvegarde nocturne automatique (02:00) activé.")
 
 # ============================================
-# CORS
+# CORS & SÉCURITÉ RÉSEAU
 # ============================================
 _frontend_urls = (os.getenv("FRONTEND_URL", "") + "," + os.getenv("CORS_ORIGINS", "")).split(",")
 ALLOWED_ORIGINS = [url.strip() for url in _frontend_urls if url.strip()]
@@ -179,14 +179,40 @@ for o in _default_origins:
     if o not in ALLOWED_ORIGINS:
         ALLOWED_ORIGINS.append(o)
 
-# En développement ou réseau local, autoriser les connexions mobiles
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+is_production_mode = (os.getenv("ENVIRONMENT") == "production") or (os.getenv("IS_PRODUCTION") == "true")
+
+if is_production_mode:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["*"],
+    )
+else:
+    # Mode développement / réseau local : support dynamique regex pour mobiles et réseau LAN
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+# ============================================
+# ✅ MIDDLEWARE EN-TÊTES DE SÉCURITÉ HTTP (OWASP)
+# ============================================
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 
 # ============================================
