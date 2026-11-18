@@ -39,6 +39,10 @@ export const authService = {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     localStorage.setItem('role', user.role);
 
+    // Synchroniser les cookies pour le middleware Next.js
+    document.cookie = `unisphere_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `unisphere_role=${user.role}; path=/; max-age=2592000; SameSite=Lax`;
+
     if (rememberEmail) {
       localStorage.setItem(REMEMBER_EMAIL_KEY, rememberEmail);
     } else {

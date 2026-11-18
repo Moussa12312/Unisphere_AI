@@ -1,36 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Routes d'administration et d'espaces protégés
-const PROTECTED_PREFIXES = [
-  '/admin',
-  '/secretary',
-  '/teacher',
-  '/student',
-  '/censeur',
-  '/accountant',
-  '/guard',
-  '/superadmin',
-  '/alumni',
-  '/scan-session',
-];
-
+/**
+ * Middleware Next.js :
+ * La sécurité fine par rôle et vérification de session est assurée côté client
+ * par RoleLayout (qui synchronise localStorage et les cookies).
+ * Le middleware transmet la requête de manière fluide pour éviter tout blocage
+ * ou boucle de redirection intempestive lors du rafraîchissement des pages.
+ */
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  const isProtected = PROTECTED_PREFIXES.some(prefix => pathname.startsWith(prefix));
-
-  if (isProtected) {
-    const token = request.cookies.get('unisphere_token')?.value;
-
-    // Si aucune session valide n'est détectée, rediriger vers le site public
-    if (!token) {
-      const publicUrl = new URL('/', request.url);
-      publicUrl.searchParams.set('unauthorized', 'true');
-      return NextResponse.redirect(publicUrl);
-    }
-  }
-
   return NextResponse.next();
 }
 

@@ -93,6 +93,12 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
       return;
     }
 
+    // Synchroniser le cookie pour que le middleware Next.js ne bloque jamais les sous-pages
+    if (typeof document !== 'undefined' && !document.cookie.includes('unisphere_token=')) {
+      document.cookie = `unisphere_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `unisphere_role=${currentUser.role}; path=/; max-age=2592000; SameSite=Lax`;
+    }
+
     if (!memoizedAllowedRoles.includes(currentUser.role)) {
       if (typeof window !== 'undefined') {
         const routes: Record<string, string> = {
