@@ -39,42 +39,42 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
       id: 'tier-2',
       name: 'Petite université',
       studentsRange: '101 à 250 étudiants',
-      annualPrice: '600 000',
+      annualPrice: '550 000',
       monthlyPrice: '75 000',
-      annualTotal: 600000,
+      annualTotal: 550000,
       monthlyTotal: 600000,
-      savings: '8 mensualités de 75 000 FCFA • Vacances offertes'
+      savings: 'Économie de 50 000 FCFA en paiement annuel'
     },
     {
       id: 'tier-3',
       name: 'Université moyenne',
       studentsRange: '251 à 500 étudiants',
-      annualPrice: '900 000',
+      annualPrice: '825 000',
       monthlyPrice: '112 500',
-      annualTotal: 900000,
+      annualTotal: 825000,
       monthlyTotal: 900000,
-      savings: '8 mensualités de 112 500 FCFA • Vacances offertes',
+      savings: 'Économie de 75 000 FCFA en paiement annuel',
       badge: '★ FORMULE LA PLUS CHOISIE'
     },
     {
       id: 'tier-4',
       name: 'Grande université',
       studentsRange: '501 à 1 000 étudiants',
-      annualPrice: '1 500 000',
+      annualPrice: '1 350 000',
       monthlyPrice: '187 500',
-      annualTotal: 1500000,
+      annualTotal: 1350000,
       monthlyTotal: 1500000,
-      savings: '8 mensualités de 187 500 FCFA • Vacances offertes'
+      savings: 'Économie de 150 000 FCFA en paiement annuel'
     },
     {
       id: 'tier-5',
       name: 'Très grande université',
       studentsRange: '1 001 à 2 500 étudiants',
-      annualPrice: '2 400 000',
+      annualPrice: '2 150 000',
       monthlyPrice: '300 000',
-      annualTotal: 2400000,
+      annualTotal: 2150000,
       monthlyTotal: 2400000,
-      savings: '8 mensualités de 300 000 FCFA • Vacances offertes'
+      savings: 'Économie de 250 000 FCFA en paiement annuel'
     },
     {
       id: 'tier-6',
