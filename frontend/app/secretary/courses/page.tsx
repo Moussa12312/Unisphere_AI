@@ -30,29 +30,35 @@ export default function SecretaryCoursesPage() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [history, setHistory] = useState<CourseHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const levels = ['L1', 'L2', 'L3', 'M1', 'M2', 'Doctorat'];
+  const allSemesters = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10'];
+  const levelSemestersMap: Record<string, string[]> = {
+    'L1': ['S1', 'S2'],
+    'L2': ['S3', 'S4'],
+    'L3': ['S5', 'S6'],
+    'M1': ['S7', 'S8'],
+    'M2': ['S9', 'S10'],
+    'Doctorat': ['D1', 'D2', 'D3'],
+  };
+
   const [formData, setFormData] = useState({
     title: '',
+    code: '',
+    level: 'L1',
+    semester: 'S1',
+    is_common_core: false,
+    common_core_filieres_mode: 'ALL',
+    selected_filieres: [] as number[],
     domain: '',
     filiere_id: '',
-    level: '',
     teacher_id: '',
     credits: 3,
     hours: 20,
   });
   const [saving, setSaving] = useState(false);
 
-  const hoursOptions = [
-    { value: 10, label: '10 heures' },
-    { value: 15, label: '15 heures' },
-    { value: 20, label: '20 heures' },
-    { value: 25, label: '25 heures' },
-    { value: 30, label: '30 heures' },
-    { value: 35, label: '35 heures' },
-    { value: 40, label: '40 heures' },
-    { value: 45, label: '45 heures' },
-    { value: 50, label: '50 heures' },
-    { value: 60, label: '60 heures' },
-  ];
+  const hoursOptions = [10, 15, 20, 25, 30, 35, 40, 45, 50, 60];
 
   useEffect(() => {
     loadAll();
@@ -76,7 +82,7 @@ export default function SecretaryCoursesPage() {
     }
   };
 
-  const domains = [...new Set(filieres.map(f => f.domain))].sort();
+  const domains = [...new Set(filieres.map(f => f.domain))].filter(Boolean).sort();
   const filieresOfDomain = formData.domain
     ? filieres.filter(f => f.domain === formData.domain)
     : filieres;
@@ -85,9 +91,14 @@ export default function SecretaryCoursesPage() {
   const resetForm = () => {
     setFormData({
       title: '',
+      code: '',
+      level: 'L1',
+      semester: 'S1',
+      is_common_core: false,
+      common_core_filieres_mode: 'ALL',
+      selected_filieres: [],
       domain: '',
       filiere_id: '',
-      level: '',
       teacher_id: '',
       credits: 3,
       hours: 20,
@@ -95,24 +106,53 @@ export default function SecretaryCoursesPage() {
   };
 
   const handleLevelChange = (newLevel: string) => {
-    setFormData({ ...formData, level: newLevel });
+    const recommended = levelSemestersMap[newLevel] || ['S1'];
+    setFormData(prev => ({
+      ...prev,
+      level: newLevel,
+      semester: recommended[0] || prev.semester
+    }));
   };
 
-  const handleDomainChange = (newDomain: string) => {
-    setFormData({ ...formData, domain: newDomain, filiere_id: '', teacher_id: '' });
+  const toggleFiliereSelection = (filiereId: number) => {
+    setFormData(prev => {
+      const exists = prev.selected_filieres.includes(filiereId);
+      return {
+        ...prev,
+        selected_filieres: exists
+          ? prev.selected_filieres.filter(id => id !== filiereId)
+          : [...prev.selected_filieres, filiereId]
+      };
+    });
   };
 
   const handleCreate = async () => {
-    if (!formData.title || !formData.filiere_id || !formData.level) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+    if (!formData.title.trim()) {
+      toast.error("Veuillez saisir l'intitulé du cours");
+      return;
+    }
+    if (!formData.is_common_core && !formData.filiere_id) {
+      toast.error('Veuillez sélectionner une filière ou activer le Tronc Commun');
       return;
     }
     setSaving(true);
     try {
+      let commonCoreFilieresStr: string | null = null;
+      if (formData.is_common_core) {
+        commonCoreFilieresStr = formData.common_core_filieres_mode === 'ALL'
+          ? 'ALL'
+          : formData.selected_filieres.join(',');
+      }
+
       await courseService.create({
-        title: formData.title,
-        filiere_id: parseInt(formData.filiere_id),
+        title: formData.title.trim(),
+        code: formData.code.trim() || undefined,
         level: formData.level,
+        semester: formData.semester,
+        is_common_core: formData.is_common_core,
+        common_core_filieres: commonCoreFilieresStr,
+        department: formData.is_common_core ? 'Tronc Commun' : undefined,
+        filiere_id: formData.is_common_core ? null : (formData.filiere_id ? parseInt(formData.filiere_id) : null),
         teacher_id: formData.teacher_id ? parseInt(formData.teacher_id) : null,
         credits: formData.credits,
         hours: formData.hours,
@@ -130,12 +170,28 @@ export default function SecretaryCoursesPage() {
 
   const handleEdit = async () => {
     if (!selectedCourse) return;
+    if (!formData.title.trim()) {
+      toast.error("Veuillez saisir l'intitulé du cours");
+      return;
+    }
     setSaving(true);
     try {
+      let commonCoreFilieresStr: string | null = null;
+      if (formData.is_common_core) {
+        commonCoreFilieresStr = formData.common_core_filieres_mode === 'ALL'
+          ? 'ALL'
+          : formData.selected_filieres.join(',');
+      }
+
       await courseService.update(selectedCourse.id, {
-        title: formData.title,
-        filiere_id: formData.filiere_id ? parseInt(formData.filiere_id) : null,
+        title: formData.title.trim(),
+        code: formData.code.trim() || undefined,
         level: formData.level,
+        semester: formData.semester,
+        is_common_core: formData.is_common_core,
+        common_core_filieres: commonCoreFilieresStr,
+        department: formData.is_common_core ? 'Tronc Commun' : undefined,
+        filiere_id: formData.is_common_core ? null : (formData.filiere_id ? parseInt(formData.filiere_id) : null),
         teacher_id: formData.teacher_id ? parseInt(formData.teacher_id) : null,
         credits: formData.credits,
         hours: formData.hours,
@@ -172,15 +228,23 @@ export default function SecretaryCoursesPage() {
     }
   };
 
-  const openEditModal = (course: Course) => {
+  const openEditModal = (course: any) => {
     setSelectedCourse(course);
     const filiere = filieres.find(f => f.id === course.filiere_id);
     const domain = filiere?.domain || '';
+    const selectedFils = course.common_core_filieres && course.common_core_filieres !== 'ALL'
+      ? course.common_core_filieres.split(',').map((x: string) => parseInt(x.trim())).filter(Boolean)
+      : [];
     setFormData({
-      title: course.title,
+      title: course.title || '',
+      code: course.code || '',
       domain: domain,
       filiere_id: course.filiere_id?.toString() || '',
-      level: course.level,
+      level: course.level || 'L1',
+      semester: course.semester || 'S1',
+      is_common_core: Boolean(course.is_common_core),
+      common_core_filieres_mode: course.common_core_filieres === 'ALL' || !course.common_core_filieres ? 'ALL' : 'CUSTOM',
+      selected_filieres: selectedFils,
       teacher_id: course.teacher_id?.toString() || '',
       credits: course.credits || 3,
       hours: course.hours || 20,
@@ -361,11 +425,26 @@ export default function SecretaryCoursesPage() {
                       <p className="font-semibold text-slate-900 text-sm">{course.title}</p>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded">
-                        {course.level}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded">
+                          {course.level}
+                        </span>
+                        {course.semester && (
+                          <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold rounded">
+                            {course.semester}
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="py-3 px-4 text-sm text-slate-600">{course.department}</td>
+                    <td className="py-3 px-4 text-sm text-slate-600">
+                      {course.is_common_core ? (
+                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded inline-flex items-center gap-1">
+                          🏛️ Tronc Commun
+                        </span>
+                      ) : (
+                        course.department || course.filiere_name || 'N/A'
+                      )}
+                    </td>
                     <td className="py-3 px-4">
                       {course.teacher_name === 'Non assigné' ? (
                         <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
@@ -418,238 +497,283 @@ export default function SecretaryCoursesPage() {
         )}
       </div>
 
-      {/* MODAL CRÉATION */}
-      {showCreateModal && (
+      {/* MODAL CRÉATION / MODIFICATION */}
+      {(showCreateModal || (showEditModal && selectedCourse)) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-900">Nouveau cours</h2>
-              <button onClick={() => { setShowCreateModal(false); resetForm(); }} className="text-slate-400 hover:text-slate-600">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-5 max-h-[90vh] overflow-y-auto space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <BookOpen className="text-[#FF6B00]" size={20} />
+                <span>{showCreateModal ? 'Nouveau Cours' : `Modifier : ${selectedCourse?.title}`}</span>
+              </h2>
+              <button 
+                onClick={() => { setShowCreateModal(false); setShowEditModal(false); resetForm(); }} 
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+              >
                 <X size={20} />
               </button>
             </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Intitulé du cours *</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Ex: Introduction à la programmation"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Niveau *</label>
-                <select
-                  value={formData.level}
-                  onChange={(e) => handleLevelChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                >
-                  <option value="">Sélectionner un niveau...</option>
-                  <option value="L1">L1</option>
-                  <option value="L2">L2</option>
-                  <option value="L3">L3</option>
-                  <option value="M1">M1</option>
-                  <option value="M2">M2</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Domaine *</label>
-                <select
-                  value={formData.domain}
-                  onChange={(e) => handleDomainChange(e.target.value)}
-                  disabled={!formData.level}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm bg-white disabled:bg-slate-100"
-                >
-                  <option value="">Sélectionner un domaine...</option>
-                  {domains.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Filière *</label>
-                <select
-                  value={formData.filiere_id}
-                  onChange={(e) => setFormData({ ...formData, filiere_id: e.target.value })}
-                  disabled={!formData.domain}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white disabled:bg-slate-100 text-sm"
-                >
-                  <option value="">Sélectionner une filière...</option>
-                  {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Enseignant assigné</label>
-                <select
-                  value={formData.teacher_id}
-                  onChange={(e) => setFormData({ ...formData, teacher_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white text-sm"
-                >
-                  <option value="">Non assigné</option>
-                  {teachersOfFiliere.map((t: any) => (
-                    <option key={t.id} value={t.id}>
-                      {t.first_name} {t.last_name} ({t.speciality})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Crédits</label>
-                  <input
-                    type="number"
-                    value={formData.credits}
-                    onChange={(e) => setFormData({ ...formData, credits: parseInt(e.target.value) || 0 })}
-                    min="1"
-                    max="10"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Volume horaire *</label>
-                  <select
-                    value={formData.hours}
-                    onChange={(e) => setFormData({ ...formData, hours: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
-                  >
-                    {hoursOptions.map(h => (
-                      <option key={h.value} value={h.value}>{h.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => { setShowCreateModal(false); resetForm(); }}
-                className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={saving}
-                className="flex-1 px-3 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {saving ? 'Création...' : 'Créer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* MODAL MODIFICATION */}
-      {showEditModal && selectedCourse && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-900">Modifier le cours</h2>
-              <button onClick={() => { setShowEditModal(false); resetForm(); }} className="text-slate-400 hover:text-slate-600">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
+              {/* Titre */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Intitulé du cours *</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Intitulé du Cours *
+                </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                  placeholder="Ex: Algorithmique, Droit Civil, Macroéconomie..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] text-sm"
                 />
               </div>
+
+              {/* Niveau (Boutons) */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Niveau *</label>
-                <select
-                  value={formData.level}
-                  onChange={(e) => handleLevelChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
-                >
-                  <option value="L1">L1</option>
-                  <option value="L2">L2</option>
-                  <option value="L3">L3</option>
-                  <option value="M1">M1</option>
-                  <option value="M2">M2</option>
-                </select>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Niveau Académique *
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {levels.map(lvl => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => handleLevelChange(lvl)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        formData.level === lvl
+                          ? 'bg-[#FF6B00] text-white shadow-xs'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Semestre (Boutons) */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Domaine *</label>
-                <select
-                  value={formData.domain}
-                  onChange={(e) => handleDomainChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
-                >
-                  {domains.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Semestre LMD *
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {allSemesters.map(sem => {
+                    const isRecommended = (levelSemestersMap[formData.level] || []).includes(sem);
+                    const isSelected = formData.semester === sem;
+                    return (
+                      <button
+                        key={sem}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, semester: sem }))}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : isRecommended
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        <span>{sem}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              {/* Affectation : Tronc Commun vs Spécifique */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Filière *</label>
-                <select
-                  value={formData.filiere_id}
-                  onChange={(e) => setFormData({ ...formData, filiere_id: e.target.value })}
-                  disabled={!formData.domain}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white disabled:bg-slate-100"
-                >
-                  <option value="">Sélectionner une filière...</option>
-                  {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                </select>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Type d'Affectation *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, is_common_core: false }))}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between text-xs font-bold ${
+                      !formData.is_common_core
+                        ? 'border-[#FF6B00] bg-orange-50/50 text-[#FF6B00]'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <span>🎯 Filière Spécifique</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, is_common_core: true }))}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between text-xs font-bold ${
+                      formData.is_common_core
+                        ? 'border-purple-600 bg-purple-50/50 text-purple-700'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <span>🏛️ Tronc Commun</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Options Tronc Commun */}
+              {formData.is_common_core ? (
+                <div className="p-3 bg-purple-50/50 rounded-xl border border-purple-100 space-y-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, common_core_filieres_mode: 'ALL' }))}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer ${
+                        formData.common_core_filieres_mode === 'ALL'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-white border border-purple-200 text-purple-700'
+                      }`}
+                    >
+                      🌐 Toutes les filières ({formData.level})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, common_core_filieres_mode: 'CUSTOM' }))}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer ${
+                        formData.common_core_filieres_mode === 'CUSTOM'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-white border border-purple-200 text-purple-700'
+                      }`}
+                    >
+                      🎯 Sélection ({formData.selected_filieres.length})
+                    </button>
+                  </div>
+
+                  {formData.common_core_filieres_mode === 'CUSTOM' && (
+                    <div className="flex flex-wrap gap-1 pt-1 max-h-28 overflow-y-auto">
+                      {filieres.map(f => {
+                        const isChecked = formData.selected_filieres.includes(f.id);
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => toggleFiliereSelection(f.id)}
+                            className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer ${
+                              isChecked
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-white border border-slate-200 text-slate-700 hover:border-purple-300'
+                            }`}
+                          >
+                            {isChecked ? '✓ ' : ''}{f.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Domaine *</label>
+                    <select
+                      value={formData.domain}
+                      onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value, filiere_id: '' }))}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+                    >
+                      <option value="">Domaine...</option>
+                      {domains.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Filière *</label>
+                    <select
+                      value={formData.filiere_id}
+                      onChange={(e) => setFormData(prev => ({ ...prev, filiere_id: e.target.value }))}
+                      disabled={!formData.domain}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00] disabled:bg-slate-100"
+                    >
+                      <option value="">Filière...</option>
+                      {filieresOfDomain.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Enseignant Assigné */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Enseignant assigné</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Enseignant Assigné (Tous départements)
+                </label>
                 <select
                   value={formData.teacher_id}
                   onChange={(e) => setFormData({ ...formData, teacher_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white text-xs"
                 >
                   <option value="">Non assigné</option>
-                  {teachersOfFiliere.map((t: any) => (
+                  {teachers.map((t: any) => (
                     <option key={t.id} value={t.id}>
-                      {t.first_name} {t.last_name} ({t.speciality})
+                      {t.first_name} {t.last_name} {t.speciality ? `(${t.speciality})` : ''}
                     </option>
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              {/* Crédits & Volume Horaire (Boutons) */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Crédits</label>
-                  <input
-                    type="number"
-                    value={formData.credits}
-                    onChange={(e) => setFormData({ ...formData, credits: parseInt(e.target.value) || 0 })}
-                    min="1"
-                    max="10"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Volume horaire *</label>
-                  <select
-                    value={formData.hours}
-                    onChange={(e) => setFormData({ ...formData, hours: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00] bg-white"
-                  >
-                    {hoursOptions.map(h => (
-                      <option key={h.value} value={h.value}>{h.label}</option>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Crédits ECTS
+                  </label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5, 6].map(cr => (
+                      <button
+                        key={cr}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, credits: cr }))}
+                        className={`flex-1 py-1 rounded-lg text-xs font-bold cursor-pointer ${
+                          formData.credits === cr
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {cr}
+                      </button>
                     ))}
-                  </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Volume Horaire
+                  </label>
+                  <div className="flex flex-wrap gap-1">
+                    {[15, 20, 30, 40, 50].map(h => (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, hours: h }))}
+                        className={`px-2 py-1 rounded-lg text-xs font-bold cursor-pointer ${
+                          formData.hours === h
+                            ? 'bg-[#FF6B00] text-white'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {h}h
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex gap-3 mt-6">
+
+            <div className="flex gap-3 pt-3 border-t border-slate-100">
               <button
-                onClick={() => { setShowEditModal(false); resetForm(); }}
-                className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium"
+                type="button"
+                onClick={() => { setShowCreateModal(false); setShowEditModal(false); resetForm(); }}
+                className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold"
               >
                 Annuler
               </button>
               <button
-                onClick={handleEdit}
+                type="button"
+                onClick={showCreateModal ? handleCreate : handleEdit}
                 disabled={saving}
-                className="flex-1 px-3 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-lg text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-3 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-xs"
               >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+                {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                <span>{saving ? 'Enregistrement...' : showCreateModal ? 'Créer le Cours' : 'Enregistrer'}</span>
               </button>
             </div>
           </div>
