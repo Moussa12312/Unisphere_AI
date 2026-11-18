@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, BookOpen, GraduationCap, UserCheck, UserCog, User, FileText, Calendar, Calculator, CreditCard,
-  Bell, BarChart3, Bot, Settings, ChevronDown, ChevronRight,
+  Bell, BarChart3, Bot, Settings, ChevronDown, ChevronRight, ChevronLeft,
   Upload, CheckCircle, Award, TrendingUp, TrendingDown, MessageSquare,
   ClipboardList, Receipt, AlertCircle, FileCheck, School, Building2, DollarSign, Shield, KeyRound,
   QrCode, Edit3, Clock, AlertTriangle, RotateCcw, FileBarChart,
