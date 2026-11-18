@@ -4,6 +4,12 @@ from sqlalchemy import func
 from datetime import datetime, date
 import os
 import json
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement dès l'import
+load_dotenv()
+load_dotenv("backend/.env")
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
 from app.database.connection import SessionLocal
 from app.models.user import User
@@ -415,16 +421,22 @@ def call_llm_provider(system_prompt: str, conversation_history: list, user_messa
 
     # 1. Groq (Prioritaire : 100% gratuit, extrêmement rapide, multi-modèles)
     groq_api_key = os.getenv("GROQ_API_KEY")
+    if not groq_api_key:
+        load_dotenv()
+        load_dotenv("backend/.env")
+        groq_api_key = os.getenv("GROQ_API_KEY")
+
     if groq_api_key and groq_api_key.strip() and not groq_api_key.startswith("gsk_placeholder"):
         try:
             from openai import OpenAI
             client = OpenAI(
                 api_key=groq_api_key.strip(),
-                base_url="https://api.groq.com/openai/v1"
+                base_url="https://api.groq.com/openai/v1",
+                timeout=12.0
             )
             configured_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b").strip()
             models_to_try = [configured_model] if configured_model else []
-            for candidate in ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"]:
+            for candidate in ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "allam-2-7b"]:
                 if candidate not in models_to_try:
                     models_to_try.append(candidate)
 
@@ -583,7 +595,50 @@ def generate_local_ai_response(message: str, context: dict, user_name: str) -> s
             f"• **Export Excel :** Le Censeur et le Secrétariat peuvent exporter la liste complète des candidats au rattrapage par filière depuis *Examens > Rattrapages*."
         )
 
-    # 6. Inscriptions, Admission & Ajout d'étudiant
+    # 6. Effectif & Nombre d'étudiants (Gestion globale des effectifs)
+    if any(k in msg for k in [
+        "combien d'etudiant", "combien d'étudiant", "combien d'etudiants", "combien d'étudiants",
+        "combien d etudiant", "combien d etudiants", "combien avons-nous d'etudiants", "combien avons-nous d'étudiants",
+        "combien d'eleve", "combien d'élève", "combien d'eleves", "combien d'élèves",
+        "nombre d'etudiant", "nombre d'étudiant", "nombre d'etudiants", "nombre d'étudiants",
+        "nombre d'eleve", "nombre d'élève", "effectif etudiant", "effectif étudiant", "effectif total", "effectifs",
+        "combien d'inscrits", "combien d'étudiants avons-nous", "combien avons-nous d'étudiants"
+    ]):
+        filieres_text = ""
+        filieres = context.get("filieres") or {}
+        if isinstance(filieres, dict) and filieres:
+            filieres_text = "\n\n📚 **Répartition par filière :**\n" + "\n".join([f"• **{f}** : {cnt} étudiant(s)" for f, cnt in filieres.items()])
+        elif isinstance(filieres, list) and filieres:
+            filieres_text = "\n\n📚 **Répartition par filière :**\n" + "\n".join([f"• **{f.get('name', 'Filière')}** : {f.get('count', 0)} étudiant(s)" for f in filieres])
+
+        return (
+            f"👥 **Effectif Étudiant en Temps Réel :**\n\n"
+            f"Votre établissement compte actuellement **{total_students} étudiant{'s' if total_students > 1 else ''} inscrit{'s' if total_students > 1 else ''}** dans la base de données.{filieres_text}\n\n"
+            f"👉 Vous pouvez consulter la liste complète, les fiches individuelles et générer les cartes QR depuis le menu *Étudiants*."
+        )
+
+    # 7. Effectif Enseignants
+    if any(k in msg for k in [
+        "combien d'enseignant", "combien d'enseignants", "nombre d'enseignant", "nombre d'enseignants",
+        "combien de prof", "combien de professeur", "combien de professeurs", "effectif enseignant"
+    ]):
+        return (
+            f"👨‍🏫 **Corps Enseignant en Temps Réel :**\n\n"
+            f"Votre établissement compte actuellement **{total_teachers} enseignant{'s' if total_teachers > 1 else ''}** enregistrés dans le système.\n\n"
+            f"👉 Consultez leurs affectations de modules et leurs emplois du temps depuis le menu *Enseignants*."
+        )
+
+    # 8. Nombre de Cours & Modules LMD
+    if any(k in msg for k in [
+        "combien de cours", "combien de module", "combien de modules", "nombre de cours", "nombre de modules"
+    ]):
+        return (
+            f"📚 **Modules & Cours Configurés :**\n\n"
+            f"Votre établissement compte actuellement **{total_courses} module{'s' if total_courses > 1 else ''} / cours** configurés selon la maquette LMD.\n\n"
+            f"👉 Consultez les maquettes et unités d'enseignement depuis le menu *Cours & Modules*."
+        )
+
+    # 9. Inscriptions, Admission & Ajout d'étudiant
     if any(k in msg for k in ["inscrire", "inscription", "admission", "ajouter un etudiant", "ajouter un étudiant", "nouveau etudiant", "matricule", "dossier"]):
         return (
             f"👤 **Inscriptions & Gestion des Étudiants :**\n\n"
@@ -593,7 +648,7 @@ def generate_local_ai_response(message: str, context: dict, user_name: str) -> s
             f"• **Effectif actuel :** **{total_students} étudiants inscrits** dans la base de données."
         )
 
-    # 7. Cartes Étudiantes, Badges & Impression
+    # 10. Cartes Étudiantes, Badges & Impression
     if any(k in msg for k in ["carte", "carte etudiante", "carte étudiante", "badge", "imprimer la carte", "tirage", "cr80", "qr code", "filigrane"]):
         return (
             f"🪪 **Atelier des Cartes Étudiantes (Norme ISO CR80) :**\n\n"
@@ -604,13 +659,13 @@ def generate_local_ai_response(message: str, context: dict, user_name: str) -> s
             f"• **Personnalisation :** Choix parmi 8 palettes officielles ou personnalisation libre des couleurs."
         )
 
-    # 8. Finances, Trésorerie, Dépenses & Recettes (enrichi avec tous les mots-clés)
+    # 11. Finances, Trésorerie, Dépenses & Recettes (SANS le mot générique 'combien')
     if any(k in msg for k in [
-        "finance", "finances", "argent", "combien", "caisse", "solde", "tresorerie", "trésorerie",
+        "finance", "finances", "argent", "caisse", "solde", "tresorerie", "trésorerie",
         "chiffre", "recette", "recettes", "revenu", "revenus", "depense", "depenses", "dépense", "dépenses",
         "impaye", "impayes", "impayé", "impayés", "tranche", "tranches", "scolarite", "scolarité",
         "frais", "tarif", "paiement", "recouvrement", "mensuel", "mensualite", "mensualité",
-        "quittance", "recu", "reçu"
+        "quittance", "recu", "reçu", "combien en caisse", "combien de recettes", "combien de revenus"
     ]):
         return (
             f"💰 **Situation Financière & Trésorerie en Temps Réel :**\n\n"
@@ -621,7 +676,7 @@ def generate_local_ai_response(message: str, context: dict, user_name: str) -> s
             f"• ⏳ **Reliquats / Échéances en Attente :** **{late_str}**\n"
             f"• 📊 **Taux de Recouvrement Global :** **{rate_coll}%**\n\n"
             f"📌 *UniSphere AI gère automatiquement la répartition stricte des 3 tranches académiques (P1, P2, P3 = 100%) "
-            f"ainsi que les facilités de paiements mensuels avec délivrance instantanée des quittances.*"
+            f"ainsi que les facilités de paiements mensuels sur 8 mois avec délivrance instantanée des quittances.*"
         )
 
     # 9. Notes, Bulletins & Relevés LMD
