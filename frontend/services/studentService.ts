@@ -46,10 +46,9 @@ export const studentService = {
   // ✅ Import en masse (Fichier CSV ou Excel .xlsx)
   importFile: async (file: File) => {
     const formData = new FormData();
-    formData.append('file', file);
-    const response = await api.post('/api/v1/students/import-file', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    const fileName = file.name || 'etudiants.xlsx';
+    formData.append('file', file, fileName);
+    const response = await api.post('/api/v1/students/import-file', formData);
     return response.data;
   },
 

@@ -892,20 +892,59 @@ def bulk_create_students(
 
 @router.post("/import-file")
 async def import_students_file(
-    file: UploadFile = File(...),
+    request: Request,
+    file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "secretary"))
 ):
     """Import et création en masse d'étudiants à partir d'un fichier Excel (.xlsx) ou CSV (.csv)"""
-    filename = file.filename or ""
-    ext = filename.lower().split(".")[-1]
+    content = None
+    filename = ""
 
-    if ext not in ("csv", "xlsx", "xls", "txt"):
-        raise HTTPException(status_code=400, detail="Format non supporté. Veuillez importer un fichier .csv ou .xlsx")
+    # 1. Extraction standard via UploadFile
+    if file is not None:
+        filename = file.filename or ""
+        try:
+            content = await file.read()
+        except Exception:
+            content = None
 
-    content = await file.read()
+    # 2. Fallback d'extraction multipart (garantit la compatibilité totale sur mobile iOS/Safari et Android)
     if not content or len(content) == 0:
-        raise HTTPException(status_code=400, detail="Le fichier envoyé est vide")
+        try:
+            form = await request.form()
+            for key in ("file", "upload", "document", "fichier"):
+                candidate = form.get(key)
+                if candidate is not None:
+                    if hasattr(candidate, "read"):
+                        filename = getattr(candidate, "filename", "") or filename or "import.xlsx"
+                        content = await candidate.read()
+                        break
+                    elif isinstance(candidate, (bytes, bytearray)):
+                        content = bytes(candidate)
+                        filename = filename or "import.xlsx"
+                        break
+            if not content:
+                for k, candidate in form.items():
+                    if hasattr(candidate, "read"):
+                        filename = getattr(candidate, "filename", "") or filename or "import.xlsx"
+                        content = await candidate.read()
+                        break
+        except Exception as e:
+            logger.warning(f"Erreur extraction multipart mobile: {e}")
+
+    if not content or len(content) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Aucun fichier d'étudiants reçu ou le fichier est vide. Veuillez sélectionner un fichier .xlsx ou .csv."
+        )
+
+    if not filename:
+        filename = "import.xlsx"
+
+    ext = filename.lower().split(".")[-1]
+    if ext not in ("csv", "xlsx", "xls", "txt"):
+        ext = "xlsx"
 
     parsed_rows: List[Dict[str, Any]] = []
 
@@ -1016,8 +1055,8 @@ async def import_students_file(
     if not parsed_rows:
         raise HTTPException(status_code=400, detail="Aucune donnée d'étudiant trouvée dans le fichier")
 
-    if len(parsed_rows) > 500:
-        raise HTTPException(status_code=400, detail="Le fichier contient plus de 500 étudiants. Veuillez découper par lot.")
+    if len(parsed_rows) > 2500:
+        raise HTTPException(status_code=400, detail="Le fichier contient plus de 2 500 étudiants. Veuillez découper par lot.")
 
     return process_bulk_students(parsed_rows, db, current_user)
 

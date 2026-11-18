@@ -443,7 +443,7 @@ export default function BulkStudentRegistration({ basePath }: BulkStudentRegistr
                     Glissez-déposez votre fichier ici, ou cliquez pour parcourir
                   </p>
                   <p className="text-xs text-slate-500">
-                    Formats acceptés : <strong>.xlsx</strong> (Excel) ou <strong>.csv</strong> (jusqu'à 500 étudiants par lot)
+                    Formats acceptés : <strong>.xlsx</strong> (Excel) ou <strong>.csv</strong> (jusqu'à 2 500 étudiants par lot)
                   </p>
                 </div>
               )}
