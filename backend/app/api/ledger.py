@@ -160,7 +160,7 @@ def create_account(data: AccountCreate, db: Session = Depends(get_db), current_u
 
 
 @router.delete("/accounts/{account_id}")
-def delete_account(account_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+def delete_account(account_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "accountant"))):
     account = db.query(Account).filter(Account.id == account_id, Account.university_id == current_user.university_id).first()
     if not account:
         raise HTTPException(status_code=404, detail="Compte non trouvé")
@@ -260,7 +260,7 @@ def create_manual_entry(data: JournalEntryCreate, db: Session = Depends(get_db),
 
 
 @router.delete("/journal/{entry_id}")
-def delete_journal_entry(entry_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+def delete_journal_entry(entry_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin", "accountant"))):
     entry = db.query(JournalEntry).filter(JournalEntry.id == entry_id, JournalEntry.university_id == current_user.university_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Écriture non trouvée")
