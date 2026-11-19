@@ -329,6 +329,17 @@ def update_course(
     if course.teaching_unit_id is not None and course.teaching_unit_id != existing_course.teaching_unit_id:
         existing_course.teaching_unit_id = course.teaching_unit_id if course.teaching_unit_id != 0 else None
 
+    # 8. Semestre & Tronc Commun / Sélection de filières
+    if course.semester is not None:
+        existing_course.semester = course.semester
+    if course.is_common_core is not None:
+        existing_course.is_common_core = bool(course.is_common_core)
+        if existing_course.is_common_core and not course.filiere_id:
+            existing_course.filiere_id = None
+            existing_course.department = course.department or "Tronc Commun"
+    if course.common_core_filieres is not None:
+        existing_course.common_core_filieres = course.common_core_filieres
+
     # ✅ Valider TOUT
     db.commit()
     db.refresh(existing_course)

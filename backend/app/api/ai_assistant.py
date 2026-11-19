@@ -158,12 +158,9 @@ def get_teacher_context(db: Session, user_id: int, university_id: int) -> dict:
     total_students = 0
     all_scores = []
     
+    from app.utils.course_students import build_course_students_query
     for course in courses:
-        students_count = db.query(func.count(Student.id)).filter(
-            Student.university_id == university_id,
-            Student.level == course.level,
-            Student.filiere == course.department
-        ).scalar() or 0
+        students_count = build_course_students_query(db, course, university_id).count()
         
         grades = db.query(Grade).filter(Grade.course_id == course.id, Grade.score.isnot(None)).all()
         scores = [g.score for g in grades if g.score is not None]
