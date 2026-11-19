@@ -282,15 +282,25 @@ export default function SecretaryStudentsPage() {
                     <tr key={student.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-[#FF6B00]/10 border border-slate-200">
-                            <img
-                              src={getMediaUrl(student.photo, `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=64`)}
-                              alt=""
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=64`;
-                              }}
-                            />
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-orange-100 border border-slate-200">
+                            {student.photo ? (
+                              <img
+                                src={getMediaUrl(student.photo)}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fallback = e.currentTarget.parentElement?.querySelector('.avatar-fallback');
+                                  if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className="avatar-fallback w-full h-full text-[#FF6B00] text-xs font-bold flex items-center justify-center"
+                              style={{ display: student.photo ? 'none' : 'flex' }}
+                            >
+                              {(student.first_name?.[0] || '').toUpperCase()}{(student.last_name?.[0] || '').toUpperCase()}
+                            </div>
                           </div>
                           <div>
                             <p className="font-semibold text-slate-900 text-sm">

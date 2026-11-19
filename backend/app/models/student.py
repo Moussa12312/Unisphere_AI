@@ -10,9 +10,9 @@ class Student(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # ✅ Infos personnelles
-    first_name = Column(String, nullable=False)
-    last_name = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False)
+    first_name = Column(String, nullable=False, index=True)
+    last_name = Column(String, nullable=False, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
     date_of_birth = Column(Date, nullable=True)
     place_of_birth = Column(String, nullable=True)
     gender = Column(String, nullable=True)
@@ -23,10 +23,10 @@ class Student(Base):
     address = Column(String, nullable=True)
     
     # ✅ Académique
-    filiere = Column(String)
-    level = Column(String)
-    domain = Column(String, nullable=True)  # ✅ AJOUTÉ
-    matricule = Column(String, unique=True)
+    filiere = Column(String, index=True)
+    level = Column(String, index=True)
+    domain = Column(String, nullable=True, index=True)  # ✅ AJOUTÉ
+    matricule = Column(String, unique=True, index=True)
     
     # ✅ Parent/Tuteur
     parent_name = Column(String, nullable=True)
@@ -36,10 +36,10 @@ class Student(Base):
     # Système
     qr_code = Column(String, nullable=True)
     photo = Column(String, nullable=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    university_id = Column(Integer, ForeignKey("universities.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    university_id = Column(Integer, ForeignKey("universities.id"), index=True)
     university_name = Column(String, default="UniSphere AI")
-    status = Column(String, default="active")  # ✅ AJOUTÉ
+    status = Column(String, default="active", index=True)  # ✅ AJOUTÉ
     
     locked_fee_id = Column(Integer, ForeignKey("academic_fees.id"), nullable=True)
 

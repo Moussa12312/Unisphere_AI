@@ -184,7 +184,7 @@ def get_staff_summary(
     
     return result
 
-# ✅ SUPPRIMER UN MEMBRE
+# ✅ SUPPRIMER UN MEMBRE PROPREMENT AVEC DÉLIAGE DES CLÉS ÉTRANGÈRES
 @router.delete("/{staff_id}")
 def delete_staff_member(
     staff_id: int,
@@ -202,10 +202,158 @@ def delete_staff_member(
     if staff.id == current_user.id:
         raise HTTPException(status_code=400, detail="Vous ne pouvez pas supprimer votre propre compte")
     
-    db.delete(staff)
-    db.commit()
+    staff_name = staff.full_name or staff.email
+    uid = staff.id
+
+    try:
+        # 1. Nettoyage Enseignant si rattaché
+        try:
+            from app.models.teacher import Teacher
+            from app.models.course import Course
+            from app.models.material import Material
+            from app.models.schedule import Schedule
+            from app.models.attendance import Attendance
+            from app.models.class_room import ClassRoom
+            from app.models.exam_schedule import ExamSchedule
+
+            teachers = db.query(Teacher).filter(Teacher.user_id == uid).all()
+            for t in teachers:
+                db.query(Course).filter(Course.teacher_id == t.id).update({Course.teacher_id: None}, synchronize_session=False)
+                db.query(Material).filter(Material.teacher_id == t.id).delete(synchronize_session=False)
+                db.query(Schedule).filter(Schedule.teacher_id == t.id).update({Schedule.teacher_id: None}, synchronize_session=False)
+                db.query(Attendance).filter(Attendance.teacher_id == t.id).update({Attendance.teacher_id: None}, synchronize_session=False)
+                db.query(ClassRoom).filter(ClassRoom.main_teacher_id == t.id).update({ClassRoom.main_teacher_id: None}, synchronize_session=False)
+                db.query(ExamSchedule).filter(ExamSchedule.supervisor_id == t.id).update({ExamSchedule.supervisor_id: None}, synchronize_session=False)
+                db.delete(t)
+        except Exception:
+            pass
+
+        # 2. Nettoyage Censeur si rattaché
+        try:
+            from app.models.censor import Censor
+            db.query(Censor).filter(Censor.user_id == uid).delete(synchronize_session=False)
+        except Exception:
+            pass
+
+        # 3. Messages & Notifications
+        try:
+            from app.models.message import Message
+            db.query(Message).filter((Message.sender_id == uid) | (Message.recipient_id == uid)).update({Message.parent_id: None}, synchronize_session=False)
+            db.query(Message).filter((Message.sender_id == uid) | (Message.recipient_id == uid)).delete(synchronize_session=False)
+        except Exception:
+            pass
+
+        try:
+            from app.models.notification import Notification
+            db.query(Notification).filter((Notification.recipient_id == uid) | (Notification.created_by == uid)).delete(synchronize_session=False)
+        except Exception:
+            pass
+
+        # 4. OTP et réinitialisations de mot de passe
+        try:
+            from app.models.password_reset_otp import PasswordResetOTP
+            db.query(PasswordResetOTP).filter(PasswordResetOTP.user_id == uid).delete(synchronize_session=False)
+        except Exception:
+            pass
+
+        try:
+            from app.models.password_reset_request import PasswordResetRequest
+            db.query(PasswordResetRequest).filter((PasswordResetRequest.user_id == uid) | (PasswordResetRequest.handled_by == uid)).delete(synchronize_session=False)
+        except Exception:
+            pass
+
+        # 5. Logs d'audit & Notes
+        try:
+            from app.models.audit_log import AuditLog
+            db.query(AuditLog).filter(AuditLog.user_id == uid).update({AuditLog.user_id: None}, synchronize_session=False)
+        except Exception:
+            pass
+
+        try:
+            from app.models.grade import Grade
+            db.query(Grade).filter(Grade.graded_by == uid).update({Grade.graded_by: None}, synchronize_session=False)
+            db.query(Grade).filter(Grade.validated_by == uid).update({Grade.validated_by: None}, synchronize_session=False)
+            db.query(Grade).filter(Grade.rejected_by == uid).update({Grade.rejected_by: None}, synchronize_session=False)
+        except Exception:
+            pass
+
+        # 6. Scans de présence & Sessions de scan
+        try:
+            from app.models.attendance import Attendance
+            db.query(Attendance).filter(Attendance.scanned_by == uid).update({Attendance.scanned_by: None}, synchronize_session=False)
+        except Exception:
+            pass
+
+        try:
+            from app.models.scan_session import ScanSession
+            db.query(ScanSession).filter(ScanSession.created_by == uid).update({ScanSession.created_by: current_user.id}, synchronize_session=False)
+        except Exception:
+            pass
+
+        # 7. Comptabilité & Paie
+        try:
+            from app.models.accounting import PayrollEntry, Expense, BankAccount
+            db.query(PayrollEntry).filter(PayrollEntry.user_id == uid).delete(synchronize_session=False)
+            db.query(Expense).filter(Expense.created_by == uid).update({Expense.created_by: None}, synchronize_session=False)
+            db.query(BankAccount).filter(BankAccount.created_by == uid).update({BankAccount.created_by: None}, synchronize_session=False)
+        except Exception:
+            pass
+
+        # 8. Paiements & Rappels
+        try:
+            from app.models.payment import Payment
+            from app.models.payment_reminder import PaymentReminder
+            db.query(Payment).filter(Payment.created_by == uid).update({Payment.created_by: None}, synchronize_session=False)
+            db.query(Payment).filter(Payment.paid_by == uid).update({Payment.paid_by: None}, synchronize_session=False)
+            db.query(PaymentReminder).filter(PaymentReminder.sent_by_user_id == uid).update({PaymentReminder.sent_by_user_id: None}, synchronize_session=False)
+        except Exception:
+            pass
+
+        # 9. Écritures de grand livre
+        try:
+            from app.models.ledger import JournalEntry, FiscalYear, BankReconciliation
+            db.query(JournalEntry).filter(JournalEntry.created_by == uid).update({JournalEntry.created_by: None}, synchronize_session=False)
+            db.query(FiscalYear).filter(FiscalYear.closed_by == uid).update({FiscalYear.closed_by: None}, synchronize_session=False)
+            db.query(BankReconciliation).filter(BankReconciliation.created_by == uid).update({BankReconciliation.created_by: None}, synchronize_session=False)
+        except Exception:
+            pass
+
+        # 10. Incidents & Annonces & Documents
+        try:
+            from app.models.incident import Incident
+            db.query(Incident).filter(Incident.reported_by == uid).update({Incident.reported_by: current_user.id}, synchronize_session=False)
+        except Exception:
+            pass
+
+        try:
+            from app.models.announcement import Announcement
+            db.query(Announcement).filter(Announcement.created_by == uid).update({Announcement.created_by: None}, synchronize_session=False)
+        except Exception:
+            pass
+
+        try:
+            from app.models.document import Document
+            db.query(Document).filter(Document.generated_by == uid).update({Document.generated_by: None}, synchronize_session=False)
+        except Exception:
+            pass
+
+        try:
+            from app.models.academic_fee import AcademicFee
+            db.query(AcademicFee).filter(AcademicFee.created_by == uid).update({AcademicFee.created_by: None}, synchronize_session=False)
+        except Exception:
+            pass
+
+        # 11. Suppression du compte utilisateur
+        db.delete(staff)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de la suppression de {staff_name} : {str(e)}"
+        )
     
-    return {"message": f"{staff.full_name} supprimé avec succès"}
+    return {"message": f"{staff_name} supprimé avec succès"}
 
 # ✅ DÉSACTIVER/RÉACTIVER UN MEMBRE
 @router.patch("/{staff_id}/toggle-status")

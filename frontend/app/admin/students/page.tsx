@@ -382,14 +382,24 @@ export default function StudentsPage() {
                                               <tr key={student.id} className="hover:bg-slate-50 transition-colors">
                                                 <td className="px-3 sm:px-6 py-2.5 sm:py-3 pl-6 sm:pl-36">
                                                   <div className="flex items-center gap-3">
-                                                    <img
-                                                      src={getMediaUrl(student.photo, `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=64`)}
-                                                      alt=""
-                                                      className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                                                      onError={(e) => {
-                                                        (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(student.first_name || '')}+${encodeURIComponent(student.last_name || '')}&background=FF6B00&color=fff&size=64`;
-                                                      }}
-                                                    />
+                                                    {student.photo ? (
+                                                      <img
+                                                        src={getMediaUrl(student.photo)}
+                                                        alt=""
+                                                        className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                                                        onError={(e) => {
+                                                          e.currentTarget.style.display = 'none';
+                                                          const fallback = e.currentTarget.parentElement?.querySelector('.avatar-fallback');
+                                                          if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                                                        }}
+                                                      />
+                                                    ) : null}
+                                                    <div
+                                                      className="avatar-fallback w-8 h-8 rounded-full bg-orange-100 text-[#FF6B00] border border-orange-200 text-xs font-bold flex items-center justify-center flex-shrink-0"
+                                                      style={{ display: student.photo ? 'none' : 'flex' }}
+                                                    >
+                                                      {(student.first_name?.[0] || '').toUpperCase()}{(student.last_name?.[0] || '').toUpperCase()}
+                                                    </div>
                                                     <div>
                                                       <p className="font-medium text-slate-900 text-sm">{student.first_name} {student.last_name}</p>
                                                       <p className="text-xs text-slate-500 font-mono">{student.matricule}</p>

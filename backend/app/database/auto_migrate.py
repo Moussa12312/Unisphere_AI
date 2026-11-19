@@ -72,6 +72,7 @@ def run_auto_migrations(engine: Engine) -> int:
             try:
                 Base.metadata.create_all(bind=engine)
                 added_count = _sync_missing_columns(engine, dialect_name)
+                _sync_indexes(engine, dialect_name)
                 try:
                     with engine.begin() as conn:
                         conn.execute(text('ALTER TABLE "materials" ALTER COLUMN "teacher_id" DROP NOT NULL;'))
@@ -86,8 +87,39 @@ def run_auto_migrations(engine: Engine) -> int:
     else:
         Base.metadata.create_all(bind=engine)
         added_count = _sync_missing_columns(engine, dialect_name)
+        _sync_indexes(engine, dialect_name)
 
     return added_count
+
+
+def _sync_indexes(engine: Engine, dialect_name: str):
+    """Crée les index de performance critiques s'ils n'existent pas encore (PostgreSQL & SQLite)."""
+    indexes_to_create = [
+        ("students", "university_id", "ix_students_university_id"),
+        ("students", "filiere", "ix_students_filiere"),
+        ("students", "level", "ix_students_level"),
+        ("students", "status", "ix_students_status"),
+        ("students", "user_id", "ix_students_user_id"),
+        ("students", "domain", "ix_students_domain"),
+        ("payments", "university_id", "ix_payments_university_id"),
+        ("payments", "student_id", "ix_payments_student_id"),
+        ("payments", "status", "ix_payments_status"),
+        ("attendances", "university_id", "ix_attendances_university_id"),
+        ("attendances", "student_id", "ix_attendances_student_id"),
+        ("attendances", "date", "ix_attendances_date"),
+        ("grades", "university_id", "ix_grades_university_id"),
+        ("grades", "student_id", "ix_grades_student_id"),
+        ("grades", "course_id", "ix_grades_course_id"),
+        ("courses", "university_id", "ix_courses_university_id"),
+        ("users", "university_id", "ix_users_university_id"),
+        ("users", "role", "ix_users_role"),
+    ]
+    with engine.begin() as conn:
+        for table, col, idx_name in indexes_to_create:
+            try:
+                conn.execute(text(f'CREATE INDEX IF NOT EXISTS "{idx_name}" ON "{table}" ("{col}");'))
+            except Exception:
+                pass
 
 
 def _sync_missing_columns(engine: Engine, dialect_name: str) -> int:

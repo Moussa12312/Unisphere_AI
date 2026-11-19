@@ -275,7 +275,7 @@ async def create_teacher(
             Filiere.university_id == current_user.university_id
         ).first()
         if filiere:
-            department = filiere.department or filiere.name
+            department = filiere.name or getattr(filiere, 'domain', None) or "Enseignement Général"
         else:
             parsed_filiere_id = None
     

@@ -1822,37 +1822,23 @@ def get_students(
             (Student.email.ilike(search_term))
         )
     
-    students = query.order_by(Student.last_name, Student.first_name).all()
+    # ⚡ Optimisation Haute Performance : Jointure SQL directe (1 seule requête instantanée au lieu d'une sous-requête avec des milliers de paramètres)
+    query = query.outerjoin(User, Student.user_id == User.id)
+    students_with_photos = query.with_entities(Student, User.photo.label("user_photo")).order_by(Student.last_name, Student.first_name).all()
     
     result = []
-    univ_id = current_user.university_id or (students[0].university_id if students else 1)
+    univ_id = current_user.university_id or (students_with_photos[0][0].university_id if students_with_photos else 1)
     
-    # ⚡ Optimisation Haute Performance : Pré-chargement des filières (évite la boucle N+1)
+    # Pré-chargement des filières
     filieres_map = {
         f.name: f.domain
         for f in db.query(Filiere).filter(Filiere.university_id == univ_id).all()
         if f.name
     }
 
-    # Pré-chargement des photos des comptes utilisateurs liés pour synchronisation instantanée
-    user_ids = [s.user_id for s in students if s.user_id and not s.photo]
-    user_emails = [s.email for s in students if s.email and not s.photo]
-    user_photo_map = {}
-    if user_ids or user_emails:
-        try:
-            linked_users = db.query(User).filter(
-                (User.id.in_(user_ids)) | (User.email.in_(user_emails))
-            ).all()
-            for u in linked_users:
-                if u.photo:
-                    user_photo_map[f"id_{u.id}"] = u.photo
-                    user_photo_map[f"email_{u.email}"] = u.photo
-        except Exception:
-            pass
-
-    for student in students:
+    for student, user_photo in students_with_photos:
         resolved_domain = student.domain or filieres_map.get(student.filiere) or "Non défini"
-        resolved_photo = student.photo or user_photo_map.get(f"id_{student.user_id}") or user_photo_map.get(f"email_{student.email}")
+        resolved_photo = student.photo or user_photo
         
         student_dict = {
             "id": student.id,
