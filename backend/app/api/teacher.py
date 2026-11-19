@@ -58,13 +58,10 @@ def get_teacher_dashboard(
         Course.university_id == current_user.university_id
     ).all()
     
+    from app.utils.course_students import build_course_students_query
     students_ids = set()
     for course in courses:
-        students = db.query(Student).filter(
-            Student.university_id == current_user.university_id,
-            Student.level == course.level,
-            Student.filiere == course.department
-        ).all()
+        students = build_course_students_query(db, course, current_user.university_id).all()
         for s in students:
             students_ids.add(s.id)
     
@@ -142,14 +139,11 @@ def get_teacher_courses(
         Course.university_id == current_user.university_id
     ).all()
     
+    from app.utils.course_students import build_course_students_query
     result = []
     for course in courses:
-        # Compter les étudiants
-        students_count = db.query(Student).filter(
-            Student.university_id == current_user.university_id,
-            Student.level == course.level,
-            Student.filiere == course.department
-        ).count()
+        # Compter les étudiants (gère Filière et Tronc Commun)
+        students_count = build_course_students_query(db, course, current_user.university_id).count()
         
         # Compter les notes saisies
         grades_count = db.query(Grade).filter(
@@ -202,12 +196,9 @@ def get_course_students(
     if not course:
         raise HTTPException(status_code=404, detail="Cours non trouvé ou non assigné")
     
-    # Récupérer les étudiants
-    students = db.query(Student).filter(
-        Student.university_id == current_user.university_id,
-        Student.level == course.level,
-        Student.filiere == course.department
-    ).all()
+    # Récupérer les étudiants (gère Filière et Tronc Commun)
+    from app.utils.course_students import build_course_students_query
+    students = build_course_students_query(db, course, current_user.university_id).order_by(Student.last_name, Student.first_name).all()
     
     return {
         "course": {
@@ -600,12 +591,9 @@ def get_course_attendance(
     if not course:
         raise HTTPException(status_code=404, detail="Cours non trouvé")
     
-    # Récupérer les étudiants
-    students = db.query(Student).filter(
-        Student.university_id == current_user.university_id,
-        Student.level == course.level,
-        Student.filiere == course.department
-    ).all()
+    # Récupérer les étudiants (gère Filière et Tronc Commun)
+    from app.utils.course_students import build_course_students_query
+    students = build_course_students_query(db, course, current_user.university_id).order_by(Student.last_name, Student.first_name).all()
     
     result = []
     for student in students:
@@ -651,14 +639,11 @@ def get_all_students(
         Course.university_id == current_user.university_id
     ).all()
     
-    # Collecter tous les étudiants uniques
+    # Collecter tous les étudiants uniques (gère Filière et Tronc Commun)
+    from app.utils.course_students import build_course_students_query
     students_dict = {}
     for course in courses:
-        students = db.query(Student).filter(
-            Student.university_id == current_user.university_id,
-            Student.level == course.level,
-            Student.filiere == course.department
-        ).all()
+        students = build_course_students_query(db, course, current_user.university_id).all()
         
         for student in students:
             if student.id not in students_dict:

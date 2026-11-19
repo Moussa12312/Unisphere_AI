@@ -2212,18 +2212,10 @@ def get_my_courses(
     ).all()
 
     result = []
+    from app.utils.course_students import student_matches_course
     for c in courses:
-        course_filiere_name = ""
-        if hasattr(c, 'filiere') and c.filiere:
-            course_filiere_name = getattr(c.filiere, 'name', str(c.filiere))
-        elif hasattr(c, 'department') and c.department:
-            course_filiere_name = c.department
-
-        if student.filiere and course_filiere_name:
-            st_fil = student.filiere.strip().lower()
-            co_fil = course_filiere_name.strip().lower()
-            if st_fil != co_fil and st_fil not in co_fil and co_fil not in st_fil:
-                continue
+        if not student_matches_course(db, student, c, current_user.university_id):
+            continue
 
         teacher_name = "Enseignant non assigné"
         if hasattr(c, 'teacher_id') and c.teacher_id:
@@ -2345,17 +2337,8 @@ def get_my_schedule(
         course = db.query(Course).filter(Course.id == s.course_id).first()
         
         if course and student.filiere and not student.class_room_id:
-            course_filiere_name = ""
-            if hasattr(course, 'filiere') and course.filiere and hasattr(course.filiere, 'name'):
-                course_filiere_name = course.filiere.name
-            elif getattr(course, 'department', None):
-                course_filiere_name = course.department
-            elif getattr(course, 'filiere_id', None):
-                fil = db.query(Filiere).filter(Filiere.id == course.filiere_id).first()
-                if fil:
-                    course_filiere_name = fil.name
-                
-            if course_filiere_name and course_filiere_name.lower().strip() != student.filiere.lower().strip():
+            from app.utils.course_students import student_matches_course
+            if not student_matches_course(db, student, course, current_user.university_id):
                 continue
 
         teacher = db.query(Teacher).filter(Teacher.id == s.teacher_id).first() if s.teacher_id else None

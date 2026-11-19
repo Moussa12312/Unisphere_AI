@@ -1100,18 +1100,8 @@ def get_course_roster(
     if not course:
         raise HTTPException(status_code=404, detail="Cours non trouvé")
 
-    filiere_name = ""
-    if hasattr(course, 'filiere') and course.filiere:
-        filiere_name = getattr(course.filiere, 'name', str(course.filiere))
-    elif hasattr(course, 'department') and course.department:
-        filiere_name = course.department
-
-    query = db.query(Student).filter(
-        Student.level == course.level,
-        Student.university_id == current_user.university_id
-    )
-    if filiere_name:
-        query = query.filter(Student.filiere.ilike(f"%{filiere_name}%"))
+    from app.utils.course_students import build_course_students_query
+    query = build_course_students_query(db, course, current_user.university_id)
 
     students = query.order_by(Student.last_name, Student.first_name).all()
 
@@ -1155,6 +1145,7 @@ def get_course_roster(
             "student_id": s.id,
             "student_name": f"{s.first_name} {s.last_name}",
             "matricule": s.matricule,
+            "filiere": s.filiere,
             "current_status": status,
             "is_saved": s.id in attendance_map,
             "gate_scanned": s.id in gate_scanned_ids
@@ -1373,20 +1364,12 @@ def get_daily_attendance_matrix(
         "gate_scanned_count": len(gate_scanned_map)
     }
 
+    from app.utils.course_students import student_matches_course
     for s in students:
-        # Trouver les cours prévus pour cet étudiant aujourd'hui (selon son niveau et sa filière)
+        # Trouver les cours prévus pour cet étudiant aujourd'hui (selon son niveau, sa filière ou Tronc Commun)
         student_schedules = []
         for sched, crs in schedules:
-            # Vérifier la correspondance de niveau et de filière
-            level_match = not crs.level or (s.level and crs.level.lower() == s.level.lower())
-            filiere_match = True
-            if crs.filiere_id and s.filiere:
-                # Si le cours est lié à une filière
-                filiere_match = hasattr(crs, 'filiere') and crs.filiere and (crs.filiere.name.lower() in s.filiere.lower())
-            elif crs.department and s.filiere:
-                filiere_match = crs.department.lower() in s.filiere.lower()
-
-            if level_match and filiere_match:
+            if student_matches_course(db, s, crs, current_user.university_id):
                 status = course_att_map.get((s.id, crs.id), "non_pointe")
                 student_schedules.append({
                     "schedule_id": sched.id,

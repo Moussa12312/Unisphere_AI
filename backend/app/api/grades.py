@@ -57,12 +57,8 @@ def get_grades_by_context(
             Student.class_room_id == class_id
         ).order_by(Student.last_name, Student.first_name).all()
     else:
-        filiere_name = course.filiere.name if course.filiere else course.department
-        students = db.query(Student).filter(
-            Student.university_id == current_user.university_id,
-            (Student.filiere == filiere_name) | (Student.filiere == course.department),
-            Student.level == course.level
-        ).order_by(Student.last_name, Student.first_name).all()
+        from app.utils.course_students import build_course_students_query
+        students = build_course_students_query(db, course, current_user.university_id).order_by(Student.last_name, Student.first_name).all()
     
     existing_grades = db.query(Grade).filter(
         Grade.session_id == session_id,

@@ -9,6 +9,7 @@ interface StudentRecord {
   student_id: number;
   student_name: string;
   matricule: string;
+  filiere?: string;
   current_status: 'present' | 'late' | 'absent' | 'excused';
   gate_scanned?: boolean;
   is_saved?: boolean;
@@ -17,6 +18,7 @@ interface StudentRecord {
 export default function TeacherAttendancePage() {
   const [courses, setCourses] = useState<any[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<string>('');
+  const [selectedFiliereFilter, setSelectedFiliereFilter] = useState<string>('ALL');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [roster, setRoster] = useState<StudentRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,14 +119,28 @@ export default function TeacherAttendancePage() {
       <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row gap-4">
         <select 
           value={selectedCourse} 
-          onChange={(e) => setSelectedCourse(e.target.value)}
+          onChange={(e) => { setSelectedCourse(e.target.value); setSelectedFiliereFilter('ALL'); }}
           className="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
         >
           <option value="">-- Sélectionner un cours --</option>
           {courses.map((c: any) => (
-            <option key={c.id} value={c.id}>{c.title} ({c.filiere} {c.level})</option>
+            <option key={c.id} value={c.id}>{c.title} ({c.filiere} • {c.level})</option>
           ))}
         </select>
+        {Array.from(new Set(roster.map(s => s.filiere).filter(Boolean))).length > 1 && (
+          <select
+            value={selectedFiliereFilter}
+            onChange={(e) => setSelectedFiliereFilter(e.target.value)}
+            className="px-4 py-2 border border-slate-200 rounded-lg bg-white text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+          >
+            <option value="ALL">🌐 Toutes les filières ({roster.length})</option>
+            {Array.from(new Set(roster.map(s => s.filiere).filter(Boolean))).sort().map((fil) => (
+              <option key={fil} value={fil}>
+                🏛️ {fil} ({roster.filter(s => s.filiere === fil).length})
+              </option>
+            ))}
+          </select>
+        )}
         <input 
           type="date" 
           value={date} 
@@ -154,11 +170,18 @@ export default function TeacherAttendancePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {roster.map((student) => (
+                {roster
+                  .filter(s => selectedFiliereFilter === 'ALL' || s.filiere === selectedFiliereFilter)
+                  .map((student) => (
                   <tr key={student.student_id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 sm:px-6 py-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-slate-900">{student.student_name}</p>
+                        {student.filiere && (
+                          <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-[10px] font-semibold">
+                            {student.filiere}
+                          </span>
+                        )}
                         {student.gate_scanned && (
                           <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold" title="Scanné à l'entrée du campus par le gardien">
                             Campus
