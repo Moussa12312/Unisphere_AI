@@ -17,6 +17,8 @@ export default function PaymentsPage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterFiliere, setFilterFiliere] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 50;
   const [stats, setStats] = useState({
     total_due: 0,
     total_paid: 0,
@@ -124,6 +126,13 @@ export default function PaymentsPage() {
     const matchStatus = !filterStatus || s.payment_summary?.status === filterStatus;
     return matchSearch && matchFiliere && matchStatus;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterFiliere, filterStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
+  const paginatedStudents = filteredStudents.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   if (loading) {
     return (
@@ -255,7 +264,7 @@ export default function PaymentsPage() {
             <p className="text-slate-500">Aucun étudiant trouvé</p>
           </div>
         ) : (
-          filteredStudents.map((student) => {
+          paginatedStudents.map((student) => {
             const summary = student.payment_summary || {
               total_amount: 0,
               total_paid: 0,
@@ -400,6 +409,33 @@ export default function PaymentsPage() {
           })
         )}
       </div>
+
+      {filteredStudents.length > PAGE_SIZE && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-2xl border border-slate-200 px-4 py-3 shadow-xs">
+          <p className="text-xs sm:text-sm text-slate-500">
+            Page <span className="font-bold text-slate-900">{currentPage}</span> / {totalPages} •{' '}
+            <span className="font-semibold text-slate-700">{filteredStudents.length}</span> étudiants
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+            >
+              Précédent
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+            >
+              Suivant
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

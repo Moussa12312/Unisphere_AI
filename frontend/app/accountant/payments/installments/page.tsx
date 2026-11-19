@@ -16,6 +16,8 @@ export default function InstallmentsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 50;
   
   const [confirmModal, setConfirmModal] = useState<{
     open: boolean;
@@ -46,6 +48,13 @@ export default function InstallmentsPage() {
     const matchStatus = !filterStatus || inst.status === filterStatus;
     return matchSearch && matchStatus;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedInstallments = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -208,7 +217,7 @@ export default function InstallmentsPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
-                {filtered.map((inst) => {
+                {paginatedInstallments.map((inst) => {
                   const status = getStatusConfig(inst.status);
                   const StatusIcon = status.icon;
                   return (
@@ -274,6 +283,32 @@ export default function InstallmentsPage() {
                 })}
               </tbody>
             </table>
+            {filtered.length > PAGE_SIZE && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50/70">
+                <p className="text-xs sm:text-sm text-slate-500">
+                  Page <span className="font-bold text-slate-900">{currentPage}</span> / {totalPages} •{' '}
+                  <span className="font-semibold text-slate-700">{filtered.length}</span> échéance(s)
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+                  >
+                    Précédent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

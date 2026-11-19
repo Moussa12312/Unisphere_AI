@@ -193,6 +193,12 @@ def create_payment(
     except Exception as _e:
         print(f"⚠️ Génération d'écriture comptable échouée pour le paiement {new_payment.id}: {str(_e)}")
 
+    try:
+        from app.api.financials import invalidate_receivables_cache
+        invalidate_receivables_cache(current_user.university_id)
+    except Exception:
+        pass
+
     return {
         "id": new_payment.id,
         "reference": new_payment.reference,
@@ -357,6 +363,7 @@ def get_students_payments_overview(
     current_user: User = Depends(require_role("admin", "accountant", "secretary"))
 ):
     from app.utils.tuition import (
+        build_university_tuition_cache,
         resolve_student_tuition_breakdown,
         get_configured_tranches_for_student,
         scale_tranches_to_amount,
@@ -383,10 +390,12 @@ def get_students_payments_overview(
         if p.student_id and is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type):
             payments_by_student.setdefault(p.student_id, []).append(p)
 
+    tuition_cache = build_university_tuition_cache(db, univ_id, all_payments=all_payments)
+
     today = date.today()
     items = []
     for student in students:
-        breakdown = resolve_student_tuition_breakdown(db, student, univ_id, "scolarite")
+        breakdown = resolve_student_tuition_breakdown(db, student, univ_id, "scolarite", cache=tuition_cache)
         is_configured = bool(breakdown.get("is_configured", False))
         net_due = float(breakdown["net_amount"] or 0.0)
         st_payments = payments_by_student.get(student.id, [])
@@ -406,7 +415,7 @@ def get_students_payments_overview(
             st_status = "partial" if st_paid > 0 else "unpaid"
             has_late = False
 
-        conf_tr = get_configured_tranches_for_student(db, student, univ_id, net_due) if is_configured else []
+        conf_tr = get_configured_tranches_for_student(db, student, univ_id, net_due, cache=tuition_cache) if is_configured else []
         scaled_tr = scale_tranches_to_amount(conf_tr, net_due) if is_configured else []
         rem_alloc = st_paid
         formatted_tranches = []
@@ -424,8 +433,8 @@ def get_students_payments_overview(
             tr_status = "paid" if cov >= t_amt and t_amt > 0 else ("available" if (cov > 0 or idx_tr == 1) else "locked")
             formatted_tranches.append({
                 "id": tr.get("id") or idx_tr,
-                "number": tr.get("number") or idx_tr,
-                "name": tr.get("name") or f"Tranche {idx_tr}",
+                "number": tr.get("tranche_number") or tr.get("number") or idx_tr,
+                "name": tr.get("tranche_name") or tr.get("name") or f"Tranche {idx_tr}",
                 "amount": round(t_amt),
                 "paid_amount": round(cov),
                 "remaining_amount": round(max(0.0, t_amt - cov)),
@@ -884,6 +893,12 @@ def delete_payment(
 
     db.delete(payment)
     db.commit()
+
+    try:
+        from app.api.financials import invalidate_receivables_cache
+        invalidate_receivables_cache(current_user.university_id)
+    except Exception:
+        pass
 
     return {
         "message": f"Paiement {receipt_num} de {amount:,.0f} FCFA supprimé avec succès.",

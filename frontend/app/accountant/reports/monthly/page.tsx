@@ -23,8 +23,8 @@ export default function MonthlyReportPage() {
         financialService.getTypes('year'),
         financialService.getOverview('year')
       ]);
-      setMonthlyData(monthly);
-      setTypeData(types);
+      setMonthlyData(Array.isArray(monthly) ? monthly : []);
+      setTypeData(Array.isArray(types) ? types : []);
       setOverview(ov);
     } catch (error) {
       toast.error('Erreur de chargement');

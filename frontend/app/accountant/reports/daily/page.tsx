@@ -19,7 +19,11 @@ export default function DailyReportPage() {
     try {
       setLoading(true);
       const response = await api.get(`/api/v1/financials/overview?date=${selectedDate}`);
-      setReport(response.data);
+      const d = response.data || {};
+      setReport({
+        ...d,
+        transactions: Array.isArray(d.transactions) ? d.transactions : [],
+      });
     } catch (error) {
       console.error(error);
       toast.error('Impossible de charger le rapport journalier');

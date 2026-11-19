@@ -5,7 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import Sidebar from '@/components/admin/Sidebar';
 import Header from '@/components/admin/Header';
-import FloatingAIButton from '@/components/FloatingAIButton';
 import MobileBottomNav from '@/components/layouts/MobileBottomNav';
 
 import api from '@/lib/api';
@@ -176,9 +175,6 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
 
   if (!user) return null;
 
-  // ✅ NE PAS AFFICHER LE BOUTON FLOTTANT SUR LA PAGE IA
-  const isAIPage = pathname === '/ai-assistant';
-
   return (
     <div className="h-screen h-[100dvh] bg-[#f1f5f9] dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden flex transition-colors duration-200 print:h-auto print:overflow-visible print:bg-white print:block">
       <Toaster 
@@ -237,13 +233,6 @@ export default function RoleLayout({ children, allowedRoles }: RoleLayoutProps) 
 
       {/* Navigation Mobile en bas d'écran (Écrans < 768px) */}
       <MobileBottomNav userRole={user.role} />
-
-      {/* Bouton flottant IA - Masqué à l'impression et exclu du rôle superadmin */}
-      {!isAIPage && user.role !== 'super_admin' && user.role !== 'superadmin' && (
-        <div className="print:hidden">
-          <FloatingAIButton />
-        </div>
-      )}
     </div>
   );
 }

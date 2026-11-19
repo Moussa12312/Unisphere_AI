@@ -7,7 +7,7 @@ Garantit :
 3. Tri déterministe sur toutes les requêtes SQL pour garantir des montants 100 % stables à chaque rechargement.
 4. Mise à l'échelle exacte des tranches en cas de remise/bourse ou de mise à jour tarifaire.
 """
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Set, Tuple, FrozenSet
 import unicodedata
 import re
 from datetime import date
@@ -16,6 +16,111 @@ from sqlalchemy.orm import Session
 from app.models.academic_fee import AcademicFee
 from app.models.payment_tranche import PaymentTranche
 from app.models.student import Student
+
+
+class UniversityTuitionCache:
+    """
+    Cache en mémoire à l'échelle d'une requête HTTP (par université) éliminant toutes les requêtes N+1
+    dans `resolve_student_tuition_breakdown` et `get_configured_tranches_for_student`.
+    """
+
+    def __init__(
+        self,
+        university_id: int,
+        filiere_entries: List[Tuple[str, Optional[str], str]],
+        fees_by_type: Dict[str, List[AcademicFee]],
+        fees_by_id: Dict[int, AcademicFee],
+        tranches_scolarite: List[PaymentTranche],
+        univ_has_domain_tranches: bool,
+        current_academic_year: str,
+        paid_tranche_ids_by_student: Optional[Dict[int, Set[int]]] = None,
+    ):
+        self.university_id = university_id
+        self.filiere_entries = filiere_entries
+        self.fees_by_type = fees_by_type
+        self.fees_by_id = fees_by_id
+        self.tranches_scolarite = tranches_scolarite
+        self.univ_has_domain_tranches = univ_has_domain_tranches
+        self.current_academic_year = current_academic_year
+        self.paid_tranche_ids_by_student = paid_tranche_ids_by_student
+
+        self.domain_memo: Dict[Tuple[str, str], Optional[str]] = {}
+        self.fee_memo: Dict[Tuple[str, str, str, str], Optional[AcademicFee]] = {}
+        self.lvl_tranches_memo: Dict[Tuple[str, str], List[PaymentTranche]] = {}
+        self.tranches_memo: Dict[Tuple[str, str, str, str, bool, FrozenSet[int]], List[PaymentTranche]] = {}
+
+
+def build_university_tuition_cache(
+    db: Session,
+    university_id: int,
+    all_payments: Optional[List[Any]] = None,
+) -> UniversityTuitionCache:
+    """Pré-charge en 4 requêtes SQL fixes toutes les données tarifaires d'une université."""
+    from app.models.filiere import Filiere
+    from app.utils.academic_year import get_current_academic_year
+
+    filieres = (
+        db.query(Filiere)
+        .filter(Filiere.university_id == university_id)
+        .order_by(Filiere.id.asc())
+        .all()
+    )
+    filiere_entries: List[Tuple[str, Optional[str], str]] = []
+    for f in filieres:
+        if f.domain and str(f.domain).strip():
+            f_code = getattr(f, "code", None)
+            filiere_entries.append((
+                normalize_text_key(f.name),
+                normalize_text_key(f_code) if f_code else None,
+                str(f.domain).strip(),
+            ))
+
+    all_fees = (
+        db.query(AcademicFee)
+        .filter(AcademicFee.university_id == university_id)
+        .order_by(AcademicFee.is_locked.asc(), AcademicFee.id.desc())
+        .all()
+    )
+    fees_by_type: Dict[str, List[AcademicFee]] = {}
+    fees_by_id: Dict[int, AcademicFee] = {}
+    for fee in all_fees:
+        fees_by_id[fee.id] = fee
+        fees_by_type.setdefault(fee.payment_type, []).append(fee)
+
+    tranches_scolarite = (
+        db.query(PaymentTranche)
+        .filter(
+            PaymentTranche.university_id == university_id,
+            PaymentTranche.payment_type == "scolarite",
+        )
+        .order_by(PaymentTranche.tranche_number.asc(), PaymentTranche.id.desc())
+        .all()
+    )
+    univ_has_domain_tranches = any(bool((t.domain or "").strip()) for t in tranches_scolarite)
+    current_year = get_current_academic_year(db, university_id)
+
+    paid_tranche_ids_by_student: Optional[Dict[int, Set[int]]] = None
+    if all_payments is not None:
+        paid_tranche_ids_by_student = {}
+        for p in all_payments:
+            if (
+                getattr(p, "student_id", None)
+                and getattr(p, "tranche_id", None)
+                and is_valid_payment_status(getattr(p, "status", None))
+                and is_scolarite_payment_type(getattr(p, "payment_type", None))
+            ):
+                paid_tranche_ids_by_student.setdefault(p.student_id, set()).add(p.tranche_id)
+
+    return UniversityTuitionCache(
+        university_id=university_id,
+        filiere_entries=filiere_entries,
+        fees_by_type=fees_by_type,
+        fees_by_id=fees_by_id,
+        tranches_scolarite=tranches_scolarite,
+        univ_has_domain_tranches=univ_has_domain_tranches,
+        current_academic_year=current_year,
+        paid_tranche_ids_by_student=paid_tranche_ids_by_student,
+    )
 
 # Constantes comptables partagées
 SCOLARITE_PAYMENT_TYPES = ("scolarite", "reliquat")
@@ -179,6 +284,7 @@ def infer_student_domain(
     student: Student,
     db: Session,
     university_id: Optional[int] = None,
+    cache: Optional[UniversityTuitionCache] = None,
 ) -> Optional[str]:
     """
     Détermine de façon 100 % isolée par université le domaine académique d'un étudiant :
@@ -190,43 +296,71 @@ def infer_student_domain(
     raw_filiere = (getattr(student, "filiere", None) or "").strip()
     raw_domain = (getattr(student, "domain", None) or "").strip()
 
+    use_cache = cache is not None and target_univ_id and cache.university_id == target_univ_id
+    memo_key = (raw_filiere, raw_domain)
+    if use_cache and memo_key in cache.domain_memo:
+        return cache.domain_memo[memo_key]
+
+    resolved: Optional[str] = None
+
     if raw_filiere and target_univ_id:
-        from app.models.filiere import Filiere
-
-        univ_filieres = (
-            db.query(Filiere)
-            .filter(Filiere.university_id == target_univ_id)
-            .order_by(Filiere.id.asc())
-            .all()
-        )
         norm_f = normalize_text_key(raw_filiere)
-        for f in univ_filieres:
-            if f.domain and str(f.domain).strip():
-                f_code = getattr(f, "code", None)
-                if normalize_text_key(f.name) == norm_f or (f_code and normalize_text_key(f_code) == norm_f):
-                    return str(f.domain).strip()
+        if use_cache:
+            for fn, fc, fdom in cache.filiere_entries:
+                if fn == norm_f or (fc and fc == norm_f):
+                    resolved = fdom
+                    break
+            if resolved is None:
+                for fn, _, fdom in cache.filiere_entries:
+                    if len(fn) >= 5 and len(norm_f) >= 5 and (_contains_whole_phrase(norm_f, fn) or _contains_whole_phrase(fn, norm_f)):
+                        resolved = fdom
+                        break
+        else:
+            from app.models.filiere import Filiere
 
-        for f in univ_filieres:
-            if f.domain and str(f.domain).strip():
-                fn = normalize_text_key(f.name)
-                if len(fn) >= 5 and len(norm_f) >= 5 and (_contains_whole_phrase(norm_f, fn) or _contains_whole_phrase(fn, norm_f)):
-                    return str(f.domain).strip()
+            univ_filieres = (
+                db.query(Filiere)
+                .filter(Filiere.university_id == target_univ_id)
+                .order_by(Filiere.id.asc())
+                .all()
+            )
+            for f in univ_filieres:
+                if f.domain and str(f.domain).strip():
+                    f_code = getattr(f, "code", None)
+                    if normalize_text_key(f.name) == norm_f or (f_code and normalize_text_key(f_code) == norm_f):
+                        resolved = str(f.domain).strip()
+                        break
 
-    if raw_domain:
-        return canonicalize_domain_name(raw_domain)
+            if resolved is None:
+                for f in univ_filieres:
+                    if f.domain and str(f.domain).strip():
+                        fn = normalize_text_key(f.name)
+                        if len(fn) >= 5 and len(norm_f) >= 5 and (_contains_whole_phrase(norm_f, fn) or _contains_whole_phrase(fn, norm_f)):
+                            resolved = str(f.domain).strip()
+                            break
 
-    if raw_filiere:
+    if resolved is None and raw_domain:
+        resolved = canonicalize_domain_name(raw_domain)
+
+    if resolved is None and raw_filiere:
         norm_f = normalize_text_key(raw_filiere)
         for canon, syns in DOMAIN_SYNONYMS.items():
             if normalize_text_key(canon) == norm_f:
-                return canon
+                resolved = canon
+                break
             for s in syns:
                 if _contains_whole_phrase(norm_f, s):
-                    return canon
+                    resolved = canon
+                    break
+            if resolved is not None:
+                break
         # Filière personnalisée hors synonymes : retourner son propre intitulé afin qu'elle ne soit JAMAIS rattachée à une autre filière !
-        return raw_filiere
+        if resolved is None:
+            resolved = raw_filiere
 
-    return None
+    if use_cache:
+        cache.domain_memo[memo_key] = resolved
+    return resolved
 
 
 def find_matching_academic_fee(
@@ -235,6 +369,7 @@ def find_matching_academic_fee(
     university_id: int,
     payment_type: str = "scolarite",
     target_year: Optional[str] = None,
+    cache: Optional[UniversityTuitionCache] = None,
 ) -> Optional[AcademicFee]:
     """
     Recherche déterministe et strictement isolée du tarif configuré pour un étudiant :
@@ -248,34 +383,51 @@ def find_matching_academic_fee(
     if not target_univ_id:
         return None
 
+    use_cache = cache is not None and cache.university_id == target_univ_id
+
     locked_fee_id = getattr(student, "locked_fee_id", None)
     if payment_type == "scolarite" and locked_fee_id:
-        locked_fee = (
-            db.query(AcademicFee)
-            .filter(
-                AcademicFee.id == locked_fee_id,
-                AcademicFee.university_id == target_univ_id,
-                AcademicFee.payment_type == payment_type,
+        if use_cache:
+            locked_fee = cache.fees_by_id.get(locked_fee_id)
+            if locked_fee and locked_fee.payment_type == payment_type:
+                return locked_fee
+        else:
+            locked_fee = (
+                db.query(AcademicFee)
+                .filter(
+                    AcademicFee.id == locked_fee_id,
+                    AcademicFee.university_id == target_univ_id,
+                    AcademicFee.payment_type == payment_type,
+                )
+                .first()
             )
-            .first()
-        )
-        if locked_fee:
-            return locked_fee
+            if locked_fee:
+                return locked_fee
+
+    resolved_domain = infer_student_domain(student, db, target_univ_id, cache=cache)
+    raw_level_key = str(student.level or "")
+    fee_memo_key = (payment_type, raw_level_key, resolved_domain or "", target_year or "")
+    if use_cache and fee_memo_key in cache.fee_memo:
+        return cache.fee_memo[fee_memo_key]
 
     canonical_lvl = normalize_academic_level(student.level)
     level_variants = set(get_level_variants(canonical_lvl, student.level))
-    resolved_domain = infer_student_domain(student, db, target_univ_id)
 
-    all_fees = (
-        db.query(AcademicFee)
-        .filter(
-            AcademicFee.university_id == target_univ_id,
-            AcademicFee.payment_type == payment_type,
+    if use_cache:
+        all_fees = cache.fees_by_type.get(payment_type, [])
+    else:
+        all_fees = (
+            db.query(AcademicFee)
+            .filter(
+                AcademicFee.university_id == target_univ_id,
+                AcademicFee.payment_type == payment_type,
+            )
+            .order_by(AcademicFee.is_locked.asc(), AcademicFee.id.desc())
+            .all()
         )
-        .order_by(AcademicFee.is_locked.asc(), AcademicFee.id.desc())
-        .all()
-    )
     if not all_fees:
+        if use_cache:
+            cache.fee_memo[fee_memo_key] = None
         return None
 
     univ_has_domain_fees = any(bool((f.domain or "").strip()) for f in all_fees)
@@ -325,6 +477,8 @@ def find_matching_academic_fee(
             best_score = score
             best_fee = fee
 
+    if use_cache:
+        cache.fee_memo[fee_memo_key] = best_fee
     return best_fee
 
 
@@ -333,9 +487,10 @@ def get_student_tuition_amount(
     student: Student,
     university_id: Optional[int] = None,
     payment_type: str = "scolarite",
+    cache: Optional[UniversityTuitionCache] = None,
 ) -> float:
     target_univ_id = university_id or getattr(student, "university_id", None) or 0
-    return resolve_student_tuition_breakdown(db, student, target_univ_id, payment_type)["net_amount"]
+    return resolve_student_tuition_breakdown(db, student, target_univ_id, payment_type, cache=cache)["net_amount"]
 
 
 def resolve_student_tuition_breakdown(
@@ -344,6 +499,7 @@ def resolve_student_tuition_breakdown(
     university_id: int,
     payment_type: str = "scolarite",
     target_year: Optional[str] = None,
+    cache: Optional[UniversityTuitionCache] = None,
 ) -> Dict[str, Any]:
     """
     Résout de manière 100 % déterministe (et sans `db.flush()` implicite) :
@@ -352,7 +508,7 @@ def resolve_student_tuition_breakdown(
     - `monthly_plan`
     """
     target_univ_id = university_id or getattr(student, "university_id", None)
-    resolved_domain = infer_student_domain(student, db, target_univ_id)
+    resolved_domain = infer_student_domain(student, db, target_univ_id, cache=cache)
 
     fee = find_matching_academic_fee(
         db=db,
@@ -360,6 +516,7 @@ def resolve_student_tuition_breakdown(
         university_id=target_univ_id,
         payment_type=payment_type,
         target_year=target_year,
+        cache=cache,
     )
 
     is_configured = fee is not None
@@ -579,6 +736,7 @@ def get_configured_tranches_for_student(
     student: Student,
     university_id: int,
     net_tuition_amount: float = 0.0,
+    cache: Optional[UniversityTuitionCache] = None,
 ) -> List[PaymentTranche]:
     """
     Récupère les tranches de paiement configurées pour le niveau ET le domaine EXACTS de l'étudiant.
@@ -592,46 +750,85 @@ def get_configured_tranches_for_student(
     if not target_univ_id:
         return []
 
+    use_cache = cache is not None and cache.university_id == target_univ_id
+
     # Vérifier d'abord que la filière/niveau a bien un tarif de scolarité configuré !
-    matched_fee = find_matching_academic_fee(db, student, target_univ_id, "scolarite")
+    matched_fee = find_matching_academic_fee(db, student, target_univ_id, "scolarite", cache=cache)
     if not matched_fee:
         return []
 
-    target_year = getattr(student, "academic_year", None) or get_current_academic_year(db, target_univ_id)
+    target_year = getattr(student, "academic_year", None) or (
+        cache.current_academic_year if use_cache else get_current_academic_year(db, target_univ_id)
+    )
     canonical_lvl = normalize_academic_level(student.level)
-    level_variants = set(get_level_variants(canonical_lvl, student.level))
-    resolved_domain = infer_student_domain(student, db, target_univ_id)
+    resolved_domain = infer_student_domain(student, db, target_univ_id, cache=cache)
 
-    existing_payments = (
-        db.query(Payment)
-        .filter(Payment.student_id == student.id)
-        .order_by(Payment.id.asc())
-        .all()
-    )
-    paid_tranche_ids = {
-        p.tranche_id
-        for p in existing_payments
-        if p.tranche_id and is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type)
-    }
-
-    all_univ_tranches = (
-        db.query(PaymentTranche)
-        .filter(
-            PaymentTranche.university_id == target_univ_id,
-            PaymentTranche.payment_type == "scolarite",
+    if use_cache and cache.paid_tranche_ids_by_student is not None:
+        paid_tranche_ids = cache.paid_tranche_ids_by_student.get(student.id, set())
+    else:
+        existing_payments = (
+            db.query(Payment)
+            .filter(Payment.student_id == student.id)
+            .order_by(Payment.id.asc())
+            .all()
         )
-        .order_by(PaymentTranche.tranche_number.asc(), PaymentTranche.id.desc())
-        .all()
+        paid_tranche_ids = {
+            p.tranche_id
+            for p in existing_payments
+            if p.tranche_id and is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type)
+        }
+
+    fee_is_global = not bool((matched_fee.domain or "").strip())
+    raw_lvl_str = str(student.level or "")
+    tranches_memo_key = (
+        canonical_lvl,
+        raw_lvl_str,
+        resolved_domain or "",
+        str(target_year or ""),
+        fee_is_global,
+        frozenset(paid_tranche_ids),
     )
+    if use_cache and tranches_memo_key in cache.tranches_memo:
+        return cache.tranches_memo[tranches_memo_key]
+
+    if use_cache:
+        all_univ_tranches = cache.tranches_scolarite
+    else:
+        all_univ_tranches = (
+            db.query(PaymentTranche)
+            .filter(
+                PaymentTranche.university_id == target_univ_id,
+                PaymentTranche.payment_type == "scolarite",
+            )
+            .order_by(PaymentTranche.tranche_number.asc(), PaymentTranche.id.desc())
+            .all()
+        )
     if not all_univ_tranches:
+        if use_cache:
+            cache.tranches_memo[tranches_memo_key] = []
         return []
 
-    univ_has_domain_tranches = any(bool((t.domain or "").strip()) for t in all_univ_tranches)
-    lvl_tranches = [
-        t for t in all_univ_tranches
-        if t.level in level_variants or normalize_academic_level(t.level) == canonical_lvl
-    ]
+    univ_has_domain_tranches = (
+        cache.univ_has_domain_tranches
+        if use_cache
+        else any(bool((t.domain or "").strip()) for t in all_univ_tranches)
+    )
+
+    lvl_memo_key = (canonical_lvl, raw_lvl_str)
+    if use_cache and lvl_memo_key in cache.lvl_tranches_memo:
+        lvl_tranches = cache.lvl_tranches_memo[lvl_memo_key]
+    else:
+        level_variants = set(get_level_variants(canonical_lvl, student.level))
+        lvl_tranches = [
+            t for t in all_univ_tranches
+            if t.level in level_variants or normalize_academic_level(t.level) == canonical_lvl
+        ]
+        if use_cache:
+            cache.lvl_tranches_memo[lvl_memo_key] = lvl_tranches
+
     if not lvl_tranches:
+        if use_cache:
+            cache.tranches_memo[tranches_memo_key] = []
         return []
 
     def _select_and_deduplicate(candidates: List[PaymentTranche]) -> List[PaymentTranche]:
@@ -648,6 +845,8 @@ def get_configured_tranches_for_student(
                     by_number[num] = t
         return [by_number[n] for n in sorted(by_number.keys())]
 
+    selected_tranches: List[PaymentTranche] = []
+
     # 1. Recherche stricte sur le domaine résolu de l'étudiant
     if resolved_domain:
         exact_dom_year = [
@@ -657,31 +856,32 @@ def get_configured_tranches_for_student(
             and t.academic_year == target_year
         ]
         if exact_dom_year:
-            return _select_and_deduplicate(exact_dom_year)
-
-        exact_dom_any_year = [
-            t for t in lvl_tranches
-            if (t.domain or "").strip() and domains_match_strictly(t.domain, resolved_domain)
-        ]
-        if exact_dom_any_year:
-            return _select_and_deduplicate(exact_dom_any_year)
+            selected_tranches = _select_and_deduplicate(exact_dom_year)
+        else:
+            exact_dom_any_year = [
+                t for t in lvl_tranches
+                if (t.domain or "").strip() and domains_match_strictly(t.domain, resolved_domain)
+            ]
+            if exact_dom_any_year:
+                selected_tranches = _select_and_deduplicate(exact_dom_any_year)
 
     # 2. Tranches globales sans domaine UNIQUEMENT si le tarif trouvé est lui-même global
     # ou si l'université n'utilise aucune tranche par domaine
-    fee_is_global = not bool((matched_fee.domain or "").strip())
-    if fee_is_global or not univ_has_domain_tranches:
+    if not selected_tranches and (fee_is_global or not univ_has_domain_tranches):
         global_year = [
             t for t in lvl_tranches
             if not (t.domain or "").strip() and t.academic_year == target_year
         ]
         if global_year:
-            return _select_and_deduplicate(global_year)
+            selected_tranches = _select_and_deduplicate(global_year)
+        else:
+            global_any = [t for t in lvl_tranches if not (t.domain or "").strip()]
+            if global_any:
+                selected_tranches = _select_and_deduplicate(global_any)
 
-        global_any = [t for t in lvl_tranches if not (t.domain or "").strip()]
-        if global_any:
-            return _select_and_deduplicate(global_any)
-
-    return []
+    if use_cache:
+        cache.tranches_memo[tranches_memo_key] = selected_tranches
+    return selected_tranches
 
 
 def scale_tranches_to_amount(

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, extract, desc
 from datetime import datetime, timedelta, date
+import time as _time_mod
 from pydantic import BaseModel
 from typing import Optional
 from app.database.connection import SessionLocal
@@ -16,6 +17,16 @@ from app.models.academic_config import AcademicConfig
 from app.utils.academic_year import get_current_academic_year
 
 router = APIRouter(prefix="/financials", tags=["Financials"])
+
+_RECEIVABLES_CACHE: dict[int, tuple[float, dict]] = {}
+_RECEIVABLES_CACHE_TTL = 8.0
+
+
+def invalidate_receivables_cache(university_id: Optional[int] = None) -> None:
+    if university_id is None:
+        _RECEIVABLES_CACHE.clear()
+    else:
+        _RECEIVABLES_CACHE.pop(university_id, None)
 
 def get_db():
     db = SessionLocal()
@@ -46,6 +57,7 @@ class InstallmentPaymentRequest(BaseModel):
 # ==========================================
 def _compute_university_receivables(db: Session, university_id: int) -> dict:
     from app.utils.tuition import (
+        build_university_tuition_cache,
         resolve_student_tuition_breakdown,
         get_configured_tranches_for_student,
         scale_tranches_to_amount,
@@ -54,6 +66,11 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
     )
     from app.models.payment_installment import PaymentInstallment
 
+    now_ts = _time_mod.monotonic()
+    cached_entry = _RECEIVABLES_CACHE.get(university_id)
+    if cached_entry and (now_ts - cached_entry[0]) < _RECEIVABLES_CACHE_TTL:
+        return dict(cached_entry[1])
+
     students = (
         db.query(Student)
         .filter(Student.university_id == university_id)
@@ -61,7 +78,7 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
         .all()
     )
     if not students:
-        return {
+        empty_res = {
             "total_expected": 0.0,
             "total_paid_students": 0.0,
             "total_balance": 0.0,
@@ -69,6 +86,8 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
             "students_with_balance": 0,
             "overdue_students_count": 0,
         }
+        _RECEIVABLES_CACHE[university_id] = (now_ts, empty_res)
+        return dict(empty_res)
 
     all_payments = (
         db.query(Payment)
@@ -80,6 +99,8 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
     for p in all_payments:
         if p.student_id and is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type):
             paid_by_student[p.student_id] = paid_by_student.get(p.student_id, 0.0) + float(p.amount or 0.0)
+
+    tuition_cache = build_university_tuition_cache(db, university_id, all_payments=all_payments)
 
     today = date.today()
     overdue_inst_by_student: dict[int, float] = {}
@@ -99,7 +120,7 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
     overdue_students_count = 0
 
     for student in students:
-        breakdown = resolve_student_tuition_breakdown(db, student, university_id, "scolarite")
+        breakdown = resolve_student_tuition_breakdown(db, student, university_id, "scolarite", cache=tuition_cache)
         if not breakdown.get("is_configured", False):
             continue
         net_due = float(breakdown.get("net_amount") or 0.0)
@@ -115,7 +136,7 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
 
         if bal > 0:
             students_with_balance += 1
-            tranches = get_configured_tranches_for_student(db, student, university_id, net_due)
+            tranches = get_configured_tranches_for_student(db, student, university_id, net_due, cache=tuition_cache)
             scaled_tranches = scale_tranches_to_amount(tranches, net_due)
             dated_tranches = [t for t in scaled_tranches if t.get("due_date")]
 
@@ -137,7 +158,7 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
                 overdue_amount += student_overdue
                 overdue_students_count += 1
 
-    return {
+    computed = {
         "total_expected": round(total_expected, 2),
         "total_paid_students": round(total_paid_students, 2),
         "total_balance": round(total_balance, 2),
@@ -145,6 +166,8 @@ def _compute_university_receivables(db: Session, university_id: int) -> dict:
         "students_with_balance": students_with_balance,
         "overdue_students_count": overdue_students_count,
     }
+    _RECEIVABLES_CACHE[university_id] = (_time_mod.monotonic(), computed)
+    return dict(computed)
 
 
 # ==========================================
@@ -460,7 +483,9 @@ def create_payment(
         
         db.add(installment)
         db.commit()
-    
+
+    invalidate_receivables_cache(current_user.university_id)
+
     return {
         "message": "Paiement enregistré avec succès",
         "payment": {
@@ -526,6 +551,7 @@ def get_unpaid_students(
     from datetime import datetime, date
     
     from app.utils.tuition import (
+        build_university_tuition_cache,
         resolve_student_tuition_breakdown,
         get_configured_tranches_for_student,
         scale_tranches_to_amount,
@@ -539,6 +565,19 @@ def get_unpaid_students(
         .order_by(Student.id.asc())
         .all()
     )
+    all_payments = (
+        db.query(Payment)
+        .filter(Payment.university_id == current_user.university_id)
+        .order_by(Payment.created_at.asc(), Payment.id.asc())
+        .all()
+    )
+    payments_by_student: dict[int, list[Payment]] = {}
+    for p in all_payments:
+        if p.student_id and is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type):
+            payments_by_student.setdefault(p.student_id, []).append(p)
+
+    tuition_cache = build_university_tuition_cache(db, current_user.university_id, all_payments=all_payments)
+
     ac_config = db.query(AcademicConfig).filter(
         AcademicConfig.university_id == current_user.university_id
     ).first()
@@ -549,25 +588,19 @@ def get_unpaid_students(
     today = date.today()
 
     for student in students:
-        breakdown = resolve_student_tuition_breakdown(db, student, current_user.university_id, "scolarite")
+        breakdown = resolve_student_tuition_breakdown(db, student, current_user.university_id, "scolarite", cache=tuition_cache)
         if not breakdown.get("is_configured", False):
             continue
         total_due = float(breakdown["net_amount"] or 0.0)
         if total_due <= 0:
             continue
 
-        configured_tranches = get_configured_tranches_for_student(db, student, current_user.university_id, total_due)
+        configured_tranches = get_configured_tranches_for_student(db, student, current_user.university_id, total_due, cache=tuition_cache)
         scaled_tranches = scale_tranches_to_amount(configured_tranches, total_due)
         if not scaled_tranches:
             continue
 
-        payments = [
-            p for p in db.query(Payment)
-            .filter(Payment.student_id == student.id)
-            .order_by(Payment.created_at.asc(), Payment.id.asc())
-            .all()
-            if is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type)
-        ]
+        payments = payments_by_student.get(student.id, [])
         total_paid = sum(float(p.amount or 0.0) for p in payments)
 
         overdue_tranches = []
@@ -965,6 +998,7 @@ def pay_installment(
     db.add(new_payment)
     db.commit()
     db.refresh(new_payment)
+    invalidate_receivables_cache(university_id)
 
     try:
         from app.api.ledger import create_journal_entry_for_payment
@@ -1485,7 +1519,7 @@ def get_all_receipts(
 
     # 1. Reçus de scolarité (Payment)
     if type_filter in ["all", "tuition"]:
-        q_pay = db.query(Payment).filter(
+        q_pay = db.query(Payment).options(joinedload(Payment.student)).filter(
             Payment.university_id == university_id,
             Payment.status.in_(["completed", "partial"])
         )
@@ -1525,7 +1559,10 @@ def get_all_receipts(
 
     # 2. Bons de décaissement (Expense)
     if type_filter in ["all", "expense"]:
-        q_exp = db.query(Expense).filter(
+        q_exp = db.query(Expense).options(
+            joinedload(Expense.supplier),
+            joinedload(Expense.category),
+        ).filter(
             Expense.university_id == university_id,
             Expense.status.in_(["paid", "completed"])
         )
@@ -1561,7 +1598,7 @@ def get_all_receipts(
 
     # 3. Bulletins / Reçus de Salaire (PayrollEntry)
     if type_filter in ["all", "payroll"]:
-        q_payr = db.query(PayrollEntry).filter(
+        q_payr = db.query(PayrollEntry).options(joinedload(PayrollEntry.user)).filter(
             PayrollEntry.university_id == university_id,
             PayrollEntry.status == "paid"
         )
@@ -1598,6 +1635,10 @@ def get_all_receipts(
 
     # 4. Bons de Caisse / Trésorerie (CashTransaction)
     if type_filter in ["all", "cash"]:
+        bank_accounts_map = {
+            a.id: a
+            for a in db.query(BankAccount).filter(BankAccount.university_id == university_id).all()
+        }
         q_cash = db.query(CashTransaction).filter(
             CashTransaction.university_id == university_id
         )
@@ -1606,7 +1647,7 @@ def get_all_receipts(
         cash_txs = q_cash.order_by(CashTransaction.transaction_date.desc(), CashTransaction.id.desc()).all()
 
         for ct in cash_txs:
-            b_acc = db.query(BankAccount).filter(BankAccount.id == ct.bank_account_id).first()
+            b_acc = bank_accounts_map.get(ct.bank_account_id)
             acc_name = b_acc.name if b_acc else "Caisse / Banque"
             tx_type_str = "Entrée de caisse" if ct.transaction_type == "in" else ("Sortie de caisse" if ct.transaction_type == "out" else "Virement interne")
             rec_num = f"BC-{ct.transaction_date.strftime('%Y%m%d') if ct.transaction_date else 'TX'}-{ct.id:04d}"

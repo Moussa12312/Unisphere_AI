@@ -118,7 +118,19 @@ export default function FloatingAIButton() {
     router.push('/ai-assistant');
   };
 
-  if (pathname === '/ai-assistant' || pathname?.includes('/print') || pathname?.includes('/cards/print')) return null;
+  if (
+    pathname === '/ai-assistant' ||
+    pathname === '/teacher/ai-assistant' ||
+    pathname === '/admin/ai' ||
+    pathname?.startsWith('/superadmin') ||
+    pathname?.startsWith('/login') ||
+    pathname?.startsWith('/forgot-password') ||
+    pathname?.startsWith('/verify-email') ||
+    pathname?.startsWith('/suspended') ||
+    pathname?.startsWith('/select-university') ||
+    pathname?.includes('/print') ||
+    pathname?.includes('/cards/print')
+  ) return null;
   if (position.x === 0 && position.y === 0) return null;
 
   return (

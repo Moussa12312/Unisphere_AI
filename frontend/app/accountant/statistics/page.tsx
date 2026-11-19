@@ -25,7 +25,7 @@ export default function AccountantStatsPage() {
         financialService.getInstallmentsStats()
       ]);
       setOverview(ov);
-      setMonthly(m);
+      setMonthly(Array.isArray(m) ? m : []);
       setInstallmentsStats(inst);
     } catch (error) {
       toast.error('Erreur');

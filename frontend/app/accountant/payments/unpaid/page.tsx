@@ -68,6 +68,8 @@ export default function AccountantUnpaidPage() {
   const [historyItems, setHistoryItems] = useState<ReminderHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [allFilieres, setAllFilieres] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 50;
   const reqIdRef = useRef(0);
 
   useEffect(() => {
@@ -85,7 +87,8 @@ export default function AccountantUnpaidPage() {
       const res = await api.get(`/api/v1/reminders/unpaid-students?${params.toString()}`);
       if (curId !== reqIdRef.current) return; // Discard stale response
       const data = res.data;
-      setStudents(data.students || []);
+      setStudents(Array.isArray(data.students) ? data.students : []);
+      setCurrentPage(1);
       setTotalUnpaidAmount(data.total_unpaid_amount || 0);
       setWithPhoneCount(data.with_student_phone_count || 0);
       setWithParentPhoneCount(data.with_parent_phone_count || 0);
@@ -356,7 +359,7 @@ export default function AccountantUnpaidPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {students.map((st) => (
+                {students.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((st) => (
                   <tr key={st.student_id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                     
                     {/* Étudiant */}
@@ -499,6 +502,32 @@ export default function AccountantUnpaidPage() {
                 ))}
               </tbody>
             </table>
+            {students.length > PAGE_SIZE && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
+                <p className="text-xs sm:text-sm text-slate-500">
+                  Page <span className="font-bold text-slate-900 dark:text-white">{currentPage}</span> / {Math.max(1, Math.ceil(students.length / PAGE_SIZE))} •{' '}
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">{students.length}</span> étudiant(s)
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+                  >
+                    Précédent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(Math.max(1, Math.ceil(students.length / PAGE_SIZE)), p + 1))}
+                    disabled={currentPage >= Math.max(1, Math.ceil(students.length / PAGE_SIZE))}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

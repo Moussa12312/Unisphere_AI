@@ -33,7 +33,7 @@ export default function AccountantDashboard() {
         accountingService.getDashboard().catch(() => null)
       ]);
       setOverview(overviewData);
-      setTransactions(transactionsData);
+      setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
       setInstallmentsStats(installmentsData);
       setAccountingData(accountingDashboard);
     } catch (error) {

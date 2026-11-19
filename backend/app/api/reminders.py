@@ -95,7 +95,12 @@ def get_unpaid_students(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(*ALLOWED_ROLES))
 ):
-    from app.utils.tuition import is_valid_payment_status, is_scolarite_payment_type
+    from app.utils.tuition import (
+        build_university_tuition_cache,
+        UniversityTuitionCache,
+        is_valid_payment_status,
+        is_scolarite_payment_type,
+    )
 
     _ensure_reminder_table()
     univ_id = current_user.university_id
@@ -121,32 +126,58 @@ def get_unpaid_students(
 
     students = query.order_by(Student.id.asc()).all()
     student_ids = [s.id for s in students]
+    student_id_set = set(student_ids)
 
-    # Chargement groupé des paiements et relances (Zéro N+1, ordre 100 % stable)
+    # Chargement groupé des paiements et relances (Zéro N+1, sans dépasser la limite SQLite IN)
     paid_by_student: Dict[int, float] = {}
+    payments_by_univ: Dict[int, List[Payment]] = {}
     reminders_by_student: Dict[int, List[PaymentReminder]] = {}
 
     if student_ids:
-        all_payments = (
-            db.query(Payment)
-            .filter(Payment.student_id.in_(student_ids))
-            .order_by(Payment.id.asc())
-            .all()
-        )
+        if current_user.role not in ["super_admin", "superadmin"] and univ_id:
+            all_payments = (
+                db.query(Payment)
+                .filter(Payment.university_id == univ_id)
+                .order_by(Payment.id.asc())
+                .all()
+            )
+            all_rems = (
+                db.query(PaymentReminder)
+                .filter(PaymentReminder.university_id == univ_id)
+                .order_by(PaymentReminder.created_at.desc(), PaymentReminder.id.desc())
+                .all()
+            )
+        else:
+            all_payments = []
+            all_rems = []
+            for start_idx in range(0, len(student_ids), 500):
+                chunk = student_ids[start_idx:start_idx + 500]
+                all_payments.extend(
+                    db.query(Payment)
+                    .filter(Payment.student_id.in_(chunk))
+                    .order_by(Payment.id.asc())
+                    .all()
+                )
+                all_rems.extend(
+                    db.query(PaymentReminder)
+                    .filter(PaymentReminder.student_id.in_(chunk))
+                    .order_by(PaymentReminder.created_at.desc(), PaymentReminder.id.desc())
+                    .all()
+                )
+
+        student_univ_map = {s.id: (s.university_id or univ_id) for s in students}
         for p in all_payments:
-            if p.student_id and is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type):
+            p_univ = p.university_id or student_univ_map.get(p.student_id)
+            if p_univ:
+                payments_by_univ.setdefault(p_univ, []).append(p)
+            if p.student_id in student_id_set and is_valid_payment_status(p.status) and is_scolarite_payment_type(p.payment_type):
                 paid_by_student[p.student_id] = paid_by_student.get(p.student_id, 0.0) + float(p.amount or 0.0)
 
-        all_rems = (
-            db.query(PaymentReminder)
-            .filter(PaymentReminder.student_id.in_(student_ids))
-            .order_by(PaymentReminder.created_at.desc(), PaymentReminder.id.desc())
-            .all()
-        )
         for rem in all_rems:
-            if rem.student_id:
+            if rem.student_id in student_id_set:
                 reminders_by_student.setdefault(rem.student_id, []).append(rem)
 
+    tuition_caches: Dict[int, UniversityTuitionCache] = {}
     unpaid_list = []
     total_unpaid_amount = 0
     with_phone_count = 0
@@ -163,7 +194,14 @@ def get_unpaid_students(
         if not s_univ:
             continue
 
-        breakdown = resolve_student_tuition_breakdown(db, s, s_univ, "scolarite")
+        if s_univ not in tuition_caches:
+            tuition_caches[s_univ] = build_university_tuition_cache(
+                db, s_univ, all_payments=payments_by_univ.get(s_univ, [])
+            )
+
+        breakdown = resolve_student_tuition_breakdown(
+            db, s, s_univ, "scolarite", cache=tuition_caches[s_univ]
+        )
         if not breakdown.get("is_configured", False):
             # Filière non configurée : ne JAMAIS générer d'impayé fictif !
             continue
