@@ -120,6 +120,13 @@ def _sync_indexes(engine: Engine, dialect_name: str):
                 conn.execute(text(f'CREATE INDEX IF NOT EXISTS "{idx_name}" ON "{table}" ("{col}");'))
             except Exception:
                 pass
+        try:
+            conn.execute(text(
+                'UPDATE "teachers" SET "filieres_interventions" = CAST("filiere_id" AS VARCHAR) '
+                'WHERE "filiere_id" IS NOT NULL AND ("filieres_interventions" = \'ALL\' OR "filieres_interventions" IS NULL);'
+            ))
+        except Exception:
+            pass
 
 
 def _sync_missing_columns(engine: Engine, dialect_name: str) -> int:

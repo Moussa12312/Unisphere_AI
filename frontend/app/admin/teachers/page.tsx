@@ -131,14 +131,15 @@ export default function AdminTeachersPage() {
       formDataUpload.append('speciality', formData.speciality);
       if (formData.filiere_id) {
         formDataUpload.append('filiere_id', formData.filiere_id.toString());
+        formDataUpload.append('filieres_interventions', formData.filiere_id.toString());
+      } else {
+        formDataUpload.append('filieres_interventions', 'ALL');
       }
       if (photoFile) {
-        formDataUpload.append('photo', photoFile);
+        formDataUpload.append('photo', photoFile, photoFile.name || 'photo.jpg');
       }
 
-      const response = await api.post('/api/v1/teachers/', formDataUpload, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await api.post('/api/v1/teachers/', formDataUpload);
 
       toast.success(`Enseignant créé ! Mot de passe temporaire : ${response.data.temp_password}`);
       setShowCreateModal(false);
@@ -467,14 +468,22 @@ export default function AdminTeachersPage() {
                     </td>
                     <td className="py-3 px-4 text-sm text-slate-600">
                       <div>
-                        <p className="font-medium text-slate-800">{teacher.department || 'Enseignement Général'}</p>
-                        {(!teacher.filiere_id || (teacher as any).filieres_interventions === 'ALL') ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-0.5">
-                            🌐 Transversal
+                        <p className="font-medium text-slate-800">
+                          {teacher.filiere_name && teacher.filiere_name !== 'Transversal (Toutes filières)'
+                            ? teacher.filiere_name
+                            : (teacher.department || 'Enseignement Général')}
+                        </p>
+                        {teacher.filiere_name && teacher.filiere_name !== 'Transversal (Toutes filières)' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 mt-0.5">
+                            🏛️ {teacher.filiere_name}
+                          </span>
+                        ) : teacher.department && teacher.department !== 'Enseignement Général' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 mt-0.5">
+                            🏛️ {teacher.department}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 mt-0.5">
-                            🎯 Multi-filières
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-0.5">
+                            🌐 Transversal
                           </span>
                         )}
                       </div>

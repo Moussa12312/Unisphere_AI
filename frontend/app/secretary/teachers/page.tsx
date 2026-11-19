@@ -94,7 +94,12 @@ export default function SecretaryTeachersPage() {
       submitData.append('email', formData.email);
       if (formData.phone) submitData.append('phone', formData.phone);
       if (formData.speciality) submitData.append('speciality', formData.speciality);
-      if (formData.filiere_id) submitData.append('filiere_id', formData.filiere_id);
+      if (formData.filiere_id) {
+        submitData.append('filiere_id', formData.filiere_id);
+        submitData.append('filieres_interventions', formData.filiere_id);
+      } else {
+        submitData.append('filieres_interventions', 'ALL');
+      }
       
       await teacherService.create(submitData);
       toast.success('Enseignant créé avec succès !');
@@ -126,6 +131,7 @@ export default function SecretaryTeachersPage() {
         phone: formData.phone || null,
         speciality: formData.speciality || null,
         filiere_id: formData.filiere_id ? parseInt(formData.filiere_id) : null,
+        filieres_interventions: formData.filiere_id ? formData.filiere_id.toString() : 'ALL',
       };
       
       await teacherService.update(selectedTeacher.id, submitData);
@@ -351,13 +357,17 @@ export default function SecretaryTeachersPage() {
                     <td className="py-3 px-4 text-sm text-slate-600">{teacher.phone || '-'}</td>
                     <td className="py-3 px-4 text-sm text-slate-600">{teacher.speciality || '-'}</td>
                     <td className="py-3 px-4">
-                      {teacher.filieres_interventions === 'ALL' || (!teacher.filiere_id && !teacher.filiere_name) ? (
-                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200 inline-flex items-center gap-1">
-                          🌐 Transversal
+                      {teacher.filiere_name && teacher.filiere_name !== 'Transversal (Toutes filières)' ? (
+                        <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-xs font-semibold rounded-lg border border-purple-200 inline-flex items-center gap-1.5">
+                          🏛️ {teacher.filiere_name}
+                        </span>
+                      ) : teacher.department && teacher.department !== 'Enseignement Général' ? (
+                        <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-xs font-semibold rounded-lg border border-purple-200 inline-flex items-center gap-1.5">
+                          🏛️ {teacher.department}
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs font-medium rounded-full border border-purple-200">
-                          {teacher.filiere_name || 'Multi-filières'}
+                        <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 inline-flex items-center gap-1.5">
+                          🌐 Transversal (Toutes filières)
                         </span>
                       )}
                     </td>

@@ -88,10 +88,12 @@ def format_teacher(teacher: Teacher) -> dict:
     f_name = None
     if teacher.filiere:
         f_name = teacher.filiere.name
+    elif teacher.department and teacher.department != "Enseignement Général":
+        f_name = teacher.department
     elif getattr(teacher, "filieres_interventions", "ALL") == "ALL" or not getattr(teacher, "filieres_interventions", None):
         f_name = "Transversal (Toutes filières)"
-    elif teacher.department:
-        f_name = teacher.department
+    else:
+        f_name = teacher.department or "Transversal (Toutes filières)"
 
     clean_photo = None
     photo_url = None
@@ -334,7 +336,7 @@ async def create_teacher(
             university_id=current_user.university_id,
             university_name=univ_name,
             filiere_id=parsed_filiere_id,
-            filieres_interventions=filieres_interventions or "ALL"
+            filieres_interventions=filieres_interventions if filieres_interventions else (str(parsed_filiere_id) if parsed_filiere_id else "ALL")
         )
         db.add(new_teacher)
         db.flush()
@@ -397,7 +399,7 @@ async def create_teacher(
             university_id=current_user.university_id,
             university_name=univ_name,
             filiere_id=parsed_filiere_id,
-            filieres_interventions=filieres_interventions or "ALL"
+            filieres_interventions=filieres_interventions if filieres_interventions else (str(parsed_filiere_id) if parsed_filiere_id else "ALL")
         )
         db.add(new_teacher)
         db.flush()
@@ -521,6 +523,8 @@ def update_teacher(
         existing_teacher.speciality = teacher_data.speciality
     if teacher_data.filiere_id is not None:
         existing_teacher.filiere_id = teacher_data.filiere_id
+        if teacher_data.filieres_interventions is None:
+            existing_teacher.filieres_interventions = str(teacher_data.filiere_id) if teacher_data.filiere_id else "ALL"
     if teacher_data.filieres_interventions is not None:
         existing_teacher.filieres_interventions = teacher_data.filieres_interventions
     if teacher_data.photo is not None:
