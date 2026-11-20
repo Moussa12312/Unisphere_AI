@@ -1137,9 +1137,9 @@ def get_my_requests(
 def get_student_data(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("alumni"))
+    current_user: User = Depends(require_role("alumni", "super_admin", "admin", "secretary"))
 ):
-    """Données complètes d'un étudiant mentoré ou demandeur"""
+    """Données complètes d'un étudiant mentoré ou demandeur (accessible aux alumni et administrateurs)"""
     alumni = db.query(AlumniProfile).filter(
         AlumniProfile.user_id == current_user.id
     ).first()
@@ -1158,62 +1158,83 @@ def get_student_data(
             is_verified=True,
             accepted_conditions=True
         )
-        db.add(alumni)
-        db.commit()
-        db.refresh(alumni)
+        try:
+            db.add(alumni)
+            db.commit()
+            db.refresh(alumni)
+        except Exception:
+            db.rollback()
+            alumni = db.query(AlumniProfile).filter(AlumniProfile.user_id == current_user.id).first()
 
     # Récupérer les données de l'étudiant
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Étudiant non trouvé")
 
-    # Sécurité multi-tenant : même établissement
-    if alumni.university_id and student.university_id and student.university_id != alumni.university_id:
-        raise HTTPException(status_code=403, detail="Vous n'avez pas accès aux étudiants d'autres universités.")
+    # Sécurité multi-tenant : même établissement (sauf super_admin)
+    if current_user.role != "super_admin":
+        user_univ = getattr(alumni, 'university_id', None) or current_user.university_id
+        if user_univ and student.university_id and student.university_id != user_univ:
+            raise HTTPException(status_code=403, detail="Vous n'avez pas accès aux étudiants d'autres universités.")
 
-    connection = db.query(AlumniConnection).filter(
-        AlumniConnection.alumni_id == alumni.id,
-        AlumniConnection.student_id == student_id
-    ).first()
+    connection = None
+    if alumni:
+        connection = db.query(AlumniConnection).filter(
+            AlumniConnection.alumni_id == alumni.id,
+            AlumniConnection.student_id == student_id
+        ).first()
 
-    # Notes
-    grades = db.query(Grade).filter(
-        Grade.student_id == student_id,
-        Grade.status == "validated"
-    ).all()
-
+    # Notes validées
     grades_data = []
-    for grade in grades:
-        course = db.query(Course).filter(Course.id == grade.course_id).first()
-        course_name = getattr(course, 'title', None) or getattr(course, 'name', 'Cours inconnu')
-        cc_val = getattr(grade, 'cc_score', None) if getattr(grade, 'cc_score', None) is not None else getattr(grade, 'cc_note', None)
-        exam_val = getattr(grade, 'exam_score', None) if getattr(grade, 'exam_score', None) is not None else getattr(grade, 'exam_note', None)
-        final_val = getattr(grade, 'score', None) if getattr(grade, 'score', None) is not None else getattr(grade, 'final_note', None)
-        
-        session_name = "Session normale"
-        if getattr(grade, 'session', None):
-            session_name = getattr(grade.session, 'name', None) or "Session normale"
+    try:
+        grades = db.query(Grade).filter(
+            Grade.student_id == student_id,
+            Grade.status == "validated"
+        ).all()
 
-        grades_data.append({
-            "course_name": str(course_name),
-            "cc_note": float(cc_val) if cc_val is not None else None,
-            "exam_note": float(exam_val) if exam_val is not None else None,
-            "final_note": float(final_val) if final_val is not None else None,
-            "session": str(session_name)
-        })
+        for grade in grades:
+            try:
+                course = db.query(Course).filter(Course.id == grade.course_id).first() if grade.course_id else None
+                course_name = getattr(course, 'title', None) or getattr(course, 'name', 'Cours')
+                cc_val = getattr(grade, 'cc_score', None) if getattr(grade, 'cc_score', None) is not None else getattr(grade, 'cc_note', None)
+                exam_val = getattr(grade, 'exam_score', None) if getattr(grade, 'exam_score', None) is not None else getattr(grade, 'exam_note', None)
+                final_val = getattr(grade, 'score', None) if getattr(grade, 'score', None) is not None else getattr(grade, 'final_note', None)
+                
+                session_name = "Session normale"
+                try:
+                    if getattr(grade, 'session', None):
+                        session_name = getattr(grade.session, 'name', None) or "Session normale"
+                except Exception:
+                    pass
+
+                grades_data.append({
+                    "course_name": str(course_name),
+                    "cc_note": float(cc_val) if cc_val is not None else None,
+                    "exam_note": float(exam_val) if exam_val is not None else None,
+                    "final_note": float(final_val) if final_val is not None else None,
+                    "session": str(session_name)
+                })
+            except Exception:
+                continue
+    except Exception:
+        grades_data = []
 
     # Présences
-    attendances = db.query(Attendance).filter(
-        Attendance.student_id == student_id
-    ).all()
+    attendance_stats = {"total": 0, "present": 0, "absent": 0, "late": 0, "excused": 0}
+    try:
+        attendances = db.query(Attendance).filter(
+            Attendance.student_id == student_id
+        ).all()
 
-    attendance_stats = {
-        "total": len(attendances),
-        "present": len([a for a in attendances if a.status == "present"]),
-        "absent": len([a for a in attendances if a.status == "absent"]),
-        "late": len([a for a in attendances if a.status == "late"]),
-        "excused": len([a for a in attendances if a.status == "excused"])
-    }
+        attendance_stats = {
+            "total": len(attendances),
+            "present": len([a for a in attendances if a.status == "present"]),
+            "absent": len([a for a in attendances if a.status == "absent"]),
+            "late": len([a for a in attendances if a.status == "late"]),
+            "excused": len([a for a in attendances if a.status == "excused"])
+        }
+    except Exception:
+        pass
 
     # Moyenne générale
     valid_grades = [g['final_note'] for g in grades_data if g['final_note'] is not None]
@@ -1229,7 +1250,8 @@ def get_student_data(
             "level": student.level,
             "domain": student.domain,
             "email": student.email,
-            "user_id": student.user_id
+            "user_id": student.user_id,
+            "photo": getattr(student, 'photo', None)
         },
         "average": round(average, 2),
         "grades": grades_data,

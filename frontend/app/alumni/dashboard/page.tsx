@@ -196,13 +196,13 @@ export default function AlumniDashboardPage() {
                      conn.connection_type === 'directeur_memoire' ? '📚 Dir. mémoire' : '🤝 Ami'}
                   </span>
                   <Link
-                    href={`/alumni/students/${conn.student?.id}`}
+                    href={`/alumni/students/${conn.student?.id || conn.student_id}`}
                     className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
                   >
-                    Voir étudiant
+                    Voir détails
                   </Link>
                   <Link
-                    href={`/alumni/messages?to=${conn.student?.user_id}`}
+                    href={conn.student?.user_id ? `/alumni/messages?to=${conn.student.user_id}` : '/alumni/messages'}
                     className="px-3 py-1.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white text-xs font-semibold rounded-lg transition-colors"
                   >
                     Chat

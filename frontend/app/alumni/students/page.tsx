@@ -85,18 +85,18 @@ export default function AlumniStudentsPage() {
 
               <div className="flex gap-2 pt-2 border-t border-slate-100">
                 <Link
-                  href={`/alumni/students/${conn.student?.id}`}
+                  href={`/alumni/students/${conn.student?.id || conn.student_id}`}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors"
                 >
                   <Eye size={14} />
-                  Voir étudiant
+                  <span>Voir détails</span>
                 </Link>
                 <Link
-                  href={`/alumni/messages?to=${conn.student?.user_id}`}
+                  href={conn.student?.user_id ? `/alumni/messages?to=${conn.student.user_id}` : '/alumni/messages'}
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
                 >
                   <MessageSquare size={14} />
-                  Chat
+                  <span>Chat</span>
                 </Link>
               </div>
             </div>

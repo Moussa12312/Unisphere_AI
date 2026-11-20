@@ -2898,7 +2898,7 @@ def delete_my_file(
 def get_student(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "secretary", "accountant", "censeur", "teacher", "student", "guard", "super_admin"))
+    current_user: User = Depends(require_role("admin", "secretary", "accountant", "censeur", "teacher", "student", "guard", "alumni", "super_admin"))
 ):
     """Récupère un étudiant par ID avec enrichissement tarifaire et modalité mensuelle"""
     query = db.query(Student).filter(Student.id == student_id)

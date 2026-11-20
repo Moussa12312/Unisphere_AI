@@ -1,12 +1,13 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, GraduationCap, BookOpen, TrendingUp, Calendar,
-  Award, MessageSquare, Loader2, FileText, CheckCircle, AlertCircle, RotateCcw
+  Award, MessageSquare, Loader2, FileText, CheckCircle, AlertCircle, RotateCcw,
+  Mail, School, Clock, ShieldCheck
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -14,36 +15,98 @@ import { toast } from 'react-hot-toast';
 export default function AlumniStudentDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const studentId = params?.id;
+
+  // Résolution multi-niveaux de l'identifiant pour garantir qu'il n'est jamais indéfini
+  const rawId = Array.isArray(params?.id) ? params.id[0] : params?.id;
 
   const [studentData, setStudentData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (studentId) {
-      loadStudentData();
+  const getCleanStudentId = useCallback((): string => {
+    if (rawId && rawId !== 'undefined' && rawId !== 'null') {
+      return String(rawId).trim();
     }
-  }, [studentId]);
+    if (typeof window !== 'undefined') {
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      const last = parts[parts.length - 1];
+      if (last && last !== 'students' && !isNaN(Number(last))) {
+        return last;
+      }
+    }
+    return '';
+  }, [rawId]);
 
-  const loadStudentData = async () => {
+  const loadStudentData = useCallback(async () => {
+    const targetId = getCleanStudentId();
+    if (!targetId || isNaN(Number(targetId))) {
+      setErrorMessage("Identifiant d'étudiant introuvable ou invalide.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setErrorMessage(null);
+
     try {
-      const res = await api.get(`/api/v1/alumni/student/${studentId}`);
-      if (res.data) {
-        setStudentData(res.data);
+      // 1. Appel prioritaire sur l'endpoint dédié Alumni
+      try {
+        const res = await api.get(`/api/v1/alumni/student/${targetId}`);
+        if (res.data && res.data.student) {
+          setStudentData(res.data);
+          setLoading(false);
+          return;
+        }
+      } catch (err: any) {
+        // Si 404 sur l'endpoint alumni (ex: pas encore de lien explicite), tenter l'endpoint général étudiant
+        console.warn('Tentative fallback sur /api/v1/students/', err?.response?.status);
+      }
+
+      // 2. Fallback de résilience sur le profil général étudiant
+      const fallbackRes = await api.get(`/api/v1/students/${targetId}`);
+      if (fallbackRes.data) {
+        const st = fallbackRes.data;
+        setStudentData({
+          student: {
+            id: st.id,
+            first_name: st.first_name,
+            last_name: st.last_name,
+            matricule: st.matricule,
+            filiere: st.filiere,
+            level: st.level,
+            domain: st.domain,
+            email: st.email,
+            user_id: st.user_id,
+            photo: st.photo
+          },
+          average: 0,
+          grades: [],
+          attendance: { total: 0, present: 0, absent: 0, late: 0, excused: 0 },
+          connection_type: 'mentor',
+          since: null
+        });
       } else {
-        throw new Error('Données étudiant non reçues');
+        throw new Error("Données de l'étudiant introuvables");
       }
     } catch (error: any) {
-      const msg = error.response?.data?.detail || 'Impossible de charger le profil de cet étudiant';
+      console.error('Erreur chargement profil étudiant alumni:', error);
+      const rawDetail = error?.response?.data?.detail;
+      let msg = 'Impossible de charger le profil de cet étudiant.';
+      if (typeof rawDetail === 'string') {
+        msg = rawDetail;
+      } else if (Array.isArray(rawDetail)) {
+        msg = rawDetail.map((d: any) => d.msg || JSON.stringify(d)).join(', ');
+      }
       setErrorMessage(msg);
       toast.error(msg);
     } finally {
       setLoading(false);
     }
-  };
+  }, [getCleanStudentId]);
+
+  useEffect(() => {
+    loadStudentData();
+  }, [loadStudentData]);
 
   if (loading) {
     return (
@@ -68,7 +131,7 @@ export default function AlumniStudentDetailPage() {
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={loadStudentData}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-semibold transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
             >
               <RotateCcw size={15} />
               <span>Réessayer</span>
@@ -94,9 +157,9 @@ export default function AlumniStudentDetailPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
-      {/* Breadcrumb */}
+      {/* Fil d'Ariane */}
       <div className="flex items-center gap-2 text-sm">
-        <Link href="/alumni/students" className="text-slate-500 hover:text-[#FF6B00] flex items-center gap-1 font-medium">
+        <Link href="/alumni/students" className="text-slate-500 hover:text-[#FF6B00] flex items-center gap-1 font-medium transition-colors">
           <ArrowLeft size={16} />
           Mes étudiants
         </Link>
@@ -111,7 +174,7 @@ export default function AlumniStudentDetailPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white font-bold text-xl sm:text-2xl shadow-md shrink-0">
-              {student.first_name?.[0]}{student.last_name?.[0]}
+              {student.first_name?.[0] || 'E'}{student.last_name?.[0] || ''}
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -132,22 +195,30 @@ export default function AlumniStudentDetailPage() {
                 <span className="flex items-center gap-1">
                   <Award size={15} className="text-slate-400" />
                   {connection_type === 'mentor' ? '🎓 Mentoré' :
-                   connection_type === 'directeur_memoire' ? '📚 Direction mémoire' : '🤝 Ami'}
+                   connection_type === 'directeur_memoire' ? '📚 Direction mémoire' : '🤝 Réseau & Conseils'}
                 </span>
+                {student.email && (
+                  <span className="flex items-center gap-1 text-slate-500">
+                    <Mail size={14} className="text-slate-400" />
+                    {student.email}
+                  </span>
+                )}
               </div>
             </div>
           </div>
-          <Link
-            href={student.user_id ? `/alumni/messages?to=${student.user_id}` : '/alumni/messages'}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-semibold transition-all shadow-md shrink-0"
-          >
-            <MessageSquare size={16} />
-            Discuter
-          </Link>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Link
+              href={student.user_id ? `/alumni/messages?to=${student.user_id}` : '/alumni/messages'}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF6B00] hover:bg-[#e55f00] text-white rounded-xl text-sm font-semibold transition-all shadow-md shrink-0"
+            >
+              <MessageSquare size={16} />
+              <span>Discuter</span>
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Stats cards */}
+      {/* Cartes de statistiques clés */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <div className="flex items-center gap-2 text-slate-500 text-xs sm:text-sm mb-1 sm:mb-2">
@@ -155,9 +226,9 @@ export default function AlumniStudentDetailPage() {
             <span className="truncate">Moyenne générale</span>
           </div>
           <p className={`text-2xl sm:text-3xl font-bold ${
-            average >= 14 ? 'text-green-600' : average >= 10 ? 'text-blue-600' : 'text-red-600'
+            average >= 14 ? 'text-green-600' : average >= 10 ? 'text-blue-600' : average > 0 ? 'text-red-600' : 'text-slate-400'
           }`}>
-            {average.toFixed(2)}/20
+            {average > 0 ? `${average.toFixed(2)}/20` : 'En attente'}
           </p>
         </div>
 
@@ -174,8 +245,8 @@ export default function AlumniStudentDetailPage() {
               : 'text-slate-400'
           }`}>
             {attendance.total > 0 
-              ? Math.round((attendance.present + attendance.late) / attendance.total * 100)
-              : 0}%
+              ? `${Math.round(((attendance.present + attendance.late) / attendance.total) * 100)}%`
+              : 'N/A'}
           </p>
         </div>
 
@@ -196,7 +267,7 @@ export default function AlumniStudentDetailPage() {
         </div>
       </div>
 
-      {/* Présences détaillées */}
+      {/* Détails des présences */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
         <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
           <Calendar size={18} className="text-[#FF6B00]" />
@@ -205,19 +276,19 @@ export default function AlumniStudentDetailPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <div className="bg-green-50 rounded-xl p-3 sm:p-4 text-center border border-green-100">
             <p className="text-xl sm:text-2xl font-bold text-green-600">{attendance.present || 0}</p>
-            <p className="text-xs text-green-700 mt-1">Présents</p>
+            <p className="text-xs text-green-700 mt-1 font-medium">Présents</p>
           </div>
           <div className="bg-orange-50 rounded-xl p-3 sm:p-4 text-center border border-orange-100">
             <p className="text-xl sm:text-2xl font-bold text-orange-600">{attendance.late || 0}</p>
-            <p className="text-xs text-orange-700 mt-1">Retards</p>
+            <p className="text-xs text-orange-700 mt-1 font-medium">Retards</p>
           </div>
           <div className="bg-red-50 rounded-xl p-3 sm:p-4 text-center border border-red-100">
             <p className="text-xl sm:text-2xl font-bold text-red-600">{attendance.absent || 0}</p>
-            <p className="text-xs text-red-700 mt-1">Absents</p>
+            <p className="text-xs text-red-700 mt-1 font-medium">Absents</p>
           </div>
           <div className="bg-blue-50 rounded-xl p-3 sm:p-4 text-center border border-blue-100">
             <p className="text-xl sm:text-2xl font-bold text-blue-600">{attendance.excused || 0}</p>
-            <p className="text-xs text-blue-700 mt-1">Excusés</p>
+            <p className="text-xs text-blue-700 mt-1 font-medium">Excusés</p>
           </div>
         </div>
       </div>
@@ -232,7 +303,7 @@ export default function AlumniStudentDetailPage() {
         </div>
         {grades.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-sm">
-            Aucune note disponible pour le moment
+            Aucune note validée disponible pour cet étudiant pour le moment.
           </div>
         ) : (
           <div className="overflow-x-auto">
