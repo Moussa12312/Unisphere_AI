@@ -12,8 +12,6 @@ import { toast } from 'react-hot-toast';
 export default function CreateTeacherPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [filieres, setFilieres] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
@@ -51,25 +49,6 @@ export default function CreateTeacherPage() {
   // Domaines uniques disponibles depuis les filières créées
   const existingDomains = [...new Set(filieres.map(f => f.domain))].filter(Boolean);
   const availableDepartments = Array.from(new Set([...defaultDepartments, ...existingDomains])).sort();
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 8 * 1024 * 1024) {
-        toast.error('La photo ne doit pas dépasser 8 Mo');
-        return;
-      }
-      setPhotoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setPhotoPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const removePhoto = () => {
-    setPhotoFile(null);
-    setPhotoPreview(null);
-  };
 
   const toggleFiliereSelection = (filiereId: number) => {
     setFormData(prev => {
@@ -115,10 +94,6 @@ export default function CreateTeacherPage() {
       
       if (formData.phone && formData.phone.trim() !== '') {
         formDataToSend.append('phone', formData.phone.trim());
-      }
-      
-      if (photoFile) {
-        formDataToSend.append('photo', photoFile);
       }
   
       const response = await teacherService.create(formDataToSend);
@@ -335,42 +310,6 @@ export default function CreateTeacherPage() {
                 })}
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Photo Upload */}
-        <div className="pt-2 border-t border-slate-100">
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-            Photo de Profil (Optionnelle)
-          </label>
-          
-          {photoPreview ? (
-            <div className="relative inline-block">
-              <img 
-                src={photoPreview} 
-                alt="Preview" 
-                className="w-28 h-28 rounded-xl object-cover border-2 border-slate-200"
-              />
-              <button
-                type="button"
-                onClick={removePhoto}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 cursor-pointer"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <label className="border-2 border-dashed border-slate-200 hover:border-[#FF6B00] rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors max-w-sm">
-              <Upload className="text-slate-400 mb-1" size={24} />
-              <span className="text-xs font-semibold text-slate-700">Sélectionner une photo</span>
-              <span className="text-[11px] text-slate-400 mt-0.5">JPG, PNG ou WEBP (max 8 Mo)</span>
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handlePhotoChange} 
-                className="hidden" 
-              />
-            </label>
           )}
         </div>
 

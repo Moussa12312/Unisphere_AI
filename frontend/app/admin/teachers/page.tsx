@@ -53,8 +53,6 @@ export default function AdminTeachersPage() {
     speciality: '',
     filiere_id: null as number | null,
   });
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   
   // États pour mot de passe
   const [newPassword, setNewPassword] = useState('');
@@ -134,9 +132,6 @@ export default function AdminTeachersPage() {
         formDataUpload.append('filieres_interventions', formData.filiere_id.toString());
       } else {
         formDataUpload.append('filieres_interventions', 'ALL');
-      }
-      if (photoFile) {
-        formDataUpload.append('photo', photoFile, photoFile.name || 'photo.jpg');
       }
 
       const response = await api.post('/api/v1/teachers/', formDataUpload);
@@ -220,31 +215,6 @@ export default function AdminTeachersPage() {
       speciality: '',
       filiere_id: null,
     });
-    setPhotoFile(null);
-    setPhotoPreview(null);
-  };
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    if (!file.type.startsWith('image/')) {
-      toast.error('Veuillez sélectionner une image');
-      return;
-    }
-    
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("L'image ne doit pas dépasser 8 Mo");
-      return;
-    }
-    
-    setPhotoFile(file);
-    
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
   };
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -546,46 +516,6 @@ export default function AdminTeachersPage() {
             </div>
             
             <form onSubmit={handleCreate} className="p-5 space-y-4">
-              {/* Photo */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Photo de profil</label>
-                <div className="flex items-center gap-4">
-                  {photoPreview ? (
-                    <div className="relative">
-                      <img src={photoPreview} alt="Aperçu" className="w-24 h-24 rounded-xl object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="w-24 h-24 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center">
-                      <Users size={32} className="text-slate-400" />
-                    </div>
-                  )}
-                  <div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      className="hidden"
-                      id="create-photo"
-                    />
-                    <label
-                      htmlFor="create-photo"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-medium cursor-pointer"
-                    >
-                      <Upload size={16} />
-                      Choisir une photo
-                    </label>
-                    <p className="text-xs text-slate-500 mt-1">JPG, PNG • Max 5 Mo</p>
-                  </div>
-                </div>
-              </div>
-
               {/* Infos */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
