@@ -5,6 +5,7 @@ const API_URL = '';
 
 const api: AxiosInstance = axios.create({
   baseURL: API_URL,
+  timeout: 15000, // 15s timeout de sécurité pour éviter tout blocage infini
 });
 
 api.interceptors.request.use(
