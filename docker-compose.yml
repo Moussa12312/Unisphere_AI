@@ -55,6 +55,7 @@ services:
       SMS_API_SECRET: ${SMS_API_SECRET:-}
       SMS_SENDER_ID: ${SMS_SENDER_ID:-UniSphere}
       SMS_GATEWAY_URL: ${SMS_GATEWAY_URL:-}
+      SMS_DEVICE_ID: ${SMS_DEVICE_ID:-}
       MAX_UPLOAD_SIZE_MB: 25
       UPLOAD_DIR: ./uploads
       QR_DIR: ./qr_codes

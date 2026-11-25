@@ -11,15 +11,24 @@ import urllib.parse
 import json
 import logging
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv()
+load_dotenv("backend/.env")
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
 logger = logging.getLogger(__name__)
 
-# Paramètres .env pour les passerelles SMS
-SMS_PROVIDER = os.getenv("SMS_PROVIDER", "generic_webhook").lower() # generic_webhook, twilio, orange, mock
-SMS_API_KEY = os.getenv("SMS_API_KEY", "")
-SMS_API_SECRET = os.getenv("SMS_API_SECRET", "")
-SMS_SENDER_ID = os.getenv("SMS_SENDER_ID", "UniSphere")
-SMS_GATEWAY_URL = os.getenv("SMS_GATEWAY_URL", "")
+
+def _get_sms_config():
+    return (
+        (os.getenv("SMS_PROVIDER") or "generic_webhook").strip().lower(),
+        (os.getenv("SMS_API_KEY") or "").strip(),
+        (os.getenv("SMS_API_SECRET") or "").strip(),
+        (os.getenv("SMS_SENDER_ID") or "UniSphere").strip(),
+        (os.getenv("SMS_GATEWAY_URL") or "").strip(),
+        (os.getenv("SMS_DEVICE_ID") or "").strip(),
+    )
 
 
 def normalize_phone_number(phone: Optional[str], default_country_code: str = "223") -> Optional[str]:
@@ -113,24 +122,64 @@ def send_sms(to_phone: str, message: str, sender_id: Optional[str] = None) -> Di
             "phone": to_phone
         }
 
-    actual_sender = sender_id or SMS_SENDER_ID or "UniSphere"
+    sms_provider, sms_api_key, sms_api_secret, sms_sender_id, sms_gateway_url, sms_device_id = _get_sms_config()
+    actual_sender = sender_id or sms_sender_id or "UniSphere"
 
-    # 1. Si passerelle HTTP réelle configurée
-    if SMS_API_KEY and SMS_GATEWAY_URL:
+    # 1A. Passerelle gratuite Android SIM via TextBee.dev (SMS_PROVIDER=textbee)
+    if sms_provider == "textbee" and sms_api_key and (sms_device_id or sms_gateway_url):
+        try:
+            import urllib.request
+            target_url = sms_gateway_url or f"https://api.textbee.dev/api/v1/gateway/devices/{sms_device_id}/send-sms"
+            payload = {
+                "recipients": [normalized_phone],
+                "message": message,
+            }
+            req = urllib.request.Request(
+                target_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": sms_api_key,
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=12) as response:
+                status_code = response.getcode()
+                if 200 <= status_code < 300:
+                    logger.info(f"✅ SMS envoyé gratuitement via TextBee Android SIM à {normalized_phone}")
+                    return {
+                        "success": True,
+                        "status": "delivered",
+                        "phone": normalized_phone,
+                        "gateway": "textbee",
+                        "message": message,
+                    }
+        except Exception as e:
+            logger.error(f"⚠️ Échec envoi TextBee SMS: {e}")
+            return {
+                "success": False,
+                "status": "failed",
+                "error": str(e),
+                "phone": normalized_phone,
+            }
+
+    # 1B. Si passerelle HTTP générique / opérateur configurée
+    if sms_api_key and sms_gateway_url:
         try:
             import urllib.request
             payload = {
                 "to": normalized_phone,
                 "from": actual_sender,
                 "message": message,
-                "api_key": SMS_API_KEY
+                "api_key": sms_api_key
             }
             req = urllib.request.Request(
-                SMS_GATEWAY_URL,
+                sms_gateway_url,
                 data=json.dumps(payload).encode("utf-8"),
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {SMS_API_KEY}"
+                    "Authorization": f"Bearer {sms_api_key}",
+                    "x-api-key": sms_api_key,
                 },
                 method="POST"
             )
@@ -142,7 +191,7 @@ def send_sms(to_phone: str, message: str, sender_id: Optional[str] = None) -> Di
                         "success": True,
                         "status": "delivered",
                         "phone": normalized_phone,
-                        "gateway": SMS_GATEWAY_URL,
+                        "gateway": sms_gateway_url,
                         "message": message
                     }
         except Exception as e:

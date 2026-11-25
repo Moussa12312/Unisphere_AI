@@ -9,26 +9,38 @@ import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
+from dotenv import load_dotenv
 
-SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-SMTP_FROM = os.getenv("SMTP_FROM", "noreply@unisphere.ai")
+load_dotenv()
+load_dotenv("backend/.env")
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").split(",")[0].strip()
+
+def _get_smtp_config():
+    host = (os.getenv("SMTP_HOST") or "smtp.gmail.com").strip()
+    port = int((os.getenv("SMTP_PORT") or "587").strip())
+    user = (os.getenv("SMTP_USER") or "").strip()
+    # Supprime automatiquement les espaces des mots de passe d'application Google (ex: "abcd efgh ijkl mnop")
+    password = (os.getenv("SMTP_PASSWORD") or "").replace(" ", "").strip()
+    sender = (os.getenv("SMTP_FROM") or user or "noreply@unisphere.ai").strip()
+    return host, port, user, password, sender
+
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3005").split(",")[0].strip()
 
 
 def is_email_configured() -> bool:
     """Vérifie si les identifiants SMTP sont bien renseignés dans .env."""
-    return bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD)
+    host, _, user, password, _ = _get_smtp_config()
+    return bool(host and user and password)
 
 
 def send_email(to_email: str, subject: str, html_body: str) -> bool:
     """
     Envoie un email HTML + Plaintext optimisé pour la délivrabilité (évite le dossier Spam).
     """
-    if not is_email_configured():
+    smtp_host, smtp_port, smtp_user, smtp_password, smtp_from = _get_smtp_config()
+    if not (smtp_host and smtp_user and smtp_password):
         print(f"⚠️ SMTP non configuré (.env) — email à {to_email} non envoyé.")
         return False
 
@@ -38,9 +50,9 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
         
         # ✅ Forcer l'en-tête From avec le vrai compte SMTP authentifié pour éviter le flag Phishing/Spoofing
         from_display_name = "UniSphere AI"
-        sender_email = SMTP_USER if SMTP_USER and "@" in SMTP_USER else SMTP_FROM
+        sender_email = smtp_user if smtp_user and "@" in smtp_user else smtp_from
         msg["From"] = f"{from_display_name} <{sender_email}>"
-        msg["Reply-To"] = SMTP_FROM if SMTP_FROM else sender_email
+        msg["Reply-To"] = smtp_from if smtp_from else sender_email
         msg["To"] = to_email
         msg["Date"] = formatdate(localtime=True)
         domain = sender_email.split('@')[-1] if '@' in sender_email else 'unisphere.ai'
@@ -58,14 +70,14 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
         msg.attach(text_part)
         msg.attach(html_part)
 
-        if SMTP_PORT == 465:
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=12) as server:
-                server.login(SMTP_USER, SMTP_PASSWORD)
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12) as server:
+                server.login(smtp_user, smtp_password)
                 server.sendmail(sender_email, to_email, msg.as_string())
         else:
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=12) as server:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
                 server.starttls()
-                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.login(smtp_user, smtp_password)
                 server.sendmail(sender_email, to_email, msg.as_string())
 
         print(f"✅ Email délivré avec succès à {to_email}")
