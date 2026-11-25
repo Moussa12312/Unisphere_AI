@@ -113,6 +113,9 @@ def get_university_profile(
             "rector_name": "Administration Générale",
             "academic_year": "2026-2027",
             "logo": None,
+            "theme": "dark-orange",
+            "primary_color": "#FF6B00",
+            "language": "fr",
             "card_config": DEFAULT_CARD_CONFIG
         }
 
@@ -137,9 +140,13 @@ def get_university_profile(
             "rector_name": "",
             "academic_year": "",
             "logo": None,
+            "theme": "light-orange",
+            "primary_color": "#FF6B00",
+            "language": "fr",
             "card_config": DEFAULT_CARD_CONFIG
         }
     
+    card_cfg = university.card_config if isinstance(university.card_config, dict) else {}
     return {
         "id": university.id,
         "name": university.name or "UniSphere AI",
@@ -153,7 +160,10 @@ def get_university_profile(
         "rector_name": university.rector_name or "",
         "academic_year": university.academic_year or "",
         "logo": university.logo,
-        "card_config": university.card_config or DEFAULT_CARD_CONFIG
+        "theme": card_cfg.get("theme", "light-orange"),
+        "primary_color": card_cfg.get("primary_color", "#FF6B00"),
+        "language": card_cfg.get("language", "fr"),
+        "card_config": card_cfg or DEFAULT_CARD_CONFIG
     }
 
 # NOTE : PUT /profile et POST /logo sont gérés par app/api/settings.py

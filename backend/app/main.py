@@ -333,6 +333,7 @@ ai_router = try_import_router("app.api.ai_assistant")
 ai_compat_router = try_import_router("app.api.ai_assistant", "ai_compat_router")
 security_router = try_import_router("app.api.security")
 universities_router = try_import_router("app.api.universities")
+admin_router = try_import_router("app.api.admin")
 
 students_router = try_import_router("app.api.students")
 student_stats_router = try_import_router("app.api.student_stats")
@@ -396,6 +397,7 @@ all_routers = {
     "ai_compat": ai_compat_router,
     "security": security_router,
     "universities": universities_router,
+    "admin": admin_router,
     "superadmin": superadmin_router,
     "students": students_router,
     "student_stats": student_stats_router,
@@ -544,27 +546,3 @@ def download_apk():
             )
     return {"error": "APK not found"}
 
-
-@app.get("/api/v1/teacher/qrcode")
-def get_teacher_qrcode(teacher_id: Optional[int] = None):
-    db = SessionLocal()
-    try:
-        if teacher_id:
-            teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
-        else:
-            teacher = db.query(Teacher).filter(Teacher.user_id == 60).first() or db.query(Teacher).first()
-        
-        if not teacher:
-            return {"error": "Teacher not found"}
-            
-        os.makedirs("qr_codes", exist_ok=True)
-        qr_filename = f"TEACHER_{teacher.id}.png"
-        qr_path = os.path.join("qr_codes", qr_filename)
-        
-        if not (os.path.exists(qr_path) and os.path.getsize(qr_path) > 0):
-            qr = qrcode.make(f"TEACHER-{teacher.id}")
-            qr.save(qr_path)
-            
-        return FileResponse(qr_path, media_type="image/png", filename=f"QR_TEACHER_{teacher.id}.png")
-    finally:
-        db.close()

@@ -11,7 +11,8 @@ load_dotenv()
 load_dotenv("backend/.env")
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
-from app.database.connection import SessionLocal
+from app.database.connection import SessionLocal, Base, engine
+from sqlalchemy import Column, Integer, String, Text, DateTime
 from app.models.user import User
 from app.models.student import Student
 from app.models.teacher import Teacher
@@ -27,6 +28,24 @@ from app.core.dependencies import require_role, get_current_user_optional
 from typing import Optional
 
 router = APIRouter(prefix="/ai-assistant", tags=["AI Assistant"])
+
+
+class AIChatMessage(Base):
+    __tablename__ = "ai_chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, nullable=False)
+    university_id = Column(Integer, index=True, nullable=True)
+    role = Column(String(20), nullable=False)  # "user" | "ai"
+    content = Column(Text, nullable=False)
+    source = Column(String(120), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+try:
+    AIChatMessage.__table__.create(bind=engine, checkfirst=True)
+except Exception as _ai_tbl_err:
+    print(f"[WARNING] Initialisation table ai_chat_messages: {_ai_tbl_err}")
 
 def get_db():
     db = SessionLocal()
@@ -402,6 +421,39 @@ def get_guard_context(db: Session, university_id: int) -> dict:
     }
 
 
+def get_alumni_context(db: Session, user_id: int, university_id: int) -> dict:
+    """Contexte alumni : mentorat, demandes et réseau des diplômés"""
+    from app.models.alumni import AlumniProfile, AlumniConnection
+    profile = db.query(AlumniProfile).filter(AlumniProfile.user_id == user_id).first()
+    active_mentees = 0
+    pending_requests = 0
+    if profile:
+        active_mentees = db.query(func.count(AlumniConnection.id)).filter(
+            AlumniConnection.alumni_id == profile.id,
+            AlumniConnection.status == "accepted"
+        ).scalar() or 0
+        pending_requests = db.query(func.count(AlumniConnection.id)).filter(
+            AlumniConnection.alumni_id == profile.id,
+            AlumniConnection.status == "pending"
+        ).scalar() or 0
+    total_alumni = db.query(func.count(AlumniProfile.id)).filter(
+        AlumniProfile.university_id == university_id
+    ).scalar() or 0
+    total_students = db.query(func.count(Student.id)).filter(
+        Student.university_id == university_id
+    ).scalar() or 0
+    return {
+        "role": "alumni",
+        "role_label": "Diplômé / Mentor Alumni",
+        "active_mentees": active_mentees,
+        "pending_requests": pending_requests,
+        "total_alumni": total_alumni,
+        "total_students": total_students,
+        "position": getattr(profile, "current_position", None) or "Diplômé",
+        "company": getattr(profile, "company", None) or ""
+    }
+
+
 # ==========================================
 # ENDPOINT UNIFIÉ : CHAT AVEC L'IA (PROMPT AMÉLIORÉ)
 # ==========================================
@@ -431,9 +483,9 @@ def call_llm_provider(system_prompt: str, conversation_history: list, user_messa
                 base_url="https://api.groq.com/openai/v1",
                 timeout=12.0
             )
-            configured_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b").strip()
+            configured_model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
             models_to_try = [configured_model] if configured_model else []
-            for candidate in ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "allam-2-7b"]:
+            for candidate in ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b", "allam-2-7b"]:
                 if candidate not in models_to_try:
                     models_to_try.append(candidate)
 
@@ -446,8 +498,11 @@ def call_llm_provider(system_prompt: str, conversation_history: list, user_messa
                         max_tokens=1500,
                     )
                     content = completion.choices[0].message.content
-                    if content and len(content.strip()) > 0:
-                        return content.strip(), f"UniSphere AI (Groq {model_name})"
+                    if content:
+                        import re as _re
+                        content = _re.sub(r"<think>[\s\S]*?</think>", "", content).strip()
+                    if content and len(content) > 0:
+                        return content, f"UniSphere AI (Groq {model_name})"
                 except Exception as m_err:
                     print(f"⚠️ Modèle Groq {model_name} non disponible : {m_err}")
                     continue
@@ -814,6 +869,8 @@ def chat_with_ai(
             context = get_accountant_context(db, university_id)
         elif role == "guard":
             context = get_guard_context(db, university_id)
+        elif role == "alumni":
+            context = get_alumni_context(db, current_user.id, university_id)
         else:
             context = {"role": role, "role_label": "Utilisateur"}
     else:
@@ -836,26 +893,40 @@ CONSIGNES :
 5. Langue : Français exclusivement."""
 
     llm_response, source = call_llm_provider(system_prompt, conversation_history, message)
-    if llm_response:
-        return {
-            "response": llm_response,
-            "context": context,
-            "source": source,
-            "role": role
-        }
+    final_response = llm_response if llm_response else generate_local_ai_response(message, context, user_name)
+    final_source = source if llm_response else "UniSphere AI (Moteur Local)"
 
-    # 2. Moteur IA contextuel local étendu (toujours disponible, varié et rapide)
-    local_response = generate_local_ai_response(message, context, user_name)
+    if current_user and getattr(current_user, "id", None):
+        try:
+            db.add(AIChatMessage(
+                user_id=current_user.id,
+                university_id=current_user.university_id,
+                role="user",
+                content=message,
+                source="user"
+            ))
+            db.add(AIChatMessage(
+                user_id=current_user.id,
+                university_id=current_user.university_id,
+                role="ai",
+                content=final_response,
+                source=final_source
+            ))
+            db.commit()
+        except Exception as _save_err:
+            db.rollback()
+            print(f"⚠️ Erreur sauvegarde historique IA: {_save_err}")
+
     return {
-        "response": local_response,
+        "response": final_response,
         "context": context,
-        "source": "UniSphere AI (Moteur Local)",
+        "source": final_source,
         "role": role
     }
 
 
 # ==========================================
-# ENDPOINTS HISTORIQUE
+# ENDPOINTS HISTORIQUE (PERSISTÉ EN BASE)
 # ==========================================
 
 @router.get("/history")
@@ -864,7 +935,27 @@ def get_chat_history(
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ):
-    return []
+    if not current_user or not getattr(current_user, "id", None):
+        return []
+    rows = (
+        db.query(AIChatMessage)
+        .filter(AIChatMessage.user_id == current_user.id)
+        .order_by(AIChatMessage.id.asc())
+        .limit(100)
+        .all()
+    )
+    return [
+        {
+            "id": str(r.id),
+            "role": r.role,
+            "sender": "user" if r.role == "user" else "ai",
+            "content": r.content,
+            "text": r.content,
+            "source": r.source,
+            "timestamp": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
 
 
 @router.delete("/history")
@@ -873,4 +964,7 @@ def clear_chat_history(
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ):
+    if current_user and getattr(current_user, "id", None):
+        db.query(AIChatMessage).filter(AIChatMessage.user_id == current_user.id).delete()
+        db.commit()
     return {"message": "Historique effacé"}

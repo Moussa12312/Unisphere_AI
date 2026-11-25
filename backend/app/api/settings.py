@@ -52,85 +52,8 @@ def remove_background(image_bytes: bytes) -> bytes:
 
 
 # ==========================================
-# 1. PROFIL UNIVERSITÉ
+# 1. PROFIL UNIVERSITÉ (GET géré par app/api/universities.py)
 # ==========================================
-
-@router.get("/university/profile")
-def get_university_profile(
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user_optional)
-):
-    from app.models.university import University
-    
-    # ✅ Le Super-Admin gère la plateforme globale et ne doit JAMAIS voir les données d'une université cliente
-    if current_user and getattr(current_user, "role", None) in ["super_admin", "superadmin"]:
-        return {
-            "id": 0,
-            "name": "UniSphere AI",
-            "logo": None,
-            "slogan": "Administration Plateforme SaaS",
-            "address": "Siège UniSphere AI",
-            "phone": "+223 70 00 00 00",
-            "email": "contact@unisphere.ai",
-            "website": "https://unisphere.ai",
-            "description": "Plateforme Centrale de Gestion Universitaire",
-            "established_year": "2026",
-            "rector_name": "Administration Générale",
-            "academic_year": "2026-2027",
-            "theme": "dark-orange",
-            "primary_color": "#FF6B00",
-            "language": "fr",
-            "card_config": {}
-        }
-
-    university = None
-    if current_user and getattr(current_user, "university_id", None):
-        university = db.query(University).filter(University.id == current_user.university_id).first()
-    
-    if not university:
-        university = db.query(University).first()
-        
-    if not university:
-        return {
-            "id": 0,
-            "name": "UniSphere AI",
-            "logo": None,
-            "slogan": "Plateforme Intelligente Universitaire",
-            "address": "",
-            "phone": "",
-            "email": "",
-            "website": "",
-            "description": "",
-            "established_year": "",
-            "rector_name": "",
-            "academic_year": "",
-            "theme": "light-orange",
-            "primary_color": "#FF6B00",
-            "language": "fr",
-            "card_config": {}
-        }
-    
-    card_cfg = university.card_config or {}
-    
-    return {
-        "id": university.id,
-        "name": university.name or "UniSphere AI",
-        "logo": university.logo,
-        "slogan": university.slogan or "",
-        "address": university.address or "",
-        "phone": university.phone or "",
-        "email": university.email or "",
-        "website": university.website or "",
-        "description": university.description or "",
-        "established_year": str(university.established_year or ""),
-        "rector_name": university.rector_name or "",
-        "academic_year": university.academic_year or "",
-        "theme": card_cfg.get("theme", "light-orange"),
-        "primary_color": card_cfg.get("primary_color", "#FF6B00"),
-        "language": card_cfg.get("language", "fr"),
-        "card_config": card_cfg
-    }
-
 
 @router.put("/university/profile")
 def update_university_profile(

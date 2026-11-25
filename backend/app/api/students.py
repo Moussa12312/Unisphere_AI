@@ -1278,6 +1278,22 @@ async def public_register_student(
 # 📁 GESTION DU DOSSIER ÉTUDIANT (NOUVEAU & ANCIEN)
 # ==========================================
 
+@router.get("/me/dossier")
+def get_my_dossier(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("student"))
+):
+    """Consulter l'état détaillé de son propre dossier étudiant (placé avant /{student_id}/dossier)"""
+    student = db.query(Student).filter(
+        Student.user_id == current_user.id
+    ).first()
+
+    if not student:
+        raise HTTPException(status_code=404, detail="Profil étudiant non trouvé")
+
+    return get_student_dossier(student_id=student.id, db=db, current_user=current_user)
+
+
 @router.get("/{student_id}/dossier")
 def get_student_dossier(
     student_id: int,
@@ -2772,22 +2788,6 @@ def get_my_student_card(
         },
         "config": saved_config
     }
-
-
-@router.get("/me/dossier")
-def get_my_dossier(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("student"))
-):
-    """Consulter l'état détaillé de son propre dossier étudiant"""
-    student = db.query(Student).filter(
-        Student.user_id == current_user.id
-    ).first()
-
-    if not student:
-        raise HTTPException(status_code=404, detail="Profil étudiant non trouvé")
-
-    return get_student_dossier(student_id=student.id, db=db, current_user=current_user)
 
 
 @router.get("/me/files")

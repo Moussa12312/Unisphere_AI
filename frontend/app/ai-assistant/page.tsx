@@ -95,6 +95,30 @@ export default function AIAssistantPage() {
         console.error('Erreur parsing user:', e);
       }
     }
+
+    const token = localStorage.getItem('token');
+    if (token) {
+      api.get('/api/v1/ai-assistant/history')
+        .then((res) => {
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            const loadedMsgs: Message[] = res.data.map((item: any) => ({
+              id: String(item.id || Math.random()),
+              text: item.text || item.content || '',
+              sender: item.sender === 'user' || item.role === 'user' ? 'user' : 'ai',
+              timestamp: item.timestamp ? new Date(item.timestamp) : new Date(),
+              source: item.source || undefined,
+            }));
+            setMessages((prev) => [prev[0], ...loadedMsgs]);
+            setConversationHistory(
+              res.data.map((item: any) => ({
+                role: item.role === 'user' ? 'user' : 'assistant',
+                content: item.content || item.text || '',
+              }))
+            );
+          }
+        })
+        .catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -177,6 +201,14 @@ export default function AIAssistantPage() {
           { icon: TrendingUp, text: "Statistiques d'assiduité", category: "Stats", color: "from-green-500 to-emerald-600" },
           { icon: Calendar, text: "Événements à surveiller", category: "Calendrier", color: "from-orange-500 to-red-600" },
           { icon: Award, text: "Rapport d'incidents", category: "Rapports", color: "from-red-500 to-pink-600" },
+          { icon: HelpCircle, text: "Que peux-tu faire pour moi ?", category: "Aide", color: "from-slate-600 to-slate-800" }
+        ];
+
+      case 'alumni':
+        return [
+          { icon: Users, text: "Combien d'étudiants je mentore actuellement ?", category: "Mentorat", color: "from-blue-500 to-indigo-600" },
+          { icon: GraduationCap, text: "Comment accompagner un étudiant en mémoire ?", category: "Conseils", color: "from-purple-500 to-pink-600" },
+          { icon: Award, text: "Bilan du réseau Alumni de mon université", category: "Réseau", color: "from-green-500 to-emerald-600" },
           { icon: HelpCircle, text: "Que peux-tu faire pour moi ?", category: "Aide", color: "from-slate-600 to-slate-800" }
         ];
 
@@ -264,7 +296,12 @@ export default function AIAssistantPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const clearConversation = () => {
+  const clearConversation = async () => {
+    try {
+      await api.delete('/api/v1/ai-assistant/history');
+    } catch {
+      // Silencieux en mode visiteur ou hors-ligne
+    }
     setMessages([{
       id: '1',
       text: "Bonjour ! Je suis **UniSphere AI**, votre assistant intelligent.\n\nJe peux vous aider à analyser vos données, répondre à vos questions, et vous proposer des recommandations personnalisées.\n\nQue souhaitez-vous savoir ?",
@@ -307,6 +344,9 @@ export default function AIAssistantPage() {
       case 'censeur': return 'Censeur';
       case 'accountant': return 'Comptable';
       case 'guard': return 'Gardien';
+      case 'alumni': return 'Diplômé / Mentor';
+      case 'super_admin':
+      case 'superadmin': return 'Super Admin';
       default: return 'Utilisateur';
     }
   };

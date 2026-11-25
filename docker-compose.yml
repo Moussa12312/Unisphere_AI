@@ -44,8 +44,17 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@unisphere.ai}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
+      SMS_PROVIDER: ${SMS_PROVIDER:-generic_webhook}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_API_SECRET: ${SMS_API_SECRET:-}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-UniSphere}
+      SMS_GATEWAY_URL: ${SMS_GATEWAY_URL:-}
       MAX_UPLOAD_SIZE_MB: 25
       UPLOAD_DIR: ./uploads
       QR_DIR: ./qr_codes

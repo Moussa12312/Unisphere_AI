@@ -89,8 +89,17 @@ SMTP_PASSWORD=
 SMTP_FROM=noreply@unisphere.ai
 
 # Assistant IA
+GROQ_API_KEY=
+GROQ_MODEL=openai/gpt-oss-120b
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
+
+# Passerelle SMS (Orange / Twilio / Webhook)
+SMS_PROVIDER=generic_webhook
+SMS_API_KEY=
+SMS_API_SECRET=
+SMS_SENDER_ID=UniSphere
+SMS_GATEWAY_URL=
 
 ENVIRONMENT=production
 EOF
