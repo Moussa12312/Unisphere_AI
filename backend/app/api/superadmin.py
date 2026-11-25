@@ -595,7 +595,7 @@ def create_university(
         name=data.university_name.strip(),
         email=data.university_email,
         country=data.country,
-        phone=data.phone,
+        phone=(data.phone.strip() if data.phone and data.phone.strip() else (data.admin_phone.strip() if data.admin_phone else None)),
         custom_domain=data.custom_domain,
         institution_type=data.institution_type,
         is_active=True,

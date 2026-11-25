@@ -130,7 +130,7 @@ export default function NewUniversityPage() {
               </div>
               <div className="relative">
                 <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="+221 77 000 00 00" className={inputClass} />
+                <input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="Téléphone établissement (ex: +223 20 22 44 88)" className={inputClass} required />
               </div>
               <div className="sm:col-span-2 relative">
                 <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />

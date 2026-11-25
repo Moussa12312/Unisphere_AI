@@ -436,7 +436,7 @@ async def register_university(
             email=university_email,
             country=country,
             address="",
-            phone=""
+            phone=(admin_phone or "").strip()
         )
         db.add(new_university)
         db.flush()
