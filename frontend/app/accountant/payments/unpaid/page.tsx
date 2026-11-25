@@ -68,6 +68,8 @@ export default function AccountantUnpaidPage() {
   const [historyItems, setHistoryItems] = useState<ReminderHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [allFilieres, setAllFilieres] = useState<string[]>([]);
+  const [universityName, setUniversityName] = useState<string>('UniSphere');
+  const [universityPhone, setUniversityPhone] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 50;
   const reqIdRef = useRef(0);
@@ -92,6 +94,8 @@ export default function AccountantUnpaidPage() {
       setTotalUnpaidAmount(data.total_unpaid_amount || 0);
       setWithPhoneCount(data.with_student_phone_count || 0);
       setWithParentPhoneCount(data.with_parent_phone_count || 0);
+      if (data.university_name) setUniversityName(data.university_name);
+      if (typeof data.university_phone === 'string') setUniversityPhone(data.university_phone);
       if (Array.isArray(data.all_filieres) && data.all_filieres.length > 0) {
         setAllFilieres(data.all_filieres);
       } else if (allFilieres.length === 0 && Array.isArray(data.students)) {
@@ -130,9 +134,17 @@ export default function AccountantUnpaidPage() {
 
   const openSmsModal = (student: OverdueStudent) => {
     setSelectedStudentForSms(student);
-    setSmsTarget(student.parent_phone ? 'parent' : 'student');
+    const isParent = Boolean(student.parent_phone);
+    setSmsTarget(isParent ? 'parent' : 'student');
+    const amountFmt = new Intl.NumberFormat('fr-FR').format(student.balance);
+    const contactLine = universityPhone.trim()
+      ? `Merci de vous rapprocher de l'établissement pour régulariser la situation ou de contacter le ${universityPhone.trim()} pour plus d'informations.`
+      : `Merci de vous rapprocher de l'établissement (service comptabilité) pour régulariser la situation ou pour plus d'informations.`;
+    const introBody = isParent
+      ? `Bonjour M./Mme ${student.parent_name || 'Parent'}, sauf erreur de notre part, un reliquat de scolarité de ${amountFmt} FCFA reste dû pour votre enfant ${student.student_name} (${student.filiere}).`
+      : `Bonjour ${student.student_name}, sauf erreur de notre part, un reliquat de scolarité de ${amountFmt} FCFA reste à régulariser pour votre inscription en ${student.filiere}.`;
     setCustomSmsMessage(
-      `Rappel scolarité : Cher parent, un reliquat de ${new Intl.NumberFormat('fr-FR').format(student.balance)} FCFA reste dû pour ${student.student_name} (${student.filiere}). Merci de régulariser auprès du service comptabilité.`
+      `UniSphere • ${universityName} :\n${introBody}\n${contactLine}\nService Comptabilité & Scolarité.`
     );
   };
 

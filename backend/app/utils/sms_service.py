@@ -84,10 +84,12 @@ def build_tuition_reminder_template(
     student_name: str,
     filiere: str,
     balance: float,
-    due_date: Optional[str] = None
+    due_date: Optional[str] = None,
+    university_phone: Optional[str] = None,
 ) -> str:
     """
-    Formate un message clair, courtois et officiel de relance de scolarité.
+    Formate un message clair, courtois et officiel de relance de scolarité
+    mentionnant le nom et le numéro de contact propre à l'université.
     """
     amount_str = f"{int(balance):,}".replace(",", " ")
     univ = university_name or "UniSphere"
@@ -102,7 +104,16 @@ def build_tuition_reminder_template(
         body = f"sauf erreur de notre part, un reliquat de scolarité de {amount_str} FCFA reste à régulariser pour votre inscription en {filiere}."
         
     echeance_info = f" Échéance : {due_date}." if due_date else ""
-    closing = "Merci de vous rapprocher de la caisse pour régulariser votre situation."
+    if university_phone and str(university_phone).strip():
+        closing = (
+            f"Merci de vous rapprocher de l'établissement pour régulariser la situation "
+            f"ou de contacter le {str(university_phone).strip()} pour plus d'informations."
+        )
+    else:
+        closing = (
+            "Merci de vous rapprocher de l'établissement (service comptabilité) "
+            "pour régulariser la situation ou pour plus d'informations."
+        )
     
     return f"UniSphere • {univ} :\n{intro} {body}{echeance_info}\n{closing}\nService Comptabilité & Scolarité."
 

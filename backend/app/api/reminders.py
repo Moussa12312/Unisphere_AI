@@ -107,6 +107,7 @@ def get_unpaid_students(
     univ_id = current_user.university_id
     univ = db.query(University).filter(University.id == univ_id).first() if univ_id else None
     univ_name = univ.name if univ else "UniSphere"
+    univ_phone = (univ.phone or "").strip() if univ else ""
 
     base_student_query = db.query(Student)
     if current_user.role not in ["super_admin", "superadmin"] and univ_id:
@@ -227,7 +228,8 @@ def get_unpaid_students(
             recipient_name=full_name,
             student_name=full_name,
             filiere=s.filiere or "votre filière",
-            balance=bal
+            balance=bal,
+            university_phone=univ_phone
         )
         wa_url_student = generate_whatsapp_url(s.phone, wa_text_student) if s.phone else None
 
@@ -236,7 +238,8 @@ def get_unpaid_students(
             recipient_name=s.parent_name or f"Parent de {s.first_name}",
             student_name=full_name,
             filiere=s.filiere or "votre filière",
-            balance=bal
+            balance=bal,
+            university_phone=univ_phone
         )
         wa_url_parent = generate_whatsapp_url(s.parent_phone, wa_text_parent) if s.parent_phone else None
 
@@ -262,6 +265,8 @@ def get_unpaid_students(
     unpaid_list.sort(key=lambda x: (-x["balance"], x["student_id"]))
 
     return {
+        "university_name": univ_name,
+        "university_phone": univ_phone,
         "total_unpaid_students": len(unpaid_list),
         "total_unpaid_amount": round(total_unpaid_amount),
         "with_student_phone_count": with_phone_count,
@@ -290,6 +295,7 @@ def send_single_reminder(
 
     univ = db.query(University).filter(University.id == student.university_id).first()
     univ_name = univ.name if univ else "Université"
+    univ_phone = (univ.phone or "").strip() if univ else ""
 
     # Calcul du solde
     finances = compute_student_balance(student, db)
@@ -348,7 +354,8 @@ def send_single_reminder(
         recipient_name=student_name,
         student_name=student_name,
         filiere=filiere,
-        balance=balance
+        balance=balance,
+        university_phone=univ_phone
     )
 
     for r in recipients:
@@ -357,7 +364,8 @@ def send_single_reminder(
             recipient_name=r["name"],
             student_name=student_name,
             filiere=filiere,
-            balance=balance
+            balance=balance,
+            university_phone=univ_phone
         )
 
         # Lien WhatsApp direct si vrai numéro
@@ -486,6 +494,7 @@ def send_bulk_reminders(
     univ_id = current_user.university_id or 1
     univ = db.query(University).filter(University.id == univ_id).first()
     univ_name = univ.name if univ else "UniSphere"
+    univ_phone = (univ.phone or "").strip() if univ else ""
 
     query = db.query(Student)
     if current_user.role not in ["super_admin", "superadmin"] and current_user.university_id:
@@ -536,7 +545,8 @@ def send_bulk_reminders(
             recipient_name=recipient_display,
             student_name=student_name,
             filiere=filiere,
-            balance=bal
+            balance=bal,
+            university_phone=univ_phone
         )
 
         status = "simulated"
